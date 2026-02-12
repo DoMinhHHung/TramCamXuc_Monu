@@ -18,7 +18,10 @@ public enum ErrorCode {
     INVALID_PASSWORD(1004, "Password must be at least 8 characters", HttpStatus.BAD_REQUEST),
     USER_NOT_EXISTED(1005, "User not existed", HttpStatus.NOT_FOUND),
     EMAIL_INVALID_FORMAT(1006, "Email invalid format", HttpStatus.BAD_REQUEST),
-    EMAIL_NOT_BLANK(1007, "Email must not be blank", HttpStatus.BAD_REQUEST)
+    EMAIL_NOT_BLANK(1007, "Email must not be blank", HttpStatus.BAD_REQUEST),
+    DOB_REQUIRED(1008, "Date of birth is required", HttpStatus.BAD_REQUEST),
+    DOB_MUST_BE_IN_PAST(1009, "Date of birth must be in the past", HttpStatus.BAD_REQUEST),
+    AGE_TOO_YOUNG(1010, "User must be at least 13 years old", HttpStatus.BAD_REQUEST),
     ;
 
     private final int code;
