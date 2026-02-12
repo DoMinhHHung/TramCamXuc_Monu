@@ -13,7 +13,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class UserCreationRequest {
+public class UserRegistrationRequest {
     @NotBlank(message = "EMAIL_NOT_BLANK")
     @Email(message = "EMAIL_INVALID_FORMAT")
     private String email;

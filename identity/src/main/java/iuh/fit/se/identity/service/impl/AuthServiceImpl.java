@@ -4,18 +4,17 @@ import iuh.fit.se.core.event.NotificationEvent;
 import iuh.fit.se.core.exception.*;
 import iuh.fit.se.identity.dto.mapper.UserMapper;
 import iuh.fit.se.identity.dto.request.PasswordResetRequest;
-import iuh.fit.se.identity.dto.request.UserCreationRequest;
+import iuh.fit.se.identity.dto.request.UserRegistrationRequest;
 import iuh.fit.se.identity.dto.response.UserResponse;
 import iuh.fit.se.identity.entity.User;
 import iuh.fit.se.identity.enums.*;
 import iuh.fit.se.identity.repository.UserRepository;
-import iuh.fit.se.identity.service.UserService;
+import iuh.fit.se.identity.service.AuthService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class UserServiceImpl implements UserService {
+public class AuthServiceImpl implements AuthService {
     UserRepository userRepository;
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
@@ -37,7 +36,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponse createUser(UserCreationRequest request) {
+    public UserResponse createUser(UserRegistrationRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
