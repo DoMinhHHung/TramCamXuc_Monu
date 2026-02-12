@@ -25,7 +25,12 @@ public enum ErrorCode {
     AGE_TOO_YOUNG(1010, "User must be at least 13 years old", HttpStatus.BAD_REQUEST),
     OTP_EXPIRED(1011, "OTP has expired", HttpStatus.BAD_REQUEST),
     OTP_INVALID(1012, "Invalid OTP", HttpStatus.BAD_REQUEST),
-    ACCOUNT_ALREADY_VERIFIED(1013, "Account already verified", HttpStatus.BAD_REQUEST)
+    ACCOUNT_ALREADY_VERIFIED(1013, "Account already verified", HttpStatus.BAD_REQUEST),
+    LOGIN_FAILED(1014, "Login failed: invalid credentials", HttpStatus.UNAUTHORIZED),
+    ACCOUNT_LOCKED(1015, "Account is locked", HttpStatus.FORBIDDEN),
+    INVALID_REFRESH_TOKEN(1016, "Invalid refresh token", HttpStatus.UNAUTHORIZED),
+    REFRESH_TOKEN_EXPIRED(1017, "Refresh token has expired", HttpStatus.UNAUTHORIZED),
+    FULLNAME_NOT_BLANK(1018, "Full name must not be blank", HttpStatus.BAD_REQUEST)
     ;
 
     private final int code;

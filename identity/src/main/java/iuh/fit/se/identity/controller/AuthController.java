@@ -1,9 +1,8 @@
 package iuh.fit.se.identity.controller;
 
 import iuh.fit.se.core.dto.ApiResponse;
-import iuh.fit.se.identity.dto.request.PasswordResetRequest;
-import iuh.fit.se.identity.dto.request.UserRegistrationRequest;
-import iuh.fit.se.identity.dto.request.VerifyOtpRequest;
+import iuh.fit.se.identity.dto.request.*;
+import iuh.fit.se.identity.dto.response.AuthenticationResponse;
 import iuh.fit.se.identity.dto.response.UserResponse;
 import iuh.fit.se.identity.service.AuthService;
 import jakarta.validation.Valid;
@@ -16,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/auth/users")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class UserController {
+public class AuthController {
 
     AuthService userService;
 
@@ -56,6 +55,20 @@ public class UserController {
         userService.resetPassword(request);
         return ApiResponse.<Void>builder()
                 .message("Password has been reset successfully")
+                .build();
+    }
+
+    @PostMapping("/login")
+    public ApiResponse<AuthenticationResponse> login(@RequestBody AuthenticationRequest request) {
+        return ApiResponse.<AuthenticationResponse>builder()
+                .result(userService.login(request))
+                .build();
+    }
+
+    @PostMapping("/refresh")
+    public ApiResponse<AuthenticationResponse> refresh(@RequestBody RefreshRequest request) {
+        return ApiResponse.<AuthenticationResponse>builder()
+                .result(userService.refreshToken(request))
                 .build();
     }
 }

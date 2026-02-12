@@ -17,12 +17,20 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "users")
+@Table(
+        name = "users",
+        indexes = {
+                @Index(name = "idx_users_email", columnList = "email")
+        }
+)
 public class User extends BaseEntity{
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
+
+    @Column(name = "full_name", nullable = false)
+    private String fullName;
 
     @Column(name = "email", unique = true, nullable = false)
     private String email;
