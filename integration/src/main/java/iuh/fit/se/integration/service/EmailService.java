@@ -1,7 +1,6 @@
-package iuh.fit.se.integration.email;
+package iuh.fit.se.integration.service;
 
-import iuh.fit.se.core.exception.AppException;
-import iuh.fit.se.core.exception.ErrorCode;
+import iuh.fit.se.integration.dto.EmailRequest;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;

@@ -275,6 +275,7 @@ public class AuthServiceImpl implements AuthService {
                 .setSubject(user.getId().toString())
                 .claim("email", user.getEmail())
                 .claim("role", scopeJoiner.toString())
+                .claim("scope", scopeJoiner.toString())
                 .claim("name", user.getFullName())
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)

@@ -1,8 +1,8 @@
 package iuh.fit.se.integration.notification;
 
 import iuh.fit.se.core.event.NotificationEvent;
-import iuh.fit.se.integration.email.EmailRequest;
-import iuh.fit.se.integration.email.EmailService;
+import iuh.fit.se.integration.dto.EmailRequest;
+import iuh.fit.se.integration.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

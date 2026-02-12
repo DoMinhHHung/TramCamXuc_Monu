@@ -1,8 +1,6 @@
-package iuh.fit.se.integration.email;
+package iuh.fit.se.integration.dto;
 
 import lombok.*;
-
-import java.util.List;
 
 @Data
 @Builder

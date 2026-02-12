@@ -33,6 +33,12 @@ public enum ErrorCode {
     FULLNAME_NOT_BLANK(1018, "Full name must not be blank", HttpStatus.BAD_REQUEST),
     INVALID_SOCIAL_TOKEN(1019, "Invalid social token", HttpStatus.UNAUTHORIZED),
     EMAIL_IS_REQUIRED(1020, "Email is required from social provider", HttpStatus.BAD_REQUEST),
+    INVALID_TOKEN(1021, "Invalid token", HttpStatus.UNAUTHORIZED),
+    TYPE_FILE_NOT_SUPPORTED(1022, "File type not supported || File is not a valid image", HttpStatus.BAD_REQUEST),
+    FILE_NOT_NULL(1023, "File must not be null", HttpStatus.BAD_REQUEST),
+    STORAGE_SERVICE_ERROR(1024, "Storage service error", HttpStatus.INTERNAL_SERVER_ERROR),
+    CANNOT_ACCESS_ADMIN(1025, "Cannot access or ban Admin account", HttpStatus.FORBIDDEN),
+    ACCESS_DENIED(1026, "Access denied", HttpStatus.FORBIDDEN)
     ;
 
     private final int code;

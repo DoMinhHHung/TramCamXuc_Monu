@@ -12,7 +12,7 @@ import lombok.AccessLevel;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/auth/users")
+@RequestMapping("/auth")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthController {
