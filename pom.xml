@@ -13,6 +13,8 @@
     <description>Thesis Project: Music Social Network &amp; Streaming</description>
     <modules>
         <module>core</module>
+        <module>identity</module>
+        <module>api-server</module>
     </modules>
 
     <properties>
