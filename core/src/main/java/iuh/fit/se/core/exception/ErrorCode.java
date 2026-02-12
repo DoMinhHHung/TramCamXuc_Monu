@@ -12,16 +12,20 @@ public enum ErrorCode {
     DB_CONNECTION_FAILED(9901, "Database connection failed", HttpStatus.SERVICE_UNAVAILABLE),
     REDIS_CONNECTION_FAILED(9902, "Redis connection failed", HttpStatus.SERVICE_UNAVAILABLE),
     RABBITMQ_ERROR(9903, "Message Queue error", HttpStatus.SERVICE_UNAVAILABLE),
+    EMAIL_SEND_FAILED(9904, "Failed to send email", HttpStatus.INTERNAL_SERVER_ERROR),
 
     USER_EXISTED(1002, "User already exists", HttpStatus.BAD_REQUEST),
     USERNAME_INVALID(1003, "Username must be at least 3 characters", HttpStatus.BAD_REQUEST),
-    INVALID_PASSWORD(1004, "Password must be at least 8 characters", HttpStatus.BAD_REQUEST),
+    INVALID_PASSWORD(1004, "Password must be at least 8 characters and contain at least one uppercase letter, one lowercase letter, one digit, and one special character", HttpStatus.BAD_REQUEST),
     USER_NOT_EXISTED(1005, "User not existed", HttpStatus.NOT_FOUND),
     EMAIL_INVALID_FORMAT(1006, "Email invalid format", HttpStatus.BAD_REQUEST),
     EMAIL_NOT_BLANK(1007, "Email must not be blank", HttpStatus.BAD_REQUEST),
     DOB_REQUIRED(1008, "Date of birth is required", HttpStatus.BAD_REQUEST),
     DOB_MUST_BE_IN_PAST(1009, "Date of birth must be in the past", HttpStatus.BAD_REQUEST),
     AGE_TOO_YOUNG(1010, "User must be at least 13 years old", HttpStatus.BAD_REQUEST),
+    OTP_EXPIRED(1011, "OTP has expired", HttpStatus.BAD_REQUEST),
+    OTP_INVALID(1012, "Invalid OTP", HttpStatus.BAD_REQUEST),
+    ACCOUNT_ALREADY_VERIFIED(1013, "Account already verified", HttpStatus.BAD_REQUEST)
     ;
 
     private final int code;

@@ -15,6 +15,7 @@
         <module>core</module>
         <module>identity</module>
         <module>api-server</module>
+        <module>integration</module>
     </modules>
 
     <properties>

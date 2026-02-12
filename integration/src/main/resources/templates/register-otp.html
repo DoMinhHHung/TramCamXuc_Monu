@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Xác thực tài khoản</title>
+    <style>
+        .container { font-family: Arial, sans-serif; padding: 20px; }
+        .otp-code { font-size: 24px; font-weight: bold; color: #d32f2f; letter-spacing: 5px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Xin chào, <span th:text="${name}">User</span>!</h2>
+    <p>Đây là mã xác thực:</p>
+
+    <p class="otp-code" th:text="${otp}">123456</p>
+
+    <p>Mã này sẽ hết hạn trong 5 phút. Đừng chia sẻ cho ai.</p>
+</div>
+</body>
+</html>

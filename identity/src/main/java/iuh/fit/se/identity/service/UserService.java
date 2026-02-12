@@ -5,4 +5,6 @@ import iuh.fit.se.identity.dto.response.UserResponse;
 
 public interface UserService {
     UserResponse createUser(UserCreationRequest request);
+    void verifyOtp(String email, String otp);
+    void resendOtp(String email);
 }
