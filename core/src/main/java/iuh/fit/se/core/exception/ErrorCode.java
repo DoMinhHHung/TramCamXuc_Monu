@@ -30,7 +30,9 @@ public enum ErrorCode {
     ACCOUNT_LOCKED(1015, "Account is locked", HttpStatus.FORBIDDEN),
     INVALID_REFRESH_TOKEN(1016, "Invalid refresh token", HttpStatus.UNAUTHORIZED),
     REFRESH_TOKEN_EXPIRED(1017, "Refresh token has expired", HttpStatus.UNAUTHORIZED),
-    FULLNAME_NOT_BLANK(1018, "Full name must not be blank", HttpStatus.BAD_REQUEST)
+    FULLNAME_NOT_BLANK(1018, "Full name must not be blank", HttpStatus.BAD_REQUEST),
+    INVALID_SOCIAL_TOKEN(1019, "Invalid social token", HttpStatus.UNAUTHORIZED),
+    EMAIL_IS_REQUIRED(1020, "Email is required from social provider", HttpStatus.BAD_REQUEST),
     ;
 
     private final int code;

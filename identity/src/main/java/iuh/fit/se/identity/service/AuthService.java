@@ -12,4 +12,5 @@ public interface AuthService {
 
     AuthenticationResponse login(AuthenticationRequest request);
     AuthenticationResponse refreshToken(RefreshRequest request);
+    AuthenticationResponse outboundAuthentication(ExchangeTokenRequest request);
 }

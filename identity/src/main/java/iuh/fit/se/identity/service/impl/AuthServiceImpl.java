@@ -7,17 +7,16 @@ import io.jsonwebtoken.security.Keys;
 import iuh.fit.se.core.event.NotificationEvent;
 import iuh.fit.se.core.exception.*;
 import iuh.fit.se.identity.dto.mapper.UserMapper;
-import iuh.fit.se.identity.dto.request.AuthenticationRequest;
-import iuh.fit.se.identity.dto.request.PasswordResetRequest;
-import iuh.fit.se.identity.dto.request.RefreshRequest;
-import iuh.fit.se.identity.dto.request.UserRegistrationRequest;
+import iuh.fit.se.identity.dto.request.*;
 import iuh.fit.se.identity.dto.response.AuthenticationResponse;
+import iuh.fit.se.identity.dto.response.OutboundUserResponse;
 import iuh.fit.se.identity.dto.response.UserResponse;
 import iuh.fit.se.identity.entity.RefreshToken;
 import iuh.fit.se.identity.entity.User;
 import iuh.fit.se.identity.enums.*;
 import iuh.fit.se.identity.repository.RefreshTokenRepository;
 import iuh.fit.se.identity.repository.UserRepository;
+import iuh.fit.se.identity.repository.httpclient.IdentityClient;
 import iuh.fit.se.identity.service.AuthService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -32,10 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.Date;
-import java.util.Map;
-import java.util.StringJoiner;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -44,9 +42,17 @@ public class AuthServiceImpl implements AuthService {
     UserRepository userRepository;
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final ApplicationEventPublisher eventPublisher;
-    private final RefreshTokenRepository refreshTokenRepository;
+    IdentityClient identityClient;
+    final RedisTemplate<String, Object> redisTemplate;
+    final ApplicationEventPublisher eventPublisher;
+    final RefreshTokenRepository refreshTokenRepository;
+
+    static final String LOWER = "abcdefghijklmnopqrstuvwxyz";
+    static final String UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    static final String DIGIT = "0123456789";
+    static final String SPECIAL = "!@#$%^&*";
+    static final String ALL = LOWER + UPPER + DIGIT + SPECIAL;
+    static final int PASSWORD_LENGTH = 12;
 
     @NonFinal @Value("${jwt.signerKey}")
     protected String signerKey;
@@ -216,10 +222,49 @@ public class AuthServiceImpl implements AuthService {
                 .build();
     }
 
-    private String generateOtp() {
+    @Override
+    public AuthenticationResponse outboundAuthentication(ExchangeTokenRequest request) {
+        OutboundUserResponse userInfo;
+
+        if (request.getProvider() == AuthProvider.GOOGLE) {
+            userInfo = identityClient.getUserInfoFromGoogle(request.getToken());
+        } else if (request.getProvider() == AuthProvider.FACEBOOK) {
+            userInfo = identityClient.getUserInfoFromFacebook(request.getToken());
+        } else {
+            throw new AppException(ErrorCode.INVALID_KEY);
+        }
+        if (userInfo.getEmail() == null || userInfo.getEmail().isBlank()) {
+            throw new AppException(ErrorCode.EMAIL_IS_REQUIRED);
+        }
+
+        User user = userRepository.findByEmail(userInfo.getEmail()).orElseGet(() -> {
+            return userRepository.save(User.builder()
+                    .email(userInfo.getEmail())
+                    .password(passwordEncoder.encode(generatePassword()))
+                    .role(Role.USER)
+                    .status(AccountStatus.ACTIVE)
+                    .provider(request.getProvider())
+                    .providerId(userInfo.getId())
+                    .fullName(userInfo.getName())
+                    .avatarUrl(userInfo.getPicture())
+                    .build());
+        });
+
+        String accessToken = generateToken(user, validDuration);
+        String refreshToken = generateToken(user, refreshableDuration);
+        saveRefreshToken(user, refreshToken);
+
+        return AuthenticationResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .authenticated(true)
+                .build();
+        }
+
+    String generateOtp() {
         return String.valueOf(new SecureRandom().nextInt(900000) + 100000);
     }
-    private String generateToken(User user, long duration) {
+    String generateToken(User user, long duration) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + duration);
 
@@ -236,12 +281,35 @@ public class AuthServiceImpl implements AuthService {
                 .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(signerKey)), SignatureAlgorithm.HS256)
                 .compact();
     }
-    private void saveRefreshToken(User user, String token) {
+    void saveRefreshToken(User user, String token) {
         RefreshToken refreshTokenEntity = RefreshToken.builder()
                 .token(token)
                 .user(user)
                 .expiryDate(LocalDateTime.now().plusNanos(refreshableDuration * 1000000))
                 .build();
         refreshTokenRepository.save(refreshTokenEntity);
+    }
+    String generatePassword() {
+        SecureRandom random = new SecureRandom();
+        StringBuilder password = new StringBuilder();
+
+        password.append(LOWER.charAt(random.nextInt(LOWER.length())));
+        password.append(UPPER.charAt(random.nextInt(UPPER.length())));
+        password.append(DIGIT.charAt(random.nextInt(DIGIT.length())));
+        password.append(SPECIAL.charAt(random.nextInt(SPECIAL.length())));
+
+        for (int i = 4; i < PASSWORD_LENGTH; i++) {
+            password.append(ALL.charAt(random.nextInt(ALL.length())));
+        }
+        List<Character> chars = password.chars()
+                .mapToObj(c -> (char) c)
+                .collect(Collectors.toList());
+
+        Collections.shuffle(chars, random);
+
+        StringBuilder finalPassword = new StringBuilder();
+        chars.forEach(finalPassword::append);
+
+        return finalPassword.toString();
     }
 }

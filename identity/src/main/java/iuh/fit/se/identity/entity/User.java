@@ -45,6 +45,9 @@ public class User extends BaseEntity{
     @Column(name = "gender")
     private Gender gender;
 
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
 //    ENUMS
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)

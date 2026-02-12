@@ -71,4 +71,11 @@ public class AuthController {
                 .result(userService.refreshToken(request))
                 .build();
     }
+
+    @PostMapping("/social")
+    public ApiResponse<AuthenticationResponse> outboundAuthentication(@RequestBody @Valid ExchangeTokenRequest request) {
+        return ApiResponse.<AuthenticationResponse>builder()
+                .result(userService.outboundAuthentication(request))
+                .build();
+    }
 }
