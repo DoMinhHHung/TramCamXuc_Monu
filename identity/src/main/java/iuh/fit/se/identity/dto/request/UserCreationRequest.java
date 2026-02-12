@@ -3,7 +3,7 @@ package iuh.fit.se.identity.dto.request;
 import iuh.fit.se.identity.enums.Gender;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -14,11 +14,14 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 public class UserCreationRequest {
-    @NotBlank(message = "Email must not be blank")
-    @Email(message = "Email invalid format")
+    @NotBlank(message = "EMAIL_NOT_BLANK")
+    @Email(message = "EMAIL_INVALID_FORMAT")
     private String email;
 
-    @Size(min = 6, message = "Password must be at least 6 characters")
+    @Pattern(
+            regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}$",
+            message = "INVALID_PASSWORD"
+    )
     private String password;
 
     private LocalDate dob;
