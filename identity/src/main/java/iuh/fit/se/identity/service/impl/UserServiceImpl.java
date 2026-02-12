@@ -3,6 +3,7 @@ package iuh.fit.se.identity.service.impl;
 import iuh.fit.se.core.event.NotificationEvent;
 import iuh.fit.se.core.exception.*;
 import iuh.fit.se.identity.dto.mapper.UserMapper;
+import iuh.fit.se.identity.dto.request.PasswordResetRequest;
 import iuh.fit.se.identity.dto.request.UserCreationRequest;
 import iuh.fit.se.identity.dto.response.UserResponse;
 import iuh.fit.se.identity.entity.User;
@@ -29,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 public class UserServiceImpl implements UserService {
     UserRepository userRepository;
     UserMapper userMapper;
-    PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    PasswordEncoder passwordEncoder;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -42,7 +43,7 @@ public class UserServiceImpl implements UserService {
         }
 
         String otp = generateOtp();
-        String redisKey = "auth:otp:" + request.getEmail();
+        String redisKey = "auth:otp:registration" + request.getEmail();
 
         try {
             redisTemplate.opsForValue().set(redisKey, otp, 5, TimeUnit.MINUTES);
@@ -74,7 +75,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void verifyOtp(String email, String otp) {
-        String key = "auth:otp:" + email;
+        String key = "auth:otp:registration" + email;
         String savedOtp = (String) redisTemplate.opsForValue().get(key);
 
         if (savedOtp == null) throw new AppException(ErrorCode.OTP_EXPIRED);
@@ -98,7 +99,7 @@ public class UserServiceImpl implements UserService {
             throw new AppException(ErrorCode.ACCOUNT_ALREADY_VERIFIED);
 
         String otp = generateOtp();
-        redisTemplate.opsForValue().set("auth:otp:" + email, otp, 5, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set("auth:otp:registration" + email, otp, 5, TimeUnit.MINUTES);
 
         eventPublisher.publishEvent(NotificationEvent.builder()
                 .channel("EMAIL")
@@ -107,6 +108,40 @@ public class UserServiceImpl implements UserService {
                 .templateCode("register-otp")
                 .paramMap(Map.of("name", email, "otp", otp))
                 .build());
+    }
+
+    @Override
+    public void forgotPassword(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        String otp = generateOtp();
+
+        redisTemplate.opsForValue().set("auth:otp:forgot:" + email, otp, 5, TimeUnit.MINUTES);
+
+        eventPublisher.publishEvent(NotificationEvent.builder()
+                .channel("EMAIL")
+                .recipient(email)
+                .subject("Reset Password Request")
+                .templateCode("forgot-password")
+                .paramMap(Map.of("name", user.getEmail(), "otp", otp))
+                .build());
+    }
+
+    @Override
+    public void resetPassword(PasswordResetRequest request) {
+        String key = "auth:otp:forgot:" + request.getEmail();
+        String savedOtp = (String) redisTemplate.opsForValue().get(key);
+
+        if (savedOtp == null) throw new AppException(ErrorCode.OTP_EXPIRED);
+        if (!savedOtp.equals(request.getOtp())) throw new AppException(ErrorCode.OTP_INVALID);
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        redisTemplate.delete(key);
     }
 
     private String generateOtp() {

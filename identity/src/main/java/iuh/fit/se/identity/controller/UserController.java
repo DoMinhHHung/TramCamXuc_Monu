@@ -1,6 +1,7 @@
 package iuh.fit.se.identity.controller;
 
 import iuh.fit.se.core.dto.ApiResponse;
+import iuh.fit.se.identity.dto.request.PasswordResetRequest;
 import iuh.fit.se.identity.dto.request.UserCreationRequest;
 import iuh.fit.se.identity.dto.request.VerifyOtpRequest;
 import iuh.fit.se.identity.dto.response.UserResponse;
@@ -12,7 +13,7 @@ import lombok.AccessLevel;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/auth/users")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class UserController {
@@ -39,6 +40,22 @@ public class UserController {
         userService.resendOtp(email);
         return ApiResponse.<Void>builder()
                 .message("OTP sent")
+                .build();
+    }
+
+    @PostMapping("/forgot-password")
+    public ApiResponse<Void> forgotPassword(@RequestParam("email") String email) {
+        userService.forgotPassword(email);
+        return ApiResponse.<Void>builder()
+                .message("Reset password OTP has been sent")
+                .build();
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@RequestBody @Valid PasswordResetRequest request) {
+        userService.resetPassword(request);
+        return ApiResponse.<Void>builder()
+                .message("Password has been reset successfully")
                 .build();
     }
 }
