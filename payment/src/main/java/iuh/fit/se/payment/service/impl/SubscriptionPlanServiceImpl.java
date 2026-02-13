@@ -1,5 +1,7 @@
 package iuh.fit.se.payment.service.impl;
 
+import iuh.fit.se.core.constant.SubscriptionConstants;
+import iuh.fit.se.core.event.FreePlanResponseEvent;
 import iuh.fit.se.core.exception.AppException;
 import iuh.fit.se.core.exception.ErrorCode;
 import iuh.fit.se.payment.dto.mapper.SubscriptionPlanMapper;
@@ -11,6 +13,7 @@ import iuh.fit.se.payment.repository.UserSubscriptionRepository;
 import iuh.fit.se.payment.service.SubscriptionPlanService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,6 +31,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
     private final SubscriptionPlanRepository planRepository;
     private final UserSubscriptionRepository userSubscriptionRepository;
     private final SubscriptionPlanMapper planMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -63,6 +67,14 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
         planMapper.updateEntity(request, plan);
         plan = planRepository.save(plan);
+
+        if (SubscriptionConstants.PLAN_FREE.equals(plan.getSubsName())) {
+            log.info("Broadcasting update for FREE plan configuration...");
+            eventPublisher.publishEvent(FreePlanResponseEvent.builder()
+                    .planName(plan.getSubsName())
+                    .features(plan.getFeatures())
+                    .build());
+        }
 
         log.info("Updated subscription plan: {}", plan.getId());
         return planMapper.toResponse(plan);

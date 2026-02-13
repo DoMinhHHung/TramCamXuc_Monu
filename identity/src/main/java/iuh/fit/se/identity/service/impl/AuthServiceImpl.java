@@ -18,6 +18,7 @@ import iuh.fit.se.identity.repository.RefreshTokenRepository;
 import iuh.fit.se.identity.repository.UserRepository;
 import iuh.fit.se.identity.repository.httpclient.IdentityClient;
 import iuh.fit.se.identity.service.AuthService;
+import iuh.fit.se.identity.service.FreePlanConfigService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -46,6 +47,7 @@ public class AuthServiceImpl implements AuthService {
     final RedisTemplate<String, Object> redisTemplate;
     final ApplicationEventPublisher eventPublisher;
     final RefreshTokenRepository refreshTokenRepository;
+    private final FreePlanConfigService freePlanConfigService;
 
     static final String LOWER = "abcdefghijklmnopqrstuvwxyz";
     static final String UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -83,6 +85,8 @@ public class AuthServiceImpl implements AuthService {
         User user = userMapper.toEntity(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(Role.USER);
+        user.setSubscriptionPlan(freePlanConfigService.getCurrentFreePlanName());
+        user.setSubscriptionFeatures(freePlanConfigService.getCurrentFreeFeaturesJson());
 
         try {
             user = userRepository.save(user);
@@ -247,6 +251,8 @@ public class AuthServiceImpl implements AuthService {
                     .providerId(userInfo.getId())
                     .fullName(userInfo.getName())
                     .avatarUrl(userInfo.getPicture())
+                    .subscriptionPlan(freePlanConfigService.getCurrentFreePlanName())
+                    .subscriptionFeatures(freePlanConfigService.getCurrentFreeFeaturesJson())
                     .build());
         });
 
@@ -271,12 +277,17 @@ public class AuthServiceImpl implements AuthService {
         StringJoiner scopeJoiner = new StringJoiner(" ");
         scopeJoiner.add("ROLE_" + user.getRole().name());
 
+        String features = user.getSubscriptionFeatures();
+        String plan = user.getSubscriptionPlan();
+
         return Jwts.builder()
                 .setSubject(user.getId().toString())
                 .claim("email", user.getEmail())
                 .claim("role", scopeJoiner.toString())
                 .claim("scope", scopeJoiner.toString())
                 .claim("name", user.getFullName())
+                .claim("plan", plan != null ? plan : "FREE")
+                .claim("features", features)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(signerKey)), SignatureAlgorithm.HS256)

@@ -2,6 +2,7 @@ package iuh.fit.se.payment.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import iuh.fit.se.core.event.SubscriptionActiveEvent;
 import iuh.fit.se.core.exception.AppException;
 import iuh.fit.se.core.exception.ErrorCode;
 import iuh.fit.se.payment.configuration.PayOSConfig;
@@ -17,6 +18,7 @@ import iuh.fit.se.payment.repository.UserSubscriptionRepository;
 import iuh.fit.se.payment.service.PayOSService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.payos.PayOS;
@@ -41,6 +43,8 @@ public class PayOSServiceImpl implements PayOSService {
     private final PaymentTransactionRepository transactionRepository;
     private final UserSubscriptionRepository subscriptionRepository;
     private final ObjectMapper objectMapper;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -167,6 +171,12 @@ public class PayOSServiceImpl implements PayOSService {
                     subscription.setStatus(SubscriptionStatus.ACTIVE);
                     subscriptionRepository.save(subscription);
                     log.info("Activated subscription: {}", subscription.getId());
+
+                    eventPublisher.publishEvent(SubscriptionActiveEvent.builder()
+                            .userId(transaction.getUserId())
+                            .planName(subscription.getPlan().getSubsName())
+                            .features(subscription.getPlan().getFeatures())
+                            .build());
                 }
 
                 log.info("Payment completed for order: {}", orderCode);

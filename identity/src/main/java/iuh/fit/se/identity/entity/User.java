@@ -70,4 +70,10 @@ public class User extends BaseEntity{
 
     @Column(name = "provider_id")
     private String providerId;
+
+    // Subscription  fields
+    @Column(name = "subscription_features", columnDefinition = "TEXT")
+    private String subscriptionFeatures;
+    @Column(name = "subscription_plan")
+    private String subscriptionPlan;
 }

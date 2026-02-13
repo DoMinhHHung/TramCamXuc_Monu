@@ -1,5 +1,7 @@
 package iuh.fit.se.payment.service.impl;
 
+import iuh.fit.se.core.constant.SubscriptionConstants;
+import iuh.fit.se.core.event.SubscriptionActiveEvent;
 import iuh.fit.se.core.exception.AppException;
 import iuh.fit.se.core.exception.ErrorCode;
 import iuh.fit.se.payment.dto.mapper.UserSubscriptionMapper;
@@ -15,6 +17,7 @@ import iuh.fit.se.payment.service.PayOSService;
 import iuh.fit.se.payment.service.UserSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +38,16 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     private final UserSubscriptionRepository subscriptionRepository;
     private final UserSubscriptionMapper subscriptionMapper;
     private final PayOSService payOSService;
+    private final ApplicationEventPublisher eventPublisher;
+
+    private static final Map<String, Object> FALLBACK_FREE_FEATURES = Map.of(
+            SubscriptionConstants.FEATURE_QUALITY, "128kbps",
+            SubscriptionConstants.FEATURE_PLAYLIST_LIMIT, 5,
+            SubscriptionConstants.FEATURE_RECOMMENDATION, "basic",
+            SubscriptionConstants.FEATURE_NO_ADS, false,
+            SubscriptionConstants.FEATURE_OFFLINE, false,
+            SubscriptionConstants.FEATURE_CAN_BECOME_ARTIST, false
+    );
 
     private UUID getCurrentUserId() {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -72,8 +86,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
 
         subscription = subscriptionRepository.save(subscription);
 
-        // Create PayOS payment link
-        String description = String.format("Purchase", plan.getSubsName());
+        String description = "Purchase " + plan.getSubsName();
 
         PaymentResponse paymentResponse = payOSService.createPaymentLink(
                 userId,
@@ -128,14 +141,25 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
 
     @Override
     @Transactional
-    @Scheduled(cron = "0 0 0 * * *") // Run daily at midnight
+//    @Scheduled(cron = "0 0 0 * * *")
+    @Scheduled(fixedRate = 60000)
     public void processExpiredSubscriptions() {
+        Map<String, Object> freeFeatures = planRepository.findBySubsNameAndIsActiveTrue(SubscriptionConstants.PLAN_FREE)
+                .map(SubscriptionPlan::getFeatures)
+                .orElse(FALLBACK_FREE_FEATURES);
+
         List<UserSubscription> expiredSubscriptions =
                 subscriptionRepository.findExpiredSubscriptions(LocalDateTime.now());
 
         for (UserSubscription subscription : expiredSubscriptions) {
             subscription.setStatus(SubscriptionStatus.EXPIRED);
             subscriptionRepository.save(subscription);
+
+            eventPublisher.publishEvent(SubscriptionActiveEvent.builder()
+                    .userId(subscription.getUserId())
+                    .planName(SubscriptionConstants.PLAN_FREE)
+                    .features(freeFeatures)
+                    .build());
         }
 
         log.info("Processed {} expired subscriptions", expiredSubscriptions.size());

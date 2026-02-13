@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -22,6 +23,7 @@ public class AdminSubscriptionController {
     private final SubscriptionPlanService subscriptionPlanService;
 
     @PostMapping("/plans")
+    @PreAuthorize(("hasRole('ADMIN')"))
     public ApiResponse<SubscriptionPlanResponse> createPlan(
             @RequestBody @Valid SubscriptionPlanRequest request) {
         return ApiResponse.<SubscriptionPlanResponse>builder()
@@ -30,6 +32,7 @@ public class AdminSubscriptionController {
     }
 
     @PutMapping("/plans/{id}")
+    @PreAuthorize(("hasRole('ADMIN')"))
     public ApiResponse<SubscriptionPlanResponse> updatePlan(
             @PathVariable UUID id,
             @RequestBody @Valid SubscriptionPlanRequest request) {
@@ -39,6 +42,7 @@ public class AdminSubscriptionController {
     }
 
     @DeleteMapping("/plans/{id}")
+    @PreAuthorize(("hasRole('ADMIN')"))
     public ApiResponse<Void> deletePlan(@PathVariable UUID id) {
         subscriptionPlanService.deletePlan(id);
         return ApiResponse.<Void>builder()
@@ -47,6 +51,7 @@ public class AdminSubscriptionController {
     }
 
     @PatchMapping("/plans/{id}/toggle-status")
+    @PreAuthorize(("hasRole('ADMIN')"))
     public ApiResponse<Void> togglePlanStatus(@PathVariable UUID id) {
         subscriptionPlanService.togglePlanStatus(id);
         return ApiResponse.<Void>builder()
@@ -56,8 +61,8 @@ public class AdminSubscriptionController {
 
     @GetMapping("/plans")
     public ApiResponse<Page<SubscriptionPlanResponse>> getAllPlans(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "1", name = "page") int page,
+            @RequestParam(defaultValue = "10", name = "size") int size) {
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("displayOrder").ascending());
         return ApiResponse.<Page<SubscriptionPlanResponse>>builder()
                 .result(subscriptionPlanService.getAllPlans(pageable))
