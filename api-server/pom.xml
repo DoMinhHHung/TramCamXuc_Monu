@@ -13,6 +13,13 @@
     <artifactId>api-server</artifactId>
 
     <dependencies>
+
+        <dependency>
+            <groupId>iuh.fit.se</groupId>
+            <artifactId>payment</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
         <dependency>
             <groupId>iuh.fit.se</groupId>
             <artifactId>identity</artifactId>

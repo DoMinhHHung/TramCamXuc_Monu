@@ -15,7 +15,6 @@ public interface UserMapper {
     @Mapping(target = "provider", ignore = true)
     @Mapping(target = "providerId", ignore = true)
     @Mapping(target = "avatarUrl", ignore = true)
-    @Mapping(target = "fullName", ignore = true)
     User toEntity(UserRegistrationRequest request);
 
     UserResponse toResponse(User user);
