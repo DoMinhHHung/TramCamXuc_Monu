@@ -17,6 +17,7 @@
         <module>api-server</module>
         <module>integration</module>
         <module>payment</module>
+        <module>music</module>
     </modules>
 
     <properties>

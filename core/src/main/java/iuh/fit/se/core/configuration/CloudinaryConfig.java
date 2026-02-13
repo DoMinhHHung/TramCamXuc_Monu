@@ -1,4 +1,4 @@
-package iuh.fit.se.identity.configuration;
+package iuh.fit.se.core.configuration;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;

@@ -1,6 +1,7 @@
 package iuh.fit.se.payment.service;
 
 import iuh.fit.se.payment.dto.request.SubscriptionPlanRequest;
+import iuh.fit.se.payment.dto.request.SubscriptionPlanUpdateRequest;
 import iuh.fit.se.payment.dto.response.SubscriptionPlanResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,7 +13,7 @@ public interface SubscriptionPlanService {
 
     SubscriptionPlanResponse createPlan(SubscriptionPlanRequest request);
 
-    SubscriptionPlanResponse updatePlan(UUID id, SubscriptionPlanRequest request);
+    SubscriptionPlanResponse updatePlan(UUID id, SubscriptionPlanUpdateRequest request);
 
     void deletePlan(UUID id);
 

@@ -6,6 +6,7 @@ import iuh.fit.se.core.exception.AppException;
 import iuh.fit.se.core.exception.ErrorCode;
 import iuh.fit.se.payment.dto.mapper.SubscriptionPlanMapper;
 import iuh.fit.se.payment.dto.request.SubscriptionPlanRequest;
+import iuh.fit.se.payment.dto.request.SubscriptionPlanUpdateRequest;
 import iuh.fit.se.payment.dto.response.SubscriptionPlanResponse;
 import iuh.fit.se.payment.entity.SubscriptionPlan;
 import iuh.fit.se.payment.repository.SubscriptionPlanRepository;
@@ -19,7 +20,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -56,7 +59,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
     @Override
     @Transactional
-    public SubscriptionPlanResponse updatePlan(UUID id, SubscriptionPlanRequest request) {
+    public SubscriptionPlanResponse updatePlan(UUID id, SubscriptionPlanUpdateRequest request) {
         SubscriptionPlan plan = planRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SUBSCRIPTION_PLAN_NOT_FOUND));
 
@@ -65,7 +68,17 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
             throw new AppException(ErrorCode.SUBSCRIPTION_PLAN_ALREADY_EXISTS);
         }
 
-        planMapper.updateEntity(request, plan);
+        planMapper.partialUpdate(request, plan);
+        if (request.getFeatures() != null) {
+            Map<String, Object> currentFeatures = plan.getFeatures();
+
+            if (currentFeatures == null) {
+                currentFeatures = new HashMap<>();
+            }
+
+            currentFeatures.putAll(request.getFeatures());
+            plan.setFeatures(currentFeatures);
+        }
         plan = planRepository.save(plan);
 
         if (SubscriptionConstants.PLAN_FREE.equals(plan.getSubsName())) {
