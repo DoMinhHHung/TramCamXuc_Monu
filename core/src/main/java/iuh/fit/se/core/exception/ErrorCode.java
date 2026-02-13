@@ -38,7 +38,16 @@ public enum ErrorCode {
     FILE_NOT_NULL(1023, "File must not be null", HttpStatus.BAD_REQUEST),
     STORAGE_SERVICE_ERROR(1024, "Storage service error", HttpStatus.INTERNAL_SERVER_ERROR),
     CANNOT_ACCESS_ADMIN(1025, "Cannot access or ban Admin account", HttpStatus.FORBIDDEN),
-    ACCESS_DENIED(1026, "Access denied", HttpStatus.FORBIDDEN)
+    ACCESS_DENIED(1026, "Access denied", HttpStatus.FORBIDDEN),
+
+    SUBSCRIPTION_PLAN_NOT_FOUND(2001, "Subscription plan not found", HttpStatus.NOT_FOUND),
+    SUBSCRIPTION_PLAN_ALREADY_EXISTS(2002, "Subscription plan with this name already exists", HttpStatus.BAD_REQUEST),
+    SUBSCRIPTION_PLAN_NOT_ACTIVE(2003, "Subscription plan is not active", HttpStatus.BAD_REQUEST),
+    USER_SUBSCRIPTION_NOT_FOUND(2004, "User subscription not found", HttpStatus.NOT_FOUND),
+    USER_ALREADY_HAS_ACTIVE_SUBSCRIPTION(2005, "User already has an active subscription", HttpStatus.BAD_REQUEST),
+    PAYMENT_TRANSACTION_NOT_FOUND(2006, "Payment transaction not found", HttpStatus.NOT_FOUND),
+    PAYMENT_PROCESSING_ERROR(2007, "Error processing payment", HttpStatus.INTERNAL_SERVER_ERROR),
+    CANNOT_DELETE_PLAN_WITH_ACTIVE_SUBSCRIPTIONS(2008, "Cannot delete plan with active subscriptions", HttpStatus.BAD_REQUEST)
     ;
 
     private final int code;
