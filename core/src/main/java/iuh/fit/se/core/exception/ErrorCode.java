@@ -66,7 +66,12 @@ public enum ErrorCode {
     GENRE_NAME_TOO_LONG(4002, "Genre name must not exceed 100 characters", HttpStatus.BAD_REQUEST),
     DESCRIPTION_TOO_LONG(4003, "Genre description must not exceed 500 characters", HttpStatus.BAD_REQUEST),
     GENRE_ALREADY_EXISTS(4004, "Genre with this name already exists", HttpStatus.BAD_REQUEST),
-    GENRE_NOT_FOUND(4005, "Genre not found", HttpStatus.NOT_FOUND)
+    GENRE_NOT_FOUND(4005, "Genre not found", HttpStatus.NOT_FOUND),
+
+    TITLE_REQUIRED(5001, "Title is required", HttpStatus.BAD_REQUEST),
+    TITLE_TOO_LONG(5002, "Title must not exceed 200 characters", HttpStatus.BAD_REQUEST),
+    FILE_EXTENSION_REQUIRED(5003, "File extension is required", HttpStatus.BAD_REQUEST),
+    GENRES_REQUIRED(5004, "At least one genre is required", HttpStatus.BAD_REQUEST),
     ;
 
     private final int code;

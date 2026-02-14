@@ -15,6 +15,11 @@
     <dependencies>
         <dependency>
             <groupId>iuh.fit.se</groupId>
+            <artifactId>transcoder</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>iuh.fit.se</groupId>
             <artifactId>music</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>

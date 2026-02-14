@@ -2,22 +2,31 @@ package iuh.fit.se.core.service;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.MinioClient;
+import io.minio.http.Method;
 import iuh.fit.se.core.exception.AppException;
 import iuh.fit.se.core.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class StorageService {
     private final Cloudinary cloudinary;
+    private final MinioClient minioClient;
+
+    @Value("${minio.bucket.raw-songs}")
+    private String rawSongsBucket;
 
     public String uploadImage(MultipartFile file, String folderName) {
         if (file == null || file.isEmpty()) {
@@ -62,5 +71,21 @@ public class StorageService {
             if (dotIndex != -1) path = path.substring(0, dotIndex);
             return path;
         } catch (Exception e) { return null; }
+    }
+
+    public String generatePresignedUploadUrl(String objectName) {
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.PUT)
+                            .bucket(rawSongsBucket)
+                            .object(objectName)
+                            .expiry(15, TimeUnit.MINUTES)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Lỗi khi đẻ Presigned URL từ MinIO", e);
+            throw new AppException(ErrorCode.STORAGE_SERVICE_ERROR);
+        }
     }
 }
