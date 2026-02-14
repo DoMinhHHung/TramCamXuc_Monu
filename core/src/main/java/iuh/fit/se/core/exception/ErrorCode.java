@@ -60,7 +60,13 @@ public enum ErrorCode {
     ARTIST_ALREADY_REGISTERED(3004, "Artist profile already registered for this user", HttpStatus.BAD_REQUEST),
     ARTIST_NOT_FOUND(3005, "Artist profile not found", HttpStatus.NOT_FOUND),
     ARTIST_STAGE_NAME_EXISTS(3006, "Artist stage name already exists", HttpStatus.BAD_REQUEST),
-    ARTIST_RESTRICTED(3007, "Artist account is restricted or expired", HttpStatus.FORBIDDEN)
+    ARTIST_RESTRICTED(3007, "Artist account is restricted or expired", HttpStatus.FORBIDDEN),
+
+    GENRE_NAME_REQUIRED(4001, "Genre name is required", HttpStatus.BAD_REQUEST),
+    GENRE_NAME_TOO_LONG(4002, "Genre name must not exceed 100 characters", HttpStatus.BAD_REQUEST),
+    DESCRIPTION_TOO_LONG(4003, "Genre description must not exceed 500 characters", HttpStatus.BAD_REQUEST),
+    GENRE_ALREADY_EXISTS(4004, "Genre with this name already exists", HttpStatus.BAD_REQUEST),
+    GENRE_NOT_FOUND(4005, "Genre not found", HttpStatus.NOT_FOUND)
     ;
 
     private final int code;
