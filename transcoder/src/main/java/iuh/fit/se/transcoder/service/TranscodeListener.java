@@ -1,5 +1,6 @@
 package iuh.fit.se.transcoder.service;
 
+import com.rabbitmq.client.Channel;
 import iuh.fit.se.core.configuration.RabbitMQConfig;
 import iuh.fit.se.core.dto.message.TranscodeSongMessage;
 import iuh.fit.se.core.dto.message.TranscodeSuccessMessage;
@@ -7,9 +8,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.support.AmqpHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Paths;
 
 @Service
@@ -22,7 +26,11 @@ public class TranscodeListener {
     private final RabbitTemplate rabbitTemplate;
 
     @RabbitListener(queues = RabbitMQConfig.TRANSCODE_QUEUE)
-    public void handleTranscodeRequest(TranscodeSongMessage message) {
+    public void handleTranscodeRequest(
+            TranscodeSongMessage message,
+            Channel channel,
+            @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
+
         log.info("==== START TRANSCODING FOR SONG: {} ====", message.getSongId());
 
         String tmpDir = System.getProperty("java.io.tmpdir");
@@ -33,26 +41,19 @@ public class TranscodeListener {
         try {
             new File(outputDir).mkdirs();
 
-            // 1. Tải file gốc
             minioHelper.downloadRawFile(message.getRawFileKey(), localRawFilePath);
 
-            // 2. Lấy thời lượng
             int duration = ffmpegService.getDuration(localRawFilePath);
             log.info("Duration calculated: {} seconds", duration);
 
-            // 3. Băm HLS và Up lên MinIO
-            log.info("FFMPEG is chopping the audio...");
             ffmpegService.generateHls(localRawFilePath, outputDir);
             String minioTargetPrefix = "hls/" + message.getSongId();
             minioHelper.uploadHlsDirectory(outputDir, minioTargetPrefix);
 
-            // 4. NÉN MP3 320KBPS VÀ UP LÊN MINIO
-            log.info("FFMPEG is compressing to 320kbps MP3...");
             ffmpegService.generateMp3320k(localRawFilePath, localMp3FilePath);
             String mp3ObjectKey = "download/" + message.getSongId() + "/song-320kbps.mp3";
             minioHelper.uploadSingleFile(localMp3FilePath, mp3ObjectKey, "audio/mpeg");
 
-            // 5. Bắn thông báo thành công về cho Music Service
             String masterM3u8Path = minioTargetPrefix + "/master.m3u8";
             TranscodeSuccessMessage successMessage = TranscodeSuccessMessage.builder()
                     .songId(message.getSongId())
@@ -66,30 +67,36 @@ public class TranscodeListener {
                     successMessage
             );
 
-            log.info("==== TRANSCODING SUCCESS: {} - Sent callback to Music Service ====", message.getSongId());
+            channel.basicAck(deliveryTag, false);
+            log.info("==== TRANSCODING SUCCESS: {} ====", message.getSongId());
 
         } catch (Exception e) {
             log.error("==== TRANSCODING FAILED FOR SONG: {} ====", message.getSongId(), e);
+            handleFailure(channel, deliveryTag, message);
         } finally {
             cleanupTempFiles(localRawFilePath, outputDir, localMp3FilePath);
         }
     }
 
+    private void handleFailure(Channel channel, long deliveryTag, TranscodeSongMessage message) {
+        try {
+            channel.basicNack(deliveryTag, false, false);
+            log.warn("Message for song {} sent to DLQ", message.getSongId());
+        } catch (IOException e) {
+            log.error("Failed to NACK message for song {}", message.getSongId(), e);
+        }
+    }
+
     private void cleanupTempFiles(String rawFilePath, String outputDir, String mp3FilePath) {
         try {
-            File rawFile = new File(rawFilePath);
-            if (rawFile.exists()) rawFile.delete();
-
-            File mp3File = new File(mp3FilePath);
-            if (mp3File.exists()) mp3File.delete();
+            new File(rawFilePath).delete();
+            new File(mp3FilePath).delete();
 
             File dir = new File(outputDir);
             if (dir.exists()) {
                 File[] files = dir.listFiles();
                 if (files != null) {
-                    for (File file : files) {
-                        file.delete();
-                    }
+                    for (File file : files) file.delete();
                 }
                 dir.delete();
             }
