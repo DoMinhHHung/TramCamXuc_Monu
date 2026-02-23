@@ -20,6 +20,11 @@ public interface SongMapper {
     @Mapping(target = "lyricUrl", ignore = true)
     @Mapping(target = "thumbnailUrl", ignore = true)
     @Mapping(target = "status", ignore = true)
+    @Mapping(target = "approvalStatus", ignore = true)
+    @Mapping(target = "transcodeStatus", ignore = true)
+    @Mapping(target = "rejectionReason", ignore = true)
+    @Mapping(target = "reviewedAt", ignore = true)
+    @Mapping(target = "reviewedBy", ignore = true)
     @Mapping(target = "playCount", ignore = true)
     Song toEntity(SongCreateRequest request);
 

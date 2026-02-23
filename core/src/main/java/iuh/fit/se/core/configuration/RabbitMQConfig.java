@@ -20,12 +20,12 @@ public class RabbitMQConfig {
     public static final String TRANSCODE_SUCCESS_QUEUE = "song.transcode.success.queue";
     public static final String TRANSCODE_SUCCESS_ROUTING_KEY = "song.transcode.success";
 
-    @Bean
+    @Bean("musicExchange")
     public DirectExchange musicExchange() {
         return new DirectExchange(MUSIC_EXCHANGE);
     }
 
-    @Bean
+    @Bean("deadLetterExchange")
     public DirectExchange deadLetterExchange() {
         return new DirectExchange(DEAD_LETTER_EXCHANGE);
     }
@@ -40,7 +40,7 @@ public class RabbitMQConfig {
 
     @Bean
     public Binding transcodeBinding(@Qualifier("transcodeQueue") Queue queue,
-                                    DirectExchange musicExchange) {
+                                    @Qualifier("musicExchange") DirectExchange musicExchange) {
         return BindingBuilder.bind(queue).to(musicExchange).with(TRANSCODE_ROUTING_KEY);
     }
 
@@ -51,7 +51,7 @@ public class RabbitMQConfig {
 
     @Bean
     public Binding transcodeDlqBinding(@Qualifier("transcodeDlq") Queue queue,
-                                       DirectExchange deadLetterExchange) {
+                                       @Qualifier("deadLetterExchange") DirectExchange deadLetterExchange) {
         return BindingBuilder.bind(queue).to(deadLetterExchange).with(TRANSCODE_DLQ);
     }
 
@@ -62,7 +62,7 @@ public class RabbitMQConfig {
 
     @Bean
     public Binding transcodeSuccessBinding(@Qualifier("transcodeSuccessQueue") Queue queue,
-                                           DirectExchange musicExchange) {
+                                           @Qualifier("musicExchange") DirectExchange musicExchange) {
         return BindingBuilder.bind(queue).to(musicExchange).with(TRANSCODE_SUCCESS_ROUTING_KEY);
     }
 

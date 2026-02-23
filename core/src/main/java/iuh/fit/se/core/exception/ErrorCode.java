@@ -73,6 +73,8 @@ public enum ErrorCode {
     FILE_EXTENSION_REQUIRED(5003, "File extension is required", HttpStatus.BAD_REQUEST),
     GENRES_REQUIRED(5004, "At least one genre is required", HttpStatus.BAD_REQUEST),
     UPGRADE_REQUIRED(5005, "Upgrade required to access this feature", HttpStatus.UPGRADE_REQUIRED),
+
+    PLAYLIST_LIMIT_EXCEEDED(6001, "Playlist limit exceeded", HttpStatus.FORBIDDEN),
     ;
 
     private final int code;

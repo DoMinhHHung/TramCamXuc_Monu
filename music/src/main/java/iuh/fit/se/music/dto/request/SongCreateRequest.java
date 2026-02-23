@@ -1,5 +1,6 @@
 package iuh.fit.se.music.dto.request;
 
+import iuh.fit.se.music.enums.SongStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
@@ -24,4 +25,6 @@ public class SongCreateRequest {
 
     @NotEmpty(message = "GENRES_REQUIRED")
     private Set<UUID> genreIds;
+
+    private SongStatus initialStatus;
 }

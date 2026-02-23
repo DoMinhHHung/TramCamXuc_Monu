@@ -2,7 +2,7 @@ package iuh.fit.se.music.service.impl;
 
 import iuh.fit.se.core.configuration.RabbitMQConfig;
 import iuh.fit.se.core.dto.message.TranscodeSuccessMessage;
-import iuh.fit.se.music.enums.SongStatus;
+import iuh.fit.se.music.enums.TranscodeStatus;
 import iuh.fit.se.music.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +23,7 @@ public class SongTranscodeResultListener {
         log.info("Music Service received SUCCESS callback for Song: {}", message.getSongId());
 
         songRepository.findById(message.getSongId()).ifPresent(song -> {
-            song.setStatus(SongStatus.COMPLETED);
+            song.setTranscodeStatus(TranscodeStatus.COMPLETED);
             song.setDurationSeconds(message.getDuration());
             song.setHlsMasterUrl(message.getHlsMasterUrl());
 

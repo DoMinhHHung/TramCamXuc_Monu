@@ -32,8 +32,6 @@ public class ArtistController {
     ArtistService artistService;
     SongService songService;
 
-    // ==================== USER ENDPOINTS ====================
-
     @PostMapping("/register")
     public ApiResponse<ArtistResponse> registerArtist(@RequestBody @Valid ArtistRegisterRequest request) {
         return ApiResponse.<ArtistResponse>builder()
@@ -81,16 +79,14 @@ public class ArtistController {
                 .build();
     }
 
-    // ==================== ADMIN ENDPOINTS ====================
-
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Page<ArtistResponse>> getArtistsForAdmin(
             @RequestParam(required = false) String stageName,
             @RequestParam(required = false) ArtistStatus status,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
+
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
         return ApiResponse.<Page<ArtistResponse>>builder()
                 .result(artistService.getArtistsForAdmin(stageName, status, pageable))
@@ -102,6 +98,7 @@ public class ArtistController {
     public ApiResponse<Void> toggleArtistStatus(
             @PathVariable UUID id,
             @RequestParam ArtistStatus status) {
+
         artistService.toggleArtistStatus(id, status);
         return ApiResponse.<Void>builder()
                 .message("Artist status updated successfully")
