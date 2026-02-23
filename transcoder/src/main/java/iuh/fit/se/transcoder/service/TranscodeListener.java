@@ -28,21 +28,31 @@ public class TranscodeListener {
         String tmpDir = System.getProperty("java.io.tmpdir");
         String localRawFilePath = Paths.get(tmpDir, message.getSongId() + "." + message.getFileExtension()).toString();
         String outputDir = Paths.get(tmpDir, "output_" + message.getSongId()).toString();
+        String localMp3FilePath = Paths.get(tmpDir, message.getSongId() + "-320kbps.mp3").toString();
 
         try {
             new File(outputDir).mkdirs();
 
+            // 1. Tải file gốc
             minioHelper.downloadRawFile(message.getRawFileKey(), localRawFilePath);
 
+            // 2. Lấy thời lượng
             int duration = ffmpegService.getDuration(localRawFilePath);
             log.info("Duration calculated: {} seconds", duration);
 
+            // 3. Băm HLS và Up lên MinIO
             log.info("FFMPEG is chopping the audio...");
             ffmpegService.generateHls(localRawFilePath, outputDir);
-
             String minioTargetPrefix = "hls/" + message.getSongId();
             minioHelper.uploadHlsDirectory(outputDir, minioTargetPrefix);
 
+            // 4. NÉN MP3 320KBPS VÀ UP LÊN MINIO
+            log.info("FFMPEG is compressing to 320kbps MP3...");
+            ffmpegService.generateMp3320k(localRawFilePath, localMp3FilePath);
+            String mp3ObjectKey = "download/" + message.getSongId() + "/song-320kbps.mp3";
+            minioHelper.uploadSingleFile(localMp3FilePath, mp3ObjectKey, "audio/mpeg");
+
+            // 5. Bắn thông báo thành công về cho Music Service
             String masterM3u8Path = minioTargetPrefix + "/master.m3u8";
             TranscodeSuccessMessage successMessage = TranscodeSuccessMessage.builder()
                     .songId(message.getSongId())
@@ -61,14 +71,17 @@ public class TranscodeListener {
         } catch (Exception e) {
             log.error("==== TRANSCODING FAILED FOR SONG: {} ====", message.getSongId(), e);
         } finally {
-            cleanupTempFiles(localRawFilePath, outputDir);
+            cleanupTempFiles(localRawFilePath, outputDir, localMp3FilePath);
         }
     }
 
-    private void cleanupTempFiles(String rawFilePath, String outputDir) {
+    private void cleanupTempFiles(String rawFilePath, String outputDir, String mp3FilePath) {
         try {
             File rawFile = new File(rawFilePath);
             if (rawFile.exists()) rawFile.delete();
+
+            File mp3File = new File(mp3FilePath);
+            if (mp3File.exists()) mp3File.delete();
 
             File dir = new File(outputDir);
             if (dir.exists()) {

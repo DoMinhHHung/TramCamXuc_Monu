@@ -88,4 +88,24 @@ public class StorageService {
             throw new AppException(ErrorCode.STORAGE_SERVICE_ERROR);
         }
     }
+
+    public String generatePresignedDownloadUrl(String objectName, String displayFileName) {
+        try {
+            Map<String, String> reqParams = new java.util.HashMap<>();
+            reqParams.put("response-content-disposition", "attachment; filename=\"" + displayFileName + "\"");
+
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(rawSongsBucket)
+                            .object(objectName)
+                            .expiry(5, TimeUnit.MINUTES)
+                            .extraQueryParams(reqParams)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Lỗi khi tạo Presigned URL Download từ MinIO", e);
+            throw new AppException(ErrorCode.STORAGE_SERVICE_ERROR);
+        }
+    }
 }

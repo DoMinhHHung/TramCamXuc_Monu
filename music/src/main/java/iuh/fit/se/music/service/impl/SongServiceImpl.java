@@ -1,6 +1,10 @@
 package iuh.fit.se.music.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.Claims;
 import iuh.fit.se.core.configuration.RabbitMQConfig;
+import iuh.fit.se.core.constant.SubscriptionConstants;
 import iuh.fit.se.core.dto.message.TranscodeSongMessage;
 import iuh.fit.se.core.exception.*;
 import iuh.fit.se.core.service.StorageService;
@@ -22,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.text.Normalizer;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -115,6 +120,46 @@ public class SongServiceImpl implements SongService {
         );
 
         log.info("Sent transcode request for song: {}", songId);
+    }
+
+    @Override
+    public String getDownloadUrl(UUID songId) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        UUID userId = UUID.fromString(authentication.getName());
+
+        if (authentication.getCredentials() instanceof Claims claims) {
+            String featuresJson = claims.get("features", String.class);
+
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                Map<String, Object> features = mapper.readValue(featuresJson, new TypeReference<Map<String, Object>>() {});
+
+                if (features == null || !Boolean.TRUE.equals(features.get(SubscriptionConstants.FEATURE_DOWNLOAD))) {
+                    log.warn("User {} tried to download song but doesn't have the download feature", userId);
+                    throw new AppException(ErrorCode.UPGRADE_REQUIRED);
+                }
+            } catch (Exception e) {
+                log.error("Failed to parse features JSON from JWT for user {}", userId, e);
+                throw new AppException(ErrorCode.UPGRADE_REQUIRED);
+            }
+        } else {
+            throw new AppException(ErrorCode.UPGRADE_REQUIRED);
+        }
+
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+        if (song.getStatus() != SongStatus.COMPLETED) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        String ext = ".mp3";
+        String niceFileName = song.getSlug() + ext;
+        String mp3ObjectKey = "download/" + song.getId() + "/song-320kbps.mp3";
+
+        log.info("VIP User {} is downloading 320kbps file for song {}", userId, song.getId());
+
+        return storageService.generatePresignedDownloadUrl(mp3ObjectKey, niceFileName);
     }
 
     private String generateSlug(String title, UUID songId) {

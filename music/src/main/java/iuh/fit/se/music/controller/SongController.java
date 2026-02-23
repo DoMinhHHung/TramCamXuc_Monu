@@ -34,4 +34,13 @@ public class SongController {
                 .message("Upload confirmed. Transcoding started.")
                 .build();
     }
+
+    @GetMapping("/{songId}/download")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<String> getDownloadUrl(@PathVariable("songId") UUID songId) {
+        return ApiResponse.<String>builder()
+                .result(songService.getDownloadUrl(songId))
+                .message("Link tải nhạc sống trong 5 phút.")
+                .build();
+    }
 }

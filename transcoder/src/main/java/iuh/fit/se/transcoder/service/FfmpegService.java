@@ -76,4 +76,30 @@ public class FfmpegService {
             throw new RuntimeException("FFmpeg processing failed with exit code " + exitCode);
         }
     }
+
+    public void generateMp3320k(String inputFilePath, String outputFilePath) throws Exception {
+        List<String> command = new ArrayList<>();
+        command.add("ffmpeg");
+        command.add("-i"); command.add(inputFilePath);
+        command.add("-c:a"); command.add("libmp3lame");
+        command.add("-b:a"); command.add("320k");
+        command.add(outputFilePath);
+
+        log.info("Executing FFmpeg for 320kbps MP3: {}", String.join(" ", command));
+
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.redirectErrorStream(true);
+        Process process = pb.start();
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+        String line;
+        while ((line = reader.readLine()) != null) {
+             log.debug(line);
+        }
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new RuntimeException("FFmpeg MP3 compression failed with exit code " + exitCode);
+        }
+    }
 }
