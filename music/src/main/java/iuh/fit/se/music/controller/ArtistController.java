@@ -4,8 +4,10 @@ import iuh.fit.se.core.dto.ApiResponse;
 import iuh.fit.se.music.dto.request.ArtistRegisterRequest;
 import iuh.fit.se.music.dto.request.ArtistUpdateRequest;
 import iuh.fit.se.music.dto.response.ArtistResponse;
+import iuh.fit.se.music.dto.response.SongResponse;
 import iuh.fit.se.music.enums.ArtistStatus;
 import iuh.fit.se.music.service.ArtistService;
+import iuh.fit.se.music.service.SongService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,7 @@ import java.util.UUID;
 public class ArtistController {
 
     ArtistService artistService;
+    SongService songService;
 
     // ==================== USER ENDPOINTS ====================
 
@@ -66,6 +69,18 @@ public class ArtistController {
                 .build();
     }
 
+    @GetMapping("/{artistId}/songs")
+    public ApiResponse<Page<SongResponse>> getSongsByArtist(
+            @PathVariable UUID artistId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        return ApiResponse.<Page<SongResponse>>builder()
+                .result(songService.getSongsByArtist(artistId, pageable))
+                .build();
+    }
+
     // ==================== ADMIN ENDPOINTS ====================
 
     @GetMapping("/admin")
@@ -83,7 +98,7 @@ public class ArtistController {
     }
 
     @PatchMapping("/admin/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')") // Chỉ Admin được gọi
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> toggleArtistStatus(
             @PathVariable UUID id,
             @RequestParam ArtistStatus status) {

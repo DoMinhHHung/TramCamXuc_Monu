@@ -1,4 +1,4 @@
-package iuh.fit.se.music.service;
+package iuh.fit.se.music.service.impl;
 
 import iuh.fit.se.core.configuration.RabbitMQConfig;
 import iuh.fit.se.core.dto.message.TranscodeSuccessMessage;

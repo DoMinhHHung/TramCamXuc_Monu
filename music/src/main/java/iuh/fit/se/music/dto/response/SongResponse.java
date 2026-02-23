@@ -19,7 +19,20 @@ public class SongResponse {
     private SongStatus status;
     private Long playCount;
 
+    private ArtistSummary primaryArtist;
     private Set<GenreResponse> genres;
 
     private String uploadUrl;
+    private String streamUrl;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ArtistSummary {
+        private UUID id;
+        private UUID userId;
+        private String stageName;
+        private String avatarUrl;
+    }
 }

@@ -15,10 +15,14 @@ import iuh.fit.se.music.enums.ArtistStatus;
 import iuh.fit.se.music.enums.SongStatus;
 import iuh.fit.se.music.mapper.SongMapper;
 import iuh.fit.se.music.repository.*;
+import iuh.fit.se.music.service.PlayCountSyncService;
 import iuh.fit.se.music.service.SongService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +45,13 @@ public class SongServiceImpl implements SongService {
     private final SongMapper songMapper;
     private final StorageService storageService;
     private final RabbitTemplate rabbitTemplate;
+    private final PlayCountSyncService playCountSyncService;
+
+    @Value("${minio.public-url}")
+    private String minioPublicUrl;
+
+    @Value("${minio.bucket.public-songs}")
+    private String publicSongsBucket;
 
     @Override
     @Transactional
@@ -162,6 +173,62 @@ public class SongServiceImpl implements SongService {
         return storageService.generatePresignedDownloadUrl(mp3ObjectKey, niceFileName);
     }
 
+    @Override
+    public SongResponse getSongById(UUID songId) {
+        Song song = songRepository.findPublicById(songId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+        return songMapper.toResponse(song);
+    }
+
+    @Override
+    public String getStreamUrl(UUID songId) {
+        Song song = songRepository.findPublicById(songId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+        if (song.getHlsMasterUrl() == null) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        String quality = resolveStreamQuality();
+        return buildStreamUrl(song, quality);
+    }
+
+    @Override
+    public void recordPlay(UUID songId) {
+        if (!songRepository.existsById(songId)) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+        playCountSyncService.increment(songId);
+    }
+
+    @Override
+    public Page<SongResponse> searchSongs(String keyword, UUID genreId, UUID artistId, Pageable pageable) {
+        return songRepository.searchSongs(keyword, genreId, artistId, pageable)
+                .map(songMapper::toResponse);
+    }
+
+    @Override
+    public Page<SongResponse> getTrending(Pageable pageable) {
+        return songRepository.findTrending(pageable)
+                .map(songMapper::toResponse);
+    }
+
+    @Override
+    public Page<SongResponse> getNewest(Pageable pageable) {
+        return songRepository.findNewest(pageable)
+                .map(songMapper::toResponse);
+    }
+
+    @Override
+    public Page<SongResponse> getSongsByArtist(UUID artistId, Pageable pageable) {
+        artistRepository.findById(artistId)
+                .orElseThrow(() -> new AppException(ErrorCode.ARTIST_NOT_FOUND));
+        return songRepository.findByArtistId(artistId, pageable)
+                .map(songMapper::toResponse);
+    }
+
+    // ==================== PRIVATE HELPERS ====================
+
     private String generateSlug(String title, UUID songId) {
         try {
             String temp = Normalizer.normalize(title, Normalizer.Form.NFD);
@@ -175,5 +242,57 @@ public class SongServiceImpl implements SongService {
         } catch (Exception e) {
             return songId.toString();
         }
+    }
+
+    /**
+     * Đọc claim "features" từ JWT để quyết định trả về HLS variant nào.
+     * - lossless / 320kbps → stream_320k.m3u8
+     * - 256kbps            → stream_256k.m3u8
+     * - 128kbps            → stream_128k.m3u8
+     * - mặc định / free    → stream_64k.m3u8
+     */
+    private String resolveStreamQuality() {
+        try {
+            var authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null) return "64k";
+
+            Object credentials = authentication.getCredentials();
+            String featuresJson = null;
+
+            if (credentials instanceof Claims claims) {
+                featuresJson = claims.get("features", String.class);
+            } else if (credentials instanceof Map<?, ?> map) {
+                Object raw = map.get("features");
+                if (raw != null) featuresJson = raw.toString();
+            }
+
+            if (featuresJson == null) return "64k";
+
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> features = mapper.readValue(featuresJson, new TypeReference<>() {});
+            String quality = (String) features.getOrDefault(SubscriptionConstants.FEATURE_QUALITY, "64k");
+
+            return switch (quality.toLowerCase()) {
+                case "lossless", "320kbps" -> "320k";
+                case "256kbps" -> "256k";
+                case "128kbps" -> "128k";
+                default -> "64k";
+            };
+        } catch (Exception e) {
+            log.warn("Could not resolve stream quality from JWT, falling back to 64k");
+            return "64k";
+        }
+    }
+
+    /**
+     * hlsMasterUrl trong DB = "hls/{songId}/master.m3u8"
+     * Variant playlist FFmpeg tạo ra có tên: stream_64k.m3u8, stream_128k.m3u8, ...
+     * Ta build URL trực tiếp đến variant tương ứng thay vì trả master.m3u8,
+     * giúp client không cần parse master playlist.
+     */
+    private String buildStreamUrl(Song song, String quality) {
+        String hlsDir = song.getHlsMasterUrl().replace("/master.m3u8", "");
+        String variantKey = hlsDir + "/stream_" + quality + ".m3u8";
+        return String.format("%s/%s/%s", minioPublicUrl, publicSongsBucket, variantKey);
     }
 }
