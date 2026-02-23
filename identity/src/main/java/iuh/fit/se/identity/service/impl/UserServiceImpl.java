@@ -9,7 +9,7 @@ import iuh.fit.se.identity.entity.User;
 import iuh.fit.se.identity.enums.AccountStatus;
 import iuh.fit.se.identity.enums.Role;
 import iuh.fit.se.identity.repository.UserRepository;
-import iuh.fit.se.identity.service.StorageService;
+import iuh.fit.se.core.service.StorageService;
 import iuh.fit.se.identity.service.UserService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

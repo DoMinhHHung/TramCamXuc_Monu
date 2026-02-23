@@ -2,6 +2,7 @@ package iuh.fit.se.payment.controller;
 
 import iuh.fit.se.core.dto.ApiResponse;
 import iuh.fit.se.payment.dto.request.SubscriptionPlanRequest;
+import iuh.fit.se.payment.dto.request.SubscriptionPlanUpdateRequest;
 import iuh.fit.se.payment.dto.response.SubscriptionPlanResponse;
 import iuh.fit.se.payment.service.SubscriptionPlanService;
 import jakarta.validation.Valid;
@@ -31,11 +32,11 @@ public class AdminSubscriptionController {
                 .build();
     }
 
-    @PutMapping("/plans/{id}")
+    @PatchMapping("/plans/{id}")
     @PreAuthorize(("hasRole('ADMIN')"))
     public ApiResponse<SubscriptionPlanResponse> updatePlan(
-            @PathVariable UUID id,
-            @RequestBody @Valid SubscriptionPlanRequest request) {
+            @PathVariable("id") UUID id,
+            @RequestBody @Valid SubscriptionPlanUpdateRequest request) {
         return ApiResponse.<SubscriptionPlanResponse>builder()
                 .result(subscriptionPlanService.updatePlan(id, request))
                 .build();

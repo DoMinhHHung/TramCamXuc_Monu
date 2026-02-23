@@ -1,4 +1,4 @@
-package iuh.fit.se.identity.service;
+package iuh.fit.se.core.service;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
