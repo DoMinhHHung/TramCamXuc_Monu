@@ -59,13 +59,11 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     public PaymentResponse purchaseSubscription(PurchaseSubscriptionRequest request) {
         UUID userId = getCurrentUserId();
 
-        // Check active subscription
         subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)
                 .ifPresent(sub -> {
                     throw new AppException(ErrorCode.USER_ALREADY_HAS_ACTIVE_SUBSCRIPTION);
                 });
 
-        // Get plan
         SubscriptionPlan plan = planRepository.findById(request.getPlanId())
                 .orElseThrow(() -> new AppException(ErrorCode.SUBSCRIPTION_PLAN_NOT_FOUND));
 
@@ -73,7 +71,6 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
             throw new AppException(ErrorCode.SUBSCRIPTION_PLAN_NOT_ACTIVE);
         }
 
-        // Create subscription with PENDING status (will be activated after payment)
         LocalDateTime now = LocalDateTime.now();
         UserSubscription subscription = UserSubscription.builder()
                 .userId(userId)

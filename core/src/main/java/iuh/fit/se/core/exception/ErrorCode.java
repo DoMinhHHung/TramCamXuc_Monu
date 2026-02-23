@@ -72,6 +72,7 @@ public enum ErrorCode {
     TITLE_TOO_LONG(5002, "Title must not exceed 200 characters", HttpStatus.BAD_REQUEST),
     FILE_EXTENSION_REQUIRED(5003, "File extension is required", HttpStatus.BAD_REQUEST),
     GENRES_REQUIRED(5004, "At least one genre is required", HttpStatus.BAD_REQUEST),
+    UPGRADE_REQUIRED(5005, "Upgrade required to access this feature", HttpStatus.UPGRADE_REQUIRED),
     ;
 
     private final int code;

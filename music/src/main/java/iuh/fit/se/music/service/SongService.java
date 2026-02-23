@@ -8,4 +8,5 @@ import java.util.UUID;
 public interface SongService {
     SongResponse requestUploadUrl(SongCreateRequest request);
     void confirmUpload(UUID songId);
+    String getDownloadUrl(UUID songId);
 }

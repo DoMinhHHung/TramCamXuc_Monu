@@ -66,4 +66,21 @@ public class MinioHelper {
         }
         log.info("Uploaded entire HLS directory to MinIO prefix: {}", minioTargetPrefix);
     }
+
+    public void uploadSingleFile(String localFilePath, String objectKey, String contentType) throws Exception {
+        File file = new File(localFilePath);
+        if (!file.exists()) return;
+
+        try (InputStream is = new FileInputStream(file)) {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(rawBucket)
+                            .object(objectKey)
+                            .stream(is, file.length(), -1)
+                            .contentType(contentType)
+                            .build()
+            );
+            log.info("Uploaded 320kbps MP3 to MinIO: {}", objectKey);
+        }
+    }
 }
