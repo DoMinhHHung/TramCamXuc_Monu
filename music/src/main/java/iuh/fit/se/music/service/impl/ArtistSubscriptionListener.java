@@ -1,8 +1,7 @@
-package iuh.fit.se.music.service;
+package iuh.fit.se.music.service.impl;
 
 import iuh.fit.se.core.constant.SubscriptionConstants;
 import iuh.fit.se.core.event.SubscriptionActiveEvent;
-import iuh.fit.se.music.entity.Artist;
 import iuh.fit.se.music.enums.ArtistStatus;
 import iuh.fit.se.music.repository.ArtistRepository;
 import lombok.RequiredArgsConstructor;

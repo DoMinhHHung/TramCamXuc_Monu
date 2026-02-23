@@ -1,10 +1,13 @@
 package iuh.fit.se.music.entity;
 
 import iuh.fit.se.core.entity.BaseEntity;
+import iuh.fit.se.music.enums.ApprovalStatus;
 import iuh.fit.se.music.enums.SongStatus;
+import iuh.fit.se.music.enums.TranscodeStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
 
@@ -16,9 +19,11 @@ import java.util.UUID;
 @Entity
 @Table(name = "songs", indexes = {
         @Index(name = "idx_songs_slug", columnList = "slug", unique = true),
-        @Index(name = "idx_songs_status", columnList = "status")
+        @Index(name = "idx_songs_status", columnList = "status"),
+        @Index(name = "idx_songs_approval_status", columnList = "approval_status"),
+        @Index(name = "idx_songs_transcode_status", columnList = "transcode_status")
 })
-public class Song extends BaseEntity{
+public class Song extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -60,10 +65,28 @@ public class Song extends BaseEntity{
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private SongStatus status = SongStatus.PENDING;
+    private SongStatus status = SongStatus.PUBLIC;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = false)
+    @Builder.Default
+    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
+
+    @Column(name = "rejection_reason", length = 1000)
+    private String rejectionReason;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transcode_status", nullable = false)
+    @Builder.Default
+    private TranscodeStatus transcodeStatus = TranscodeStatus.PENDING;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "reviewed_by")
+    private UUID reviewedBy;
 
     @Column(name = "play_count", nullable = false)
     @Builder.Default
     private Long playCount = 0L;
-
 }

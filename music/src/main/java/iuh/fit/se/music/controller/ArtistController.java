@@ -4,8 +4,10 @@ import iuh.fit.se.core.dto.ApiResponse;
 import iuh.fit.se.music.dto.request.ArtistRegisterRequest;
 import iuh.fit.se.music.dto.request.ArtistUpdateRequest;
 import iuh.fit.se.music.dto.response.ArtistResponse;
+import iuh.fit.se.music.dto.response.SongResponse;
 import iuh.fit.se.music.enums.ArtistStatus;
 import iuh.fit.se.music.service.ArtistService;
+import iuh.fit.se.music.service.SongService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +30,7 @@ import java.util.UUID;
 public class ArtistController {
 
     ArtistService artistService;
-
-    // ==================== USER ENDPOINTS ====================
+    SongService songService;
 
     @PostMapping("/register")
     public ApiResponse<ArtistResponse> registerArtist(@RequestBody @Valid ArtistRegisterRequest request) {
@@ -66,7 +67,17 @@ public class ArtistController {
                 .build();
     }
 
-    // ==================== ADMIN ENDPOINTS ====================
+    @GetMapping("/{artistId}/songs")
+    public ApiResponse<Page<SongResponse>> getSongsByArtist(
+            @PathVariable UUID artistId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
+        return ApiResponse.<Page<SongResponse>>builder()
+                .result(songService.getSongsByArtist(artistId, pageable))
+                .build();
+    }
 
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
@@ -74,8 +85,8 @@ public class ArtistController {
             @RequestParam(required = false) String stageName,
             @RequestParam(required = false) ArtistStatus status,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
+            @RequestParam(defaultValue = "10") int size) {
+
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
         return ApiResponse.<Page<ArtistResponse>>builder()
                 .result(artistService.getArtistsForAdmin(stageName, status, pageable))
@@ -83,10 +94,11 @@ public class ArtistController {
     }
 
     @PatchMapping("/admin/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')") // Chỉ Admin được gọi
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<Void> toggleArtistStatus(
             @PathVariable UUID id,
             @RequestParam ArtistStatus status) {
+
         artistService.toggleArtistStatus(id, status);
         return ApiResponse.<Void>builder()
                 .message("Artist status updated successfully")

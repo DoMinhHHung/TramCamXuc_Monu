@@ -23,13 +23,12 @@ public class FreePlanResponderService {
     private final ApplicationEventPublisher eventPublisher;
 
     private static final Map<String, Object> FALLBACK_FEATURES = Map.of(
-            "quality", "128kbps", "playlist_limit", 5
+            "quality", "128kbps", "playlist_limit", 5, "download", false
     );
 
     @EventListener
     @Transactional(readOnly = true)
     public void handleRequest(RequestFreePlanEvent event) {
-        log.info("Received request for FREE plan config. Querying DB...");
 
         SubscriptionPlan freePlan = planRepository.findBySubsNameAndIsActiveTrue(SubscriptionConstants.PLAN_FREE)
                 .orElse(null);

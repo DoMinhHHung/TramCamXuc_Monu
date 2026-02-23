@@ -46,7 +46,8 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
             SubscriptionConstants.FEATURE_RECOMMENDATION, "basic",
             SubscriptionConstants.FEATURE_NO_ADS, false,
             SubscriptionConstants.FEATURE_OFFLINE, false,
-            SubscriptionConstants.FEATURE_CAN_BECOME_ARTIST, false
+            SubscriptionConstants.FEATURE_CAN_BECOME_ARTIST, false,
+            SubscriptionConstants.FEATURE_DOWNLOAD, false
     );
 
     private UUID getCurrentUserId() {

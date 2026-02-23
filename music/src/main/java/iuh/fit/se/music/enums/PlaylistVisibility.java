@@ -1,8 +1,7 @@
 package iuh.fit.se.music.enums;
 
-public enum SongStatus {
-    DRAFT,
+public enum PlaylistVisibility {
     PUBLIC,
     PRIVATE,
-    DELETED
+    COLLABORATIVE
 }
