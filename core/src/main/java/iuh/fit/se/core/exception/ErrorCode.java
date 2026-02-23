@@ -75,6 +75,9 @@ public enum ErrorCode {
     UPGRADE_REQUIRED(5005, "Upgrade required to access this feature", HttpStatus.UPGRADE_REQUIRED),
 
     PLAYLIST_LIMIT_EXCEEDED(6001, "Playlist limit exceeded", HttpStatus.FORBIDDEN),
+    PLAYLIST_NAME_REQUIRED(6002, "Playlist name is required", HttpStatus.BAD_REQUEST),
+    PLAYLIST_NAME_TOO_LONG(6003, "Playlist name must not exceed 200 characters", HttpStatus.BAD_REQUEST),
+    PLAYLIST_DESCRIPTION_TOO_LONG(6004, "Playlist description must not exceed 500 characters", HttpStatus.BAD_REQUEST),
     ;
 
     private final int code;
