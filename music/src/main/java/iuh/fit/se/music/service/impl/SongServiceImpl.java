@@ -83,11 +83,7 @@ public class SongServiceImpl implements SongService {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
-        // Xác định trạng thái ban đầu: chỉ chấp nhận PUBLIC hoặc DRAFT
-        SongStatus initialStatus = SongStatus.PUBLIC;
-        if (request.getInitialStatus() == SongStatus.DRAFT) {
-            initialStatus = SongStatus.DRAFT;
-        }
+        SongStatus initialStatus = SongStatus.DRAFT;
 
         UUID songId = UUID.randomUUID();
         String rawFileKey = String.format("raw/%s/%s.%s",
@@ -235,6 +231,28 @@ public class SongServiceImpl implements SongService {
         return storageService.generatePresignedDownloadUrl(mp3ObjectKey, song.getSlug() + ".mp3");
     }
 
+    @Override
+    @Transactional
+    public SongResponse submitSong(UUID songId) {
+        UUID userId = UUID.fromString(SecurityContextHolder.getContext().getAuthentication().getName());
+
+        Song song = songRepository.findByIdAndArtistUserId(songId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+        if (song.getTranscodeStatus() != TranscodeStatus.COMPLETED) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        if (song.getStatus() != SongStatus.DRAFT) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        song.setStatus(SongStatus.PUBLIC);
+        song.setApprovalStatus(ApprovalStatus.PENDING);
+        log.info("Song {} submitted for review by artist {}", songId, userId);
+        return songMapper.toResponse(songRepository.save(song));
+    }
+
     // ==================== PUBLIC ====================
 
     @Override
@@ -347,11 +365,15 @@ public class SongServiceImpl implements SongService {
     private void validateStatusTransition(Song song, SongStatus newStatus) {
         SongStatus current = song.getStatus();
 
-        if (newStatus == SongStatus.DRAFT && current != SongStatus.DRAFT) {
+        if (newStatus == SongStatus.DRAFT) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
         if (current == SongStatus.DELETED) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        if (current == SongStatus.DRAFT && song.getTranscodeStatus() != TranscodeStatus.COMPLETED) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
     }
