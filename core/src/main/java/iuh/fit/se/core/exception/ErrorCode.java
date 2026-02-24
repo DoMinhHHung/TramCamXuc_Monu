@@ -78,6 +78,18 @@ public enum ErrorCode {
     PLAYLIST_NAME_REQUIRED(6002, "Playlist name is required", HttpStatus.BAD_REQUEST),
     PLAYLIST_NAME_TOO_LONG(6003, "Playlist name must not exceed 200 characters", HttpStatus.BAD_REQUEST),
     PLAYLIST_DESCRIPTION_TOO_LONG(6004, "Playlist description must not exceed 500 characters", HttpStatus.BAD_REQUEST),
+
+    SONG_NOT_READY(7001, "Song must be fully transcoded before adding to album", HttpStatus.BAD_REQUEST),
+    SONG_ALREADY_IN_ALBUM(7002, "Song is already attached to another album", HttpStatus.BAD_REQUEST),
+    ALBUM_NOT_FOUND(7003, "Album not found", HttpStatus.NOT_FOUND),
+    ALBUM_UNAUTHORIZED(7004, "Only album owner can perform this action", HttpStatus.FORBIDDEN),
+    ALBUM_SONG_ALREADY_EXISTS(7005, "Song already exists in this album", HttpStatus.BAD_REQUEST),
+    ALBUM_SONG_NOT_FOUND(7006, "Song not found in this album", HttpStatus.NOT_FOUND),
+    ALBUM_SUBMIT_FAILED(7007, "All songs must be fully transcoded before submitting", HttpStatus.BAD_REQUEST),
+    ALBUM_INVALID_STATUS_TRANSITION(7008, "Invalid album status transition", HttpStatus.BAD_REQUEST),
+    ALBUM_HAS_REJECTED_SONG(7009, "Album contains rejected songs — remove them before resubmitting", HttpStatus.BAD_REQUEST),
+    ALBUM_SCHEDULE_INVALID_TIME(7010, "Scheduled publish time must be in the future", HttpStatus.BAD_REQUEST),
+    ALBUM_SCHEDULE_NOT_FOUND(7011, "No scheduled publish time set for this album", HttpStatus.BAD_REQUEST),
     ;
 
     private final int code;
