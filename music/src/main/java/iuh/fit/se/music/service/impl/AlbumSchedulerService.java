@@ -2,6 +2,7 @@ package iuh.fit.se.music.service.impl;
 
 import iuh.fit.se.music.entity.Album;
 import iuh.fit.se.music.entity.AlbumSong;
+import iuh.fit.se.music.entity.Song;
 import iuh.fit.se.music.enums.AlbumVisibility;
 import iuh.fit.se.music.enums.SongStatus;
 import iuh.fit.se.music.repository.AlbumRepository;
@@ -34,13 +35,15 @@ public class AlbumSchedulerService {
 
         for (Album album : albums) {
             try {
-                album.getAlbumSongs().stream()
+                List<Song> songsToPublish = album.getAlbumSongs().stream()
                         .map(AlbumSong::getSong)
                         .filter(s -> s.getStatus() == SongStatus.ALBUM_ONLY)
-                        .forEach(s -> {
-                            s.setStatus(SongStatus.PUBLIC);
-                            songRepository.save(s);
-                        });
+                        .peek(s -> s.setStatus(SongStatus.PUBLIC))
+                        .toList();
+
+                if (!songsToPublish.isEmpty()) {
+                    songRepository.saveAll(songsToPublish);
+                }
 
                 album.setVisibility(AlbumVisibility.PUBLIC);
                 album.setScheduledPublishAt(null);

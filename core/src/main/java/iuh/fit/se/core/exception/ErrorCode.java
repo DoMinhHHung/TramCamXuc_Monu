@@ -10,6 +10,7 @@ public enum ErrorCode {
     UNAUTHENTICATED(1000, "Unauthenticated", HttpStatus.UNAUTHORIZED),
     INVALID_KEY(1001, "Invalid message key", HttpStatus.BAD_REQUEST),
 
+    UNAUTHORIZED(9900, "Unauthorized access", HttpStatus.FORBIDDEN),
     DB_CONNECTION_FAILED(9901, "Database connection failed", HttpStatus.SERVICE_UNAVAILABLE),
     REDIS_CONNECTION_FAILED(9902, "Redis connection failed", HttpStatus.SERVICE_UNAVAILABLE),
     RABBITMQ_ERROR(9903, "Message Queue error", HttpStatus.SERVICE_UNAVAILABLE),
@@ -78,18 +79,21 @@ public enum ErrorCode {
     PLAYLIST_NAME_REQUIRED(6002, "Playlist name is required", HttpStatus.BAD_REQUEST),
     PLAYLIST_NAME_TOO_LONG(6003, "Playlist name must not exceed 200 characters", HttpStatus.BAD_REQUEST),
     PLAYLIST_DESCRIPTION_TOO_LONG(6004, "Playlist description must not exceed 500 characters", HttpStatus.BAD_REQUEST),
+    SONG_NOT_AVAILABLE_FOR_PLAYLIST(6005, "Song is not available for playlist", HttpStatus.BAD_REQUEST),
 
     SONG_NOT_READY(7001, "Song must be fully transcoded before adding to album", HttpStatus.BAD_REQUEST),
     SONG_ALREADY_IN_ALBUM(7002, "Song is already attached to another album", HttpStatus.BAD_REQUEST),
-    ALBUM_NOT_FOUND(7003, "Album not found", HttpStatus.NOT_FOUND),
-    ALBUM_UNAUTHORIZED(7004, "Only album owner can perform this action", HttpStatus.FORBIDDEN),
-    ALBUM_SONG_ALREADY_EXISTS(7005, "Song already exists in this album", HttpStatus.BAD_REQUEST),
-    ALBUM_SONG_NOT_FOUND(7006, "Song not found in this album", HttpStatus.NOT_FOUND),
-    ALBUM_SUBMIT_FAILED(7007, "All songs must be fully transcoded before submitting", HttpStatus.BAD_REQUEST),
-    ALBUM_INVALID_STATUS_TRANSITION(7008, "Invalid album status transition", HttpStatus.BAD_REQUEST),
-    ALBUM_HAS_REJECTED_SONG(7009, "Album contains rejected songs — remove them before resubmitting", HttpStatus.BAD_REQUEST),
-    ALBUM_SCHEDULE_INVALID_TIME(7010, "Scheduled publish time must be in the future", HttpStatus.BAD_REQUEST),
-    ALBUM_SCHEDULE_NOT_FOUND(7011, "No scheduled publish time set for this album", HttpStatus.BAD_REQUEST),
+    SONG_NOT_FOUND(7003, "Song not found", HttpStatus.NOT_FOUND),
+    SONG_UNAUTHORIZED_ACCESS(7005, "Only song owner can perform this action", HttpStatus.FORBIDDEN),
+    ALBUM_NOT_FOUND(7006, "Album not found", HttpStatus.NOT_FOUND),
+    ALBUM_UNAUTHORIZED(7007, "Only album owner can perform this action", HttpStatus.FORBIDDEN),
+    ALBUM_SONG_ALREADY_EXISTS(7008, "Song already exists in this album", HttpStatus.BAD_REQUEST),
+    ALBUM_SONG_NOT_FOUND(7009, "Song not found in this album", HttpStatus.NOT_FOUND),
+    ALBUM_SUBMIT_FAILED(7010, "All songs must be fully transcoded before submitting", HttpStatus.BAD_REQUEST),
+    ALBUM_INVALID_STATUS_TRANSITION(7011, "Invalid album status transition", HttpStatus.BAD_REQUEST),
+    ALBUM_HAS_REJECTED_SONG(7012, "Album contains rejected songs — remove them before resubmitting", HttpStatus.BAD_REQUEST),
+    ALBUM_SCHEDULE_INVALID_TIME(7013, "Scheduled publish time must be in the future", HttpStatus.BAD_REQUEST),
+    ALBUM_SCHEDULE_NOT_FOUND(7014, "No scheduled publish time set for this album", HttpStatus.BAD_REQUEST),
     ;
 
     private final int code;

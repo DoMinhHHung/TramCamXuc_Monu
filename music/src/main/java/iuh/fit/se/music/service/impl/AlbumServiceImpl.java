@@ -179,28 +179,6 @@ public class AlbumServiceImpl implements AlbumService {
                 .orElseThrow(() -> new AppException(ErrorCode.ALBUM_NOT_FOUND));
     }
 
-//    @Override
-//    @Transactional
-//    public AlbumResponse createAlbum(AlbumCreateRequest request) {
-//        Artist artist = requireActiveArtist();
-//        UUID albumId = UUID.randomUUID();
-//
-//        Album album = Album.builder()
-//                .id(albumId)
-//                .title(request.getTitle())
-//                .slug(generateSlug(request.getTitle(), albumId))
-//                .description(request.getDescription())
-//                .ownerArtist(artist)
-//                .releaseDate(request.getReleaseDate())
-//                .approvalStatus(AlbumApprovalStatus.DRAFT)
-//                .visibility(AlbumVisibility.PRIVATE)
-//                .totalDurationSeconds(0)
-//                .build();
-//
-//        albumRepository.save(album);
-//        log.info("Album {} created by artist {}", albumId, artist.getId());
-//        return toDetailResponse(reloadOwner(albumId), true);
-//    }
     @Override
     @Transactional
     public AlbumResponse createAlbum(AlbumCreateRequest request) {
@@ -230,7 +208,6 @@ public class AlbumServiceImpl implements AlbumService {
     public AlbumResponse updateAlbum(UUID albumId, AlbumUpdateRequest request) {
         Album album = requireOwnerAlbum(albumId);
 
-        // Được sửa khi DRAFT/REJECTED
         if (album.getApprovalStatus() == AlbumApprovalStatus.PENDING || album.getApprovalStatus() == AlbumApprovalStatus.APPROVED)
             throw new AppException(ErrorCode.ALBUM_INVALID_STATUS_TRANSITION);
 
@@ -261,13 +238,15 @@ public class AlbumServiceImpl implements AlbumService {
     public void deleteAlbum(UUID albumId) {
         Album album = requireOwnerAlbum(albumId);
 
-        album.getAlbumSongs().stream()
+        List<Song> songsToUpdate = album.getAlbumSongs().stream()
                 .map(AlbumSong::getSong)
                 .filter(s -> s.getStatus() == SongStatus.ALBUM_ONLY)
-                .forEach(s -> {
-                    s.setStatus(SongStatus.DRAFT);
-                    songRepository.save(s);
-                });
+                .peek(s -> s.setStatus(SongStatus.DRAFT))
+                .toList();
+
+        if (!songsToUpdate.isEmpty()) {
+            songRepository.saveAll(songsToUpdate);
+        }
 
         albumRepository.delete(album);
         log.info("Album {} deleted, songs returned to DRAFT", albumId);
@@ -364,21 +343,27 @@ public class AlbumServiceImpl implements AlbumService {
         if (newOrder < 1 || newOrder > all.size())
             throw new AppException(ErrorCode.INVALID_REQUEST);
 
+        List<AlbumSong> songsToUpdate;
         if (newOrder < oldOrder) {
-            all.stream()
+            songsToUpdate = all.stream()
                     .filter(a -> a.getOrderIndex() >= newOrder
                             && a.getOrderIndex() < oldOrder
                             && !a.getId().equals(albumSongId))
-                    .forEach(a -> { a.setOrderIndex(a.getOrderIndex() + 1);
-                        albumSongRepository.save(a); });
+                    .peek(a -> a.setOrderIndex(a.getOrderIndex() + 1))
+                    .toList();
         } else {
-            all.stream()
+            songsToUpdate = all.stream()
                     .filter(a -> a.getOrderIndex() > oldOrder
                             && a.getOrderIndex() <= newOrder
                             && !a.getId().equals(albumSongId))
-                    .forEach(a -> { a.setOrderIndex(a.getOrderIndex() - 1);
-                        albumSongRepository.save(a); });
+                    .peek(a -> a.setOrderIndex(a.getOrderIndex() - 1))
+                    .toList();
         }
+
+        if (!songsToUpdate.isEmpty()) {
+            albumSongRepository.saveAll(songsToUpdate);
+        }
+
         target.setOrderIndex(newOrder);
         albumSongRepository.save(target);
 
@@ -424,10 +409,15 @@ public class AlbumServiceImpl implements AlbumService {
         if (album.getVisibility() == AlbumVisibility.PUBLIC)
             throw new AppException(ErrorCode.ALBUM_INVALID_STATUS_TRANSITION);
 
-        album.getAlbumSongs().stream()
+        List<Song> songsToUpdate = album.getAlbumSongs().stream()
                 .map(AlbumSong::getSong)
                 .filter(s -> s.getStatus() == SongStatus.ALBUM_ONLY)
-                .forEach(s -> { s.setStatus(SongStatus.PUBLIC); songRepository.save(s); });
+                .peek(s -> s.setStatus(SongStatus.PUBLIC))
+                .toList();
+
+        if (!songsToUpdate.isEmpty()) {
+            songRepository.saveAll(songsToUpdate);
+        }
 
         album.setVisibility(AlbumVisibility.PUBLIC);
         album.setScheduledPublishAt(null);
@@ -527,17 +517,20 @@ public class AlbumServiceImpl implements AlbumService {
         if (hasRejected)
             throw new AppException(ErrorCode.ALBUM_HAS_REJECTED_SONG);
 
-        // Bulk approve bài PENDING (bài APPROVED từ trước → giữ nguyên)
-        album.getAlbumSongs().stream()
+        List<Song> pendingSongs = album.getAlbumSongs().stream()
                 .map(AlbumSong::getSong)
                 .filter(s -> s.getApprovalStatus() == ApprovalStatus.PENDING
                         && s.getTranscodeStatus() == TranscodeStatus.COMPLETED)
-                .forEach(s -> {
+                .peek(s -> {
                     s.setApprovalStatus(ApprovalStatus.APPROVED);
                     s.setReviewedAt(LocalDateTime.now());
                     s.setReviewedBy(adminId);
-                    songRepository.save(s);
-                });
+                })
+                .toList();
+
+        if (!pendingSongs.isEmpty()) {
+            songRepository.saveAll(pendingSongs);
+        }
 
         album.setApprovalStatus(AlbumApprovalStatus.APPROVED);
         album.setRejectionReason(null);

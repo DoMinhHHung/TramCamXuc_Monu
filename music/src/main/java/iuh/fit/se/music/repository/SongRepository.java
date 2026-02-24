@@ -41,7 +41,7 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
     @Query("""
             SELECT DISTINCT s FROM Song s
             JOIN FETCH s.primaryArtist a
-            LEFT JOIN s.genres g
+            LEFT JOIN FETCH s.genres g
             WHERE s.status = 'PUBLIC'
             AND s.approvalStatus = 'APPROVED'
             AND s.transcodeStatus = 'COMPLETED'
