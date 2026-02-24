@@ -17,6 +17,7 @@ public interface SongService {
     void deleteSong(UUID songId);
     Page<SongResponse> getMySONGs(Pageable pageable);
     String getDownloadUrl(UUID songId);
+    SongResponse submitSong(UUID songId);
 
     // Public
     SongResponse getSongById(UUID songId);

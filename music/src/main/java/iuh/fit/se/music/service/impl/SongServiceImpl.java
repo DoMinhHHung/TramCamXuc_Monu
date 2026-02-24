@@ -32,6 +32,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,11 +84,7 @@ public class SongServiceImpl implements SongService {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
-        // Xác định trạng thái ban đầu: chỉ chấp nhận PUBLIC hoặc DRAFT
-        SongStatus initialStatus = SongStatus.PUBLIC;
-        if (request.getInitialStatus() == SongStatus.DRAFT) {
-            initialStatus = SongStatus.DRAFT;
-        }
+        SongStatus initialStatus = SongStatus.DRAFT;
 
         UUID songId = UUID.randomUUID();
         String rawFileKey = String.format("raw/%s/%s.%s",
@@ -235,6 +232,28 @@ public class SongServiceImpl implements SongService {
         return storageService.generatePresignedDownloadUrl(mp3ObjectKey, song.getSlug() + ".mp3");
     }
 
+    @Override
+    @Transactional
+    public SongResponse submitSong(UUID songId) {
+        UUID userId = UUID.fromString(SecurityContextHolder.getContext().getAuthentication().getName());
+
+        Song song = songRepository.findByIdAndArtistUserId(songId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+
+        if (song.getTranscodeStatus() != TranscodeStatus.COMPLETED) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        if (song.getStatus() != SongStatus.DRAFT) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        song.setStatus(SongStatus.PUBLIC);
+        song.setApprovalStatus(ApprovalStatus.PENDING);
+        log.info("Song {} submitted for review by artist {}", songId, userId);
+        return songMapper.toResponse(songRepository.save(song));
+    }
+
     // ==================== PUBLIC ====================
 
     @Override
@@ -244,17 +263,54 @@ public class SongServiceImpl implements SongService {
         return songMapper.toResponse(song);
     }
 
+//    @Override
+//    public String getStreamUrl(UUID songId) {
+//        Song song = songRepository.findPublicById(songId)
+//                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+//
+//        if (song.getHlsMasterUrl() == null) {
+//            throw new AppException(ErrorCode.INVALID_REQUEST);
+//        }
+//
+//        String quality = resolveStreamQuality();
+//        return buildStreamUrl(song, quality);
+//    }
+
     @Override
     public String getStreamUrl(UUID songId) {
-        Song song = songRepository.findPublicById(songId)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
 
-        if (song.getHlsMasterUrl() == null) {
-            throw new AppException(ErrorCode.INVALID_REQUEST);
+        if (song.getTranscodeStatus() != TranscodeStatus.COMPLETED) {
+            throw new AppException(ErrorCode.SONG_NOT_READY);
         }
 
-        String quality = resolveStreamQuality();
-        return buildStreamUrl(song, quality);
+        boolean isPublicAndApproved = (song.getStatus() == SongStatus.PUBLIC)
+                && (song.getApprovalStatus() == ApprovalStatus.APPROVED);
+        if (isPublicAndApproved) {
+            return buildStreamUrl(song, resolveStreamQuality());
+        }
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || "anonymousUser".equals(auth.getPrincipal())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        UUID currentUserId = UUID.fromString(auth.getName());
+
+        boolean isOwner = song.getPrimaryArtist().getUserId().equals(currentUserId);
+        if (isOwner) {
+            return buildStreamUrl(song, resolveStreamQuality());
+        }
+
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (isAdmin && song.getStatus() != SongStatus.DRAFT) {
+            return buildStreamUrl(song, resolveStreamQuality());
+        }
+
+        throw new AppException(ErrorCode.SONG_UNAUTHORIZED_ACCESS);
     }
 
     @Override
@@ -347,11 +403,15 @@ public class SongServiceImpl implements SongService {
     private void validateStatusTransition(Song song, SongStatus newStatus) {
         SongStatus current = song.getStatus();
 
-        if (newStatus == SongStatus.DRAFT && current != SongStatus.DRAFT) {
+        if (newStatus == SongStatus.DRAFT) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
         if (current == SongStatus.DELETED) {
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        if (current == SongStatus.DRAFT && song.getTranscodeStatus() != TranscodeStatus.COMPLETED) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
     }

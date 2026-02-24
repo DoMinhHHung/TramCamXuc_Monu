@@ -141,4 +141,13 @@ public class SongController {
                 .message("Song deleted successfully.")
                 .build();
     }
+
+    @PostMapping("/{songId}/submit")
+    @PreAuthorize("hasRole('ARTIST')")
+    public ApiResponse<SongResponse> submitSong(@PathVariable UUID songId) {
+        return ApiResponse.<SongResponse>builder()
+                .result(songService.submitSong(songId))
+                .message("Song submitted for review.")
+                .build();
+    }
 }

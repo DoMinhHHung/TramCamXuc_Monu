@@ -25,6 +25,4 @@ public class SongCreateRequest {
 
     @NotEmpty(message = "GENRES_REQUIRED")
     private Set<UUID> genreIds;
-
-    private SongStatus initialStatus;
 }

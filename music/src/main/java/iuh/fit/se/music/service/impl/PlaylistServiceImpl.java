@@ -295,7 +295,7 @@ public class PlaylistServiceImpl implements PlaylistService {
         Playlist playlist = requireOwner(playlistId, userId);
 
         Song song = songRepository.findPublicById(songId)
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+                .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_AVAILABLE_FOR_PLAYLIST));
 
         if (playlistSongRepository.existsByPlaylistIdAndSongId(playlistId, songId)) {
             throw new AppException(ErrorCode.INVALID_REQUEST);
