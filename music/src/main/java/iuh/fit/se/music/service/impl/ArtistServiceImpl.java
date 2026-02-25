@@ -1,11 +1,9 @@
 package iuh.fit.se.music.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import iuh.fit.se.music.client.IdentityServiceClient;
 import iuh.fit.se.music.dto.request.ArtistUpdateRequest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import iuh.fit.se.core.constant.SubscriptionConstants;
 import iuh.fit.se.core.event.ArtistRegisteredEvent;
 import iuh.fit.se.core.exception.*;
 import iuh.fit.se.music.dto.request.ArtistRegisterRequest;
@@ -24,7 +22,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Map;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -34,45 +31,8 @@ public class ArtistServiceImpl implements ArtistService {
     private final ArtistRepository artistRepository;
     private final ArtistMapper artistMapper;
     private final ApplicationEventPublisher eventPublisher;
-    private final ObjectMapper objectMapper;
     private final StorageService storageService;
-
-    private void checkSubscriptionPermission(Authentication authentication) {
-        Object credentials = authentication.getCredentials();
-
-        if (credentials instanceof Map) {
-            Map<String, Object> claims = (Map<String, Object>) credentials;
-            Object featuresObj = claims.get("features");
-
-            if (featuresObj == null) {
-                throw new AppException(ErrorCode.SUBSCRIPTION_NOT_SUPPORTED);
-            }
-
-            try {
-                Map<String, Object> features;
-                if (featuresObj instanceof String) {
-                    features = objectMapper.readValue((String) featuresObj, Map.class);
-                } else if (featuresObj instanceof Map) {
-                    features = (Map<String, Object>) featuresObj;
-                } else {
-                    throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
-                }
-
-                boolean canBecomeArtist = Boolean.TRUE.equals(features.get(SubscriptionConstants.FEATURE_CAN_BECOME_ARTIST));
-
-                if (!canBecomeArtist) {
-                    throw new AppException(ErrorCode.FREE_SUBSCRIPTION_NOT_ALLOWED);
-                }
-
-            } catch (Exception e) {
-                log.error("Error parsing subscription features", e);
-                throw new AppException(ErrorCode.SUBSCRIPTION_NOT_SUPPORTED);
-            }
-        } else {
-            log.error("Authentication credentials missing or invalid type");
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
-    }
+    private final IdentityServiceClient identityServiceClient;
 
     @Override
     @Transactional
@@ -80,7 +40,10 @@ public class ArtistServiceImpl implements ArtistService {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         UUID userId = UUID.fromString(authentication.getName());
 
-        checkSubscriptionPermission(authentication);
+        var existsResponse = identityServiceClient.userExists(userId.toString());
+        if (existsResponse == null || !Boolean.TRUE.equals(existsResponse.getResult())) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
 
         if (artistRepository.existsByUserId(userId)) {
             throw new AppException(ErrorCode.ARTIST_ALREADY_REGISTERED);
@@ -105,6 +68,11 @@ public class ArtistServiceImpl implements ArtistService {
     public ArtistResponse getMyProfile() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         UUID userId = UUID.fromString(authentication.getName());
+
+        var existsResponse = identityServiceClient.userExists(userId.toString());
+        if (existsResponse == null || !Boolean.TRUE.equals(existsResponse.getResult())) {
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        }
 
         Artist artist = artistRepository.findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTIST_NOT_FOUND));

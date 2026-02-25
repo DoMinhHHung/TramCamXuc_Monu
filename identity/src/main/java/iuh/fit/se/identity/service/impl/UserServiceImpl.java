@@ -134,4 +134,13 @@ public class UserServiceImpl implements UserService {
 
         userRepository.save(user);
     }
+
+    @Override
+    public boolean existsById(String id) {
+        try {
+            return userRepository.existsById(UUID.fromString(id));
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }
