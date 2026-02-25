@@ -21,6 +21,7 @@ Frontend chỉ gọi Gateway:
 - `/api/v1/social/**` -> `lb://SOCIAL-SERVICE`
 - `/api/v1/payment/**` -> `lb://PAYMENT-SERVICE`
 - `/api/v1/integration/**` -> `lb://INTEGRATION-SERVICE`
+- `/api/v1/transcoder/**` -> `lb://TRANSCODE-WORKER`
 
 Gateway dùng `StripPrefix=3` để forward path sạch xuống backend.
 
@@ -30,6 +31,7 @@ Gateway dùng `StripPrefix=3` để forward path sạch xuống backend.
 - Token hợp lệ -> inject headers:
   - `X-User-Id`
   - `X-User-Role`
+  - `X-User-Plan`
 - Backend services không decode JWT nữa, chỉ trust header từ gateway.
 
 ## 4) Rate limit tại Gateway (Redis + Bucket4j)
@@ -104,3 +106,24 @@ docker compose -f docker-compose.microservices.yml --profile apps up -d eureka-s
 - `STREAMING_ARCHITECTURE.md`
 - `ANALYTICS_TRENDING_PIPELINE.md`
 - `PAYMENT_SAGA_ARCHITECTURE.md`
+
+
+## 11) Swagger/OpenAPI cho tất cả services
+
+Swagger trực tiếp từng service:
+- Identity: `http://localhost:8082/swagger-ui/index.html`
+- Music: `http://localhost:8083/swagger-ui/index.html`
+- Payment: `http://localhost:8084/swagger-ui/index.html`
+- Social: `http://localhost:8085/swagger-ui/index.html`
+- Integration: `http://localhost:8086/swagger-ui/index.html`
+- Transcoder: `http://localhost:8087/swagger-ui/index.html`
+
+Swagger tập trung qua Gateway:
+- UI: `http://localhost:8080/swagger-ui.html`
+- Docs endpoints:
+  - `/api/v1/identity/v3/api-docs`
+  - `/api/v1/music/v3/api-docs`
+  - `/api/v1/payment/v3/api-docs`
+  - `/api/v1/social/v3/api-docs`
+  - `/api/v1/integration/v3/api-docs`
+  - `/api/v1/transcoder/v3/api-docs`
