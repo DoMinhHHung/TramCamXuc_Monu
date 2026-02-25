@@ -20,6 +20,11 @@ public class RabbitMQConfig {
     public static final String TRANSCODE_SUCCESS_QUEUE = "song.transcode.success.queue";
     public static final String TRANSCODE_SUCCESS_ROUTING_KEY = "song.transcode.success";
 
+    public static final String MUSIC_EVENT_EXCHANGE = "music.event.exchange";
+    public static final String HISTORY_MONGO_QUEUE = "history.mongo.queue";
+    public static final String TRENDING_REDIS_QUEUE = "trending.redis.queue";
+    public static final String SONG_LISTENED_ROUTING_KEY = "song.listened";
+
     @Bean("musicExchange")
     public DirectExchange musicExchange() {
         return new DirectExchange(MUSIC_EXCHANGE);
@@ -69,5 +74,30 @@ public class RabbitMQConfig {
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
+    }
+
+    @Bean
+    public TopicExchange musicEventExchange() {
+        return new TopicExchange(MUSIC_EVENT_EXCHANGE);
+    }
+
+    @Bean
+    public Queue historyMongoQueue() {
+        return new Queue(HISTORY_MONGO_QUEUE, true);
+    }
+
+    @Bean
+    public Queue trendingRedisQueue() {
+        return new Queue(TRENDING_REDIS_QUEUE, true);
+    }
+
+    @Bean
+    public Binding bindingHistoryMongo(Queue historyMongoQueue, TopicExchange musicEventExchange) {
+        return BindingBuilder.bind(historyMongoQueue).to(musicEventExchange).with(SONG_LISTENED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding bindingTrendingRedis(Queue trendingRedisQueue, TopicExchange musicEventExchange) {
+        return BindingBuilder.bind(trendingRedisQueue).to(musicEventExchange).with(SONG_LISTENED_ROUTING_KEY);
     }
 }
