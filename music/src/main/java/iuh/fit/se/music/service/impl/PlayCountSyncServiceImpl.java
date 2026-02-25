@@ -59,7 +59,7 @@ public class PlayCountSyncServiceImpl implements PlayCountSyncService {
 
         for (String idStr : dirtyIds) {
             try {
-                UUID songId = UUID.fromString(idStr);
+                UUID songId = UUID.fromString(idStr.replace("\"", ""));
                 String key  = PLAY_COUNT_KEY_PREFIX + songId;
 
                 String rawDelta = stringRedisTemplate.execute(
