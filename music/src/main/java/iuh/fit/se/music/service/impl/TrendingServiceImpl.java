@@ -4,7 +4,7 @@ import iuh.fit.se.music.enums.TrendingPeriod;
 import iuh.fit.se.music.service.TrendingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -21,6 +21,7 @@ public class TrendingServiceImpl implements TrendingService {
     private final StringRedisTemplate redisTemplate;
 
     @Override
+    @Cacheable(value = "trending", key = "#period + ':' + #limit")
     public List<UUID> getTopSongs(TrendingPeriod period, int limit) {
         return getTopIds("trending:song:" + periodKey(period), limit);
     }
@@ -32,7 +33,6 @@ public class TrendingServiceImpl implements TrendingService {
 
     @Override
     public List<UUID> getTopArtists(TrendingPeriod period, int limit) {
-        // Artist chỉ hỗ trợ MONTH và YEAR
         if (period == TrendingPeriod.WEEK) period = TrendingPeriod.MONTH;
         return getTopIds("trending:artist:" + periodKey(period), limit);
     }
