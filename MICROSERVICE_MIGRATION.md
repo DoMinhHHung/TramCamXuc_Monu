@@ -66,6 +66,7 @@ Các biến cấu hình:
 ```bash
 cp .env.microservices.example .env
 docker compose -f docker-compose.microservices.yml up -d
+# NOTE: lệnh trên chỉ chạy hạ tầng (db/redis/rabbit/minio/zipkin), KHÔNG tự chạy gateway/service
 
 ./mvnw -pl eureka-server spring-boot:run
 ./mvnw -pl api-gateway spring-boot:run
@@ -77,6 +78,18 @@ docker compose -f docker-compose.microservices.yml up -d
 ./mvnw -pl transcoder spring-boot:run
 ```
 
+
+
+
+### Nếu bạn muốn mở được `http://localhost:8080` bằng Docker Compose
+
+Chạy thêm profile `apps` để khởi động cả Eureka + API Gateway:
+
+```bash
+docker compose -f docker-compose.microservices.yml --profile apps up -d eureka-server api-gateway
+```
+
+> Nếu bạn chạy service bằng IntelliJ thì **không cần** profile này, nhưng bắt buộc phải run `EurekaServerApplication` và `ApiGatewayApplication`.
 
 ## 9) Unauthenticated requests & Rate Limit
 

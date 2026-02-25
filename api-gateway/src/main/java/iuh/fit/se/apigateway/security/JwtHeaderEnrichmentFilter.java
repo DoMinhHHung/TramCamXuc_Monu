@@ -20,6 +20,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Component
@@ -35,9 +36,24 @@ public class JwtHeaderEnrichmentFilter implements GlobalFilter, Ordered {
             ReactiveStringRedisTemplate redisTemplate,
             ObjectMapper objectMapper
     ) {
-        this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(signerKey));
+        this.signingKey = buildSigningKey(signerKey);
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
+    }
+
+    private SecretKey buildSigningKey(String signerKey) {
+        try {
+            byte[] decoded = Decoders.BASE64.decode(signerKey);
+            return Keys.hmacShaKeyFor(decoded);
+        } catch (Exception ex) {
+            log.warn("jwt.signerKey is not valid Base64, fallback to raw UTF-8 bytes for local bootstrap");
+            byte[] raw = signerKey.getBytes(StandardCharsets.UTF_8);
+            byte[] keyBytes = new byte[32];
+            for (int i = 0; i < keyBytes.length; i++) {
+                keyBytes[i] = i < raw.length ? raw[i] : (byte) '0';
+            }
+            return Keys.hmacShaKeyFor(keyBytes);
+        }
     }
 
     @Override

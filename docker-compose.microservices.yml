@@ -66,3 +66,47 @@ services:
     ports:
       - "9411:9411"
 
+
+
+  # Optional app containers (enable with: docker compose --profile apps up -d)
+  eureka-server:
+    profiles: ["apps"]
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: eureka-server
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - m2-cache:/root/.m2
+    command: mvn -pl eureka-server spring-boot:run -DskipTests
+    environment:
+      EUREKA_SERVER_PORT: 8761
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    ports:
+      - "8761:8761"
+    depends_on:
+      - zipkin
+
+  api-gateway:
+    profiles: ["apps"]
+    image: maven:3.9.9-eclipse-temurin-17
+    container_name: api-gateway
+    working_dir: /workspace
+    volumes:
+      - ./:/workspace
+      - m2-cache:/root/.m2
+    command: mvn -pl api-gateway spring-boot:run -DskipTests
+    environment:
+      API_GATEWAY_PORT: 8080
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: NmY4ZDE1NmU4OGE1NDFkY2IxNzkxNTZhOTQ2Zjg4MTRiOWIzYTNhNDQ2YjQ3NDFh
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redis
+      - eureka-server
+
+volumes:
+  m2-cache:
