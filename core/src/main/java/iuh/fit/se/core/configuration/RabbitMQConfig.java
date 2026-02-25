@@ -21,9 +21,11 @@ public class RabbitMQConfig {
     public static final String TRANSCODE_SUCCESS_ROUTING_KEY = "song.transcode.success";
 
     public static final String MUSIC_EVENT_EXCHANGE = "music.event.exchange";
-    public static final String HISTORY_MONGO_QUEUE = "history.mongo.queue";
-    public static final String TRENDING_REDIS_QUEUE = "trending.redis.queue";
+
     public static final String SONG_LISTENED_ROUTING_KEY = "song.listened";
+    public static final String LISTEN_HISTORY_QUEUE    = "listen.history.queue";
+    public static final String LISTEN_TRENDING_QUEUE   = "listen.trending.queue";
+    public static final String SONG_LISTEN_ROUTING_KEY = "song.listened";
 
     @Bean("musicExchange")
     public DirectExchange musicExchange() {
@@ -80,24 +82,27 @@ public class RabbitMQConfig {
     public TopicExchange musicEventExchange() {
         return new TopicExchange(MUSIC_EVENT_EXCHANGE);
     }
-
     @Bean
-    public Queue historyMongoQueue() {
-        return new Queue(HISTORY_MONGO_QUEUE, true);
+    public Queue listenHistoryQueue() {
+        return QueueBuilder.durable(LISTEN_HISTORY_QUEUE).build();
     }
 
     @Bean
-    public Queue trendingRedisQueue() {
-        return new Queue(TRENDING_REDIS_QUEUE, true);
+    public Queue listenTrendingQueue() {
+        return QueueBuilder.durable(LISTEN_TRENDING_QUEUE).build();
     }
 
     @Bean
-    public Binding bindingHistoryMongo(Queue historyMongoQueue, TopicExchange musicEventExchange) {
-        return BindingBuilder.bind(historyMongoQueue).to(musicEventExchange).with(SONG_LISTENED_ROUTING_KEY);
+    public Binding bindHistoryQueue(Queue listenHistoryQueue,
+                                    TopicExchange musicEventExchange) {
+        return BindingBuilder.bind(listenHistoryQueue)
+                .to(musicEventExchange).with(SONG_LISTEN_ROUTING_KEY);
     }
 
     @Bean
-    public Binding bindingTrendingRedis(Queue trendingRedisQueue, TopicExchange musicEventExchange) {
-        return BindingBuilder.bind(trendingRedisQueue).to(musicEventExchange).with(SONG_LISTENED_ROUTING_KEY);
+    public Binding bindTrendingQueue(Queue listenTrendingQueue,
+                                     TopicExchange musicEventExchange) {
+        return BindingBuilder.bind(listenTrendingQueue)
+                .to(musicEventExchange).with(SONG_LISTEN_ROUTING_KEY);
     }
 }

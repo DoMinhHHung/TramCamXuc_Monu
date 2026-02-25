@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import iuh.fit.se.core.configuration.RabbitMQConfig;
 import iuh.fit.se.core.constant.SubscriptionConstants;
+import iuh.fit.se.core.dto.message.SongListenEvent;
 import iuh.fit.se.core.dto.message.TranscodeSongMessage;
 import iuh.fit.se.core.exception.AppException;
 import iuh.fit.se.core.exception.ErrorCode;
@@ -38,6 +39,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -342,6 +344,41 @@ public class SongServiceImpl implements SongService {
         artistRepository.findById(artistId)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTIST_NOT_FOUND));
         return songRepository.findByArtistId(artistId, pageable).map(songMapper::toResponse);
+    }
+
+    @Override
+    public void recordListen(UUID songId, UUID playlistId, UUID albumId, int durationSeconds) {
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
+
+        UUID userId = tryGetCurrentUserId();
+
+        SongListenEvent event = SongListenEvent.builder()
+                .songId(songId)
+                .artistId(song.getPrimaryArtist().getId())
+                .userId(userId)
+                .playlistId(playlistId)
+                .albumId(albumId)
+                .listenedAt(Instant.now())
+                .durationSeconds(durationSeconds)
+                .build();
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.MUSIC_EVENT_EXCHANGE,
+                RabbitMQConfig.SONG_LISTENED_ROUTING_KEY,
+                event
+        );
+
+        log.info("Listen event published: song={} user={}", songId, userId);
+    }
+
+    private UUID tryGetCurrentUserId() {
+        try {
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()
+                    || "anonymousUser".equals(auth.getPrincipal())) return null;
+            return UUID.fromString(auth.getName());
+        } catch (Exception e) { return null; }
     }
 
     // ==================== ADMIN ====================
