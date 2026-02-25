@@ -19,6 +19,7 @@ import iuh.fit.se.identity.repository.UserRepository;
 import iuh.fit.se.identity.repository.httpclient.IdentityClient;
 import iuh.fit.se.identity.service.AuthService;
 import iuh.fit.se.identity.service.FreePlanConfigService;
+import iuh.fit.se.identity.service.UserProfileCacheService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -48,6 +49,7 @@ public class AuthServiceImpl implements AuthService {
     final ApplicationEventPublisher eventPublisher;
     final RefreshTokenRepository refreshTokenRepository;
     private final FreePlanConfigService freePlanConfigService;
+    private final UserProfileCacheService userProfileCacheService;
 
     static final String LOWER = "abcdefghijklmnopqrstuvwxyz";
     static final String UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -192,6 +194,7 @@ public class AuthServiceImpl implements AuthService {
         String refreshToken = generateToken(user, refreshableDuration);
 
         saveRefreshToken(user, refreshToken);
+        userProfileCacheService.cacheUserProfile(user);
 
         return AuthenticationResponse.builder()
                 .accessToken(accessToken)
@@ -218,6 +221,7 @@ public class AuthServiceImpl implements AuthService {
         String newRefreshToken = generateToken(user, refreshableDuration);
 
         saveRefreshToken(user, newRefreshToken);
+        userProfileCacheService.cacheUserProfile(user);
 
         return AuthenticationResponse.builder()
                 .accessToken(newAccessToken)
@@ -259,6 +263,7 @@ public class AuthServiceImpl implements AuthService {
         String accessToken = generateToken(user, validDuration);
         String refreshToken = generateToken(user, refreshableDuration);
         saveRefreshToken(user, refreshToken);
+        userProfileCacheService.cacheUserProfile(user);
 
         return AuthenticationResponse.builder()
                 .accessToken(accessToken)
@@ -274,20 +279,9 @@ public class AuthServiceImpl implements AuthService {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + duration);
 
-        StringJoiner scopeJoiner = new StringJoiner(" ");
-        scopeJoiner.add("ROLE_" + user.getRole().name());
-
-        String features = user.getSubscriptionFeatures();
-        String plan = user.getSubscriptionPlan();
-
         return Jwts.builder()
                 .setSubject(user.getId().toString())
                 .claim("email", user.getEmail())
-                .claim("role", scopeJoiner.toString())
-                .claim("scope", scopeJoiner.toString())
-                .claim("name", user.getFullName())
-                .claim("plan", plan != null ? plan : "FREE")
-                .claim("features", features)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(signerKey)), SignatureAlgorithm.HS256)

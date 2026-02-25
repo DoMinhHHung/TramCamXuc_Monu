@@ -11,6 +11,7 @@ import iuh.fit.se.identity.enums.Role;
 import iuh.fit.se.identity.repository.UserRepository;
 import iuh.fit.se.core.service.StorageService;
 import iuh.fit.se.identity.service.UserService;
+import iuh.fit.se.identity.service.UserProfileCacheService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -34,6 +35,7 @@ public class UserServiceImpl implements UserService {
     PasswordEncoder passwordEncoder;
 
     final StorageService storageService;
+    final UserProfileCacheService userProfileCacheService;
 
     private User getCurrentUser() {
         var context = SecurityContextHolder.getContext();
@@ -55,7 +57,9 @@ public class UserServiceImpl implements UserService {
         if (request.getDob() != null) user.setDob(request.getDob());
         if (request.getGender() != null) user.setGender(request.getGender());
 
-        return userMapper.toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        userProfileCacheService.cacheUserProfile(saved);
+        return userMapper.toResponse(saved);
     }
 
     @Override
@@ -68,6 +72,7 @@ public class UserServiceImpl implements UserService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+        userProfileCacheService.cacheUserProfile(user);
     }
 
     @Override
@@ -78,7 +83,9 @@ public class UserServiceImpl implements UserService {
         String url = storageService.uploadImage(file, "phazelsound/avatar");
         user.setAvatarUrl(url);
 
-        return userMapper.toResponse(userRepository.save(user));
+        User saved = userRepository.save(user);
+        userProfileCacheService.cacheUserProfile(saved);
+        return userMapper.toResponse(saved);
     }
 
     @Override
@@ -86,6 +93,7 @@ public class UserServiceImpl implements UserService {
     public void deleteAccount() {
         User user = getCurrentUser();
         userRepository.delete(user);
+        userProfileCacheService.evictUserProfile(user.getId().toString());
     }
 
     @Override
@@ -133,14 +141,6 @@ public class UserServiceImpl implements UserService {
         }
 
         userRepository.save(user);
-    }
-
-    @Override
-    public boolean existsById(String id) {
-        try {
-            return userRepository.existsById(UUID.fromString(id));
-        } catch (Exception e) {
-            return false;
-        }
+        userProfileCacheService.cacheUserProfile(user);
     }
 }

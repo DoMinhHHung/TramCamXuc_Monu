@@ -5,6 +5,7 @@ import iuh.fit.se.core.configuration.RabbitMQConfig;
 import iuh.fit.se.core.dto.message.TranscodeSongMessage;
 import iuh.fit.se.core.dto.message.TranscodeSuccessMessage;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -20,6 +21,9 @@ import java.nio.file.Paths;
 @RequiredArgsConstructor
 @Slf4j
 public class TranscodeListener {
+
+    @Value("${transcoder.generate-mp3-download:false}")
+    private boolean generateMp3Download;
 
     private final MinioHelper minioHelper;
     private final FfmpegService ffmpegService;
@@ -50,9 +54,11 @@ public class TranscodeListener {
             String minioTargetPrefix = "hls/" + message.getSongId();
             minioHelper.uploadHlsDirectory(outputDir, minioTargetPrefix);
 
-            ffmpegService.generateMp3320k(localRawFilePath, localMp3FilePath);
-            String mp3ObjectKey = "download/" + message.getSongId() + "/song-320kbps.mp3";
-            minioHelper.uploadSingleFile(localMp3FilePath, mp3ObjectKey, "audio/mpeg");
+            if (generateMp3Download) {
+                ffmpegService.generateMp3320k(localRawFilePath, localMp3FilePath);
+                String mp3ObjectKey = "download/" + message.getSongId() + "/song-320kbps.mp3";
+                minioHelper.uploadSingleFile(localMp3FilePath, mp3ObjectKey, "audio/mpeg");
+            }
 
             String masterM3u8Path = minioTargetPrefix + "/master.m3u8";
             TranscodeSuccessMessage successMessage = TranscodeSuccessMessage.builder()

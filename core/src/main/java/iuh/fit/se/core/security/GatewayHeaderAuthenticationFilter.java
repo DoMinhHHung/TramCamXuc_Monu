@@ -13,7 +13,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class GatewayHeaderAuthenticationFilter extends OncePerRequestFilter {
@@ -24,6 +26,7 @@ public class GatewayHeaderAuthenticationFilter extends OncePerRequestFilter {
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
         String userId = request.getHeader("X-User-Id");
         String roleHeader = request.getHeader("X-User-Role");
+        String planHeader = request.getHeader("X-User-Plan");
 
         if (userId != null && !userId.isBlank() && SecurityContextHolder.getContext().getAuthentication() == null) {
             List<SimpleGrantedAuthority> authorities = roleHeader == null || roleHeader.isBlank()
@@ -35,6 +38,12 @@ public class GatewayHeaderAuthenticationFilter extends OncePerRequestFilter {
 
             UsernamePasswordAuthenticationToken authToken =
                     new UsernamePasswordAuthenticationToken(userId, null, authorities);
+
+            Map<String, Object> details = new HashMap<>();
+            details.put("plan", planHeader == null || planHeader.isBlank() ? "FREE" : planHeader);
+            details.put("role", roleHeader == null ? "ROLE_USER" : roleHeader);
+            authToken.setDetails(details);
+
             SecurityContextHolder.getContext().setAuthentication(authToken);
         }
 

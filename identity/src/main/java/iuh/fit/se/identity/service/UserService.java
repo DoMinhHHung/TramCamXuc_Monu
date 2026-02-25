@@ -15,5 +15,4 @@ public interface UserService {
     Page<UserResponse> getAllUsers(Pageable pageable);
     UserResponse getUserById(String id);
     void banUser(String id);
-    boolean existsById(String id);
 }

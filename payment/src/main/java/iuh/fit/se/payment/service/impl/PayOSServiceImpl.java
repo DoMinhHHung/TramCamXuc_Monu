@@ -2,6 +2,8 @@ package iuh.fit.se.payment.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import iuh.fit.se.core.configuration.RabbitMQConfig;
+import iuh.fit.se.core.dto.message.SubscriptionUpgradeRequestedEvent;
 import iuh.fit.se.core.event.SubscriptionActiveEvent;
 import iuh.fit.se.core.exception.AppException;
 import iuh.fit.se.core.exception.ErrorCode;
@@ -18,6 +20,7 @@ import iuh.fit.se.payment.repository.UserSubscriptionRepository;
 import iuh.fit.se.payment.service.PayOSService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +48,7 @@ public class PayOSServiceImpl implements PayOSService {
     private final ObjectMapper objectMapper;
 
     private final ApplicationEventPublisher eventPublisher;
+    private final RabbitTemplate rabbitTemplate;
 
     @Override
     @Transactional
@@ -177,6 +181,18 @@ public class PayOSServiceImpl implements PayOSService {
                             .planName(subscription.getPlan().getSubsName())
                             .features(subscription.getPlan().getFeatures())
                             .build());
+
+                    rabbitTemplate.convertAndSend(
+                            RabbitMQConfig.BILLING_EXCHANGE,
+                            RabbitMQConfig.SUBSCRIPTION_UPGRADE_REQUESTED_ROUTING_KEY,
+                            SubscriptionUpgradeRequestedEvent.builder()
+                                    .userId(transaction.getUserId())
+                                    .subscriptionId(subscription.getId())
+                                    .transactionId(transaction.getId())
+                                    .planName(subscription.getPlan().getSubsName())
+                                    .features(subscription.getPlan().getFeatures())
+                                    .build()
+                    );
                 }
 
                 log.info("Payment completed for order: {}", orderCode);

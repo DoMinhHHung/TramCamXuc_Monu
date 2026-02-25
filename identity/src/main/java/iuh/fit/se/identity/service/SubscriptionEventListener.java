@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.core.event.SubscriptionActiveEvent;
 import iuh.fit.se.identity.entity.User;
 import iuh.fit.se.identity.repository.UserRepository;
+import iuh.fit.se.identity.service.UserProfileCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -17,6 +18,7 @@ public class SubscriptionEventListener {
 
     private final UserRepository userRepository;
     private final ObjectMapper objectMapper;
+    private final UserProfileCacheService userProfileCacheService;
 
     @EventListener
     @Transactional
@@ -31,7 +33,8 @@ public class SubscriptionEventListener {
                 user.setSubscriptionFeatures(featuresJson);
 
                 userRepository.save(user);
-                log.info("Updated user subscription features in Identity DB");
+                userProfileCacheService.cacheUserProfile(user);
+                log.info("Updated user subscription features in Identity DB and Redis cache");
             } catch (Exception e) {
                 log.error("Failed to sync subscription data", e);
             }

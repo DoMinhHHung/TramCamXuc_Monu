@@ -76,3 +76,16 @@ docker compose -f docker-compose.microservices.yml up -d
 ./mvnw -pl integration spring-boot:run
 ./mvnw -pl transcoder spring-boot:run
 ```
+
+
+## 9) Unauthenticated requests & Rate Limit
+
+- Bucket4j rate limit chạy trước JWT filter ở Gateway (order thấp hơn).
+- Vì vậy request **có token hay không có token** đều bị rate limit theo IP.
+- Nếu request không có token thì vẫn qua rate-limit; endpoint protected sẽ bị backend từ chối bằng auth rule.
+
+## 10) Advanced architecture docs
+
+- `STREAMING_ARCHITECTURE.md`
+- `ANALYTICS_TRENDING_PIPELINE.md`
+- `PAYMENT_SAGA_ARCHITECTURE.md`

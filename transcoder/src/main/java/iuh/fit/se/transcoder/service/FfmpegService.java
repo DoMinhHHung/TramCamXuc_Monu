@@ -1,6 +1,7 @@
 package iuh.fit.se.transcoder.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -15,7 +16,14 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class FfmpegService {
 
-    private static final int TRANSCODE_TIMEOUT_MINUTES = 30;
+    @Value("${transcoder.timeout-minutes:30}")
+    private int transcodeTimeoutMinutes;
+
+    @Value("${transcoder.hls.segment-duration-seconds:6}")
+    private int hlsSegmentDuration;
+
+    @Value("${transcoder.hls.bitrates:64k,128k,192k,320k}")
+    private String hlsBitrates;
 
     public int getDuration(String inputFilePath) throws Exception {
         ProcessBuilder pb = new ProcessBuilder(
@@ -43,28 +51,36 @@ public class FfmpegService {
     }
 
     public void generateHls(String inputFilePath, String outputDir) throws Exception {
+        String[] bitrates = hlsBitrates.split(",");
+
         List<String> command = new ArrayList<>();
         command.add("ffmpeg");
         command.add("-y");
         command.add("-i"); command.add(inputFilePath);
+
+        for (int i = 0; i < bitrates.length; i++) {
+            command.add("-map"); command.add("0:a");
+            command.add("-b:a:" + i); command.add(bitrates[i].trim());
+        }
+
         command.add("-c:a"); command.add("aac");
-        command.add("-map"); command.add("0:a");
-        command.add("-map"); command.add("0:a");
-        command.add("-map"); command.add("0:a");
-        command.add("-map"); command.add("0:a");
-        command.add("-b:a:0"); command.add("64k");
-        command.add("-b:a:1"); command.add("128k");
-        command.add("-b:a:2"); command.add("256k");
-        command.add("-b:a:3"); command.add("320k");
         command.add("-f"); command.add("hls");
-        command.add("-hls_time"); command.add("4");
+        command.add("-hls_time"); command.add(String.valueOf(hlsSegmentDuration));
         command.add("-hls_playlist_type"); command.add("vod");
+        command.add("-hls_flags"); command.add("independent_segments");
         command.add("-master_pl_name"); command.add("master.m3u8");
+
+        StringBuilder streamMap = new StringBuilder();
+        for (int i = 0; i < bitrates.length; i++) {
+            if (i > 0) streamMap.append(' ');
+            streamMap.append("a:").append(i).append(",agroup:audio,name:").append(bitrates[i].trim());
+        }
+
         command.add("-var_stream_map");
-        command.add("a:0,agroup:audio,name:64k a:1,agroup:audio,name:128k a:2,agroup:audio,name:256k a:3,agroup:audio,name:320k");
+        command.add(streamMap.toString());
         command.add(outputDir + "/stream_%v.m3u8");
 
-        runWithTimeout(command, TRANSCODE_TIMEOUT_MINUTES, "HLS transcode");
+        runWithTimeout(command, transcodeTimeoutMinutes, "HLS transcode");
     }
 
     public void generateMp3320k(String inputFilePath, String outputFilePath) throws Exception {
@@ -76,7 +92,7 @@ public class FfmpegService {
         command.add("-b:a"); command.add("320k");
         command.add(outputFilePath);
 
-        runWithTimeout(command, TRANSCODE_TIMEOUT_MINUTES, "MP3 320k encode");
+        runWithTimeout(command, transcodeTimeoutMinutes, "MP3 320k encode");
     }
 
     private void runWithTimeout(List<String> command, int timeoutMinutes, String jobName) throws Exception {

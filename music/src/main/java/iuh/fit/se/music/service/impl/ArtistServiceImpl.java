@@ -1,27 +1,29 @@
 package iuh.fit.se.music.service.impl;
 
-import iuh.fit.se.music.client.IdentityServiceClient;
-import iuh.fit.se.music.dto.request.ArtistUpdateRequest;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import iuh.fit.se.core.constant.SubscriptionConstants;
 import iuh.fit.se.core.event.ArtistRegisteredEvent;
-import iuh.fit.se.core.exception.*;
+import iuh.fit.se.core.exception.AppException;
+import iuh.fit.se.core.exception.ErrorCode;
+import iuh.fit.se.core.service.StorageService;
 import iuh.fit.se.music.dto.request.ArtistRegisterRequest;
+import iuh.fit.se.music.dto.request.ArtistUpdateRequest;
 import iuh.fit.se.music.dto.response.ArtistResponse;
 import iuh.fit.se.music.entity.Artist;
 import iuh.fit.se.music.enums.ArtistStatus;
 import iuh.fit.se.music.mapper.ArtistMapper;
 import iuh.fit.se.music.repository.ArtistRepository;
 import iuh.fit.se.music.service.ArtistService;
-import iuh.fit.se.core.service.StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RequiredArgsConstructor
@@ -32,7 +34,23 @@ public class ArtistServiceImpl implements ArtistService {
     private final ArtistMapper artistMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final StorageService storageService;
-    private final IdentityServiceClient identityServiceClient;
+
+    private void checkSubscriptionPermission() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        Object details = authentication.getDetails();
+        String plan = SubscriptionConstants.PLAN_FREE;
+
+        if (details instanceof Map<?, ?> map) {
+            Object value = map.get("plan");
+            if (value != null) {
+                plan = value.toString();
+            }
+        }
+
+        if (SubscriptionConstants.PLAN_FREE.equalsIgnoreCase(plan)) {
+            throw new AppException(ErrorCode.FREE_SUBSCRIPTION_NOT_ALLOWED);
+        }
+    }
 
     @Override
     @Transactional
@@ -40,10 +58,7 @@ public class ArtistServiceImpl implements ArtistService {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         UUID userId = UUID.fromString(authentication.getName());
 
-        var existsResponse = identityServiceClient.userExists(userId.toString());
-        if (existsResponse == null || !Boolean.TRUE.equals(existsResponse.getResult())) {
-            throw new AppException(ErrorCode.USER_NOT_EXISTED);
-        }
+        checkSubscriptionPermission();
 
         if (artistRepository.existsByUserId(userId)) {
             throw new AppException(ErrorCode.ARTIST_ALREADY_REGISTERED);
@@ -68,11 +83,6 @@ public class ArtistServiceImpl implements ArtistService {
     public ArtistResponse getMyProfile() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         UUID userId = UUID.fromString(authentication.getName());
-
-        var existsResponse = identityServiceClient.userExists(userId.toString());
-        if (existsResponse == null || !Boolean.TRUE.equals(existsResponse.getResult())) {
-            throw new AppException(ErrorCode.USER_NOT_EXISTED);
-        }
 
         Artist artist = artistRepository.findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTIST_NOT_FOUND));

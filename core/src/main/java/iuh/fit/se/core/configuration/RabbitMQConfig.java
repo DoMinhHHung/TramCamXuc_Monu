@@ -30,6 +30,12 @@ public class RabbitMQConfig {
     public static final String LISTEN_HISTORY_DLQ = "listen.history.dlq";
     public static final String LISTEN_TRENDING_DLQ = "listen.trending.dlq";
 
+    public static final String BILLING_EXCHANGE = "billing.event.exchange";
+    public static final String SUBSCRIPTION_UPGRADE_REQUESTED_QUEUE = "subscription.upgrade.requested.queue";
+    public static final String SUBSCRIPTION_UPGRADE_REQUESTED_ROUTING_KEY = "subscription.upgrade.requested";
+    public static final String SUBSCRIPTION_PROVISIONED_QUEUE = "subscription.provisioned.queue";
+    public static final String SUBSCRIPTION_PROVISIONED_ROUTING_KEY = "subscription.provisioned";
+
     @Bean("musicExchange")
     public DirectExchange musicExchange() {
         return new DirectExchange(MUSIC_EXCHANGE);
@@ -103,16 +109,48 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Binding bindHistoryQueue(Queue listenHistoryQueue,
-                                    TopicExchange musicEventExchange) {
+    public Binding bindHistoryQueue(@Qualifier("listenHistoryQueue") Queue listenHistoryQueue,
+                                    @Qualifier("musicEventExchange") TopicExchange musicEventExchange) {
         return BindingBuilder.bind(listenHistoryQueue)
                 .to(musicEventExchange).with(SONG_LISTEN_ROUTING_KEY);
     }
 
     @Bean
-    public Binding bindTrendingQueue(Queue listenTrendingQueue,
-                                     TopicExchange musicEventExchange) {
+    public Binding bindTrendingQueue(@Qualifier("listenTrendingQueue") Queue listenTrendingQueue,
+                                     @Qualifier("musicEventExchange") TopicExchange musicEventExchange) {
         return BindingBuilder.bind(listenTrendingQueue)
                 .to(musicEventExchange).with(SONG_LISTEN_ROUTING_KEY);
     }
+
+    @Bean
+    public TopicExchange billingEventExchange() {
+        return new TopicExchange(BILLING_EXCHANGE);
+    }
+
+    @Bean
+    public Queue subscriptionUpgradeRequestedQueue() {
+        return QueueBuilder.durable(SUBSCRIPTION_UPGRADE_REQUESTED_QUEUE).build();
+    }
+
+    @Bean
+    public Binding bindSubscriptionUpgradeRequestedQueue(@Qualifier("subscriptionUpgradeRequestedQueue") Queue subscriptionUpgradeRequestedQueue,
+                                                         @Qualifier("billingEventExchange") TopicExchange billingEventExchange) {
+        return BindingBuilder.bind(subscriptionUpgradeRequestedQueue)
+                .to(billingEventExchange)
+                .with(SUBSCRIPTION_UPGRADE_REQUESTED_ROUTING_KEY);
+    }
+
+    @Bean
+    public Queue subscriptionProvisionedQueue() {
+        return QueueBuilder.durable(SUBSCRIPTION_PROVISIONED_QUEUE).build();
+    }
+
+    @Bean
+    public Binding bindSubscriptionProvisionedQueue(@Qualifier("subscriptionProvisionedQueue") Queue subscriptionProvisionedQueue,
+                                                    @Qualifier("billingEventExchange") TopicExchange billingEventExchange) {
+        return BindingBuilder.bind(subscriptionProvisionedQueue)
+                .to(billingEventExchange)
+                .with(SUBSCRIPTION_PROVISIONED_ROUTING_KEY);
+    }
+
 }
