@@ -72,6 +72,16 @@ public class SongController {
         return ApiResponse.<Void>builder().message("Play recorded.").build();
     }
 
+    @PostMapping("/{songId}/listen")
+    public ApiResponse<Void> recordListen(
+            @PathVariable UUID songId,
+            @RequestParam(required = false) UUID playlistId,
+            @RequestParam(required = false) UUID albumId,
+            @RequestParam(defaultValue = "30") int durationSeconds) {
+        songService.recordListen(songId, playlistId, albumId, durationSeconds);
+        return ApiResponse.<Void>builder().message("Listen recorded.").build();
+    }
+
     // ==================== AUTHENTICATED ====================
 
     @GetMapping("/{songId}/stream")

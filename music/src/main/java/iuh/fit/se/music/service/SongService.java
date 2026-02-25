@@ -28,6 +28,8 @@ public interface SongService {
     Page<SongResponse> getNewest(Pageable pageable);
     Page<SongResponse> getSongsByArtist(UUID artistId, Pageable pageable);
 
+    void recordListen(UUID songId, UUID playlistId, UUID albumId, int durationSeconds);
+
     // Admin
     Page<SongResponse> getAdminQueue(ApprovalStatus approvalStatus, String keyword, Pageable pageable);
     SongResponse approveSong(UUID songId, UUID adminId);
