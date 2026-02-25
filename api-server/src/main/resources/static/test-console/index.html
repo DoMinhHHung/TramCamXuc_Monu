@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PhazelSound API Test Console</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header>
+    <h1>PhazelSound API Test Console</h1>
+    <p>Giao diện test nhanh toàn bộ API từ OpenAPI spec thật (<code>/v3/api-docs</code>), không dùng mock data.</p>
+  </header>
+
+  <section class="toolbar">
+    <label>
+      API Base URL
+      <input id="baseUrl" type="url" placeholder="http://localhost:8080" />
+    </label>
+    <label>
+      OpenAPI URL
+      <input id="openApiUrl" type="url" placeholder="http://localhost:8080/v3/api-docs" />
+    </label>
+    <label>
+      JWT Bearer Token (tuỳ chọn)
+      <input id="authToken" type="text" placeholder="eyJhbGciOi..." />
+    </label>
+    <div class="toolbar-actions">
+      <button id="loadApisBtn">Tải danh sách API</button>
+      <button id="clearHistoryBtn" class="secondary">Xoá lịch sử kết quả</button>
+    </div>
+    <p id="status" class="status">Sẵn sàng.</p>
+  </section>
+
+  <main>
+    <aside>
+      <h2>Endpoints</h2>
+      <input id="searchInput" type="search" placeholder="Tìm path, method, tag..." />
+      <div id="apiList" class="api-list"></div>
+    </aside>
+
+    <section class="panel">
+      <h2 id="endpointTitle">Chọn endpoint để bắt đầu test</h2>
+      <form id="requestForm" class="hidden">
+        <div class="meta-grid">
+          <label>
+            Method
+            <input id="method" type="text" readonly />
+          </label>
+          <label>
+            Path
+            <input id="path" type="text" readonly />
+          </label>
+          <label>
+            Content-Type
+            <select id="contentType"></select>
+          </label>
+        </div>
+
+        <div id="paramsContainer"></div>
+
+        <div class="field-group">
+          <label for="requestBody">Request Body (JSON)</label>
+          <textarea id="requestBody" rows="10" spellcheck="false"></textarea>
+        </div>
+
+        <div class="toolbar-actions">
+          <button type="submit">Gọi API</button>
+          <button type="button" id="copyCurlBtn" class="secondary">Copy cURL</button>
+        </div>
+      </form>
+
+      <section id="responseSection" class="response hidden">
+        <h3>Kết quả</h3>
+        <pre id="responseMeta"></pre>
+        <pre id="responseBody"></pre>
+      </section>
+
+      <section>
+        <h3>Lịch sử request</h3>
+        <div id="history" class="history"></div>
+      </section>
+
+      <section class="player-section">
+        <h3>Music Player & thống kê nhanh</h3>
+        <p class="player-note">Phát nhạc trực tiếp bằng API thật, có tua nhạc (seek), ghi nhận play/listen và lấy thống kê artist.</p>
+
+        <div class="meta-grid">
+          <label>
+            Song ID
+            <input id="playerSongId" type="text" placeholder="UUID bài hát" />
+          </label>
+          <label>
+            Playlist ID (optional)
+            <input id="playerPlaylistId" type="text" placeholder="UUID playlist" />
+          </label>
+          <label>
+            Album ID (optional)
+            <input id="playerAlbumId" type="text" placeholder="UUID album" />
+          </label>
+          <label>
+            Duration listen (giây)
+            <input id="playerListenDuration" type="number" value="30" min="1" />
+          </label>
+        </div>
+
+        <div class="toolbar-actions">
+          <button id="loadPlayerBtn" type="button">Load stream & phát</button>
+          <button id="recordPlayBtn" type="button" class="secondary">Ghi nhận play</button>
+          <button id="recordListenBtn" type="button" class="secondary">Ghi nhận listen</button>
+          <button id="loadArtistStatsBtn" type="button" class="secondary">Lấy stats artist</button>
+        </div>
+
+        <audio id="playerAudio" controls preload="none"></audio>
+        <div class="seek-row">
+          <label for="seekRange">Tua nhạc</label>
+          <input id="seekRange" type="range" min="0" value="0" step="1" />
+          <span id="seekLabel">00:00 / 00:00</span>
+        </div>
+
+        <pre id="playerInfo">Chưa load bài hát.</pre>
+        <pre id="artistStats">Chưa có thống kê artist.</pre>
+      </section>
+    </section>
+  </main>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
