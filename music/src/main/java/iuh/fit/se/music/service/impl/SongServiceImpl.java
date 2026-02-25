@@ -365,7 +365,7 @@ public class SongServiceImpl implements SongService {
 
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.MUSIC_EVENT_EXCHANGE,
-                RabbitMQConfig.SONG_LISTENED_ROUTING_KEY,
+                RabbitMQConfig.SONG_LISTEN_ROUTING_KEY,
                 event
         );
 

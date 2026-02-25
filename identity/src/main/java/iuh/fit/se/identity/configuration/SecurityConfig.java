@@ -38,6 +38,9 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/social/artists/*/stats", "/social/reactions", "/social/comments", "/social/comments/count", "/social/share").permitAll()
                         .requestMatchers(HttpMethod.GET, "/social/comments", "/social/comments/count").permitAll()
+                        .requestMatchers("/test-console/**", "/", "/index.html", "/error").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/songs", "/songs/trending", "/songs/newest", "/songs/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/songs/*/play", "/songs/*/listen").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
