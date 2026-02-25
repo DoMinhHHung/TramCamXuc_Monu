@@ -81,8 +81,10 @@ docker compose -f docker-compose.microservices.yml up -d
 ## 9) Unauthenticated requests & Rate Limit
 
 - Bucket4j rate limit chạy trước JWT filter ở Gateway (order thấp hơn).
-- Vì vậy request **có token hay không có token** đều bị rate limit theo IP.
-- Nếu request không có token thì vẫn qua rate-limit; endpoint protected sẽ bị backend từ chối bằng auth rule.
+- Vì vậy request **có token hay không có token** đều bị rate limit.
+- Request không có token: Gateway ưu tiên header định danh máy (`X-Device-Id`) để tránh chặn cả cụm user chung một WiFi NAT.
+- Nếu không có `X-Device-Id`, Gateway fallback theo tổ hợp `client-ip + user-agent`.
+- Endpoint protected vẫn bị backend từ chối theo auth rule nếu thiếu token hợp lệ.
 
 ## 10) Advanced architecture docs
 
