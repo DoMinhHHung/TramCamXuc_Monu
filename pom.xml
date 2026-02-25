@@ -20,6 +20,8 @@
         <module>music</module>
         <module>transcoder</module>
         <module>social</module>
+        <module>discovery-server</module>
+        <module>api-gateway</module>
     </modules>
 
     <properties>
