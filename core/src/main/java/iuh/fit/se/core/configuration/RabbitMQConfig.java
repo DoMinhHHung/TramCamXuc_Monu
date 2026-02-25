@@ -22,10 +22,13 @@ public class RabbitMQConfig {
 
     public static final String MUSIC_EVENT_EXCHANGE = "music.event.exchange";
 
-    public static final String SONG_LISTENED_ROUTING_KEY = "song.listened";
     public static final String LISTEN_HISTORY_QUEUE    = "listen.history.queue";
     public static final String LISTEN_TRENDING_QUEUE   = "listen.trending.queue";
     public static final String SONG_LISTEN_ROUTING_KEY = "song.listened";
+
+    public static final String LISTEN_DLX = "listen.dlx";
+    public static final String LISTEN_HISTORY_DLQ = "listen.history.dlq";
+    public static final String LISTEN_TRENDING_DLQ = "listen.trending.dlq";
 
     @Bean("musicExchange")
     public DirectExchange musicExchange() {
@@ -82,14 +85,21 @@ public class RabbitMQConfig {
     public TopicExchange musicEventExchange() {
         return new TopicExchange(MUSIC_EVENT_EXCHANGE);
     }
+
     @Bean
     public Queue listenHistoryQueue() {
-        return QueueBuilder.durable(LISTEN_HISTORY_QUEUE).build();
+        return QueueBuilder.durable(LISTEN_HISTORY_QUEUE)
+                .withArgument("x-dead-letter-exchange", LISTEN_DLX)
+                .withArgument("x-dead-letter-routing-key", LISTEN_HISTORY_DLQ)
+                .build();
     }
 
     @Bean
     public Queue listenTrendingQueue() {
-        return QueueBuilder.durable(LISTEN_TRENDING_QUEUE).build();
+        return QueueBuilder.durable(LISTEN_TRENDING_QUEUE)
+                .withArgument("x-dead-letter-exchange", LISTEN_DLX)
+                .withArgument("x-dead-letter-routing-key", LISTEN_TRENDING_DLQ)
+                .build();
     }
 
     @Bean

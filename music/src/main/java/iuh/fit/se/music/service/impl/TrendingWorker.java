@@ -61,11 +61,6 @@ public class TrendingWorker {
             throw e;
         }
     }
-
-    /**
-     * Tăng score của member trong ZSET, chỉ set TTL khi key mới được tạo
-     * (getExpire = -1 nghĩa là key tồn tại nhưng không có TTL → vừa được tạo).
-     */
     private void incrementAndExpire(String key, String member, long ttlDays) {
         redisTemplate.opsForZSet().incrementScore(key, member, 1.0);
         if (redisTemplate.getExpire(key) == -1L) {
