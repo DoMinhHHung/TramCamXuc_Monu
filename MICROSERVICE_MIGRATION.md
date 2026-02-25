@@ -3,7 +3,7 @@
 ## 1) Kiến trúc runtime mới
 
 - **API Gateway** (`api-gateway`, port `8080`): điểm vào duy nhất cho Frontend.
-- **Service Discovery** (`eureka-server`, port `8761`): đăng ký/tìm service tự động.
+- **Service Discovery** (`eureka-server`, port `8081`): đăng ký/tìm service tự động.
 - Domain services:
   - `identity-service` (PostgreSQL riêng)
   - `music-service` (PostgreSQL riêng)
