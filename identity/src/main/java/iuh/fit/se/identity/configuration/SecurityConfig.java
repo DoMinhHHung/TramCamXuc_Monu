@@ -3,6 +3,7 @@ package iuh.fit.se.identity.configuration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -35,6 +36,8 @@ public class SecurityConfig {
                         .requestMatchers("/payments/payos_transfer_handler").permitAll()
                         .requestMatchers("/service-payment/payments/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/social/artists/*/stats", "/social/reactions", "/social/comments", "/social/comments/count", "/social/share").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/social/comments", "/social/comments/count").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

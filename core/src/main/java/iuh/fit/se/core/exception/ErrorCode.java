@@ -94,6 +94,8 @@ public enum ErrorCode {
     ALBUM_HAS_REJECTED_SONG(7012, "Album contains rejected songs — remove them before resubmitting", HttpStatus.BAD_REQUEST),
     ALBUM_SCHEDULE_INVALID_TIME(7013, "Scheduled publish time must be in the future", HttpStatus.BAD_REQUEST),
     ALBUM_SCHEDULE_NOT_FOUND(7014, "No scheduled publish time set for this album", HttpStatus.BAD_REQUEST),
+
+    EDIT_WINDOW_EXPIRED(8001,"The editing time has expired.", HttpStatus.BAD_REQUEST)
     ;
 
     private final int code;

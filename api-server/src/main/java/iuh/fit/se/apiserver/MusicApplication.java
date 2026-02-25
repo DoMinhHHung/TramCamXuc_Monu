@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -14,11 +15,13 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "iuh.fit.se.identity",
         "iuh.fit.se.music",
         "iuh.fit.se.payment",
-        "iuh.fit.se.integration"
+        "iuh.fit.se.integration",
+        "iuh.fit.se.social"
 })
 @EnableJpaAuditing
 @EnableJpaRepositories(basePackages = "iuh.fit.se")
 @EntityScan(basePackages = "iuh.fit.se")
+@EnableMongoRepositories(basePackages = "iuh.fit.se.social.repository")
 @EnableAsync
 @EnableScheduling
 public class MusicApplication {

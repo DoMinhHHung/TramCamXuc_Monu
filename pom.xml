@@ -19,6 +19,7 @@
         <module>payment</module>
         <module>music</module>
         <module>transcoder</module>
+        <module>social</module>
     </modules>
 
     <properties>
