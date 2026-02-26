@@ -1,0 +1,42 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: social-service
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/social_db
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+app:
+  rabbitmq:
+    song-listen:
+      exchange: social.activity.exchange
+      routing-key: song.listened
+      queue: social.listen-history.queue
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: http://localhost:8081

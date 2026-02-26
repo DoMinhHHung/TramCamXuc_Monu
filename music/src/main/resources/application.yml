@@ -1,0 +1,54 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: music-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/music_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+app:
+  rabbitmq:
+    transcode:
+      result-queue: song.transcode.success.queue
+    song-listen:
+      exchange: social.activity.exchange
+      routing-key: song.listened
+      queue: listen.trending.queue
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: http://localhost:8081

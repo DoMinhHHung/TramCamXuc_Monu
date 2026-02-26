@@ -23,7 +23,7 @@ public class TrendingWorker {
     private static final long MONTH_TTL_DAYS = 395;
     private static final long YEAR_TTL_DAYS  = 730;
 
-    @RabbitListener(queues = "listen.trending.queue")
+    @RabbitListener(queues = "${app.rabbitmq.song-listen.queue:listen.trending.queue}")
     public void handle(SongListenEvent event) {
         try {
             if (event.getDurationSeconds() < 30) return;

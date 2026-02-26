@@ -14,12 +14,15 @@
     <modules>
         <module>core</module>
         <module>identity</module>
-        <module>api-server</module>
         <module>integration</module>
         <module>payment</module>
         <module>music</module>
         <module>transcoder</module>
         <module>social</module>
+        <module>discovery-server</module>
+        <module>api-gateway</module>
+        <module>notification-service</module>
+        <module>ai-recommendation-service</module>
     </modules>
 
     <properties>

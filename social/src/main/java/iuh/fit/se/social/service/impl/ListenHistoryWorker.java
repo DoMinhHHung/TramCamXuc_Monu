@@ -1,6 +1,5 @@
 package iuh.fit.se.social.service.impl;
 
-import iuh.fit.se.core.configuration.RabbitMQConfig;
 import iuh.fit.se.core.dto.message.SongListenEvent;
 import iuh.fit.se.social.document.ListenHistory;
 import iuh.fit.se.social.repository.ListenHistoryRepository;
@@ -16,7 +15,7 @@ public class ListenHistoryWorker {
 
     private final ListenHistoryRepository listenHistoryRepository;
 
-    @RabbitListener(queues = "listen.history.queue")
+    @RabbitListener(queues = "${app.rabbitmq.song-listen.queue:social.listen-history.queue}")
     public void handle(SongListenEvent event) {
         try {
             ListenHistory record = ListenHistory.builder()

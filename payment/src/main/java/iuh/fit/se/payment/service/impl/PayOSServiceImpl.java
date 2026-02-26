@@ -15,6 +15,7 @@ import iuh.fit.se.payment.enums.PaymentStatus;
 import iuh.fit.se.payment.enums.SubscriptionStatus;
 import iuh.fit.se.payment.repository.PaymentTransactionRepository;
 import iuh.fit.se.payment.repository.UserSubscriptionRepository;
+import iuh.fit.se.payment.messaging.UserUpgradeEventPublisher;
 import iuh.fit.se.payment.service.PayOSService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ public class PayOSServiceImpl implements PayOSService {
     private final ObjectMapper objectMapper;
 
     private final ApplicationEventPublisher eventPublisher;
+    private final UserUpgradeEventPublisher userUpgradeEventPublisher;
 
     @Override
     @Transactional
@@ -179,7 +181,9 @@ public class PayOSServiceImpl implements PayOSService {
                             .build());
                 }
 
-                log.info("Payment completed for order: {}", orderCode);
+                userUpgradeEventPublisher.publishPremiumUpgrade(transaction.getUserId());
+
+                log.info("Payment completed for order: {}. Published UserUpgradedEvent(newRole=PREMIUM)", orderCode);
 
             } else {
                 transaction.setStatus(PaymentStatus.FAILED);

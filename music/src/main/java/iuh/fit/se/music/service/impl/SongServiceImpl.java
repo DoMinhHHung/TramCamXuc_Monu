@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import iuh.fit.se.core.configuration.RabbitMQConfig;
+import iuh.fit.se.music.configuration.MusicEventMessagingConfig;
 import iuh.fit.se.core.constant.SubscriptionConstants;
 import iuh.fit.se.core.dto.message.SongListenEvent;
 import iuh.fit.se.core.dto.message.TranscodeSongMessage;
@@ -364,8 +365,8 @@ public class SongServiceImpl implements SongService {
                 .build();
 
         rabbitTemplate.convertAndSend(
-                RabbitMQConfig.MUSIC_EVENT_EXCHANGE,
-                RabbitMQConfig.SONG_LISTEN_ROUTING_KEY,
+                MusicEventMessagingConfig.SONG_LISTEN_EXCHANGE,
+                MusicEventMessagingConfig.SONG_LISTEN_ROUTING_KEY,
                 event
         );
 

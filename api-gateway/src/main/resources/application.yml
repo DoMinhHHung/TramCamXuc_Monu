@@ -1,0 +1,87 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2s
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      default-filters:
+        - name: RequestRateLimiter
+          args:
+            key-resolver: "#{@jwtOrIpKeyResolver}"
+            redis-rate-limiter.replenishRate: 20
+            redis-rate-limiter.burstCapacity: 40
+            redis-rate-limiter.requestedTokens: 1
+      routes:
+        - id: identity-service
+          uri: lb://identity-service
+          predicates:
+            - Path=/identity/**
+
+        - id: music-service
+          uri: lb://music-service
+          predicates:
+            - Path=/music/**
+
+        - id: social-service
+          uri: lb://social-service
+          predicates:
+            - Path=/social/**
+
+        - id: payment-service
+          uri: lb://payment-service
+          predicates:
+            - Path=/payment/**
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,gateway
+  endpoint:
+    gateway:
+      enabled: true
+    health:
+      show-details: always
+
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    disable-swagger-default-url: true
+    urls:
+      - name: identity-service
+        url: /identity/v3/api-docs
+      - name: music-service
+        url: /music/v3/api-docs
+      - name: social-service
+        url: /social/v3/api-docs
+      - name: payment-service
+        url: /payment/v3/api-docs
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
