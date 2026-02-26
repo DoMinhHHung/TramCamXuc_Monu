@@ -1,12 +1,10 @@
 server:
-  port: 8085
+  port: 8086
 
 spring:
   application:
-    name: social-service
+    name: ai-recommendation-service
   data:
-    mongodb:
-      uri: mongodb://localhost:27017/social_db
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
@@ -31,12 +29,4 @@ app:
     song-listen:
       exchange: social.activity.exchange
       routing-key: song.listened
-      queue: social.listen-history.queue
-
-security:
-  jwt:
-    secret: ${JWT_SECRET}
-  oauth2:
-    resourceserver:
-      jwt:
-        issuer-uri: http://localhost:8081
+      queue: ai.recommendation.song-listen.queue

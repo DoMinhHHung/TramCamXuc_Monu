@@ -81,3 +81,7 @@ springdoc:
         url: /social/v3/api-docs
       - name: payment-service
         url: /payment/v3/api-docs
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}

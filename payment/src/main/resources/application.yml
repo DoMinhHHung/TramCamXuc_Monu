@@ -37,3 +37,11 @@ app:
       exchange: user.lifecycle.exchange
       routing-key: user.upgraded
       queue: identity.user-upgraded.queue
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: http://localhost:8081

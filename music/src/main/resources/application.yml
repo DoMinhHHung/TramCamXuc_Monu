@@ -44,3 +44,11 @@ app:
       exchange: social.activity.exchange
       routing-key: song.listened
       queue: listen.trending.queue
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+  oauth2:
+    resourceserver:
+      jwt:
+        issuer-uri: http://localhost:8081
