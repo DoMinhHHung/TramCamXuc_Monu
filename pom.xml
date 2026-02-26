@@ -23,6 +23,7 @@
         <module>api-gateway</module>
         <module>identity-service</module>
         <module>integration-service</module>
+        <module>payment-service</module>
     </modules>
 
     <properties>
