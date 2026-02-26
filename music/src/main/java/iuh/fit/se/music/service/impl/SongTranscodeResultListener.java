@@ -1,6 +1,5 @@
 package iuh.fit.se.music.service.impl;
 
-import iuh.fit.se.core.configuration.RabbitMQConfig;
 import iuh.fit.se.core.dto.message.TranscodeSuccessMessage;
 import iuh.fit.se.music.enums.TranscodeStatus;
 import iuh.fit.se.music.repository.SongRepository;
@@ -17,7 +16,7 @@ public class SongTranscodeResultListener {
 
     private final SongRepository songRepository;
 
-    @RabbitListener(queues = RabbitMQConfig.TRANSCODE_SUCCESS_QUEUE)
+    @RabbitListener(queues = "${app.rabbitmq.transcode.result-queue:song.transcode.success.queue}")
     @Transactional
     public void handleTranscodeSuccess(TranscodeSuccessMessage message) {
         log.info("Music Service received SUCCESS callback for Song: {}", message.getSongId());
