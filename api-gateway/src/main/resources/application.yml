@@ -62,3 +62,22 @@ management:
       enabled: true
     health:
       show-details: always
+
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    disable-swagger-default-url: true
+    urls:
+      - name: identity-service
+        url: /identity/v3/api-docs
+      - name: music-service
+        url: /music/v3/api-docs
+      - name: social-service
+        url: /social/v3/api-docs
+      - name: payment-service
+        url: /payment/v3/api-docs
