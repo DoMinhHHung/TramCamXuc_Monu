@@ -1,47 +1,70 @@
 package iuh.fit.se.paymentservice.entity;
 
-import iuh.fit.se.paymentservice.enums.PlanStatus;
+import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Type;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
 
-@Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "subscription_plans")
-public class SubscriptionPlan extends BaseEntity {
+@EntityListeners(AuditingEntityListener.class)
+public class SubscriptionPlan {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    /** Tên plan: FREE, PREMIUM, ARTIST, ... */
-    @Column(name = "name", nullable = false, unique = true)
-    private String name;
+    /**
+     * Tên gói: FREE, PREMIUM, ARTIST, ...
+     */
+    @Column(name = "subs_name", nullable = false, unique = true, length = 100)
+    private String subsName;
 
-    @Column(name = "description")
+    @Column(name = "description", length = 1000)
     private String description;
 
-    /** Giá theo VNĐ */
-    @Column(name = "price", nullable = false)
-    private BigDecimal price;
-
-    /** Số tháng của gói (1, 3, 6, 12) */
-    @Column(name = "duration_months", nullable = false)
-    private int durationMonths;
-
     /**
-     * JSON string chứa các feature:
+     * JSON chứa các feature:
      * {"quality":"lossless","no_ads":true,"offline":true,
      *  "download":true,"playlist_limit":100,"can_become_artist":true,
-     *  "create_album":true,"recommendation":true}
+     *  "create_album":true,"recommendation":"advanced"}
      */
-    @Column(name = "features", columnDefinition = "TEXT", nullable = false)
-    private String features;
+    @Type(JsonBinaryType.class)
+    @Column(name = "features", columnDefinition = "jsonb")
+    private Map<String, Object> features;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "price", nullable = false, precision = 10, scale = 2)
+    private BigDecimal price;
+
+    @Column(name = "duration_days", nullable = false)
+    private Integer durationDays;
+
+    @Column(name = "is_active", nullable = false)
     @Builder.Default
-    private PlanStatus status = PlanStatus.ACTIVE;
+    private Boolean isActive = true;
+
+    @Column(name = "display_order")
+    @Builder.Default
+    private Integer displayOrder = 0;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @LastModifiedDate
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }

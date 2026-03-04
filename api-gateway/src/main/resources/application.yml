@@ -24,7 +24,9 @@ spring:
         - id: payment-service
           uri: lb://PAYMENT-SERVICE
           predicates:
-            - Path=/api/v1/payments/**, /api/v1/subscriptions/**
+            - Path=/service-payment/**
+          filters:
+            - StripPrefix=1
 
 eureka:
   client:

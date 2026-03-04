@@ -6,7 +6,7 @@ spring:
     name: payment-service
 
   datasource:
-    url: ${DB_URL}
+    url: ${DB_URL_PAYMENT}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -37,7 +37,6 @@ eureka:
 jwt:
   signerKey: ${JWT_SECRET}
 
-# PayOS
 payos:
   client-id: ${PAYOS_CLIENT_ID}
   api-key: ${PAYOS_API_KEY}
@@ -45,7 +44,6 @@ payos:
   return-url: ${PAYOS_RETURN_URL:https://phazelsound.oopsgolden.id.vn/payment/success}
   cancel-url: ${PAYOS_CANCEL_URL:https://phazelsound.oopsgolden.id.vn/payment/cancel}
 
-# App frontend
 app:
   frontend:
     url: ${FRONTEND_URL:https://phazelsound.oopsgolden.id.vn}
@@ -54,3 +52,7 @@ open:
   api:
     title: Payment Service API
     version: 1.0.0
+
+scheduling:
+  subscription-check:
+    fixed-rate: 60000
