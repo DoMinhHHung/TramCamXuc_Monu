@@ -9,6 +9,10 @@ import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Song response DTO - Decoupled from identity-service.
+ * Uses artistId instead of nested ArtistSummary object.
+ */
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class SongResponse {
     private UUID id;
@@ -25,16 +29,14 @@ public class SongResponse {
     private String streamUrl;
 
     private Set<Genre> genres;
-    private ArtistSummary primaryArtist;
+
+    /**
+     * Loose reference to Artist from identity-service.
+     * TODO: Fetch Artist info (name, avatar) via FeignClient or CQRS Event
+     * Client should call identity-service to get full artist details.
+     */
+    private String artistId;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    @Data @NoArgsConstructor @AllArgsConstructor @Builder
-    public static class ArtistSummary {
-        private UUID id;
-        private UUID userId;
-        private String stageName;
-        private String avatarUrl;
-    }
 }

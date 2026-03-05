@@ -6,11 +6,16 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Album entity - Decoupled from identity-service.
+ * Uses loose reference (ownerArtistId) instead of JPA association.
+ */
 @Entity
 @Table(name = "albums", indexes = {
         @Index(name = "idx_albums_slug",   columnList = "slug",          unique = true),
@@ -18,7 +23,7 @@ import java.util.UUID;
         @Index(name = "idx_albums_status", columnList = "status")
 })
 @Getter @Setter
-@Builder @SuperBuilder
+@SuperBuilder
 @NoArgsConstructor @AllArgsConstructor
 public class Album extends BaseEntity {
 
@@ -47,11 +52,14 @@ public class Album extends BaseEntity {
     @Builder.Default
     private Integer totalDurationSeconds = 0;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_artist_id", nullable = false)
-    private Artist ownerArtist;
+    /**
+     * Loose reference to Artist from identity-service.
+     * No JPA @ManyToOne - respects "Database per Service" pattern.
+     * TODO: Fetch Artist info via FeignClient or CQRS Event
+     */
+    @Column(name = "owner_artist_id", nullable = false, length = 36)
+    private String ownerArtistId;
 
-    /** Thay thế AlbumApprovalStatus — không còn duyệt nữa */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
@@ -60,4 +68,16 @@ public class Album extends BaseEntity {
     @OneToMany(mappedBy = "album", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<AlbumSong> albumSongs = new ArrayList<>();
+
+    /**
+     * Timestamp when the album was soft-deleted
+     */
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    /**
+     * Admin ID who deleted the album (for audit trail)
+     */
+    @Column(name = "deleted_by", length = 36)
+    private String deletedBy;
 }

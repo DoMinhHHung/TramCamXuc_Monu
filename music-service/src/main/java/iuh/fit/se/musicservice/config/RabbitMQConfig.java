@@ -27,12 +27,18 @@ public class RabbitMQConfig {
     /** Nhận event subscription thay đổi */
     public static final String MUSIC_SUBSCRIPTION_QUEUE = "music.subscription.queue";
 
+    /** Queue for song soft-deleted events (consumed by social-service, etc.) */
+    public static final String SONG_DELETED_QUEUE = "song.deleted.queue";
+
     // ── Routing Keys ────────────────────────────────────────────
     public static final String TRANSCODE_ROUTING_KEY         = "song.transcode";
     public static final String TRANSCODE_SUCCESS_ROUTING_KEY = "song.transcode.success";
     public static final String SONG_LISTEN_ROUTING_KEY       = "song.listen";
     public static final String ROUTING_ARTIST_REGISTERED     = "artist.registered";
     public static final String ROUTING_SUBSCRIPTION_ACTIVE   = "subscription.active";
+
+    /** Routing key for song soft-deleted events */
+    public static final String SONG_SOFT_DELETED_ROUTING_KEY = "song.soft-deleted";
 
     @Bean
     public MessageConverter jsonMessageConverter() {
@@ -56,6 +62,7 @@ public class RabbitMQConfig {
     @Bean public Queue listenTrendingQueue()      { return QueueBuilder.durable(LISTEN_TRENDING_QUEUE).build(); }
     @Bean public Queue musicArtistRoleQueue()     { return QueueBuilder.durable(MUSIC_ARTIST_ROLE_QUEUE).build(); }
     @Bean public Queue musicSubscriptionQueue()   { return QueueBuilder.durable(MUSIC_SUBSCRIPTION_QUEUE).build(); }
+    @Bean public Queue songDeletedQueue()         { return QueueBuilder.durable(SONG_DELETED_QUEUE).build(); }
 
     // ── Bindings ────────────────────────────────────────────────
     @Bean
@@ -80,5 +87,11 @@ public class RabbitMQConfig {
     public Binding bindSubscription(Queue musicSubscriptionQueue, TopicExchange identityExchange) {
         return BindingBuilder.bind(musicSubscriptionQueue)
                 .to(identityExchange).with(ROUTING_SUBSCRIPTION_ACTIVE);
+    }
+
+    @Bean
+    public Binding bindSongDeleted(Queue songDeletedQueue, TopicExchange musicEventExchange) {
+        return BindingBuilder.bind(songDeletedQueue)
+                .to(musicEventExchange).with(SONG_SOFT_DELETED_ROUTING_KEY);
     }
 }

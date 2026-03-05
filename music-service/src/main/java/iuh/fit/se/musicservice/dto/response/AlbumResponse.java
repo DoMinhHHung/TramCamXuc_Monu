@@ -9,6 +9,10 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Album response DTO - Decoupled from identity-service.
+ * Uses ownerArtistId instead of nested owner object.
+ */
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class AlbumResponse {
     private UUID id;
@@ -25,9 +29,12 @@ public class AlbumResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    private UUID ownerArtistId;
-    private String ownerArtistName;
-    private String ownerArtistAvatar;
+    /**
+     * Loose reference to Artist from identity-service.
+     * TODO: Fetch Artist info (name, avatar) via FeignClient or CQRS Event
+     * Client should call identity-service to get full artist details.
+     */
+    private String ownerArtistId;
 
     private List<AlbumSongResponse> songs;
 }
