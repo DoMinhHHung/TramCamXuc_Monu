@@ -28,6 +28,13 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: music-service
+          uri: lb://music-service
+          predicates:
+            - Path=/service-music/**
+          filters:
+            - StripPrefix=1
+
 eureka:
   client:
     service-url:

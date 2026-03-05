@@ -1,12 +1,12 @@
 server:
-  port: 8081
+  port: 8082
 
 spring:
   application:
-    name: identity-service
+    name: music-service
 
   datasource:
-    url: ${DB_URL_IDENTITY}
+    url: ${DB_URL_MUSIC}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -14,7 +14,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -23,14 +23,17 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+
+  cache:
+    type: redis
 
 eureka:
   client:
@@ -41,20 +44,17 @@ eureka:
 
 jwt:
   signerKey: ${JWT_SECRET}
-  valid-duration: 3600000
-  refreshable-duration: 1209600000
 
-app:
-  admin:
-    email: ${ADMIN_EMAIL}
-    password: ${ADMIN_PASSWORD}
-
-cloudinary:
-  cloud-name: ${CLOUDINARY_NAME}
-  api-key: ${CLOUDINARY_API_KEY}
-  api-secret: ${CLOUDINARY_SECRET}
+minio:
+  url: ${MINIO_ENDPOINT}
+  public-url: ${MINIO_PUBLIC_URL}
+  access-key: ${MINIO_ACCESS_KEY}
+  secret-key: ${MINIO_SECRET_KEY}
+  bucket:
+    raw-songs: ${MINIO_RAW_BUCKET:raw-songs}
+    public-songs: ${MINIO_PUBLIC_BUCKET:public-songs}
 
 open:
   api:
-    title: Identity Service API
+    title: Music Service API
     version: 1.0.0
