@@ -60,7 +60,7 @@ public class Song extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private SongStatus status = SongStatus.DRAFT;
+    private SongStatus status = SongStatus.PRIVATE;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "transcode_status", nullable = false)

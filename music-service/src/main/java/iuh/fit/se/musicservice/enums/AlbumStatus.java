@@ -1,7 +1,7 @@
 package iuh.fit.se.musicservice.enums;
 
 public enum AlbumStatus {
-    DRAFT,
+    PRIVATE,
     PUBLIC,
-    PRIVATE
+    DELETED
 }

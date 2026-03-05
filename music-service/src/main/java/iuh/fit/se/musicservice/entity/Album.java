@@ -55,7 +55,7 @@ public class Album extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private AlbumStatus status = AlbumStatus.DRAFT;
+    private AlbumStatus status = AlbumStatus.PRIVATE;
 
     @OneToMany(mappedBy = "album", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

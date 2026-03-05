@@ -1,5 +1,6 @@
 package iuh.fit.se.musicservice.entity;
 
+import iuh.fit.se.musicservice.enums.ArtistStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;

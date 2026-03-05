@@ -3,6 +3,7 @@ package iuh.fit.se.musicservice.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -26,14 +27,16 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints — không cần token
-                        .requestMatchers(
+                        .requestMatchers(HttpMethod.GET,
                                 "/songs", "/songs/trending", "/songs/newest", "/songs/{songId}",
                                 "/songs/{songId}/play", "/songs/{songId}/listen",
                                 "/albums/{albumId}", "/albums/by-artist/**",
                                 "/artists/**",
                                 "/genres",
                                 "/trending/**",
-                                "/playlists/{slug}",
+                                "/playlists/{slug}"
+                        ).permitAll()
+                        .requestMatchers(
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
                         ).permitAll()
                         .anyRequest().authenticated()
