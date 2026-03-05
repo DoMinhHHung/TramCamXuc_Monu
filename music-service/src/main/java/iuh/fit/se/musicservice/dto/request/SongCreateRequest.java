@@ -1,12 +1,18 @@
 package iuh.fit.se.musicservice.dto.request;
 
-import iuh.fit.se.musicservice.enums.Genre;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.util.Set;
+import java.util.UUID;
 
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class SongCreateRequest {
 
     @NotBlank(message = "TITLE_REQUIRED")
@@ -17,5 +23,5 @@ public class SongCreateRequest {
     private String fileExtension;
 
     @NotEmpty(message = "GENRES_REQUIRED")
-    private Set<Genre> genres;
+    private Set<UUID> genreIds;
 }

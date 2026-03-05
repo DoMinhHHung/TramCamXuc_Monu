@@ -1,6 +1,5 @@
 package iuh.fit.se.musicservice.dto.response;
 
-import iuh.fit.se.musicservice.enums.Genre;
 import iuh.fit.se.musicservice.enums.SongStatus;
 import iuh.fit.se.musicservice.enums.TranscodeStatus;
 import lombok.*;
@@ -9,8 +8,12 @@ import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
 
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class SongResponse {
+
     private UUID id;
     private String title;
     private String slug;
@@ -21,18 +24,26 @@ public class SongResponse {
     private SongStatus status;
     private TranscodeStatus transcodeStatus;
 
-    private String uploadUrl;
-    private String streamUrl;
+    private boolean deleted;
+    private LocalDateTime deletedAt;
+    private String deleteReason;
 
-    private Set<Genre> genres;
-    private ArtistSummary primaryArtist;
+    private ArtistInfo primaryArtist;
+    private Set<GenreResponse> genres;
+
+    private String uploadUrl;
+
+    private String streamUrl;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    @Data @NoArgsConstructor @AllArgsConstructor @Builder
-    public static class ArtistSummary {
-        private UUID id;
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ArtistInfo {
+        private UUID artistId;
         private UUID userId;
         private String stageName;
         private String avatarUrl;

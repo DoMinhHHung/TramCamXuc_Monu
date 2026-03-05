@@ -4,8 +4,11 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import jakarta.servlet.*;
-import jakarta.servlet.http.*;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.NonNull;
@@ -23,7 +26,12 @@ import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Xác thực JWT – dùng cùng signerKey với identity-service.
+ * Claims được đặt làm credentials để các service đọc được subscription features.
+ */
 @Component
+@RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
@@ -37,6 +45,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             chain.doFilter(request, response);
             return;
@@ -61,20 +70,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String scope  = claims.get("scope", String.class);
 
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                List<SimpleGrantedAuthority> authorities = scope == null
-                        ? List.of()
-                        : Arrays.stream(scope.split(" "))
+                List<SimpleGrantedAuthority> authorities = Arrays.stream(scope.split(" "))
                         .map(SimpleGrantedAuthority::new)
                         .collect(Collectors.toList());
 
-                // Lưu toàn bộ claims vào credentials — services dùng để đọc features, plan
-                UsernamePasswordAuthenticationToken auth =
+                // credentials = claims → service đọc được plan/features
+                UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userId, claims, authorities);
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(authToken);
             }
         } catch (Exception e) {
-            log.debug("JWT auth failed: {}", e.getMessage());
+            log.warn("JWT filter error: {}", e.getMessage());
         }
 
         chain.doFilter(request, response);

@@ -1,4 +1,4 @@
-package iuh.fit.se.musicservice.dto;
+package iuh.fit.se.musicservice.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;

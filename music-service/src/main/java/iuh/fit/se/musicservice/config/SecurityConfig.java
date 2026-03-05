@@ -17,7 +17,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -25,20 +25,21 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints — không cần token
                         .requestMatchers(
-                                "/songs", "/songs/trending", "/songs/newest", "/songs/{songId}",
-                                "/songs/{songId}/play", "/songs/{songId}/listen",
-                                "/albums/{albumId}", "/albums/by-artist/**",
-                                "/artists/**",
-                                "/genres",
-                                "/trending/**",
-                                "/playlists/{slug}",
+                                "/api/v1/songs",
+                                "/api/v1/songs/trending",
+                                "/api/v1/songs/newest",
+                                "/api/v1/songs/by-artist/**",
+                                "/api/v1/songs/*/play",
+                                "/api/v1/songs/*/listen",
+                                "/api/v1/genres",
+                                "/api/v1/genres/**",
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
                         ).permitAll()
+                        .requestMatchers("GET", "/api/v1/songs/*").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

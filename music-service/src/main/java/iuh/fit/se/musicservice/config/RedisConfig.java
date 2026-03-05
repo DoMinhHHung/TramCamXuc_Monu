@@ -16,15 +16,10 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(factory);
         template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
         template.setHashValueSerializer(new GenericJackson2JsonRedisSerializer());
         template.afterPropertiesSet();
         return template;
-    }
-
-    @Bean
-    public StringRedisTemplate stringRedisTemplate(RedisConnectionFactory factory) {
-        return new StringRedisTemplate(factory);
     }
 }
