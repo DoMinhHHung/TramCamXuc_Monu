@@ -1,4 +1,4 @@
-package iuh.fit.se.transcoder.configuration;
+package iuh.fit.se.transcoderservice.config;
 
 import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;

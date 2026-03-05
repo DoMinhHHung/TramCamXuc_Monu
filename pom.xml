@@ -16,13 +16,13 @@
         <module>api-server</module>
         <module>integration</module>
         <module>music</module>
-        <module>transcoder</module>
         <module>social</module>
         <module>discovery-server</module>
         <module>api-gateway</module>
         <module>identity-service</module>
         <module>integration-service</module>
         <module>payment-service</module>
+        <module>transcode-service</module>
     </modules>
 
     <properties>
