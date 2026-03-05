@@ -1,5 +1,6 @@
 package iuh.fit.se.musicservice.entity;
 
+import iuh.fit.se.musicservice.enums.PlaylistVisibility;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -10,7 +11,7 @@ import java.util.UUID;
 @Getter @Setter @SuperBuilder @NoArgsConstructor @AllArgsConstructor
 @Entity
 @Table(name = "playlists", indexes = {
-        @Index(name = "idx_playlists_owner", columnList = "owner_id"),
+        @Index(name = "idx_playlists_owner", columnList = "user_id"),
         @Index(name = "idx_playlists_slug", columnList = "slug", unique = true)
 })
 public class Playlist extends BaseEntity {
@@ -24,13 +25,12 @@ public class Playlist extends BaseEntity {
     private String description;
     @Column(name = "cover_url", length = 500)
     private String coverUrl;
-    @Column(name = "owner_id", nullable = false)
-    private UUID ownerId;
+    @Column(name = "user_id", nullable = false, length = 64)
+    private String userId;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private PlaylistVisibility visibility = PlaylistVisibility.PUBLIC;
-    /** Head của doubly linked list */
     @Column(name = "head_song_id")
     private UUID headSongId;
     @OneToMany(mappedBy = "playlist", cascade = CascadeType.ALL, orphanRemoval = true)

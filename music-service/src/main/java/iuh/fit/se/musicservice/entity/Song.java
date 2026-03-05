@@ -18,7 +18,7 @@ import java.util.UUID;
         @Index(name = "idx_songs_slug",            columnList = "slug",            unique = true),
         @Index(name = "idx_songs_status",          columnList = "status"),
         @Index(name = "idx_songs_transcode_status",columnList = "transcode_status"),
-        @Index(name = "idx_songs_artist",          columnList = "primary_artist_id")
+        @Index(name = "idx_songs_artist",          columnList = "artist_id")
 })
 public class Song extends BaseEntity {
 
@@ -31,9 +31,8 @@ public class Song extends BaseEntity {
     @Column(nullable = false, unique = true, length = 255)
     private String slug;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "primary_artist_id", nullable = false)
-    private Artist primaryArtist;
+    @Column(name = "artist_id", nullable = false, length = 64)
+    private String artistId;
 
     @ElementCollection(targetClass = Genre.class, fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
@@ -60,7 +59,7 @@ public class Song extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private SongStatus status = SongStatus.DRAFT;
+    private SongStatus status = SongStatus.PROCESSING;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "transcode_status", nullable = false)

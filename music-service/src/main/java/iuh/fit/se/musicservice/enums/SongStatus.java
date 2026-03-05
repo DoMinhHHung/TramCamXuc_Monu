@@ -1,8 +1,8 @@
 package iuh.fit.se.musicservice.enums;
 
 public enum SongStatus {
-    DRAFT,
-    PUBLIC,
-    PRIVATE,
+    PROCESSING,
+    ACTIVE,
+    FAILED,
     DELETED
 }

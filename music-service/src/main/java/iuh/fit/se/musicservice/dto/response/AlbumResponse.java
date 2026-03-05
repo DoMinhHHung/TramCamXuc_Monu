@@ -25,9 +25,8 @@ public class AlbumResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    private UUID ownerArtistId;
-    private String ownerArtistName;
-    private String ownerArtistAvatar;
+    private String ownerArtistId;
+    // TODO: Fetch Artist info via FeignClient or CQRS Event.
 
     private List<AlbumSongResponse> songs;
 }

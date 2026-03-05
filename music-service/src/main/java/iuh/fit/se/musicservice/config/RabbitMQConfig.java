@@ -31,6 +31,7 @@ public class RabbitMQConfig {
     public static final String TRANSCODE_ROUTING_KEY         = "song.transcode";
     public static final String TRANSCODE_SUCCESS_ROUTING_KEY = "song.transcode.success";
     public static final String SONG_LISTEN_ROUTING_KEY       = "song.listen";
+    public static final String SONG_SOFT_DELETED_ROUTING_KEY = "song.soft-deleted";
     public static final String ROUTING_ARTIST_REGISTERED     = "artist.registered";
     public static final String ROUTING_SUBSCRIPTION_ACTIVE   = "subscription.active";
 

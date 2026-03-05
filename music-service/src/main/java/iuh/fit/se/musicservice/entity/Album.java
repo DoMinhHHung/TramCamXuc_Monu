@@ -47,11 +47,9 @@ public class Album extends BaseEntity {
     @Builder.Default
     private Integer totalDurationSeconds = 0;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_artist_id", nullable = false)
-    private Artist ownerArtist;
+    @Column(name = "owner_artist_id", nullable = false, length = 64)
+    private String ownerArtistId;
 
-    /** Thay thế AlbumApprovalStatus — không còn duyệt nữa */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

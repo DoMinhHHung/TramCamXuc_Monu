@@ -25,16 +25,9 @@ public class SongResponse {
     private String streamUrl;
 
     private Set<Genre> genres;
-    private ArtistSummary primaryArtist;
+    private String artistId;
+    // TODO: Fetch Artist info via FeignClient or CQRS Event.
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
-    @Data @NoArgsConstructor @AllArgsConstructor @Builder
-    public static class ArtistSummary {
-        private UUID id;
-        private UUID userId;
-        private String stageName;
-        private String avatarUrl;
-    }
 }
