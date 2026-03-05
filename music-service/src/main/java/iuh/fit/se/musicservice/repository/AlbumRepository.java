@@ -4,6 +4,7 @@ import iuh.fit.se.musicservice.entity.Album;
 import iuh.fit.se.musicservice.enums.AlbumStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,33 +17,43 @@ import java.util.UUID;
 public interface AlbumRepository extends JpaRepository<Album, UUID> {
 
     /**
-     * Find album by ID that is not deleted
+     * Find album by ID that is not deleted.
+     * Uses EntityGraph to eagerly load albumSongs and their songs to avoid N+1 queries.
      */
+    @EntityGraph(attributePaths = {"albumSongs", "albumSongs.song"})
     @Query("SELECT a FROM Album a WHERE a.id = :id AND a.status <> 'DELETED'")
     Optional<Album> findActiveById(@Param("id") UUID id);
 
     /**
-     * Find all active albums by artist ID
+     * Find all active albums by artist ID.
+     * Uses EntityGraph to eagerly load albumSongs and their songs.
      */
+    @EntityGraph(attributePaths = {"albumSongs", "albumSongs.song"})
     @Query("SELECT a FROM Album a WHERE a.ownerArtistId = :artistId AND a.status = 'PUBLIC'")
     Page<Album> findPublicByArtistId(@Param("artistId") String artistId, Pageable pageable);
 
     /**
-     * Find all albums by artist ID (including drafts for owner view)
+     * Find all albums by artist ID (including drafts for owner view).
+     * Uses EntityGraph to eagerly load albumSongs and their songs.
      */
+    @EntityGraph(attributePaths = {"albumSongs", "albumSongs.song"})
     @Query("SELECT a FROM Album a WHERE a.ownerArtistId = :artistId AND a.status <> 'DELETED'")
     Page<Album> findByArtistId(@Param("artistId") String artistId, Pageable pageable);
 
     /**
-     * Search albums by title
+     * Search albums by title.
+     * Uses EntityGraph to eagerly load albumSongs and their songs.
      */
+    @EntityGraph(attributePaths = {"albumSongs", "albumSongs.song"})
     @Query("SELECT a FROM Album a WHERE a.status = 'PUBLIC' AND " +
            "(LOWER(a.title) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     Page<Album> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
 
     /**
-     * Find album by slug
+     * Find album by slug.
+     * Uses EntityGraph to eagerly load albumSongs and their songs.
      */
+    @EntityGraph(attributePaths = {"albumSongs", "albumSongs.song"})
     Optional<Album> findBySlug(String slug);
 
     /**

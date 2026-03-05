@@ -2,7 +2,7 @@ package iuh.fit.se.musicservice.enums;
 
 /**
  * Represents the operational lifecycle of an album.
- * No approval statuses - albums go directly to ACTIVE once published.
+ * No approval statuses - albums go directly to PUBLIC once published.
  */
 public enum AlbumStatus {
     /**

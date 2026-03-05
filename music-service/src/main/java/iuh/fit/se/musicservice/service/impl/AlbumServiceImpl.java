@@ -129,8 +129,12 @@ public class AlbumServiceImpl implements AlbumService {
                 .songSlug(albumSong.getSong().getSlug())
                 .songThumbnailUrl(albumSong.getSong().getThumbnailUrl())
                 .songDurationSeconds(albumSong.getSong().getDurationSeconds())
+                .songPlayCount(albumSong.getSong().getPlayCount())
+                .artistId(albumSong.getSong().getArtistId())
+                .genres(albumSong.getSong().getGenres())
                 .orderIndex(albumSong.getOrderIndex())
                 .addedAt(albumSong.getAddedAt())
+                .available(albumSong.getSong().getStatus() == iuh.fit.se.musicservice.enums.SongStatus.ACTIVE)
                 .build();
     }
 }

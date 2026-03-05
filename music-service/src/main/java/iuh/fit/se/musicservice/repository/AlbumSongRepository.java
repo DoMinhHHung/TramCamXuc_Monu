@@ -28,7 +28,7 @@ public interface AlbumSongRepository extends JpaRepository<AlbumSong, UUID> {
      * Used when soft-deleting a song to remove it from all albums.
      */
     @Modifying
-    @Query("DELETE FROM AlbumSong as_ WHERE as_.song.id = :songId")
+    @Query("DELETE FROM AlbumSong als WHERE als.song.id = :songId")
     void deleteBySongId(@Param("songId") UUID songId);
 
     /**
