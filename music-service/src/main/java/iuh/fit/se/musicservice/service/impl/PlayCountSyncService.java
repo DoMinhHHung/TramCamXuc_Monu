@@ -35,8 +35,8 @@ public class PlayCountSyncService {
         GET_AND_DELETE_SCRIPT = new DefaultRedisScript<>();
         GET_AND_DELETE_SCRIPT.setScriptText(
                 "local v = redis.call('GET', KEYS[1]); " +
-                        "if v then redis.call('DEL', KEYS[1]); return tostring(v); end; " +
-                        "return '0';"
+                "if v then redis.call('DEL', KEYS[1]); return tostring(v); end; " +
+                "return '0';"
         );
         GET_AND_DELETE_SCRIPT.setResultType(String.class);
     }

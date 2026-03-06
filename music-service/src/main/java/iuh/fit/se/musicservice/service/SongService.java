@@ -11,8 +11,11 @@ import java.util.UUID;
 
 public interface SongService {
 
+    // ── Artist ────────────────────────────────────────────────────────────────
+    /** Tạo record + trả về presigned URL để artist upload file trực tiếp lên MinIO */
     SongResponse requestUploadUrl(SongCreateRequest request);
 
+    /** Artist xác nhận đã upload xong → kích hoạt job transcode */
     void confirmUpload(UUID songId);
 
     SongResponse updateSong(UUID songId, SongUpdateRequest request);
@@ -34,7 +37,9 @@ public interface SongService {
     Page<SongResponse> getAdminSongs(String keyword, SongStatus status,
                                      boolean showDeleted, Pageable pageable);
 
+    /** Soft-delete bài hát vi phạm */
     SongResponse softDeleteSong(UUID songId, String reason);
 
+    /** Khôi phục bài hát bị xóa nhầm */
     SongResponse restoreSong(UUID songId);
 }

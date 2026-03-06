@@ -14,10 +14,13 @@ import java.util.UUID;
 @Repository
 public interface SongReportRepository extends JpaRepository<SongReport, UUID> {
 
+    /** Kiểm tra user đã report bài hát này chưa (chỉ tính report PENDING) */
     boolean existsBySongIdAndReporterIdAndStatus(UUID songId, UUID reporterId, ReportStatus status);
 
+    /** Danh sách report của một bài hát */
     Page<SongReport> findBySongId(UUID songId, Pageable pageable);
 
+    /** Danh sách report theo status (cho admin) */
     @Query("""
             SELECT r FROM SongReport r
             WHERE (:status IS NULL OR r.status = :status)
@@ -30,5 +33,6 @@ public interface SongReportRepository extends JpaRepository<SongReport, UUID> {
             Pageable pageable
     );
 
+    /** Số lượng report PENDING của một bài hát */
     long countBySongIdAndStatus(UUID songId, ReportStatus status);
 }

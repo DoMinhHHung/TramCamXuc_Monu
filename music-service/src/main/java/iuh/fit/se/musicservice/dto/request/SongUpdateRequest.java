@@ -18,5 +18,9 @@ public class SongUpdateRequest {
 
     private Set<UUID> genreIds;
 
+    /**
+     * Artist chỉ được đổi PUBLIC ↔ PRIVATE.
+     * DRAFT và DELETED không thể set thủ công.
+     */
     private SongStatus status;
 }

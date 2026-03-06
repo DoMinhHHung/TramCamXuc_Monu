@@ -377,7 +377,7 @@ public class SongServiceImpl implements SongService {
 
     @Override
     public Page<SongResponse> getAdminSongs(String keyword, SongStatus status,
-                                            boolean showDeleted, Pageable pageable) {
+                                             boolean showDeleted, Pageable pageable) {
         return songRepository.findForAdmin(keyword, status, showDeleted, pageable)
                 .map(songMapper::toResponse);
     }

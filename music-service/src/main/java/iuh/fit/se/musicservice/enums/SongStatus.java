@@ -4,5 +4,6 @@ public enum SongStatus {
     DRAFT,
     PUBLIC,
     PRIVATE,
-    DELETED
+    DELETED,
+    ALBUM_ONLY
 }

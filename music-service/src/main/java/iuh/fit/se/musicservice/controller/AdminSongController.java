@@ -13,6 +13,14 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+/**
+ * Admin quản lý bài hát:
+ *  - Xem tất cả bài hát (kể cả DELETED)
+ *  - Soft-delete khi xác nhận vi phạm
+ *  - Restore bài hát bị xóa nhầm
+ *
+ * Không còn approve/reject bài hát nữa — bài hát tự PUBLIC sau khi transcode xong.
+ */
 @RestController
 @RequestMapping("/api/v1/admin/songs")
 @RequiredArgsConstructor
@@ -21,6 +29,11 @@ public class AdminSongController {
 
     private final SongService songService;
 
+    /**
+     * Lấy danh sách bài hát với filter linh hoạt.
+     *
+     * GET /api/v1/admin/songs?keyword=&status=PUBLIC&showDeleted=false&page=1&size=20
+     */
     @GetMapping
     public ApiResponse<Page<SongResponse>> getSongs(
             @RequestParam(required = false) String keyword,
@@ -36,6 +49,13 @@ public class AdminSongController {
                 .build();
     }
 
+    /**
+     * Admin soft-delete bài hát vi phạm (thường gọi từ confirmReport,
+     * nhưng admin có thể chủ động xóa mà không cần qua report flow).
+     *
+     * PATCH /api/v1/admin/songs/{songId}/delete
+     * Body: { "reason": "Nội dung vi phạm bản quyền" }
+     */
     @PatchMapping("/{songId}/delete")
     public ApiResponse<SongResponse> softDeleteSong(
             @PathVariable UUID songId,

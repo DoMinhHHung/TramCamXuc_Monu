@@ -13,6 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Lắng nghe callback từ transcode-service.
+ *
+ * Khi transcode thành công:
+ *  - transcodeStatus → COMPLETED
+ *  - status          → PUBLIC  (không cần admin duyệt nữa)
+ *  - hlsMasterUrl    ← path master.m3u8
+ *  - durationSeconds ← thời lượng
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -33,6 +42,7 @@ public class SongTranscodeResultListener {
                 song.setDurationSeconds(duration);
                 song.setHlsMasterUrl(hlsMasterUrl);
 
+                // ── Thay đổi quan trọng: auto-publish, không cần admin duyệt ──
                 if (song.getStatus() == SongStatus.DRAFT) {
                     song.setStatus(SongStatus.PUBLIC);
                 }

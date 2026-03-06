@@ -4,6 +4,8 @@ import iuh.fit.se.identityservice.dto.request.*;
 import iuh.fit.se.identityservice.dto.response.AuthenticationResponse;
 import iuh.fit.se.identityservice.dto.response.UserResponse;
 
+import java.util.UUID;
+
 public interface AuthService {
 
     UserResponse createUser(UserRegistrationRequest request);
@@ -21,4 +23,7 @@ public interface AuthService {
     AuthenticationResponse refreshToken(RefreshRequest request);
 
     AuthenticationResponse outboundAuthentication(ExchangeTokenRequest request);
+
+    String grantArtistRoleAndIssueToken(UUID userId);
+
 }

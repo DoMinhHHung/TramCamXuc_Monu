@@ -13,16 +13,16 @@ public class RabbitMQConfig {
 
     // ── Exchanges ──────────────────────────────────────────────────────────────
     /** Gửi yêu cầu transcode + nhận callback từ transcode-service */
-    public static final String MUSIC_EXCHANGE       = "music.exchange";
+    public static final String MUSIC_EXCHANGE        = "music.exchange";
     /** Publish listen events cho analytics / trending worker */
-    public static final String MUSIC_EVENT_EXCHANGE = "music.event.exchange";
-    /** Nhận notification từ các service khác */
+    public static final String MUSIC_EVENT_EXCHANGE  = "music.event.exchange";
+    /** Gửi sự kiện tới identity-service (artist register, subscription sync) */
+    public static final String IDENTITY_EXCHANGE     = "identity.exchange";
+    /** Gửi notification email */
     public static final String NOTIFICATION_EXCHANGE = "notification.exchange";
 
     // ── Queues ─────────────────────────────────────────────────────────────────
-    /** Kết quả transcode thành công từ transcode-service */
     public static final String TRANSCODE_SUCCESS_QUEUE = "transcode.success.queue";
-    /** Trending worker lắng nghe listen event */
     public static final String LISTEN_TRENDING_QUEUE   = "listen.trending.queue";
 
     // ── Routing keys ────────────────────────────────────────────────────────────
@@ -30,6 +30,12 @@ public class RabbitMQConfig {
     public static final String TRANSCODE_SUCCESS_ROUTING_KEY = "song.transcode.success";
     public static final String SONG_LISTEN_ROUTING_KEY       = "song.listened";
     public static final String NOTIFICATION_EMAIL_KEY        = "notification.email";
+
+    /**
+     * music-service → identity-service: user vừa đăng ký artist profile.
+     * identity-service lắng nghe key này để thêm ROLE_ARTIST cho user.
+     */
+    public static final String ARTIST_REGISTERED_ROUTING_KEY = "artist.registered";
 
     @Bean
     public MessageConverter jsonMessageConverter() {
@@ -52,6 +58,11 @@ public class RabbitMQConfig {
     @Bean
     public TopicExchange musicEventExchange() {
         return new TopicExchange(MUSIC_EVENT_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public TopicExchange identityExchange() {
+        return new TopicExchange(IDENTITY_EXCHANGE, true, false);
     }
 
     @Bean

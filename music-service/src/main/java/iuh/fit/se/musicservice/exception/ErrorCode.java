@@ -38,8 +38,34 @@ public enum ErrorCode {
     REPORT_ALREADY_HANDLED (2202, "This report has already been handled",            HttpStatus.CONFLICT),
 
     // ── Artist ─────────────────────────────────────────────────────────────────
-    ARTIST_NOT_FOUND       (2300, "Artist profile not found",                       HttpStatus.NOT_FOUND),
-    ARTIST_RESTRICTED      (2301, "Artist account is restricted",                   HttpStatus.FORBIDDEN);
+    ARTIST_NOT_FOUND             (2300, "Artist profile not found",                       HttpStatus.NOT_FOUND),
+    ARTIST_RESTRICTED            (2301, "Artist account is restricted",                   HttpStatus.FORBIDDEN),
+    ARTIST_ALREADY_REGISTERED    (2302, "You already have an artist profile",              HttpStatus.CONFLICT),
+    ARTIST_STAGE_NAME_EXISTS     (2303, "Stage name is already taken",                    HttpStatus.CONFLICT),
+    SUBSCRIPTION_NOT_SUPPORTED   (2304, "Your subscription does not allow artist registration", HttpStatus.PAYMENT_REQUIRED),
+
+    // ── Album ──────────────────────────────────────────────────────────────────
+    ALBUM_NOT_FOUND              (2400, "Album not found",                                HttpStatus.NOT_FOUND),
+    ALBUM_UNAUTHORIZED           (2401, "You do not own this album",                      HttpStatus.FORBIDDEN),
+    ALBUM_INVALID_STATUS         (2402, "Invalid album status transition",                HttpStatus.CONFLICT),
+    ALBUM_SONG_NOT_FOUND         (2403, "Song not found in this album",                   HttpStatus.NOT_FOUND),
+    ALBUM_SONG_ALREADY_EXISTS    (2404, "Song is already in this album",                  HttpStatus.CONFLICT),
+    SONG_ALREADY_IN_ALBUM        (2405, "Song already belongs to another album",          HttpStatus.CONFLICT),
+    ALBUM_EMPTY                  (2406, "Album must have at least one song",              HttpStatus.CONFLICT),
+    ALBUM_HAS_UNREADY_SONGS      (2407, "Album has songs that are not ready yet",         HttpStatus.CONFLICT),
+    ALBUM_SCHEDULE_INVALID_TIME  (2408, "Scheduled time must be in the future",           HttpStatus.BAD_REQUEST),
+    ALBUM_SCHEDULE_NOT_FOUND     (2409, "No scheduled publish time set for this album",   HttpStatus.NOT_FOUND),
+
+    // ── Playlist ────────────────────────────────────────────────────────────
+    PLAYLIST_NOT_FOUND               (2500, "Playlist not found",                                    HttpStatus.NOT_FOUND),
+    PLAYLIST_UNAUTHORIZED            (2501, "You do not own this playlist",                          HttpStatus.FORBIDDEN),
+    PLAYLIST_LIMIT_EXCEEDED          (2502, "Playlist limit reached — upgrade your subscription",    HttpStatus.PAYMENT_REQUIRED),
+    PLAYLIST_SONG_NOT_FOUND          (2503, "Song not found in this playlist",                       HttpStatus.NOT_FOUND),
+    PLAYLIST_SONG_ALREADY_EXISTS     (2504, "Song is already in this playlist",                      HttpStatus.CONFLICT),
+    SONG_NOT_AVAILABLE_FOR_PLAYLIST  (2505, "Song is not available to add to playlist",              HttpStatus.BAD_REQUEST),
+
+    // ── Subscription ────────────────────────────────────────────────────────
+    FREE_SUBSCRIPTION_NOT_ALLOWED    (2600, "This feature requires a paid subscription",             HttpStatus.PAYMENT_REQUIRED);
 
     private final int code;
     private final String message;

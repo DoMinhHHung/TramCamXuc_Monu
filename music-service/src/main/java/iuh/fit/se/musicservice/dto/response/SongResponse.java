@@ -24,6 +24,7 @@ public class SongResponse {
     private SongStatus status;
     private TranscodeStatus transcodeStatus;
 
+    // Soft-delete info (chỉ trả về cho admin)
     private boolean deleted;
     private LocalDateTime deletedAt;
     private String deleteReason;
@@ -31,8 +32,10 @@ public class SongResponse {
     private ArtistInfo primaryArtist;
     private Set<GenreResponse> genres;
 
+    /** Presigned URL để artist upload file lên MinIO (chỉ có khi requestUploadUrl) */
     private String uploadUrl;
 
+    /** URL stream HLS (chỉ có khi getStreamUrl) */
     private String streamUrl;
 
     private LocalDateTime createdAt;

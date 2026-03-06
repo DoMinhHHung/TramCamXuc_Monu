@@ -228,6 +228,21 @@ public class AuthServiceImpl implements AuthService {
         return buildTokenResponse(user);
     }
 
+    @Override
+    @Transactional
+    public String grantArtistRoleAndIssueToken(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        if (user.getRole() == Role.USER) {
+            user.setRole(Role.ARTIST);
+            userRepository.save(user);
+            log.info("Granted ARTIST role to user {}", userId);
+        }
+
+        return generateToken(user, validDuration);
+    }
+
     // ────────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ────────────────────────────────────────────────────────────

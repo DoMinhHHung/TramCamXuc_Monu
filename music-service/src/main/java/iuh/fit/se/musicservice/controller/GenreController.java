@@ -57,6 +57,10 @@ public class GenreController {
                 .build();
     }
 
+    /**
+     * Cập nhật thể loại.
+     * PUT /api/v1/genres/{id}
+     */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<GenreResponse> updateGenre(

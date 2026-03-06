@@ -66,10 +66,12 @@ public class MinioStorageService {
         }
     }
 
+    /** URL công khai (không cần auth) cho file HLS trong public-songs bucket */
     public String getPublicUrl(String objectKey) {
         return String.format("%s/%s/%s", publicUrl, publicBucket, objectKey);
     }
 
+    /** Upload thumbnail hoặc file công khai */
     public String uploadPublicFile(String objectKey, MultipartFile file) {
         try (InputStream is = file.getInputStream()) {
             minioClient.putObject(
