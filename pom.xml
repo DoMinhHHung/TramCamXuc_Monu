@@ -12,8 +12,6 @@
     <name>music-social-network</name>
     <description>Thesis Project: Music Social Network &amp; Streaming</description>
     <modules>
-        <module>core</module>
-        <module>music</module>
         <module>social</module>
         <module>discovery-server</module>
         <module>api-gateway</module>
