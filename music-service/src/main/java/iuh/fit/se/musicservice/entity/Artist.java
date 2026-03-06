@@ -24,8 +24,12 @@ public class Artist extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "is_jamendo", nullable = false)
+    @Builder.Default
+    private boolean isJamendo = false;
+
     /** userId từ identity-service — mỗi user chỉ có 1 artist profile */
-    @Column(name = "user_id", nullable = false, unique = true)
+    @Column(name = "user_id", unique = true)
     private UUID userId;
 
     @Column(name = "stage_name", nullable = false, unique = true, length = 100)
@@ -41,4 +45,12 @@ public class Artist extends BaseEntity {
     @Column(nullable = false)
     @Builder.Default
     private ArtistStatus status = ArtistStatus.ACTIVE;
+
+    @PrePersist
+    @PreUpdate
+    protected void validate() {
+        if (!this.isJamendo && this.userId == null) {
+            throw new IllegalStateException("Lỗi System: Nghệ sĩ cần có user_id!");
+        }
+    }
 }

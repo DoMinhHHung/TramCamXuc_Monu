@@ -31,7 +31,8 @@ import java.util.UUID;
         @Index(name = "idx_songs_status",           columnList = "status"),
         @Index(name = "idx_songs_transcode_status", columnList = "transcode_status"),
         @Index(name = "idx_songs_primary_artist",   columnList = "primary_artist_id"),
-        @Index(name = "idx_songs_deleted",          columnList = "deleted_at")
+        @Index(name = "idx_songs_deleted",          columnList = "deleted_at"),
+        @Index(name = "idx_songs_jamendo", columnList = "jamendo_id")
 })
 public class Song extends BaseEntity {
 
@@ -115,6 +116,9 @@ public class Song extends BaseEntity {
     /** userId của artist sở hữu bài hát */
     @Column(name = "owner_user_id", nullable = false)
     private UUID ownerUserId;
+
+    @Column(name = "jamendo_id", unique = true)
+    private String jamendoId;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     public boolean isDeleted() {

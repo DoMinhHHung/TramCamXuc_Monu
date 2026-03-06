@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -128,4 +129,12 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
     // ── Transcode callback ─────────────────────────────────────────────────────
 
     boolean existsById(UUID id);
+
+    @Query("SELECT s.jamendoId FROM Song s WHERE s.jamendoId IN :ids")
+    List<String> findExistingJamendoIds(@Param("ids") List<String> ids);
+
+    /**
+     * Worker idempotency guard — fast exists check before expensive I/O.
+     */
+    boolean existsByJamendoId(String jamendoId);
 }

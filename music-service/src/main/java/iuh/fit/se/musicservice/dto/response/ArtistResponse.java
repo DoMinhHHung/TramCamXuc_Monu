@@ -15,6 +15,7 @@ public class ArtistResponse {
     private String avatarUrl;
     private ArtistStatus status;
     private LocalDateTime createdAt;
+    private boolean isJamendo;
 
     /** Hint cho client khi vừa đăng ký — cần refresh token để nhận ROLE_ARTIST */
     private String hint;

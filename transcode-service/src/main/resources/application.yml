@@ -24,7 +24,7 @@ minio:
   access-key: ${MINIO_ACCESS_KEY}
   secret-key: ${MINIO_SECRET}
   bucket:
-    raw-songs: ${MINIO_RAW_BUCKET:raw-songs}
+    raw-songs: ${MINIO_RAW_BUCKET:music}
     public-songs: ${MINIO_PUBLIC_BUCKET:public-songs}
 
 management:

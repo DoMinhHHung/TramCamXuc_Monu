@@ -63,7 +63,7 @@ minio:
 
 # ── Jamendo API ────────────────────────────────────────────────────────────────
 jamendo:
-  client-id: ${JJAMENDO_CLIENT_ID}
+  client-id: ${JAMENDO_CLIENT_ID}
 
 open:
   api:

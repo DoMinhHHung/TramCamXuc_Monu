@@ -33,4 +33,6 @@ public interface ArtistRepository extends JpaRepository<Artist, UUID> {
             @Param("status")    ArtistStatus status,
             Pageable pageable
     );
+
+    Optional<Artist> findByStageNameIgnoreCase(String stageName);
 }
