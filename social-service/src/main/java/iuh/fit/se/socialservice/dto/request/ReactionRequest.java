@@ -10,6 +10,8 @@ public class ReactionRequest {
     @NotNull(message = "songId is required")
     private UUID songId;
 
+    private UUID artistId;
+
     @NotNull(message = "type is required")
     private ReactionType type;
 }

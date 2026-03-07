@@ -68,9 +68,4 @@ public class User extends BaseEntity {
     @Column(name = "provider_id")
     private String providerId;
 
-    @Column(name = "subscription_features", columnDefinition = "TEXT")
-    private String subscriptionFeatures;
-
-    @Column(name = "subscription_plan")
-    private String subscriptionPlan;
 }

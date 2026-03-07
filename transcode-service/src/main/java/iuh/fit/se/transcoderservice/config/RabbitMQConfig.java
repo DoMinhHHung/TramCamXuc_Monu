@@ -22,10 +22,13 @@ public class RabbitMQConfig {
     public static final String TRANSCODE_DLQ            = "transcode.dlq";
     /** Trả kết quả transcode thành công về music-service */
     public static final String TRANSCODE_SUCCESS_QUEUE  = "transcode.success.queue";
+    /** Trả kết quả transcode thất bại về music-service */
+    public static final String TRANSCODE_FAILED_QUEUE   = "transcode.failed.queue";
 
     // ── Routing Keys ────────────────────────────────────────────────────────
     public static final String TRANSCODE_ROUTING_KEY         = "song.transcode";
     public static final String TRANSCODE_SUCCESS_ROUTING_KEY = "song.transcode.success";
+    public static final String TRANSCODE_FAILED_ROUTING_KEY  = "song.transcode.failed";
     public static final String TRANSCODE_DLQ_ROUTING_KEY     = "song.transcode.dead";
 
     // ── Message Converter ────────────────────────────────────────────────────
@@ -66,6 +69,11 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(TRANSCODE_SUCCESS_QUEUE).build();
     }
 
+    @Bean
+    public Queue transcodeFailedQueue() {
+        return QueueBuilder.durable(TRANSCODE_FAILED_QUEUE).build();
+    }
+
     // ── Bindings ──────────────────────────────────────────────────────────────
     @Bean
     public Binding bindTranscodeQueue(Queue transcodeQueue, TopicExchange musicExchange) {
@@ -83,6 +91,12 @@ public class RabbitMQConfig {
     public Binding bindTranscodeSuccessQueue(Queue transcodeSuccessQueue, TopicExchange musicExchange) {
         return BindingBuilder.bind(transcodeSuccessQueue)
                 .to(musicExchange).with(TRANSCODE_SUCCESS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding bindTranscodeFailedQueue(Queue transcodeFailedQueue, TopicExchange musicExchange) {
+        return BindingBuilder.bind(transcodeFailedQueue)
+                .to(musicExchange).with(TRANSCODE_FAILED_ROUTING_KEY);
     }
 
     @Bean

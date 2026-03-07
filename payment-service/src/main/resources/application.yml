@@ -21,6 +21,11 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -52,6 +57,8 @@ open:
   api:
     title: Payment Service API
     version: 1.0.0
+    server-url: ${GATEWAY_URL:http://localhost:8080}/service-payment
+    server-description: API Gateway
 
 scheduling:
   subscription-check:

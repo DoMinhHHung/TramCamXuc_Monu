@@ -37,6 +37,9 @@ public class PaymentTransaction {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    @Column(name = "user_email", length = 255)
+    private String userEmail;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subscription_id")
     private UserSubscription subscription;

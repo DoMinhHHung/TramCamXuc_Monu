@@ -1,6 +1,5 @@
 package iuh.fit.se.identityservice.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.identityservice.config.RabbitMQConfig;
 import iuh.fit.se.identityservice.event.SubscriptionActiveEvent;
 import iuh.fit.se.identityservice.repository.UserRepository;
@@ -8,8 +7,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
 
 @Component
 @RequiredArgsConstructor
@@ -17,22 +14,39 @@ import org.springframework.transaction.annotation.Transactional;
 public class SubscriptionEventListener {
 
     private final UserRepository userRepository;
-    private final ObjectMapper objectMapper;
 
+    /**
+     * Lắng nghe event từ payment-service khi user thanh toán thành công.
+     *
+     * ⚠️ KHÔNG tự động upgrade role USER → ARTIST ở đây.
+     *
+     * Luồng đúng:
+     *   1. User mua gói → payment-service kích hoạt subscription
+     *      → cache features (can_become_artist=true) vào Redis
+     *      → publish SubscriptionActiveEvent (handled ở đây — chỉ log)
+     *
+     *   2. User gọi POST /api/v1/artists/register
+     *      → music-service kiểm tra claim "can_become_artist" trong JWT
+     *      → tạo Artist profile
+     *      → gọi identity-service /internal/users/{id}/grant-artist-role
+     *      → identity-service set role = ARTIST + cấp JWT mới có ROLE_ARTIST
+     *
+     * Role ARTIST chỉ được cấp khi user chủ động đăng ký, không phải tự động.
+     */
     @RabbitListener(queues = RabbitMQConfig.IDENTITY_SUBSCRIPTION_QUEUE)
-    @Transactional
     public void handleSubscriptionActive(SubscriptionActiveEvent event) {
-        log.info("Received subscription update for user: {}", event.getUserId());
+        if (event.getUserId() == null) {
+            log.warn("[SubscriptionEvent] userId is null, skipping");
+            return;
+        }
 
-        userRepository.findById(event.getUserId()).ifPresent(user -> {
-            try {
-                user.setSubscriptionPlan(event.getPlanName());
-                user.setSubscriptionFeatures(objectMapper.writeValueAsString(event.getFeatures()));
-                userRepository.save(user);
-                log.info("Updated subscription for user: {}", event.getUserId());
-            } catch (Exception e) {
-                log.error("Failed to sync subscription for user: {}", event.getUserId(), e);
-            }
-        });
+        log.info("[SubscriptionEvent] Subscription activated for userId={}, plan={}, features={}",
+                event.getUserId(), event.getPlanName(), event.getFeatures());
+
+        userRepository.findById(event.getUserId()).ifPresentOrElse(
+                user -> log.info("[SubscriptionEvent] Confirmed user exists: userId={}, currentRole={}",
+                        user.getId(), user.getRole()),
+                () -> log.warn("[SubscriptionEvent] User not found: userId={}", event.getUserId())
+        );
     }
 }

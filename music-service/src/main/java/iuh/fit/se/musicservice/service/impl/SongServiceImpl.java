@@ -2,12 +2,14 @@ package iuh.fit.se.musicservice.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jsonwebtoken.Claims;
+import iuh.fit.se.musicservice.client.PaymentInternalClient;
 import iuh.fit.se.musicservice.config.RabbitMQConfig;
 import iuh.fit.se.musicservice.dto.request.SongCreateRequest;
+import iuh.fit.se.musicservice.dto.response.PaymentSubscriptionStatusResponse;
 import iuh.fit.se.musicservice.dto.request.SongUpdateRequest;
 import iuh.fit.se.musicservice.dto.response.SongResponse;
 import iuh.fit.se.musicservice.entity.Genre;
+import iuh.fit.se.musicservice.entity.Artist;
 import iuh.fit.se.musicservice.entity.Song;
 import iuh.fit.se.musicservice.enums.SongStatus;
 import iuh.fit.se.musicservice.enums.TranscodeStatus;
@@ -15,6 +17,7 @@ import iuh.fit.se.musicservice.exception.AppException;
 import iuh.fit.se.musicservice.exception.ErrorCode;
 import iuh.fit.se.musicservice.mapper.SongMapper;
 import iuh.fit.se.musicservice.repository.GenreRepository;
+import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.SongService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -40,20 +44,21 @@ public class SongServiceImpl implements SongService {
 
     private final SongRepository songRepository;
     private final GenreRepository genreRepository;
+    private final ArtistRepository artistRepository;
     private final SongMapper songMapper;
     private final MinioStorageService storageService;
     private final RabbitTemplate rabbitTemplate;
     private final PlayCountSyncService playCountSyncService;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
+    private final PaymentInternalClient paymentInternalClient;
+    private final SubscriptionCacheWarmupService subscriptionCacheWarmupService;
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     private UUID currentUserId() {
         return UUID.fromString(
                 SecurityContextHolder.getContext().getAuthentication().getName());
-    }
-
-    private Authentication currentAuth() {
-        return SecurityContextHolder.getContext().getAuthentication();
     }
 
     private String generateSlug(String title, UUID id) {
@@ -72,40 +77,27 @@ public class SongServiceImpl implements SongService {
     }
 
     private String resolveStreamQuality() {
-        try {
-            Object creds = currentAuth().getCredentials();
-            String featuresJson = null;
+        Map<String, Object> features = loadSubscriptionFeatures(currentUserId());
 
-            if (creds instanceof Claims claims) {
-                featuresJson = claims.get("features", String.class);
-            } else if (creds instanceof Map<?, ?> map) {
-                Object raw = map.get("features");
-                if (raw != null) featuresJson = raw.toString();
-            }
-
-            if (featuresJson == null) return "64k";
-
-            Map<String, Object> features = new ObjectMapper()
-                    .readValue(featuresJson, new TypeReference<>() {});
-            String quality = (String) features.getOrDefault("quality", "64k");
-
-            return switch (quality.toLowerCase()) {
-                case "lossless", "320kbps" -> "320k";
-                case "256kbps" -> "256k";
-                case "128kbps" -> "128k";
-                default -> "64k";
-            };
-        } catch (Exception e) {
-            log.warn("Could not resolve stream quality, fallback to 64k");
-            return "64k";
+        int maxBitrate = resolveMaxBitrate(features);
+        if (maxBitrate >= 320) {
+            return "320k";
         }
+        if (maxBitrate >= 256) {
+            return "256k";
+        }
+        if (maxBitrate >= 128) {
+            return "128k";
+        }
+
+        return "64k";
     }
 
     private String buildStreamUrl(Song song, String quality) {
         // hlsMasterUrl ví dụ: "hls/<songId>/master.m3u8"
         String hlsDir = song.getHlsMasterUrl().replace("/master.m3u8", "");
         String variantKey = hlsDir + "/stream_" + quality + ".m3u8";
-        return storageService.getPublicUrl(variantKey);
+        return storageService.generatePresignedStreamUrl(variantKey);
     }
 
     private UUID tryGetCurrentUserId() {
@@ -132,11 +124,10 @@ public class SongServiceImpl implements SongService {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
-        // Đọc artist info từ JWT claims (identity-service đã nhúng vào token)
-        String stageName = getClaimString("name");   // JWT claim "name" = fullName (fallback)
-        // Nếu music-service có artist table riêng thì query ở đây;
-        // trong kiến trúc mới ta lấy từ JWT để tránh cross-service call đồng bộ.
-        // Artist table vẫn tồn tại nhưng chỉ dùng cho quản lý artist profile riêng.
+        // Đọc stageName từ artist profile trong DB
+        String stageName = artistRepository.findByUserId(userId)
+                .map(Artist::getStageName)
+                .orElse("Unknown");
 
         UUID songId = UUID.randomUUID();
         String ext  = request.getFileExtension().replace(".", "").toLowerCase();
@@ -151,7 +142,7 @@ public class SongServiceImpl implements SongService {
                 .ownerUserId(userId)
                 // Artist info lấy từ JWT — music-service không gọi identity-service
                 .primaryArtistId(songId)          // placeholder; nên có artist table riêng
-                .primaryArtistStageName(stageName != null ? stageName : "Unknown")
+                .primaryArtistStageName(stageName)
                 .genres(new HashSet<>(genres))
                 .rawFileKey(rawFileKey)
                 .status(SongStatus.DRAFT)
@@ -301,7 +292,7 @@ public class SongServiceImpl implements SongService {
         }
 
         // Bài PRIVATE hoặc DRAFT → chỉ owner hoặc admin
-        Authentication auth = currentAuth();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()
                 || "anonymousUser".equals(auth.getPrincipal())) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
@@ -333,11 +324,11 @@ public class SongServiceImpl implements SongService {
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
 
         Map<String, Object> event = new HashMap<>();
+        UUID currentUser = tryGetCurrentUserId();
         event.put("songId", songId.toString());
         event.put("artistId", song.getPrimaryArtistId() != null
                 ? song.getPrimaryArtistId().toString() : null);
-        event.put("userId", tryGetCurrentUserId() != null
-                ? tryGetCurrentUserId().toString() : null);
+        event.put("userId", currentUser != null ? currentUser.toString() : null);
         event.put("playlistId", playlistId != null ? playlistId.toString() : null);
         event.put("albumId",    albumId    != null ? albumId.toString()    : null);
         event.put("durationSeconds", durationSeconds);
@@ -346,6 +337,11 @@ public class SongServiceImpl implements SongService {
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.MUSIC_EVENT_EXCHANGE,
                 RabbitMQConfig.SONG_LISTEN_ROUTING_KEY,
+                event
+        );
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.SONG_LISTEN_FANOUT_EXCHANGE,
+                "",
                 event
         );
     }
@@ -427,33 +423,80 @@ public class SongServiceImpl implements SongService {
     // ── Private helpers ────────────────────────────────────────────────────────
 
     private boolean hasFeature(String featureKey) {
+        Map<String, Object> features = loadSubscriptionFeatures(currentUserId());
+        Object value = features.get(featureKey);
+
+        if (value == null && "download".equals(featureKey)) {
+            value = features.get("canDownload");
+        }
+
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String text) {
+            return Boolean.parseBoolean(text);
+        }
+        return false;
+    }
+
+    private Map<String, Object> loadSubscriptionFeatures(UUID userId) {
+        if (userId == null) {
+            return Collections.emptyMap();
+        }
+
+        String key = "user:subscription:" + userId;
         try {
-            Object creds = currentAuth().getCredentials();
-            String featuresJson = null;
-            if (creds instanceof Claims claims) {
-                featuresJson = claims.get("features", String.class);
-            } else if (creds instanceof Map<?, ?> map) {
-                Object raw = map.get("features");
-                if (raw != null) featuresJson = raw.toString();
+            String payload = stringRedisTemplate.opsForValue().get(key);
+            if (payload != null && !payload.isBlank()) {
+                return objectMapper.readValue(payload, new TypeReference<>() {});
             }
-            if (featuresJson == null) return false;
-            Map<String, Object> features = new ObjectMapper()
-                    .readValue(featuresJson, new TypeReference<>() {});
-            return Boolean.TRUE.equals(features.get(featureKey));
         } catch (Exception e) {
-            return false;
+            log.warn("Failed to read subscription cache for userId={}", userId, e);
+        }
+
+        return fetchFromPaymentAndWarmCache(userId);
+    }
+
+    private Map<String, Object> fetchFromPaymentAndWarmCache(UUID userId) {
+        try {
+            PaymentSubscriptionStatusResponse status = paymentInternalClient.getSubscriptionStatus(userId);
+            if (status != null && status.isActive() && status.getFeatures() != null) {
+                subscriptionCacheWarmupService.warm(userId, status.getFeatures(), status.getExpiresAt());
+                return status.getFeatures();
+            }
+            return Collections.emptyMap();
+        } catch (Exception e) {
+            log.error("Failed to fetch subscription status from payment-service for userId={}", userId, e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 
-    private String getClaimString(String key) {
-        try {
-            Object creds = currentAuth().getCredentials();
-            if (creds instanceof Claims claims) return claims.get(key, String.class);
-            if (creds instanceof Map<?, ?> map) {
-                Object val = map.get(key);
-                return val != null ? val.toString() : null;
+    private int resolveMaxBitrate(Map<String, Object> features) {
+        Object maxBitrate = features.get("maxBitrate");
+        if (maxBitrate instanceof Number number) {
+            return number.intValue();
+        }
+        if (maxBitrate instanceof String text) {
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ignored) {
             }
-        } catch (Exception ignored) {}
-        return null;
+        }
+
+        Object quality = features.get("quality");
+        if (quality instanceof String q) {
+            return mapQualityToBitrate(q);
+        }
+
+        return 64;
+    }
+
+    private int mapQualityToBitrate(String quality) {
+        return switch (quality.toLowerCase()) {
+            case "lossless", "320kbps", "320k" -> 320;
+            case "256kbps", "256k" -> 256;
+            case "128kbps", "128k" -> 128;
+            default -> 64;
+        };
     }
 }

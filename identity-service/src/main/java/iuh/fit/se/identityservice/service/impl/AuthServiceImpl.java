@@ -48,7 +48,6 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final IdentityClient identityClient;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final FreePlanConfigService freePlanConfigService;
     private final RabbitTemplate rabbitTemplate;   // ← thay ApplicationEventPublisher
 
     @Value("${jwt.signerKey}")
@@ -89,8 +88,6 @@ public class AuthServiceImpl implements AuthService {
         User user = userMapper.toEntity(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(Role.USER);
-        user.setSubscriptionPlan(freePlanConfigService.getCurrentFreePlanName());
-        user.setSubscriptionFeatures(freePlanConfigService.getCurrentFreeFeaturesJson());
 
         try {
             user = userRepository.save(user);
@@ -220,8 +217,6 @@ public class AuthServiceImpl implements AuthService {
                         .providerId(info.getId())
                         .fullName(info.getName())
                         .avatarUrl(info.getPicture())
-                        .subscriptionPlan(freePlanConfigService.getCurrentFreePlanName())
-                        .subscriptionFeatures(freePlanConfigService.getCurrentFreeFeaturesJson())
                         .build())
         );
 
@@ -265,17 +260,11 @@ public class AuthServiceImpl implements AuthService {
 
     String generateToken(User user, long duration) {
         Date now = new Date();
-        StringJoiner scope = new StringJoiner(" ");
-        scope.add("ROLE_" + user.getRole().name());
 
         return Jwts.builder()
                 .setSubject(user.getId().toString())
                 .claim("email", user.getEmail())
-                .claim("role", scope.toString())
-                .claim("scope", scope.toString())
-                .claim("name", user.getFullName())
-                .claim("plan", user.getSubscriptionPlan() != null ? user.getSubscriptionPlan() : "FREE")
-                .claim("features", user.getSubscriptionFeatures())
+                .claim("role", user.getRole().name())
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + duration))
                 .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(signerKey)), SignatureAlgorithm.HS256)

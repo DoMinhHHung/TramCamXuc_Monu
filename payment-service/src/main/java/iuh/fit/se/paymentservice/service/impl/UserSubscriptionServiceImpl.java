@@ -1,13 +1,12 @@
 package iuh.fit.se.paymentservice.service.impl;
 
-import iuh.fit.se.paymentservice.config.RabbitMQConfig;
+import io.jsonwebtoken.Claims;
 import iuh.fit.se.paymentservice.dto.request.PurchaseSubscriptionRequest;
 import iuh.fit.se.paymentservice.dto.response.PaymentResponse;
 import iuh.fit.se.paymentservice.dto.response.UserSubscriptionResponse;
 import iuh.fit.se.paymentservice.entity.SubscriptionPlan;
 import iuh.fit.se.paymentservice.entity.UserSubscription;
 import iuh.fit.se.paymentservice.enums.SubscriptionStatus;
-import iuh.fit.se.paymentservice.event.SubscriptionActiveEvent;
 import iuh.fit.se.paymentservice.exception.AppException;
 import iuh.fit.se.paymentservice.exception.ErrorCode;
 import iuh.fit.se.paymentservice.dto.mapper.UserSubscriptionMapper;
@@ -17,7 +16,6 @@ import iuh.fit.se.paymentservice.service.PayOSService;
 import iuh.fit.se.paymentservice.service.UserSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -38,7 +36,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     private final SubscriptionPlanRepository planRepository;
     private final UserSubscriptionMapper subscriptionMapper;
     private final PayOSService payOSService;
-    private final RabbitTemplate rabbitTemplate;
+    private final SubscriptionAuthorizationCacheService subscriptionAuthorizationCacheService;
 
     // ──────────────────────────────────────────────────────────
     // PURCHASE SUBSCRIPTION
@@ -49,7 +47,6 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     public PaymentResponse purchaseSubscription(PurchaseSubscriptionRequest request) {
         UUID userId = getCurrentUserId();
 
-        // Kiểm tra plan tồn tại và đang active
         SubscriptionPlan plan = planRepository.findById(request.getPlanId())
                 .orElseThrow(() -> new AppException(ErrorCode.SUBSCRIPTION_PLAN_NOT_FOUND));
 
@@ -57,23 +54,19 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
             throw new AppException(ErrorCode.SUBSCRIPTION_PLAN_NOT_ACTIVE);
         }
 
-        // Không cho mua gói FREE qua luồng này (FREE được assign tự động)
         if ("FREE".equalsIgnoreCase(plan.getSubsName())) {
             throw new AppException(ErrorCode.FREE_SUBSCRIPTION_NOT_ALLOWED);
         }
 
-        // Kiểm tra user đã có subscription ACTIVE chưa
         subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)
                 .ifPresent(s -> { throw new AppException(ErrorCode.USER_ALREADY_HAS_ACTIVE_SUBSCRIPTION); });
 
-        // Tạo subscription với trạng thái PENDING
-        LocalDateTime now = LocalDateTime.now();
         UserSubscription subscription = UserSubscription.builder()
                 .userId(userId)
                 .plan(plan)
                 .status(SubscriptionStatus.PENDING)
-                .startedAt(now)
-                .expiresAt(now.plusDays(plan.getDurationDays()))
+                .startedAt(null)
+                .expiresAt(null)
                 .autoRenew(request.getAutoRenew() != null && request.getAutoRenew())
                 .build();
         subscription = subscriptionRepository.save(subscription);
@@ -81,10 +74,14 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
         log.info("Created PENDING subscription id={} for userId={}, plan={}", 
                 subscription.getId(), userId, plan.getSubsName());
 
+        // Lấy email từ JWT claims để lưu vào transaction (dùng gửi email sau khi thanh toán)
+        String userEmail = getCurrentUserEmail();
+
         // Tạo payment link qua PayOS
         String description = " Get plans " + plan.getSubsName();
         return payOSService.createPaymentLink(
                 userId,
+                userEmail,
                 subscription.getId(),
                 plan.getSubsName(),
                 plan.getPrice(),
@@ -97,18 +94,23 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     // ──────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public UserSubscriptionResponse getMyActiveSubscription() {
         UUID userId = getCurrentUserId();
+        // Dùng JOIN FETCH để eager load plan, tránh LazyInitializationException
         UserSubscription sub = subscriptionRepository
-                .findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)
+                .findActiveWithPlanByUserId(userId)
+                .stream()
+                .findFirst()
                 .orElseThrow(() -> new AppException(ErrorCode.USER_SUBSCRIPTION_NOT_FOUND));
         return subscriptionMapper.toResponse(sub);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<UserSubscriptionResponse> getMySubscriptionHistory() {
         UUID userId = getCurrentUserId();
-        return subscriptionRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
+        return subscriptionRepository.findAllByUserIdWithPlanOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(subscriptionMapper::toResponse)
                 .collect(Collectors.toList());
@@ -133,8 +135,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
 
         log.info("Cancelled subscription id={} for userId={}", sub.getId(), userId);
 
-        // Trả user về FREE plan
-        publishFreePlanRevert(userId);
+        subscriptionAuthorizationCacheService.evict(userId);
     }
 
     // ──────────────────────────────────────────────────────────
@@ -156,8 +157,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
             sub.setStatus(SubscriptionStatus.EXPIRED);
             subscriptionRepository.save(sub);
 
-            // Trả user về FREE plan sau khi hết hạn
-            publishFreePlanRevert(sub.getUserId());
+            subscriptionAuthorizationCacheService.evict(sub.getUserId());
 
             log.info("Expired subscription id={} for userId={}", sub.getId(), sub.getUserId());
         }
@@ -167,30 +167,23 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     // PRIVATE HELPERS
     // ──────────────────────────────────────────────────────────
 
-    private void publishFreePlanRevert(UUID userId) {
-        try {
-            planRepository.findBySubsNameAndIsActiveTrue("FREE").ifPresent(freePlan -> {
-                rabbitTemplate.convertAndSend(
-                        RabbitMQConfig.IDENTITY_EXCHANGE,
-                        RabbitMQConfig.ROUTING_SUBSCRIPTION_ACTIVE,
-                        SubscriptionActiveEvent.builder()
-                                .userId(userId)
-                                .planName(freePlan.getSubsName())
-                                .features(freePlan.getFeatures())
-                                .build()
-                );
-                log.info("Reverted userId={} to FREE plan", userId);
-            });
-        } catch (Exception e) {
-            log.error("Failed to revert userId={} to FREE plan", userId, e);
-        }
-    }
-
     private UUID getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || auth.getPrincipal() == null) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
         return UUID.fromString(auth.getPrincipal().toString());
+    }
+
+    private String getCurrentUserEmail() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getCredentials() == null) return null;
+        try {
+            // JwtAuthenticationFilter lưu toàn bộ Claims vào credentials
+            Claims claims = (Claims) auth.getCredentials();
+            return claims.get("email", String.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

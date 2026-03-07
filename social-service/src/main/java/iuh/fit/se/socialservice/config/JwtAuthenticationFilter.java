@@ -21,10 +21,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.crypto.SecretKey;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -63,16 +61,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             String userId = claims.getSubject();
+            String role = claims.get("role", String.class);
             String scope = claims.get("scope", String.class);
 
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                List<SimpleGrantedAuthority> authorities = (scope != null && !scope.isBlank())
-                        ? Arrays.stream(scope.split(" "))
-                                .map(SimpleGrantedAuthority::new)
-                                .collect(Collectors.toList())
-                        : List.of();
+                List<SimpleGrantedAuthority> authorities;
+                if (role != null && !role.isBlank()) {
+                    authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                } else if (scope != null && !scope.isBlank()) {
+                    authorities = List.of(new SimpleGrantedAuthority(scope));
+                } else {
+                    authorities = List.of();
+                }
 
-                // credentials = claims so controllers can read userId, plan, etc.
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userId, claims, authorities);
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

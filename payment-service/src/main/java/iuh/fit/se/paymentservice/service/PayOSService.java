@@ -10,6 +10,7 @@ public interface PayOSService {
 
     PaymentResponse createPaymentLink(
             UUID userId,
+            String userEmail,
             UUID subscriptionId,
             String planName,
             BigDecimal amount,

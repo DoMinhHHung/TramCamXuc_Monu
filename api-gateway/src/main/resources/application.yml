@@ -11,34 +11,109 @@ spring:
           enabled: true
           lower-case-service-id: true
       routes:
-        - id: identity-service
+
+        # ── Identity Service (port 8081) ──────────────────────────────
+        # Controllers: /auth/**, /users/**, /internal/**
+        - id: identity-service-auth
           uri: lb://IDENTITY-SERVICE
           predicates:
-            - Path=/api/v1/auth/**, /api/v1/users/**
+            - Path=/auth/**
 
-        - id: payment-service
+        - id: identity-service-users
+          uri: lb://IDENTITY-SERVICE
+          predicates:
+            - Path=/users/**
+
+        - id: identity-service-internal
+          uri: lb://IDENTITY-SERVICE
+          predicates:
+            - Path=/internal/**
+
+        - id: identity-swagger
+          uri: lb://IDENTITY-SERVICE
+          predicates:
+            - Path=/service-identity/**
+          filters:
+            - StripPrefix=1
+
+        # ── Music Service (port 8083) ─────────────────────────────────
+        # Controllers: /api/v1/songs/**, /api/v1/albums/**, /api/v1/genres/**,
+        #              /api/v1/artists/**, /api/v1/playlists/**, /api/v1/admin/**
+        - id: music-service-api
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/api/v1/songs/**, /api/v1/albums/**, /api/v1/genres/**, /api/v1/artists/**, /api/v1/playlists/**, /api/v1/admin/**
+
+        - id: music-swagger
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/service-music/**
+          filters:
+            - StripPrefix=1
+
+        # ── Payment Service (port 8084) ───────────────────────────────
+        # Controllers: /payments/**, /subscriptions/**, /admin/subscriptions/**,
+        #              /api/internal/subscriptions/**
+        - id: payment-service-payments
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/payments/**
+
+        - id: payment-service-subscriptions
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/subscriptions/**
+
+        - id: payment-service-admin
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/admin/subscriptions/**
+
+        - id: payment-service-internal
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/internal/subscriptions/**
+
+        - id: payment-swagger
           uri: lb://PAYMENT-SERVICE
           predicates:
             - Path=/service-payment/**
           filters:
             - StripPrefix=1
 
-        - id: music-service
-          uri: lb://MUSIC-SERVICE
+        # ── Social Service (port 8086) ────────────────────────────────
+        # Controllers: /social/**, /social/comments/**, /social/hearts/**,
+        #              /social/reactions/**, /social/share/**, /social/listen-history/**
+        - id: social-service-api
+          uri: lb://SOCIAL-SERVICE
           predicates:
-            - Path=/service-music/**
-            - Path=/api/v1/songs/**, /api/v1/albums/**, /api/v1/genres/**, /api/v1/artists/**
+            - Path=/social/**
+
+        - id: social-swagger
+          uri: lb://SOCIAL-SERVICE
+          predicates:
+            - Path=/service-social/**
           filters:
             - StripPrefix=1
 
-        - id: social-service
-          uri: lb://SOCIAL-SERVICE
-          predicates:
-            - Path=/api/v1/social/**
-          filters:
-            - StripPrefix=2
 
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: identity-service
+        url: /service-identity/v3/api-docs
+      - name: music-service
+        url: /service-music/v3/api-docs
+      - name: payment-service
+        url: /service-payment/v3/api-docs
+      - name: social-service
+        url: /service-social/v3/api-docs
+  api-docs:
+    enabled: true
+

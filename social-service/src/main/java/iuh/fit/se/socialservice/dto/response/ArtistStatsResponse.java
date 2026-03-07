@@ -11,4 +11,6 @@ public class ArtistStatsResponse {
     private UUID artistId;
     private long followerCount;
     private long totalListens;
+    private long totalLikes;
+    private long totalShares;
 }

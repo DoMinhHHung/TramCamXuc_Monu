@@ -2,6 +2,7 @@ package iuh.fit.se.musicservice.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import iuh.fit.se.musicservice.client.PaymentInternalClient;
 import iuh.fit.se.musicservice.dto.request.PlaylistCreateRequest;
 import iuh.fit.se.musicservice.dto.request.PlaylistUpdateRequest;
 import iuh.fit.se.musicservice.dto.request.ReorderRequest;
@@ -21,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +48,8 @@ public class PlaylistServiceImpl implements PlaylistService {
     private final LinkedListService      linkedListService;
     private final MinioStorageService    storageService;
     private final ObjectMapper           objectMapper;
+    private final StringRedisTemplate    stringRedisTemplate;
+    private final PaymentInternalClient  paymentInternalClient;
 
     // ─────────────────────────────────────────────────────────────────────────
     // SECURITY HELPERS
@@ -71,37 +75,40 @@ public class PlaylistServiceImpl implements PlaylistService {
     // SUBSCRIPTION HELPERS
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Đọc playlist_limit từ JWT claim "features".
-     * Credentials trong music-service là Map<String, Object>
-     * set bởi JwtAuthenticationFilter. Default = 3 (free plan).
-     */
+
+
     private int resolvePlaylistLimit() {
+        UUID userId = currentUserIdOrNull();
+        if (userId == null) return 3;
+
+        // 1. Đọc Redis
         try {
-            var auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth == null) return 3;
-
-            Object creds = auth.getCredentials();
-            String featuresJson = null;
-
-            if (creds instanceof Map<?, ?> map) {
-                Object raw = map.get("features");
-                if (raw != null) featuresJson = raw.toString();
+            String json = stringRedisTemplate.opsForValue()
+                    .get("user:subscription:" + userId);
+            if (json != null && !json.isBlank()) {
+                Map<String, Object> features = objectMapper.readValue(
+                        json, new TypeReference<>() {});
+                Object limitObj = features.get("playlist_limit");
+                if (limitObj instanceof Number n) return n.intValue();
+                if (limitObj instanceof String s) return Integer.parseInt(s);
             }
-
-            if (featuresJson == null) return 3;
-
-            Map<String, Object> features = objectMapper.readValue(
-                    featuresJson, new TypeReference<>() {});
-
-            Object limitObj = features.get("playlist_limit");
-            if (limitObj instanceof Integer i) return i;
-            if (limitObj instanceof Number n) return n.intValue();
-
         } catch (Exception e) {
-            log.warn("[Playlist] Could not resolve playlist_limit, defaulting to 3");
+            log.warn("[Playlist] Redis read failed for userId={}: {}", userId, e.getMessage());
         }
-        return 3;
+
+        // 2. Fallback: Feign → payment-service
+        try {
+            var status = paymentInternalClient.getSubscriptionStatus(userId);
+            if (status != null && status.isActive() && status.getFeatures() != null) {
+                Object limitObj = status.getFeatures().get("playlist_limit");
+                if (limitObj instanceof Number n) return n.intValue();
+                if (limitObj instanceof String s) return Integer.parseInt(s);
+            }
+        } catch (Exception e) {
+            log.warn("[Playlist] Feign fallback failed for userId={}: {}", userId, e.getMessage());
+        }
+
+        return 3; // FREE plan default
     }
 
     // ─────────────────────────────────────────────────────────────────────────

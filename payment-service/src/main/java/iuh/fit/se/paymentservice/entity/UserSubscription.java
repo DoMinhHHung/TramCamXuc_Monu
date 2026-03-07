@@ -43,10 +43,10 @@ public class UserSubscription {
     @Builder.Default
     private SubscriptionStatus status = SubscriptionStatus.PENDING;
 
-    @Column(name = "started_at", nullable = false)
+    @Column(name = "started_at")
     private LocalDateTime startedAt;
 
-    @Column(name = "expires_at", nullable = false)
+    @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
     @Column(name = "auto_renew")

@@ -3,10 +3,13 @@ package iuh.fit.se.socialservice.service.impl;
 import iuh.fit.se.socialservice.document.Follow;
 import iuh.fit.se.socialservice.dto.response.ArtistStatsResponse;
 import iuh.fit.se.socialservice.dto.response.FollowResponse;
+import iuh.fit.se.socialservice.enums.ReactionType;
 import iuh.fit.se.socialservice.exception.AppException;
 import iuh.fit.se.socialservice.exception.ErrorCode;
 import iuh.fit.se.socialservice.repository.FollowRepository;
 import iuh.fit.se.socialservice.repository.ListenHistoryRepository;
+import iuh.fit.se.socialservice.repository.ReactionRepository;
+import iuh.fit.se.socialservice.repository.SongShareRepository;
 import iuh.fit.se.socialservice.service.FollowService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +26,8 @@ public class FollowServiceImpl implements FollowService {
 
     private final FollowRepository followRepository;
     private final ListenHistoryRepository listenHistoryRepository;
+    private final ReactionRepository reactionRepository;
+    private final SongShareRepository songShareRepository;
 
     @Override
     public FollowResponse followArtist(UUID followerId, UUID artistId) {
@@ -71,12 +76,16 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     public ArtistStatsResponse getArtistStats(UUID artistId) {
-        long followers = followRepository.countByArtistId(artistId);
+        long followers    = followRepository.countByArtistId(artistId);
         long totalListens = listenHistoryRepository.countByArtistId(artistId);
+        long totalLikes   = reactionRepository.countByArtistIdAndType(artistId, ReactionType.LIKE);
+        long totalShares  = songShareRepository.countByArtistId(artistId);
         return ArtistStatsResponse.builder()
                 .artistId(artistId)
                 .followerCount(followers)
                 .totalListens(totalListens)
+                .totalLikes(totalLikes)
+                .totalShares(totalShares)
                 .build();
     }
 

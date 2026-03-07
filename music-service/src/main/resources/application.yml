@@ -69,3 +69,5 @@ open:
   api:
     title: Music Service API
     version: 1.0.0
+    server-url: ${GATEWAY_URL:http://localhost:8080}/service-music
+    server-description: API Gateway

@@ -12,7 +12,6 @@ import iuh.fit.se.paymentservice.enums.PaymentMethod;
 import iuh.fit.se.paymentservice.enums.PaymentStatus;
 import iuh.fit.se.paymentservice.enums.SubscriptionStatus;
 import iuh.fit.se.paymentservice.event.NotificationEvent;
-import iuh.fit.se.paymentservice.event.SubscriptionActiveEvent;
 import iuh.fit.se.paymentservice.exception.AppException;
 import iuh.fit.se.paymentservice.exception.ErrorCode;
 import iuh.fit.se.paymentservice.repository.PaymentTransactionRepository;
@@ -49,6 +48,7 @@ public class PayOSServiceImpl implements PayOSService {
     private final UserSubscriptionRepository subscriptionRepository;
     private final ObjectMapper objectMapper;
     private final RabbitTemplate rabbitTemplate;
+    private final SubscriptionAuthorizationCacheService subscriptionAuthorizationCacheService;
 
     // ──────────────────────────────────────────────────────────
     // CREATE PAYMENT LINK
@@ -56,13 +56,14 @@ public class PayOSServiceImpl implements PayOSService {
 
     @Override
     @Transactional
-    public PaymentResponse createPaymentLink(UUID userId, UUID subscriptionId, String planName, BigDecimal amount, String description) {
+    public PaymentResponse createPaymentLink(UUID userId, String userEmail, UUID subscriptionId, String planName, BigDecimal amount, String description) {
         try {
             long orderCode      = generateOrderCode();
             String referenceCode = generateReferenceCode();
 
             PaymentTransaction transaction = PaymentTransaction.builder()
                     .userId(userId)
+                    .userEmail(userEmail)
                     .subscription(subscriptionRepository.findById(subscriptionId).orElse(null))
                     .amount(amount)
                     .paymentMethod(PaymentMethod.PAYOS)
@@ -178,23 +179,33 @@ public class PayOSServiceImpl implements PayOSService {
             PaymentTransaction transaction = transactionRepository.findByOrderCode(orderCode)
                     .orElseThrow(() -> new RuntimeException("Transaction not found for orderCode=" + orderCode));
 
+            if (transaction.getStatus() == PaymentStatus.COMPLETED
+                    || transaction.getStatus() == PaymentStatus.FAILED) {
+                log.info("Duplicate webhook ignored for orderCode={}, currentStatus={}",
+                        orderCode, transaction.getStatus());
+                return;
+            }
+
             if ("00".equals(data.getCode())) {
                 transaction.setStatus(PaymentStatus.COMPLETED);
                 transaction.setProviderTransactionId(data.getReference());
 
                 if (transaction.getSubscription() != null) {
                     UserSubscription sub = transaction.getSubscription();
+                    LocalDateTime activatedAt = LocalDateTime.now();
                     sub.setStatus(SubscriptionStatus.ACTIVE);
+                    sub.setStartedAt(activatedAt);
+                    sub.setExpiresAt(activatedAt.plusDays(sub.getPlan().getDurationDays()));
                     subscriptionRepository.save(sub);
 
-                    // Notify identity-service cập nhật subscription
-                    publishSubscriptionActive(
+                    subscriptionAuthorizationCacheService.cacheActiveSubscription(
                             transaction.getUserId(),
-                            sub.getPlan().getSubsName(),
-                            sub.getPlan().getFeatures()
+                            sub.getPlan().getFeatures(),
+                            sub.getExpiresAt()
                     );
 
-                    // Gửi email xác nhận thanh toán
+                    publishSubscriptionActiveEvent(transaction.getUserId(), sub);
+
                     publishPaymentSuccessEmail(transaction, sub);
                 }
 
@@ -225,20 +236,20 @@ public class PayOSServiceImpl implements PayOSService {
     // PRIVATE HELPERS
     // ──────────────────────────────────────────────────────────
 
-    private void publishSubscriptionActive(UUID userId, String planName, Map<String, Object> features) {
+    private void publishSubscriptionActiveEvent(UUID userId, UserSubscription sub) {
         try {
             rabbitTemplate.convertAndSend(
                     RabbitMQConfig.IDENTITY_EXCHANGE,
                     RabbitMQConfig.ROUTING_SUBSCRIPTION_ACTIVE,
-                    SubscriptionActiveEvent.builder()
+                    iuh.fit.se.paymentservice.event.SubscriptionActiveEvent.builder()
                             .userId(userId)
-                            .planName(planName)
-                            .features(features)
+                            .planName(sub.getPlan().getSubsName())
+                            .features(sub.getPlan().getFeatures())
                             .build()
             );
-            log.info("Published SubscriptionActiveEvent for userId={}", userId);
+            log.info("Published SubscriptionActiveEvent for userId={}, plan={}", userId, sub.getPlan().getSubsName());
         } catch (Exception e) {
-            log.error("Failed to publish SubscriptionActiveEvent for userId={}", userId, e);
+            log.warn("Failed to publish SubscriptionActiveEvent for userId={}", userId, e);
         }
     }
 
@@ -254,7 +265,7 @@ public class PayOSServiceImpl implements PayOSService {
                     RabbitMQConfig.ROUTING_NOTIFICATION_EMAIL,
                     NotificationEvent.builder()
                             .channel("EMAIL")
-                            .recipient(null)
+                            .recipient(transaction.getUserEmail())
                             .subject("Thanh toán thành công - TramCamXuc")
                             .templateCode("payment-success")
                             .paramMap(Map.of(

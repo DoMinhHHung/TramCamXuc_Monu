@@ -21,14 +21,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.crypto.SecretKey;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Xác thực JWT – dùng cùng signerKey với identity-service.
- * Claims được đặt làm credentials để các service đọc được subscription features.
+ * Claims được đặt làm credentials để service đọc thông tin định danh cần thiết.
  */
 @Component
 @RequiredArgsConstructor
@@ -67,12 +65,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             String userId = claims.getSubject();
-            String scope  = claims.get("scope", String.class);
+            String role = claims.get("role", String.class);
 
-            if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                List<SimpleGrantedAuthority> authorities = Arrays.stream(scope.split(" "))
-                        .map(SimpleGrantedAuthority::new)
-                        .collect(Collectors.toList());
+            if (userId != null && role != null
+                    && SecurityContextHolder.getContext().getAuthentication() == null) {
+                List<SimpleGrantedAuthority> authorities = List.of(
+                        new SimpleGrantedAuthority("ROLE_" + role)
+                );
 
                 // credentials = claims → service đọc được plan/features
                 UsernamePasswordAuthenticationToken authToken =
