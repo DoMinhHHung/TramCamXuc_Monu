@@ -51,6 +51,7 @@ public class RabbitMQConfig {
 
     // ── Queues ─────────────────────────────────────────────────────────────────
     public static final String TRANSCODE_SUCCESS_QUEUE = "transcode.success.queue";
+    public static final String TRANSCODE_FAILED_QUEUE  = "transcode.failed.queue";
     public static final String LISTEN_TRENDING_QUEUE   = "listen.trending.queue";
 
     /** Workers pull Jamendo track download jobs from this queue. */
@@ -65,6 +66,7 @@ public class RabbitMQConfig {
     // ── Routing keys ────────────────────────────────────────────────────────────
     public static final String TRANSCODE_ROUTING_KEY         = "song.transcode";
     public static final String TRANSCODE_SUCCESS_ROUTING_KEY = "song.transcode.success";
+    public static final String TRANSCODE_FAILED_ROUTING_KEY  = "song.transcode.failed";
     public static final String SONG_LISTEN_ROUTING_KEY       = "song.listened";
     public static final String NOTIFICATION_EMAIL_KEY        = "notification.email";
     public static final String ARTIST_REGISTERED_ROUTING_KEY = "artist.registered";
@@ -126,6 +128,11 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue transcodeFailedQueue() {
+        return QueueBuilder.durable(TRANSCODE_FAILED_QUEUE).build();
+    }
+
+    @Bean
     public Queue listenTrendingQueue() {
         return QueueBuilder.durable(LISTEN_TRENDING_QUEUE).build();
     }
@@ -162,6 +169,13 @@ public class RabbitMQConfig {
                                         TopicExchange musicExchange) {
         return BindingBuilder.bind(transcodeSuccessQueue)
                 .to(musicExchange).with(TRANSCODE_SUCCESS_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding bindTranscodeFailed(Queue transcodeFailedQueue,
+                                        TopicExchange musicExchange) {
+        return BindingBuilder.bind(transcodeFailedQueue)
+                .to(musicExchange).with(TRANSCODE_FAILED_ROUTING_KEY);
     }
 
     @Bean

@@ -69,6 +69,21 @@ public class MinioStorageService {
         }
     }
 
+    public String generatePresignedStreamUrl(String objectKey) {
+        try {
+            return minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(publicBucket)
+                            .object(objectKey)
+                            .expiry(1, TimeUnit.MINUTES)
+                            .build());
+        } catch (Exception e) {
+            log.error("Cannot generate presigned stream URL for key: {}", objectKey, e);
+            throw new RuntimeException("Storage service error", e);
+        }
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // PUBLIC URL (HLS / CDN)
     // ──────────────────────────────────────────────────────────────────────────

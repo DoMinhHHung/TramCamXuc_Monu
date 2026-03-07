@@ -24,12 +24,6 @@ public class ListenHistoryServiceImpl implements ListenHistoryService {
     @Override
     public void recordListen(SongListenEvent event) {
         Instant listenedAt = event.getListenedAt() != null ? event.getListenedAt() : Instant.now();
-
-        ListenHistory.ListenMeta meta = ListenHistory.ListenMeta.builder()
-                .userId(event.getUserId() != null ? event.getUserId().toString() : null)
-                .songId(event.getSongId() != null ? event.getSongId().toString() : null)
-                .build();
-
         ListenHistory record = ListenHistory.builder()
                 .userId(event.getUserId())
                 .songId(event.getSongId())
@@ -38,7 +32,6 @@ public class ListenHistoryServiceImpl implements ListenHistoryService {
                 .albumId(event.getAlbumId())
                 .durationSeconds(event.getDurationSeconds())
                 .listenedAt(listenedAt)
-                .meta(meta)
                 .build();
 
         listenHistoryRepository.save(record);

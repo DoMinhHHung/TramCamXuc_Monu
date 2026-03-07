@@ -16,8 +16,6 @@ public interface UserMapper {
     @Mapping(target = "providerId", ignore = true)
     @Mapping(target = "avatarUrl", ignore = true)
     @Mapping(target = "refreshTokens", ignore = true)
-    @Mapping(target = "subscriptionFeatures", ignore = true)
-    @Mapping(target = "subscriptionPlan", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     User toEntity(UserRegistrationRequest request);

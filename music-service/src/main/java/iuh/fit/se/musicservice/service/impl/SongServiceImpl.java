@@ -1,7 +1,5 @@
 package iuh.fit.se.musicservice.service.impl;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import iuh.fit.se.musicservice.config.RabbitMQConfig;
 import iuh.fit.se.musicservice.dto.request.SongCreateRequest;
@@ -73,28 +71,15 @@ public class SongServiceImpl implements SongService {
 
     private String resolveStreamQuality() {
         try {
-            Object creds = currentAuth().getCredentials();
-            String featuresJson = null;
-
-            if (creds instanceof Claims claims) {
-                featuresJson = claims.get("features", String.class);
-            } else if (creds instanceof Map<?, ?> map) {
-                Object raw = map.get("features");
-                if (raw != null) featuresJson = raw.toString();
+            Object qualityRaw = getClaimValue("quality");
+            if (qualityRaw == null) {
+                Object features = getClaimValue("features");
+                if (features instanceof Map<?, ?> featureMap) {
+                    qualityRaw = featureMap.get("quality");
+                }
             }
 
-            if (featuresJson == null) return "64k";
-
-            Map<String, Object> features = new ObjectMapper()
-                    .readValue(featuresJson, new TypeReference<>() {});
-            String quality = (String) features.getOrDefault("quality", "64k");
-
-            return switch (quality.toLowerCase()) {
-                case "lossless", "320kbps" -> "320k";
-                case "256kbps" -> "256k";
-                case "128kbps" -> "128k";
-                default -> "64k";
-            };
+            return mapToStreamQuality(qualityRaw != null ? qualityRaw.toString() : null);
         } catch (Exception e) {
             log.warn("Could not resolve stream quality, fallback to 64k");
             return "64k";
@@ -105,7 +90,7 @@ public class SongServiceImpl implements SongService {
         // hlsMasterUrl ví dụ: "hls/<songId>/master.m3u8"
         String hlsDir = song.getHlsMasterUrl().replace("/master.m3u8", "");
         String variantKey = hlsDir + "/stream_" + quality + ".m3u8";
-        return storageService.getPublicUrl(variantKey);
+        return storageService.generatePresignedStreamUrl(variantKey);
     }
 
     private UUID tryGetCurrentUserId() {
@@ -428,32 +413,51 @@ public class SongServiceImpl implements SongService {
 
     private boolean hasFeature(String featureKey) {
         try {
-            Object creds = currentAuth().getCredentials();
-            String featuresJson = null;
-            if (creds instanceof Claims claims) {
-                featuresJson = claims.get("features", String.class);
-            } else if (creds instanceof Map<?, ?> map) {
-                Object raw = map.get("features");
-                if (raw != null) featuresJson = raw.toString();
+            Object features = getClaimValue("features");
+            if (features instanceof Map<?, ?> featureMap) {
+                Object value = featureMap.get(featureKey);
+                if (value instanceof Boolean b) {
+                    return b;
+                }
+                if (value instanceof String s) {
+                    return Boolean.parseBoolean(s);
+                }
             }
-            if (featuresJson == null) return false;
-            Map<String, Object> features = new ObjectMapper()
-                    .readValue(featuresJson, new TypeReference<>() {});
-            return Boolean.TRUE.equals(features.get(featureKey));
+            return false;
         } catch (Exception e) {
             return false;
         }
     }
 
-    private String getClaimString(String key) {
+    private Object getClaimValue(String key) {
         try {
             Object creds = currentAuth().getCredentials();
-            if (creds instanceof Claims claims) return claims.get(key, String.class);
-            if (creds instanceof Map<?, ?> map) {
-                Object val = map.get(key);
-                return val != null ? val.toString() : null;
+            if (creds instanceof Claims claims) {
+                return claims.get(key);
             }
-        } catch (Exception ignored) {}
+            if (creds instanceof Map<?, ?> map) {
+                return map.get(key);
+            }
+        } catch (Exception ignored) {
+        }
         return null;
+    }
+
+    private String getClaimString(String key) {
+        Object value = getClaimValue(key);
+        return value != null ? value.toString() : null;
+    }
+
+    private String mapToStreamQuality(String quality) {
+        if (quality == null) {
+            return "64k";
+        }
+
+        return switch (quality.toLowerCase()) {
+            case "lossless", "320kbps", "320k" -> "320k";
+            case "256kbps", "256k" -> "256k";
+            case "128kbps", "128k" -> "128k";
+            default -> "64k";
+        };
     }
 }
