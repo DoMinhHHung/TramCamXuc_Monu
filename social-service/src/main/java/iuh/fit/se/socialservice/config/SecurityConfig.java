@@ -32,6 +32,9 @@ public class SecurityConfig {
             "/social/comments/count",
             "/social/share",
             "/social/share/qr",
+            // Internal endpoints for recommendation-service (service-to-service)
+            "/api/v1/listen-history/**",
+            "/api/v1/follows/**",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"

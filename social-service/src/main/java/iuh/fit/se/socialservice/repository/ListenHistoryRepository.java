@@ -25,4 +25,7 @@ public interface ListenHistoryRepository extends MongoRepository<ListenHistory, 
 
     @Query("{'userId': ?0, 'listenedAt': {$gte: ?1}}")
     List<ListenHistory> findRecentByUser(UUID userId, Instant since);
+
+    @Query(value = "{'userId': ?0, 'listenedAt': {$gte: ?1}}", sort = "{'listenedAt': -1}")
+    List<ListenHistory> findRecentByUserSorted(UUID userId, Instant since, Pageable pageable);
 }

@@ -30,23 +30,21 @@ public class SecurityConfig {
                     "/api/v1/songs",
                     "/api/v1/songs/trending",
                     "/api/v1/songs/newest",
+                    "/api/v1/songs/batch",
                     "/api/v1/songs/by-artist/**",
                     "/api/v1/songs/*/play",
                     "/api/v1/songs/*/listen",
                     "/api/v1/genres",
                     "/api/v1/genres/**",
-                    "/api/v1/artists",           // tìm kiếm nghệ sĩ
-                    "/api/v1/artists/register",  // đăng ký (cần JWT nhưng không cần ROLE_ARTIST)
-                    "/api/v1/albums",            // danh sách album PUBLIC
+                    "/api/v1/artists",
+                    "/api/v1/artists/register",
+                    "/api/v1/artists/*/songs",
+                    "/api/v1/albums",
                     "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
                 ).permitAll()
-                // Song detail — public nhưng GET /{songId} cũng cần match
                 .requestMatchers("GET", "/api/v1/songs/*").permitAll()
-                // Artist public profile
                 .requestMatchers("GET", "/api/v1/artists/*").permitAll()
-                // Album public detail
                 .requestMatchers("GET", "/api/v1/albums/*").permitAll()
-                // Playlist public by slug (PUBLIC + COLLABORATIVE)
                 .requestMatchers("GET", "/api/v1/playlists/*").permitAll()
                 .anyRequest().authenticated()
             )

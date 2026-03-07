@@ -32,9 +32,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -52,6 +54,12 @@ public class SongServiceImpl implements SongService {
     private final ObjectMapper objectMapper;
     private final PaymentInternalClient paymentInternalClient;
     private final SubscriptionCacheWarmupService subscriptionCacheWarmupService;
+
+    // ── Cache constants (recommendation-service internal) ──────────────────────
+    private static final String   CACHE_BATCH_PREFIX  = "rec:songs:batch:";
+    private static final String   CACHE_ARTIST_PREFIX = "rec:artist:songs:";
+    private static final Duration CACHE_BATCH_TTL     = Duration.ofMinutes(10);
+    private static final Duration CACHE_ARTIST_TTL    = Duration.ofMinutes(15);
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -349,6 +357,72 @@ public class SongServiceImpl implements SongService {
     public Page<SongResponse> getSongsByArtist(UUID artistId, Pageable pageable) {
         return songRepository.findPublicByArtistId(artistId, pageable)
                 .map(songMapper::toResponse);
+    }
+
+    // ── Recommendation-service internal endpoints ───────────────────────────────
+
+    @Override
+    public List<SongResponse> getSongsByIds(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) return Collections.emptyList();
+
+        // Build a stable cache key from sorted IDs so order doesn't matter
+        String cacheKey = CACHE_BATCH_PREFIX +
+                ids.stream().map(UUID::toString).sorted().collect(Collectors.joining(",")).hashCode();
+        try {
+            String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                List<SongResponse> result = objectMapper.readValue(
+                        cached, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+                log.debug("Cache HIT batch ids hash={}", cacheKey);
+                return result;
+            }
+        } catch (Exception e) {
+            log.warn("Cache read failed for batch key: {}", e.getMessage());
+        }
+
+        List<Song> songs = songRepository.findPublicByIdIn(ids);
+        // Preserve ML ranking order
+        Map<UUID, Song> byId = songs.stream().collect(Collectors.toMap(Song::getId, s -> s));
+        List<SongResponse> result = ids.stream()
+                .map(byId::get)
+                .filter(Objects::nonNull)
+                .map(songMapper::toResponse)
+                .collect(Collectors.toList());
+
+        try {
+            stringRedisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(result), CACHE_BATCH_TTL);
+        } catch (Exception e) {
+            log.warn("Cache write failed for batch: {}", e.getMessage());
+        }
+        return result;
+    }
+
+    @Override
+    public List<SongResponse> getSongsByArtistTop(UUID artistId, int limit) {
+        String cacheKey = CACHE_ARTIST_PREFIX + artistId + ":" + limit;
+        try {
+            String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                log.debug("Cache HIT artist songs artistId={}", artistId);
+                return objectMapper.readValue(
+                        cached, new com.fasterxml.jackson.core.type.TypeReference<>() {});
+            }
+        } catch (Exception e) {
+            log.warn("Cache read failed for artist songs: {}", e.getMessage());
+        }
+
+        List<SongResponse> result = songRepository
+                .findTopByArtistId(artistId, org.springframework.data.domain.PageRequest.of(0, limit))
+                .stream()
+                .map(songMapper::toResponse)
+                .collect(Collectors.toList());
+
+        try {
+            stringRedisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(result), CACHE_ARTIST_TTL);
+        } catch (Exception e) {
+            log.warn("Cache write failed for artist songs: {}", e.getMessage());
+        }
+        return result;
     }
 
     // ── Admin ──────────────────────────────────────────────────────────────────

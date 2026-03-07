@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -54,6 +55,18 @@ public class SongController {
 
         return ApiResponse.<Page<SongResponse>>builder()
                 .result(songService.getTrending(PageRequest.of(page - 1, size)))
+                .build();
+    }
+
+    /**
+     * Batch fetch nhiều bài hát theo danh sách IDs — dùng cho recommendation-service.
+     * GET /api/v1/songs/batch?ids=id1,id2,...
+     */
+    @GetMapping("/batch")
+    public ApiResponse<List<SongResponse>> getSongsByIds(
+            @RequestParam List<UUID> ids) {
+        return ApiResponse.<List<SongResponse>>builder()
+                .result(songService.getSongsByIds(ids))
                 .build();
     }
 

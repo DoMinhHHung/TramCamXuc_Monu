@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -28,6 +29,15 @@ public class FollowServiceImpl implements FollowService {
     private final ListenHistoryRepository listenHistoryRepository;
     private final ReactionRepository reactionRepository;
     private final SongShareRepository songShareRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    private void evictFollowCache(UUID followerId) {
+        try {
+            redisTemplate.delete("rec:follows:artists:" + followerId);
+        } catch (Exception e) {
+            // cache eviction is best-effort
+        }
+    }
 
     @Override
     public FollowResponse followArtist(UUID followerId, UUID artistId) {
@@ -41,6 +51,7 @@ public class FollowServiceImpl implements FollowService {
                 .build();
 
         follow = followRepository.save(follow);
+        evictFollowCache(followerId);
         return toResponse(follow);
     }
 
@@ -50,6 +61,7 @@ public class FollowServiceImpl implements FollowService {
             throw new AppException(ErrorCode.NOT_FOLLOWING);
         }
         followRepository.deleteByFollowerIdAndArtistId(followerId, artistId);
+        evictFollowCache(followerId);
     }
 
     @Override

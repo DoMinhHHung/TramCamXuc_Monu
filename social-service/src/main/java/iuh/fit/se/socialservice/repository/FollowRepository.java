@@ -4,8 +4,10 @@ import iuh.fit.se.socialservice.document.Follow;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,4 +27,7 @@ public interface FollowRepository extends MongoRepository<Follow, String> {
     Page<Follow> findByArtistIdOrderByCreatedAtDesc(UUID artistId, Pageable pageable);
 
     void deleteByFollowerIdAndArtistId(UUID followerId, UUID artistId);
+
+    @Query(value = "{'followerId': ?0}", fields = "{'artistId': 1, '_id': 0}")
+    List<Follow> findArtistIdsByFollowerId(UUID followerId);
 }

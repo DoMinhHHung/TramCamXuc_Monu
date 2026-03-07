@@ -137,4 +137,24 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
      * Worker idempotency guard — fast exists check before expensive I/O.
      */
     boolean existsByJamendoId(String jamendoId);
+
+    @Query("""
+            SELECT s FROM Song s
+            LEFT JOIN FETCH s.genres
+            WHERE s.id IN :ids
+            AND s.status = 'PUBLIC'
+            AND s.transcodeStatus = 'COMPLETED'
+            AND s.deletedAt IS NULL
+            """)
+    List<Song> findPublicByIdIn(@Param("ids") List<UUID> ids);
+
+    @Query("""
+            SELECT s FROM Song s
+            WHERE s.primaryArtistId = :artistId
+            AND s.status = 'PUBLIC'
+            AND s.transcodeStatus = 'COMPLETED'
+            AND s.deletedAt IS NULL
+            ORDER BY s.playCount DESC
+            """)
+    List<Song> findTopByArtistId(@Param("artistId") UUID artistId, Pageable pageable);
 }

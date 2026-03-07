@@ -34,7 +34,8 @@ public class MongoIndexInitializer {
                 Heart.class,
                 Reaction.class,
                 Comment.class,
-                CommentLike.class
+                CommentLike.class,
+                UserFollow.class
         );
 
         IndexResolver resolver = new MongoPersistentEntityIndexResolver(mongoMappingContext);

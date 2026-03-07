@@ -29,7 +29,7 @@ jwt:
 ml:
   service:
     url: ${ML_SERVICE_URL:http://localhost:8000}
-    timeout-ms: 3000   # fallback sang rule-based nếu ML chậm hơn 3s
+    timeout-ms: 5000
 
 recommendation:
   cache:

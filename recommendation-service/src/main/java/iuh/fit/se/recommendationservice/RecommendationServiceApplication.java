@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableDiscoveryClient
+@EnableFeignClients(basePackages = "iuh.fit.se.recommendationservice.client")
 @EnableAsync
 @EnableScheduling
 public class RecommendationServiceApplication {
