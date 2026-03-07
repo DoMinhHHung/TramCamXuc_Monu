@@ -64,13 +64,12 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
                 .ifPresent(s -> { throw new AppException(ErrorCode.USER_ALREADY_HAS_ACTIVE_SUBSCRIPTION); });
 
         // Tạo subscription với trạng thái PENDING
-        LocalDateTime now = LocalDateTime.now();
         UserSubscription subscription = UserSubscription.builder()
                 .userId(userId)
                 .plan(plan)
                 .status(SubscriptionStatus.PENDING)
-                .startedAt(now)
-                .expiresAt(now.plusDays(plan.getDurationDays()))
+                .startedAt(null)
+                .expiresAt(null)
                 .autoRenew(request.getAutoRenew() != null && request.getAutoRenew())
                 .build();
         subscription = subscriptionRepository.save(subscription);

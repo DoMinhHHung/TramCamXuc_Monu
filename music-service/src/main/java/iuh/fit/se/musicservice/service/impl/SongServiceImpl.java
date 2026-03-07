@@ -3,8 +3,10 @@ package iuh.fit.se.musicservice.service.impl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
+import iuh.fit.se.musicservice.client.PaymentInternalClient;
 import iuh.fit.se.musicservice.config.RabbitMQConfig;
 import iuh.fit.se.musicservice.dto.request.SongCreateRequest;
+import iuh.fit.se.musicservice.dto.response.PaymentSubscriptionStatusResponse;
 import iuh.fit.se.musicservice.dto.request.SongUpdateRequest;
 import iuh.fit.se.musicservice.dto.response.SongResponse;
 import iuh.fit.se.musicservice.entity.Genre;
@@ -47,6 +49,8 @@ public class SongServiceImpl implements SongService {
     private final PlayCountSyncService playCountSyncService;
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
+    private final PaymentInternalClient paymentInternalClient;
+    private final SubscriptionCacheWarmupService subscriptionCacheWarmupService;
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -438,15 +442,30 @@ public class SongServiceImpl implements SongService {
             return Collections.emptyMap();
         }
 
+        String key = "user:subscription:" + userId;
         try {
-            String payload = stringRedisTemplate.opsForValue().get("user:subscription:" + userId);
-            if (payload == null || payload.isBlank()) {
-                return Collections.emptyMap();
+            String payload = stringRedisTemplate.opsForValue().get(key);
+            if (payload != null && !payload.isBlank()) {
+                return objectMapper.readValue(payload, new TypeReference<>() {});
             }
-            return objectMapper.readValue(payload, new TypeReference<>() {});
         } catch (Exception e) {
             log.warn("Failed to read subscription cache for userId={}", userId, e);
+        }
+
+        return fetchFromPaymentAndWarmCache(userId);
+    }
+
+    private Map<String, Object> fetchFromPaymentAndWarmCache(UUID userId) {
+        try {
+            PaymentSubscriptionStatusResponse status = paymentInternalClient.getSubscriptionStatus(userId);
+            if (status != null && status.isActive() && status.getFeatures() != null) {
+                subscriptionCacheWarmupService.warm(userId, status.getFeatures(), status.getExpiresAt());
+                return status.getFeatures();
+            }
             return Collections.emptyMap();
+        } catch (Exception e) {
+            log.error("Failed to fetch subscription status from payment-service for userId={}", userId, e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 

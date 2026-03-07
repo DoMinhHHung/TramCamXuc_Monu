@@ -178,13 +178,23 @@ public class PayOSServiceImpl implements PayOSService {
             PaymentTransaction transaction = transactionRepository.findByOrderCode(orderCode)
                     .orElseThrow(() -> new RuntimeException("Transaction not found for orderCode=" + orderCode));
 
+            if (transaction.getStatus() == PaymentStatus.COMPLETED
+                    || transaction.getStatus() == PaymentStatus.FAILED) {
+                log.info("Duplicate webhook ignored for orderCode={}, currentStatus={}",
+                        orderCode, transaction.getStatus());
+                return;
+            }
+
             if ("00".equals(data.getCode())) {
                 transaction.setStatus(PaymentStatus.COMPLETED);
                 transaction.setProviderTransactionId(data.getReference());
 
                 if (transaction.getSubscription() != null) {
                     UserSubscription sub = transaction.getSubscription();
+                    LocalDateTime activatedAt = LocalDateTime.now();
                     sub.setStatus(SubscriptionStatus.ACTIVE);
+                    sub.setStartedAt(activatedAt);
+                    sub.setExpiresAt(activatedAt.plusDays(sub.getPlan().getDurationDays()));
                     subscriptionRepository.save(sub);
 
                     subscriptionAuthorizationCacheService.cacheActiveSubscription(

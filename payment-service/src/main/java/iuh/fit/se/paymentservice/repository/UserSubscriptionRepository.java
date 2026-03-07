@@ -24,4 +24,7 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
 
     @Query("SELECT COUNT(us) FROM UserSubscription us WHERE us.plan.id = :planId AND us.status = 'ACTIVE'")
     Long countActiveSubscriptionsByPlan(@Param("planId") UUID planId);
+
+    @Query("SELECT us FROM UserSubscription us JOIN FETCH us.plan WHERE us.userId = :userId AND us.status = 'ACTIVE' ORDER BY us.createdAt DESC")
+    List<UserSubscription> findActiveWithPlanByUserId(@Param("userId") UUID userId);
 }
