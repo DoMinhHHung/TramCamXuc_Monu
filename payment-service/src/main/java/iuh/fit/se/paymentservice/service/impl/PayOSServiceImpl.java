@@ -36,6 +36,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @RequiredArgsConstructor
@@ -281,8 +283,12 @@ public class PayOSServiceImpl implements PayOSService {
         }
     }
 
+    private static final AtomicInteger counter = new AtomicInteger(0);
+
     private long generateOrderCode() {
-        return Math.abs(Instant.now().toEpochMilli());
+        long timestamp = Instant.now().toEpochMilli();
+        int count = counter.getAndIncrement() % 1000;
+        return timestamp * 1000 + count;
     }
 
     private String generateReferenceCode() {
