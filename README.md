@@ -88,6 +88,7 @@ Internal sync: RabbitMQ events + FeignClient (music-service -> identity-service)
 - API Gateway: `8080`
 - Identity Service: `8081`
 - Music Service: `8083`
+- Payment Service: `8084`
 - Transcode Service: `8085`
 - Social Service: `8086`
 - Eureka: `8761`
@@ -96,4 +97,4 @@ Internal sync: RabbitMQ events + FeignClient (music-service -> identity-service)
 
 - Core streaming and Jamendo async import are implemented asynchronously for resilience and scale.
 - Message ACK/NACK + DLQ design is used for failure isolation.
-- API-level details are documented inside each module README.
+- API-level details are documented inside each module README (including payment-service).
