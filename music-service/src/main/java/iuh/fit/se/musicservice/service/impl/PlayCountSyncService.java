@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.core.Cursor;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -18,11 +17,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Write-behind play count sync:
- * - Hot path increments Redis counters only (O(1))
- * - Scheduled batch job flushes aggregated deltas to PostgreSQL.
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -33,18 +27,6 @@ public class PlayCountSyncService {
 
     private static final String KEY_PREFIX = "song:playcount:";
 
-    private static final DefaultRedisScript<String> GET_AND_DELETE_SCRIPT;
-
-    static {
-        GET_AND_DELETE_SCRIPT = new DefaultRedisScript<>();
-        GET_AND_DELETE_SCRIPT.setScriptText(
-                "local v = redis.call('GET', KEYS[1]); " +
-                "if v then redis.call('DEL', KEYS[1]); return tostring(v); end; " +
-                "return '0';"
-        );
-        GET_AND_DELETE_SCRIPT.setResultType(String.class);
-    }
-
     public void increment(UUID songId) {
         if (songId == null) {
             return;
@@ -52,6 +34,21 @@ public class PlayCountSyncService {
         stringRedisTemplate.opsForValue().increment(KEY_PREFIX + songId);
     }
 
+    /**
+     * Flush Redis play-count deltas to the DB every 5 minutes.
+     *
+     * <p>Strategy: <b>read first, delete after commit</b>.
+     * The old approach used an atomic Lua GET+DEL, which meant that if
+     * {@code batchUpdate} threw an exception the delta was already gone from
+     * Redis and would be lost forever.  Now we:
+     * <ol>
+     *   <li>GET (non-destructive) each key into {@code batchArgs}.</li>
+     *   <li>Write all deltas to the DB in a single {@code batchUpdate}.</li>
+     *   <li>Delete the Redis keys <em>only after the DB commit succeeds</em>.</li>
+     * </ol>
+     * If the DB write fails the keys survive in Redis and will be retried on
+     * the next scheduled run (counts accumulate, so no double-counting occurs).
+     */
     @Scheduled(cron = "0 */5 * * * *")
     @Transactional
     public void flushToDatabase() {
@@ -60,22 +57,24 @@ public class PlayCountSyncService {
             return;
         }
 
-        List<Object[]> batchArgs = new ArrayList<>();
+        List<Object[]> batchArgs   = new ArrayList<>();
+        List<String>   keysToDelete = new ArrayList<>();
 
         for (String key : keys) {
             try {
-                String raw = stringRedisTemplate.execute(GET_AND_DELETE_SCRIPT, List.of(key));
+                String raw = stringRedisTemplate.opsForValue().get(key);
                 if (raw == null || raw.isBlank()) {
                     continue;
                 }
 
-                long delta = Long.parseLong(raw);
+                long delta = Long.parseLong(raw.trim());
                 if (delta <= 0) {
                     continue;
                 }
 
                 String songId = key.substring(KEY_PREFIX.length());
                 batchArgs.add(new Object[]{delta, songId});
+                keysToDelete.add(key);
             } catch (Exception ex) {
                 log.warn("Skip invalid playcount key={}", key, ex);
             }
@@ -89,6 +88,8 @@ public class PlayCountSyncService {
                 "UPDATE songs SET play_count = play_count + ? WHERE id = ?::uuid",
                 batchArgs
         );
+
+         stringRedisTemplate.delete(keysToDelete);
 
         log.info("Flushed playcount deltas for {} songs", batchArgs.size());
     }

@@ -20,6 +20,7 @@ import iuh.fit.se.musicservice.repository.GenreRepository;
 import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.SongService;
+import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -31,11 +32,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -61,20 +60,6 @@ public class SongServiceImpl implements SongService {
                 SecurityContextHolder.getContext().getAuthentication().getName());
     }
 
-    private String generateSlug(String title, UUID id) {
-        try {
-            String temp = Normalizer.normalize(title, Normalizer.Form.NFD);
-            String slug = Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
-                    .matcher(temp).replaceAll("")
-                    .toLowerCase()
-                    .replaceAll("[^a-z0-9\\s-]", "")
-                    .replaceAll("\\s+", "-");
-            if (slug.length() > 100) slug = slug.substring(0, 100);
-            return slug + "-" + id.toString().substring(0, 8);
-        } catch (Exception e) {
-            return id.toString();
-        }
-    }
 
     private String resolveStreamQuality() {
         Map<String, Object> features = loadSubscriptionFeatures(currentUserId());
@@ -94,7 +79,6 @@ public class SongServiceImpl implements SongService {
     }
 
     private String buildStreamUrl(Song song, String quality) {
-        // hlsMasterUrl ví dụ: "hls/<songId>/master.m3u8"
         String hlsDir = song.getHlsMasterUrl().replace("/master.m3u8", "");
         String variantKey = hlsDir + "/stream_" + quality + ".m3u8";
         return storageService.generatePresignedStreamUrl(variantKey);
@@ -124,10 +108,8 @@ public class SongServiceImpl implements SongService {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
-        // Đọc stageName từ artist profile trong DB
-        String stageName = artistRepository.findByUserId(userId)
-                .map(Artist::getStageName)
-                .orElse("Unknown");
+        Artist artist = artistRepository.findByUserId(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.ARTIST_NOT_FOUND));
 
         UUID songId = UUID.randomUUID();
         String ext  = request.getFileExtension().replace(".", "").toLowerCase();
@@ -138,11 +120,11 @@ public class SongServiceImpl implements SongService {
         Song song = Song.builder()
                 .id(songId)
                 .title(request.getTitle())
-                .slug(generateSlug(request.getTitle(), songId))
+                .slug(SlugUtils.generate(request.getTitle(), songId))
                 .ownerUserId(userId)
-                // Artist info lấy từ JWT — music-service không gọi identity-service
-                .primaryArtistId(songId)          // placeholder; nên có artist table riêng
-                .primaryArtistStageName(stageName)
+                .primaryArtistId(artist.getId())
+                .primaryArtistStageName(artist.getStageName())
+                .primaryArtistAvatarUrl(artist.getAvatarUrl())
                 .genres(new HashSet<>(genres))
                 .rawFileKey(rawFileKey)
                 .status(SongStatus.DRAFT)

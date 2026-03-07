@@ -18,6 +18,7 @@ import iuh.fit.se.musicservice.repository.PlaylistRepository;
 import iuh.fit.se.musicservice.repository.PlaylistSongRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.PlaylistService;
+import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -28,13 +29,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -81,7 +80,6 @@ public class PlaylistServiceImpl implements PlaylistService {
         UUID userId = currentUserIdOrNull();
         if (userId == null) return 3;
 
-        // 1. Đọc Redis
         try {
             String json = stringRedisTemplate.opsForValue()
                     .get("user:subscription:" + userId);
@@ -111,25 +109,6 @@ public class PlaylistServiceImpl implements PlaylistService {
         return 3; // FREE plan default
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // SLUG HELPER
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private String generateSlug(String name, UUID id) {
-        try {
-            String temp = Normalizer.normalize(name, Normalizer.Form.NFD);
-            String slug = Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
-                    .matcher(temp).replaceAll("")
-                    .toLowerCase()
-                    .replaceAll("[^a-z0-9\\s-]", "")
-                    .replaceAll("[\\s-]+", "-")
-                    .replaceAll("^-|-$", "");
-            if (slug.length() > 80) slug = slug.substring(0, 80);
-            return slug + "-" + id.toString().substring(0, 8);
-        } catch (Exception e) {
-            return "playlist-" + id.toString().substring(0, 8);
-        }
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // RESPONSE BUILDERS
@@ -183,18 +162,6 @@ public class PlaylistServiceImpl implements PlaylistService {
                 .build();
     }
 
-    /**
-     * Build PlaylistSongResponse từ một linked-list node.
-     *
-     * Song.java thực tế:
-     *   - KHÔNG có @ManyToOne Artist — artist info denormalized thẳng:
-     *       song.getPrimaryArtistId()
-     *       song.getPrimaryArtistStageName()
-     *       song.getPrimaryArtistAvatarUrl()
-     *   - KHÔNG có ApprovalStatus
-     *   - isPubliclyAvailable() = status==PUBLIC && transcodeStatus==COMPLETED && deletedAt==null
-     *   - isDeleted()           = deletedAt != null
-     */
     private PlaylistSongResponse toSongResponse(PlaylistSong ps) {
         Song song = ps.getSong();
 
@@ -257,7 +224,7 @@ public class PlaylistServiceImpl implements PlaylistService {
         Playlist playlist = Playlist.builder()
                 .id(playlistId)
                 .name(request.getName())
-                .slug(generateSlug(request.getName(), playlistId))
+                .slug(SlugUtils.generate(request.getName(), playlistId))
                 .description(request.getDescription())
                 .ownerId(userId)
                 .visibility(request.getVisibility() != null

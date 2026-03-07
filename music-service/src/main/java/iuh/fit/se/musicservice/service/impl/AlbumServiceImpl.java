@@ -21,20 +21,21 @@ import iuh.fit.se.musicservice.repository.AlbumSongRepository;
 import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.AlbumService;
+import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.Normalizer;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,6 +48,9 @@ public class AlbumServiceImpl implements AlbumService {
     private final ArtistRepository   artistRepository;
     private final SongRepository     songRepository;
     private final AlbumMapper        albumMapper;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    private static final String LOCK_AUTO_PUBLISH = "lock:album:auto-publish";
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -54,34 +58,17 @@ public class AlbumServiceImpl implements AlbumService {
         return UUID.fromString(SecurityContextHolder.getContext().getAuthentication().getName());
     }
 
-    /** Tìm artist profile của user đang đăng nhập; ném exception nếu không có */
     private Artist requireCurrentArtist() {
         UUID userId = currentUserId();
         return artistRepository.findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTIST_NOT_FOUND));
     }
 
-    /** Tìm album thuộc về artist đang đăng nhập */
     private Album requireOwnAlbum(UUID albumId, UUID artistId) {
         return albumRepository.findByIdAndOwnerArtistId(albumId, artistId)
                 .orElseThrow(() -> new AppException(ErrorCode.ALBUM_UNAUTHORIZED));
     }
 
-    private String generateSlug(String title, UUID id) {
-        String temp = Normalizer.normalize(title, Normalizer.Form.NFD);
-        String slug = Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
-                .matcher(temp).replaceAll("")
-                .toLowerCase()
-                .replaceAll("[^a-z0-9\\s-]", "")
-                .trim()
-                .replaceAll("\\s+", "-");
-        return slug + "-" + id.toString().substring(0, 8);
-    }
-
-    /**
-     * Duyệt linked list từ head → cuối và trả về danh sách AlbumSong theo đúng thứ tự.
-     * O(n) traversal — chấp nhận được vì album thường < 50 bài.
-     */
     private List<AlbumSong> traverseLinkedList(UUID headId, Map<UUID, AlbumSong> nodeMap) {
         List<AlbumSong> ordered = new ArrayList<>();
         UUID current = headId;
@@ -170,7 +157,7 @@ public class AlbumServiceImpl implements AlbumService {
         Album album = Album.builder()
                 .id(albumId)
                 .title(request.getTitle())
-                .slug(generateSlug(request.getTitle(), albumId))
+                .slug(SlugUtils.generate(request.getTitle(), albumId))
                 .description(request.getDescription())
                 .releaseDate(request.getReleaseDate())
                 .ownerArtistId(artist.getId())
@@ -197,7 +184,7 @@ public class AlbumServiceImpl implements AlbumService {
 
         if (request.getTitle() != null && !request.getTitle().isBlank()) {
             album.setTitle(request.getTitle());
-            album.setSlug(generateSlug(request.getTitle(), album.getId()));
+            album.setSlug(SlugUtils.generate(request.getTitle(), album.getId()));
         }
         if (request.getDescription() != null) {
             album.setDescription(request.getDescription());
@@ -509,8 +496,18 @@ public class AlbumServiceImpl implements AlbumService {
 
     @Override
     @Scheduled(fixedDelay = 60_000)
-    @Transactional
     public void autoPublishScheduledAlbums() {
+        Boolean acquired = stringRedisTemplate.opsForValue()
+                .setIfAbsent(LOCK_AUTO_PUBLISH, "1", Duration.ofSeconds(55));
+        if (!Boolean.TRUE.equals(acquired)) {
+            log.debug("autoPublishScheduledAlbums skipped — lock held by another instance");
+            return;
+        }
+        doAutoPublish();
+    }
+
+    @Transactional
+    public void doAutoPublish() {
         List<Album> readyAlbums = albumRepository.findAlbumsReadyToPublish(ZonedDateTime.now());
         if (readyAlbums.isEmpty()) return;
 

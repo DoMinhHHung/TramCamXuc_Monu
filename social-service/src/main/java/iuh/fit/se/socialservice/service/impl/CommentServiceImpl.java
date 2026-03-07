@@ -10,8 +10,13 @@ import iuh.fit.se.socialservice.repository.CommentRepository;
 import iuh.fit.se.socialservice.service.CommentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -25,8 +30,9 @@ public class CommentServiceImpl implements CommentService {
 
     private static final Duration EDIT_WINDOW = Duration.ofMinutes(15);
 
-    private final CommentRepository commentRepository;
+    private final CommentRepository     commentRepository;
     private final CommentLikeRepository commentLikeRepository;
+    private final MongoTemplate         mongoTemplate;
 
     @Override
     public CommentResponse addComment(UUID userId, UUID songId, String parentId, String content) {
@@ -100,33 +106,48 @@ public class CommentServiceImpl implements CommentService {
 
     @Override
     public void likeComment(UUID userId, String commentId) {
-        Comment comment = commentRepository.findById(commentId)
+        // Verify comment exists
+        commentRepository.findById(commentId)
                 .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
-
-        if (commentLikeRepository.existsByUserIdAndCommentId(userId, commentId)) {
-            throw new AppException(ErrorCode.COMMENT_LIKE_CONFLICT);
-        }
 
         CommentLike like = CommentLike.builder()
                 .userId(userId)
                 .commentId(commentId)
                 .build();
-        commentLikeRepository.save(like);
 
-        comment.setLikeCount(comment.getLikeCount() + 1);
-        commentRepository.save(comment);
+        try {
+            commentLikeRepository.save(like);
+        } catch (DuplicateKeyException e) {
+            // Unique index {userId, commentId} fired — user already liked this comment.
+            // Treat as a no-op instead of surfacing a conflict error, so concurrent
+            // requests are both safe and idempotent.
+            throw new AppException(ErrorCode.COMMENT_LIKE_CONFLICT);
+        }
+
+        // Atomic $inc — no read-modify-write, safe under concurrent requests
+        mongoTemplate.updateFirst(
+                Query.query(Criteria.where("id").is(commentId)),
+                new Update().inc("likeCount", 1),
+                Comment.class
+        );
     }
 
     @Override
     public void unlikeComment(UUID userId, String commentId) {
-        Comment comment = commentRepository.findById(commentId)
+        commentRepository.findById(commentId)
                 .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
 
         commentLikeRepository.findByUserIdAndCommentId(userId, commentId)
                 .ifPresent(like -> {
                     commentLikeRepository.delete(like);
-                    comment.setLikeCount(Math.max(0, comment.getLikeCount() - 1));
-                    commentRepository.save(comment);
+
+                    // Atomic $inc with floor at 0 — no read-modify-write
+                    mongoTemplate.updateFirst(
+                            Query.query(Criteria.where("id").is(commentId)
+                                    .and("likeCount").gt(0)),
+                            new Update().inc("likeCount", -1),
+                            Comment.class
+                    );
                 });
     }
 

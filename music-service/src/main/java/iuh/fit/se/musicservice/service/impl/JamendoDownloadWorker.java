@@ -12,6 +12,7 @@ import iuh.fit.se.musicservice.enums.TranscodeStatus;
 import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.GenreRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
+import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -24,9 +25,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.text.Normalizer;
 import java.util.*;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -97,7 +96,7 @@ public class JamendoDownloadWorker {
             Song song = Song.builder()
                     .id(songId)
                     .title(message.getTitle())
-                    .slug(generateSlug(message.getTitle(), songId))
+                    .slug(SlugUtils.generate(message.getTitle(), songId))
                     .jamendoId(jamendoId)
                     .ownerUserId(JAMENDO_SYSTEM_ARTIST_ID)
                     .primaryArtistId(artist.getId())
@@ -213,20 +212,5 @@ public class JamendoDownloadWorker {
         return dotIdx >= 0 ? rawFileKey.substring(dotIdx + 1) : "mp3";
     }
 
-    private String generateSlug(String title, UUID id) {
-        try {
-            String temp = Normalizer.normalize(title, Normalizer.Form.NFD);
-            String slug = Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
-                    .matcher(temp).replaceAll("")
-                    .toLowerCase()
-                    .replaceAll("[^a-z0-9\\s-]", "")
-                    .replaceAll("\\s+", "-")
-                    .replaceAll("-+", "-")
-                    .replaceAll("^-|-+$", "");
-            if (slug.length() > 100) slug = slug.substring(0, 100);
-            return slug + "-" + id.toString().substring(0, 8);
-        } catch (Exception e) {
-            return "song-" + id.toString().substring(0, 8);
-        }
-    }
 }
+
