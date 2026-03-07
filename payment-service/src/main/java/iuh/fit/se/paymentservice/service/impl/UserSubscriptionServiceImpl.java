@@ -1,13 +1,11 @@
 package iuh.fit.se.paymentservice.service.impl;
 
-import iuh.fit.se.paymentservice.config.RabbitMQConfig;
 import iuh.fit.se.paymentservice.dto.request.PurchaseSubscriptionRequest;
 import iuh.fit.se.paymentservice.dto.response.PaymentResponse;
 import iuh.fit.se.paymentservice.dto.response.UserSubscriptionResponse;
 import iuh.fit.se.paymentservice.entity.SubscriptionPlan;
 import iuh.fit.se.paymentservice.entity.UserSubscription;
 import iuh.fit.se.paymentservice.enums.SubscriptionStatus;
-import iuh.fit.se.paymentservice.event.SubscriptionActiveEvent;
 import iuh.fit.se.paymentservice.exception.AppException;
 import iuh.fit.se.paymentservice.exception.ErrorCode;
 import iuh.fit.se.paymentservice.dto.mapper.UserSubscriptionMapper;
@@ -17,7 +15,6 @@ import iuh.fit.se.paymentservice.service.PayOSService;
 import iuh.fit.se.paymentservice.service.UserSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -38,7 +35,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     private final SubscriptionPlanRepository planRepository;
     private final UserSubscriptionMapper subscriptionMapper;
     private final PayOSService payOSService;
-    private final RabbitTemplate rabbitTemplate;
+    private final SubscriptionAuthorizationCacheService subscriptionAuthorizationCacheService;
 
     // ──────────────────────────────────────────────────────────
     // PURCHASE SUBSCRIPTION
@@ -133,8 +130,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
 
         log.info("Cancelled subscription id={} for userId={}", sub.getId(), userId);
 
-        // Trả user về FREE plan
-        publishFreePlanRevert(userId);
+        subscriptionAuthorizationCacheService.evict(userId);
     }
 
     // ──────────────────────────────────────────────────────────
@@ -156,8 +152,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
             sub.setStatus(SubscriptionStatus.EXPIRED);
             subscriptionRepository.save(sub);
 
-            // Trả user về FREE plan sau khi hết hạn
-            publishFreePlanRevert(sub.getUserId());
+            subscriptionAuthorizationCacheService.evict(sub.getUserId());
 
             log.info("Expired subscription id={} for userId={}", sub.getId(), sub.getUserId());
         }
@@ -166,25 +161,6 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     // ──────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ──────────────────────────────────────────────────────────
-
-    private void publishFreePlanRevert(UUID userId) {
-        try {
-            planRepository.findBySubsNameAndIsActiveTrue("FREE").ifPresent(freePlan -> {
-                rabbitTemplate.convertAndSend(
-                        RabbitMQConfig.IDENTITY_EXCHANGE,
-                        RabbitMQConfig.ROUTING_SUBSCRIPTION_ACTIVE,
-                        SubscriptionActiveEvent.builder()
-                                .userId(userId)
-                                .planName(freePlan.getSubsName())
-                                .features(freePlan.getFeatures())
-                                .build()
-                );
-                log.info("Reverted userId={} to FREE plan", userId);
-            });
-        } catch (Exception e) {
-            log.error("Failed to revert userId={} to FREE plan", userId, e);
-        }
-    }
 
     private UUID getCurrentUserId() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();

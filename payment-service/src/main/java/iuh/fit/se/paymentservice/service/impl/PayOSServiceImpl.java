@@ -12,7 +12,6 @@ import iuh.fit.se.paymentservice.enums.PaymentMethod;
 import iuh.fit.se.paymentservice.enums.PaymentStatus;
 import iuh.fit.se.paymentservice.enums.SubscriptionStatus;
 import iuh.fit.se.paymentservice.event.NotificationEvent;
-import iuh.fit.se.paymentservice.event.SubscriptionActiveEvent;
 import iuh.fit.se.paymentservice.exception.AppException;
 import iuh.fit.se.paymentservice.exception.ErrorCode;
 import iuh.fit.se.paymentservice.repository.PaymentTransactionRepository;
@@ -49,6 +48,7 @@ public class PayOSServiceImpl implements PayOSService {
     private final UserSubscriptionRepository subscriptionRepository;
     private final ObjectMapper objectMapper;
     private final RabbitTemplate rabbitTemplate;
+    private final SubscriptionAuthorizationCacheService subscriptionAuthorizationCacheService;
 
     // ──────────────────────────────────────────────────────────
     // CREATE PAYMENT LINK
@@ -187,11 +187,10 @@ public class PayOSServiceImpl implements PayOSService {
                     sub.setStatus(SubscriptionStatus.ACTIVE);
                     subscriptionRepository.save(sub);
 
-                    // Notify identity-service cập nhật subscription
-                    publishSubscriptionActive(
+                    subscriptionAuthorizationCacheService.cacheActiveSubscription(
                             transaction.getUserId(),
-                            sub.getPlan().getSubsName(),
-                            sub.getPlan().getFeatures()
+                            sub.getPlan().getFeatures(),
+                            sub.getExpiresAt()
                     );
 
                     // Gửi email xác nhận thanh toán
@@ -224,23 +223,6 @@ public class PayOSServiceImpl implements PayOSService {
     // ──────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ──────────────────────────────────────────────────────────
-
-    private void publishSubscriptionActive(UUID userId, String planName, Map<String, Object> features) {
-        try {
-            rabbitTemplate.convertAndSend(
-                    RabbitMQConfig.IDENTITY_EXCHANGE,
-                    RabbitMQConfig.ROUTING_SUBSCRIPTION_ACTIVE,
-                    SubscriptionActiveEvent.builder()
-                            .userId(userId)
-                            .planName(planName)
-                            .features(features)
-                            .build()
-            );
-            log.info("Published SubscriptionActiveEvent for userId={}", userId);
-        } catch (Exception e) {
-            log.error("Failed to publish SubscriptionActiveEvent for userId={}", userId, e);
-        }
-    }
 
     private void publishPaymentSuccessEmail(PaymentTransaction transaction, UserSubscription sub) {
         try {

@@ -1,5 +1,7 @@
 package iuh.fit.se.musicservice.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import iuh.fit.se.musicservice.config.RabbitMQConfig;
 import iuh.fit.se.musicservice.dto.request.SongCreateRequest;
@@ -20,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -42,6 +45,8 @@ public class SongServiceImpl implements SongService {
     private final MinioStorageService storageService;
     private final RabbitTemplate rabbitTemplate;
     private final PlayCountSyncService playCountSyncService;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final ObjectMapper objectMapper;
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -70,20 +75,20 @@ public class SongServiceImpl implements SongService {
     }
 
     private String resolveStreamQuality() {
-        try {
-            Object qualityRaw = getClaimValue("quality");
-            if (qualityRaw == null) {
-                Object features = getClaimValue("features");
-                if (features instanceof Map<?, ?> featureMap) {
-                    qualityRaw = featureMap.get("quality");
-                }
-            }
+        Map<String, Object> features = loadSubscriptionFeatures(currentUserId());
 
-            return mapToStreamQuality(qualityRaw != null ? qualityRaw.toString() : null);
-        } catch (Exception e) {
-            log.warn("Could not resolve stream quality, fallback to 64k");
-            return "64k";
+        int maxBitrate = resolveMaxBitrate(features);
+        if (maxBitrate >= 320) {
+            return "320k";
         }
+        if (maxBitrate >= 256) {
+            return "256k";
+        }
+        if (maxBitrate >= 128) {
+            return "128k";
+        }
+
+        return "64k";
     }
 
     private String buildStreamUrl(Song song, String quality) {
@@ -412,21 +417,66 @@ public class SongServiceImpl implements SongService {
     // ── Private helpers ────────────────────────────────────────────────────────
 
     private boolean hasFeature(String featureKey) {
-        try {
-            Object features = getClaimValue("features");
-            if (features instanceof Map<?, ?> featureMap) {
-                Object value = featureMap.get(featureKey);
-                if (value instanceof Boolean b) {
-                    return b;
-                }
-                if (value instanceof String s) {
-                    return Boolean.parseBoolean(s);
-                }
-            }
-            return false;
-        } catch (Exception e) {
-            return false;
+        Map<String, Object> features = loadSubscriptionFeatures(currentUserId());
+        Object value = features.get(featureKey);
+
+        if (value == null && "download".equals(featureKey)) {
+            value = features.get("canDownload");
         }
+
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String text) {
+            return Boolean.parseBoolean(text);
+        }
+        return false;
+    }
+
+    private Map<String, Object> loadSubscriptionFeatures(UUID userId) {
+        if (userId == null) {
+            return Collections.emptyMap();
+        }
+
+        try {
+            String payload = stringRedisTemplate.opsForValue().get("user:subscription:" + userId);
+            if (payload == null || payload.isBlank()) {
+                return Collections.emptyMap();
+            }
+            return objectMapper.readValue(payload, new TypeReference<>() {});
+        } catch (Exception e) {
+            log.warn("Failed to read subscription cache for userId={}", userId, e);
+            return Collections.emptyMap();
+        }
+    }
+
+    private int resolveMaxBitrate(Map<String, Object> features) {
+        Object maxBitrate = features.get("maxBitrate");
+        if (maxBitrate instanceof Number number) {
+            return number.intValue();
+        }
+        if (maxBitrate instanceof String text) {
+            try {
+                return Integer.parseInt(text);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+
+        Object quality = features.get("quality");
+        if (quality instanceof String q) {
+            return mapQualityToBitrate(q);
+        }
+
+        return 64;
+    }
+
+    private int mapQualityToBitrate(String quality) {
+        return switch (quality.toLowerCase()) {
+            case "lossless", "320kbps", "320k" -> 320;
+            case "256kbps", "256k" -> 256;
+            case "128kbps", "128k" -> 128;
+            default -> 64;
+        };
     }
 
     private Object getClaimValue(String key) {
@@ -446,18 +496,5 @@ public class SongServiceImpl implements SongService {
     private String getClaimString(String key) {
         Object value = getClaimValue(key);
         return value != null ? value.toString() : null;
-    }
-
-    private String mapToStreamQuality(String quality) {
-        if (quality == null) {
-            return "64k";
-        }
-
-        return switch (quality.toLowerCase()) {
-            case "lossless", "320kbps", "320k" -> "320k";
-            case "256kbps", "256k" -> "256k";
-            case "128kbps", "128k" -> "128k";
-            default -> "64k";
-        };
     }
 }

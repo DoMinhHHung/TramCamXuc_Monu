@@ -260,15 +260,11 @@ public class AuthServiceImpl implements AuthService {
 
     String generateToken(User user, long duration) {
         Date now = new Date();
-        StringJoiner scope = new StringJoiner(" ");
-        scope.add("ROLE_" + user.getRole().name());
 
         return Jwts.builder()
                 .setSubject(user.getId().toString())
                 .claim("email", user.getEmail())
-                .claim("role", scope.toString())
-                .claim("scope", scope.toString())
-                .claim("name", user.getFullName())
+                .claim("role", user.getRole().name())
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + duration))
                 .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(signerKey)), SignatureAlgorithm.HS256)
