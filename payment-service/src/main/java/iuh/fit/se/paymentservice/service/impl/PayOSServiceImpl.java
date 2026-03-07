@@ -56,13 +56,14 @@ public class PayOSServiceImpl implements PayOSService {
 
     @Override
     @Transactional
-    public PaymentResponse createPaymentLink(UUID userId, UUID subscriptionId, String planName, BigDecimal amount, String description) {
+    public PaymentResponse createPaymentLink(UUID userId, String userEmail, UUID subscriptionId, String planName, BigDecimal amount, String description) {
         try {
             long orderCode      = generateOrderCode();
             String referenceCode = generateReferenceCode();
 
             PaymentTransaction transaction = PaymentTransaction.builder()
                     .userId(userId)
+                    .userEmail(userEmail)
                     .subscription(subscriptionRepository.findById(subscriptionId).orElse(null))
                     .amount(amount)
                     .paymentMethod(PaymentMethod.PAYOS)
@@ -203,7 +204,8 @@ public class PayOSServiceImpl implements PayOSService {
                             sub.getExpiresAt()
                     );
 
-                    // Gửi email xác nhận thanh toán
+                    publishSubscriptionActiveEvent(transaction.getUserId(), sub);
+
                     publishPaymentSuccessEmail(transaction, sub);
                 }
 
@@ -234,6 +236,23 @@ public class PayOSServiceImpl implements PayOSService {
     // PRIVATE HELPERS
     // ──────────────────────────────────────────────────────────
 
+    private void publishSubscriptionActiveEvent(UUID userId, UserSubscription sub) {
+        try {
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.IDENTITY_EXCHANGE,
+                    RabbitMQConfig.ROUTING_SUBSCRIPTION_ACTIVE,
+                    iuh.fit.se.paymentservice.event.SubscriptionActiveEvent.builder()
+                            .userId(userId)
+                            .planName(sub.getPlan().getSubsName())
+                            .features(sub.getPlan().getFeatures())
+                            .build()
+            );
+            log.info("Published SubscriptionActiveEvent for userId={}, plan={}", userId, sub.getPlan().getSubsName());
+        } catch (Exception e) {
+            log.warn("Failed to publish SubscriptionActiveEvent for userId={}", userId, e);
+        }
+    }
+
     private void publishPaymentSuccessEmail(PaymentTransaction transaction, UserSubscription sub) {
         try {
             String activatedAt = LocalDateTime.now()
@@ -246,7 +265,7 @@ public class PayOSServiceImpl implements PayOSService {
                     RabbitMQConfig.ROUTING_NOTIFICATION_EMAIL,
                     NotificationEvent.builder()
                             .channel("EMAIL")
-                            .recipient(null)
+                            .recipient(transaction.getUserEmail())
                             .subject("Thanh toán thành công - TramCamXuc")
                             .templateCode("payment-success")
                             .paramMap(Map.of(

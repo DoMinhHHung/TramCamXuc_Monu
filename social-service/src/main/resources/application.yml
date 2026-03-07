@@ -52,3 +52,9 @@ minio:
   secret-key: ${MINIO_SECRET}
   bucket:
     ai-training-data: ${MINIO_AI_BUCKET:ai-training-data}
+
+open:
+  api:
+    server-url: ${GATEWAY_URL:http://localhost:8080}/service-social
+    server-description: API Gateway
+

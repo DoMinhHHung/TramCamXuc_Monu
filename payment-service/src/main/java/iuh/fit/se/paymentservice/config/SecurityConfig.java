@@ -1,5 +1,6 @@
 package iuh.fit.se.paymentservice.config;
 
+import org.springframework.http.HttpMethod;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -31,7 +32,7 @@ public class SecurityConfig {
                         .requestMatchers("/payments/payos_transfer_handler").permitAll()
                         .requestMatchers("/api/internal/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("GET", "/subscriptions/plans").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/subscriptions/plans").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

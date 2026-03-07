@@ -2,7 +2,6 @@ package iuh.fit.se.musicservice.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jsonwebtoken.Claims;
 import iuh.fit.se.musicservice.client.PaymentInternalClient;
 import iuh.fit.se.musicservice.config.RabbitMQConfig;
 import iuh.fit.se.musicservice.dto.request.SongCreateRequest;
@@ -10,6 +9,7 @@ import iuh.fit.se.musicservice.dto.response.PaymentSubscriptionStatusResponse;
 import iuh.fit.se.musicservice.dto.request.SongUpdateRequest;
 import iuh.fit.se.musicservice.dto.response.SongResponse;
 import iuh.fit.se.musicservice.entity.Genre;
+import iuh.fit.se.musicservice.entity.Artist;
 import iuh.fit.se.musicservice.entity.Song;
 import iuh.fit.se.musicservice.enums.SongStatus;
 import iuh.fit.se.musicservice.enums.TranscodeStatus;
@@ -17,6 +17,7 @@ import iuh.fit.se.musicservice.exception.AppException;
 import iuh.fit.se.musicservice.exception.ErrorCode;
 import iuh.fit.se.musicservice.mapper.SongMapper;
 import iuh.fit.se.musicservice.repository.GenreRepository;
+import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.SongService;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,7 @@ public class SongServiceImpl implements SongService {
 
     private final SongRepository songRepository;
     private final GenreRepository genreRepository;
+    private final ArtistRepository artistRepository;
     private final SongMapper songMapper;
     private final MinioStorageService storageService;
     private final RabbitTemplate rabbitTemplate;
@@ -57,10 +59,6 @@ public class SongServiceImpl implements SongService {
     private UUID currentUserId() {
         return UUID.fromString(
                 SecurityContextHolder.getContext().getAuthentication().getName());
-    }
-
-    private Authentication currentAuth() {
-        return SecurityContextHolder.getContext().getAuthentication();
     }
 
     private String generateSlug(String title, UUID id) {
@@ -126,11 +124,10 @@ public class SongServiceImpl implements SongService {
             throw new AppException(ErrorCode.INVALID_REQUEST);
         }
 
-        // Đọc artist info từ JWT claims (identity-service đã nhúng vào token)
-        String stageName = getClaimString("name");   // JWT claim "name" = fullName (fallback)
-        // Nếu music-service có artist table riêng thì query ở đây;
-        // trong kiến trúc mới ta lấy từ JWT để tránh cross-service call đồng bộ.
-        // Artist table vẫn tồn tại nhưng chỉ dùng cho quản lý artist profile riêng.
+        // Đọc stageName từ artist profile trong DB
+        String stageName = artistRepository.findByUserId(userId)
+                .map(Artist::getStageName)
+                .orElse("Unknown");
 
         UUID songId = UUID.randomUUID();
         String ext  = request.getFileExtension().replace(".", "").toLowerCase();
@@ -145,7 +142,7 @@ public class SongServiceImpl implements SongService {
                 .ownerUserId(userId)
                 // Artist info lấy từ JWT — music-service không gọi identity-service
                 .primaryArtistId(songId)          // placeholder; nên có artist table riêng
-                .primaryArtistStageName(stageName != null ? stageName : "Unknown")
+                .primaryArtistStageName(stageName)
                 .genres(new HashSet<>(genres))
                 .rawFileKey(rawFileKey)
                 .status(SongStatus.DRAFT)
@@ -295,7 +292,7 @@ public class SongServiceImpl implements SongService {
         }
 
         // Bài PRIVATE hoặc DRAFT → chỉ owner hoặc admin
-        Authentication auth = currentAuth();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()
                 || "anonymousUser".equals(auth.getPrincipal())) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
@@ -327,11 +324,11 @@ public class SongServiceImpl implements SongService {
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
 
         Map<String, Object> event = new HashMap<>();
+        UUID currentUser = tryGetCurrentUserId();
         event.put("songId", songId.toString());
         event.put("artistId", song.getPrimaryArtistId() != null
                 ? song.getPrimaryArtistId().toString() : null);
-        event.put("userId", tryGetCurrentUserId() != null
-                ? tryGetCurrentUserId().toString() : null);
+        event.put("userId", currentUser != null ? currentUser.toString() : null);
         event.put("playlistId", playlistId != null ? playlistId.toString() : null);
         event.put("albumId",    albumId    != null ? albumId.toString()    : null);
         event.put("durationSeconds", durationSeconds);
@@ -501,24 +498,5 @@ public class SongServiceImpl implements SongService {
             case "128kbps", "128k" -> 128;
             default -> 64;
         };
-    }
-
-    private Object getClaimValue(String key) {
-        try {
-            Object creds = currentAuth().getCredentials();
-            if (creds instanceof Claims claims) {
-                return claims.get(key);
-            }
-            if (creds instanceof Map<?, ?> map) {
-                return map.get(key);
-            }
-        } catch (Exception ignored) {
-        }
-        return null;
-    }
-
-    private String getClaimString(String key) {
-        Object value = getClaimValue(key);
-        return value != null ? value.toString() : null;
     }
 }

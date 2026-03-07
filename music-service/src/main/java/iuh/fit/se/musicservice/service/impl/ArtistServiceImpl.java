@@ -1,10 +1,13 @@
 package iuh.fit.se.musicservice.service.impl;
 
-import io.jsonwebtoken.Claims;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.musicservice.client.IdentityClient;
+import iuh.fit.se.musicservice.client.PaymentInternalClient;
 import iuh.fit.se.musicservice.dto.request.ArtistRegisterRequest;
 import iuh.fit.se.musicservice.dto.request.ArtistUpdateRequest;
 import iuh.fit.se.musicservice.dto.response.ArtistResponse;
+import iuh.fit.se.musicservice.dto.response.PaymentSubscriptionStatusResponse;
 import iuh.fit.se.musicservice.entity.Artist;
 import iuh.fit.se.musicservice.enums.ArtistStatus;
 import iuh.fit.se.musicservice.exception.AppException;
@@ -16,11 +19,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -28,9 +32,15 @@ import java.util.UUID;
 @Slf4j
 public class ArtistServiceImpl implements ArtistService {
 
-    private final ArtistRepository artistRepository;
-    private final ArtistMapper    artistMapper;
-    private final IdentityClient  identityClient;
+    private static final String REDIS_SUBSCRIPTION_PREFIX = "user:subscription:";
+    private static final String FEATURE_CAN_BECOME_ARTIST = "can_become_artist";
+
+    private final ArtistRepository      artistRepository;
+    private final ArtistMapper          artistMapper;
+    private final IdentityClient        identityClient;
+    private final PaymentInternalClient paymentInternalClient;
+    private final StringRedisTemplate   stringRedisTemplate;
+    private final ObjectMapper          objectMapper;
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -38,25 +48,39 @@ public class ArtistServiceImpl implements ArtistService {
         return UUID.fromString(SecurityContextHolder.getContext().getAuthentication().getName());
     }
 
-    private Authentication currentAuth() {
-        return SecurityContextHolder.getContext().getAuthentication();
-    }
-
-    /**
-     * Đọc boolean claim từ JWT.
-     * identity-service nhúng các feature flags vào token, ví dụ:
-     *   "can_become_artist": true
-     */
-    private boolean getBooleanClaim(String key) {
+    private boolean canBecomeArtist(UUID userId) {
         try {
-            Object creds = currentAuth().getCredentials();
-            if (creds instanceof Claims claims) {
-                Object val = claims.get(key);
-                if (val instanceof Boolean b) return b;
-                if (val instanceof String s) return Boolean.parseBoolean(s);
+            String json = stringRedisTemplate.opsForValue()
+                    .get(REDIS_SUBSCRIPTION_PREFIX + userId);
+            if (json != null) {
+                Map<String, Object> features = objectMapper.readValue(
+                        json, new TypeReference<>() {});
+                Object val = features.get(FEATURE_CAN_BECOME_ARTIST);
+                boolean result = val instanceof Boolean b ? b
+                        : val instanceof String s && Boolean.parseBoolean(s);
+                log.debug("[ArtistRegister] Redis cache hit for userId={}, can_become_artist={}", userId, result);
+                return result;
             }
-        } catch (Exception ignored) {}
-        return false;
+            log.debug("[ArtistRegister] Redis cache miss for userId={}, falling back to payment-service", userId);
+        } catch (Exception e) {
+            log.warn("[ArtistRegister] Redis read failed for userId={}: {}", userId, e.getMessage());
+        }
+
+        try {
+            PaymentSubscriptionStatusResponse status =
+                    paymentInternalClient.getSubscriptionStatus(userId);
+            if (status == null || !status.isActive() || status.getFeatures() == null) {
+                return false;
+            }
+            Object val = status.getFeatures().get(FEATURE_CAN_BECOME_ARTIST);
+            boolean result = val instanceof Boolean b ? b
+                    : val instanceof String s && Boolean.parseBoolean(s);
+            log.debug("[ArtistRegister] Feign fallback for userId={}, can_become_artist={}", userId, result);
+            return result;
+        } catch (Exception e) {
+            log.warn("[ArtistRegister] payment-service Feign call failed for userId={}: {}", userId, e.getMessage());
+            return false;
+        }
     }
 
     // ── Artist self ────────────────────────────────────────────────────────────
@@ -66,22 +90,18 @@ public class ArtistServiceImpl implements ArtistService {
     public ArtistResponse registerArtist(ArtistRegisterRequest request) {
         UUID userId = currentUserId();
 
-        // 1. Kiểm tra subscription plan có cho phép đăng ký artist không
-        if (!getBooleanClaim("can_become_artist")) {
+           if (!canBecomeArtist(userId)) {
             throw new AppException(ErrorCode.SUBSCRIPTION_NOT_SUPPORTED);
         }
 
-        // 2. Kiểm tra chưa đăng ký artist
         if (artistRepository.existsByUserId(userId)) {
             throw new AppException(ErrorCode.ARTIST_ALREADY_REGISTERED);
         }
 
-        // 3. Kiểm tra stageName chưa tồn tại
         if (artistRepository.existsByStageName(request.getStageName())) {
             throw new AppException(ErrorCode.ARTIST_STAGE_NAME_EXISTS);
         }
 
-        // 4. Tạo artist profile
         Artist artist = Artist.builder()
                 .userId(userId)
                 .stageName(request.getStageName().trim())
@@ -91,15 +111,11 @@ public class ArtistServiceImpl implements ArtistService {
         artistRepository.save(artist);
         log.info("Artist registered: userId={}, stageName={}", userId, artist.getStageName());
 
-        // 5. Gọi identity-service để thêm ROLE_ARTIST + cấp JWT mới
-        //    (synchronous via Feign — service-to-service trong cluster)
         String newToken = null;
         try {
             newToken = identityClient.grantArtistRoleAndIssueToken(userId);
             log.info("New token issued for artist userId={}", userId);
         } catch (Exception e) {
-            // Không để lỗi Feign làm rollback: artist đã được tạo thành công.
-            // Client có thể dùng /auth/refresh để lấy token mới.
             log.warn("Could not obtain new token from identity-service for userId={}: {}", userId, e.getMessage());
         }
 

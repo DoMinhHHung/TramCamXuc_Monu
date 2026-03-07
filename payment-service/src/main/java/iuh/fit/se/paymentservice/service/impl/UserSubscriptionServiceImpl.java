@@ -1,5 +1,6 @@
 package iuh.fit.se.paymentservice.service.impl;
 
+import io.jsonwebtoken.Claims;
 import iuh.fit.se.paymentservice.dto.request.PurchaseSubscriptionRequest;
 import iuh.fit.se.paymentservice.dto.response.PaymentResponse;
 import iuh.fit.se.paymentservice.dto.response.UserSubscriptionResponse;
@@ -46,7 +47,6 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     public PaymentResponse purchaseSubscription(PurchaseSubscriptionRequest request) {
         UUID userId = getCurrentUserId();
 
-        // Kiểm tra plan tồn tại và đang active
         SubscriptionPlan plan = planRepository.findById(request.getPlanId())
                 .orElseThrow(() -> new AppException(ErrorCode.SUBSCRIPTION_PLAN_NOT_FOUND));
 
@@ -54,16 +54,13 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
             throw new AppException(ErrorCode.SUBSCRIPTION_PLAN_NOT_ACTIVE);
         }
 
-        // Không cho mua gói FREE qua luồng này (FREE được assign tự động)
         if ("FREE".equalsIgnoreCase(plan.getSubsName())) {
             throw new AppException(ErrorCode.FREE_SUBSCRIPTION_NOT_ALLOWED);
         }
 
-        // Kiểm tra user đã có subscription ACTIVE chưa
         subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)
                 .ifPresent(s -> { throw new AppException(ErrorCode.USER_ALREADY_HAS_ACTIVE_SUBSCRIPTION); });
 
-        // Tạo subscription với trạng thái PENDING
         UserSubscription subscription = UserSubscription.builder()
                 .userId(userId)
                 .plan(plan)
@@ -77,10 +74,14 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
         log.info("Created PENDING subscription id={} for userId={}, plan={}", 
                 subscription.getId(), userId, plan.getSubsName());
 
+        // Lấy email từ JWT claims để lưu vào transaction (dùng gửi email sau khi thanh toán)
+        String userEmail = getCurrentUserEmail();
+
         // Tạo payment link qua PayOS
         String description = " Get plans " + plan.getSubsName();
         return payOSService.createPaymentLink(
                 userId,
+                userEmail,
                 subscription.getId(),
                 plan.getSubsName(),
                 plan.getPrice(),
@@ -93,18 +94,23 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     // ──────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public UserSubscriptionResponse getMyActiveSubscription() {
         UUID userId = getCurrentUserId();
+        // Dùng JOIN FETCH để eager load plan, tránh LazyInitializationException
         UserSubscription sub = subscriptionRepository
-                .findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)
+                .findActiveWithPlanByUserId(userId)
+                .stream()
+                .findFirst()
                 .orElseThrow(() -> new AppException(ErrorCode.USER_SUBSCRIPTION_NOT_FOUND));
         return subscriptionMapper.toResponse(sub);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<UserSubscriptionResponse> getMySubscriptionHistory() {
         UUID userId = getCurrentUserId();
-        return subscriptionRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
+        return subscriptionRepository.findAllByUserIdWithPlanOrderByCreatedAtDesc(userId)
                 .stream()
                 .map(subscriptionMapper::toResponse)
                 .collect(Collectors.toList());
@@ -167,5 +173,17 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
         return UUID.fromString(auth.getPrincipal().toString());
+    }
+
+    private String getCurrentUserEmail() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getCredentials() == null) return null;
+        try {
+            // JwtAuthenticationFilter lưu toàn bộ Claims vào credentials
+            Claims claims = (Claims) auth.getCredentials();
+            return claims.get("email", String.class);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

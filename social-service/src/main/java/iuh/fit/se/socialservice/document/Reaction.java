@@ -15,7 +15,9 @@ import java.util.UUID;
 @Document(collection = "reactions")
 @CompoundIndexes({
         @CompoundIndex(name = "user_song_reaction", def = "{'userId': 1, 'songId': 1}", unique = true),
-        @CompoundIndex(name = "song_reactions", def = "{'songId': 1, 'type': 1}")
+        @CompoundIndex(name = "song_type",          def = "{'songId': 1, 'type': 1}"),
+        @CompoundIndex(name = "song_type_created",  def = "{'songId': 1, 'type': 1, 'createdAt': -1}"),
+        @CompoundIndex(name = "artist_type",        def = "{'artistId': 1, 'type': 1}")
 })
 @Data
 @Builder
@@ -27,6 +29,11 @@ public class Reaction {
 
     private UUID userId;
     private UUID songId;
+
+    /** artistId của bài hát — để tính tổng like/dislike theo artist */
+    private UUID artistId;
+
+    /** LIKE hoặc DISLIKE */
     private ReactionType type;
 
     @CreatedDate

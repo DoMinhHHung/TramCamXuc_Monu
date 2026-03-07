@@ -28,8 +28,7 @@ public class EmailService {
             Context ctx = new Context();
             if (params != null) ctx.setVariables(params);
 
-            String htmlContent = templateEngine.process(
-                    "email/" + templateCode, ctx);
+            String htmlContent = templateEngine.process(templateCode, ctx);
 
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -41,8 +40,12 @@ public class EmailService {
             log.info("Email sent to {} with template {}", to, templateCode);
 
         } catch (MessagingException e) {
-            log.error("Failed to send email to {} with template {}: {}",
+            log.error("Failed to build email message to {} with template {}: {}",
                     to, templateCode, e.getMessage());
+            throw new RuntimeException("Email sending failed", e);
+        } catch (Exception e) {
+            log.error("Unexpected error while sending email to {} with template {}: {}",
+                    to, templateCode, e.getMessage(), e);
             throw new RuntimeException("Email sending failed", e);
         }
     }

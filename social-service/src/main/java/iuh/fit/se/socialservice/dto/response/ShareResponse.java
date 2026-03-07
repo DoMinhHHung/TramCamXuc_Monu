@@ -10,4 +10,5 @@ public class ShareResponse {
     private String shareUrl;
     private String qrCodeBase64;
     private String platform;
+    private long   shareCount;
 }

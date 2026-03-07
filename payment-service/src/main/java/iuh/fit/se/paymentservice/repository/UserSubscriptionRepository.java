@@ -19,6 +19,9 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
 
     List<UserSubscription> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
 
+    @Query("SELECT us FROM UserSubscription us JOIN FETCH us.plan WHERE us.userId = :userId ORDER BY us.createdAt DESC")
+    List<UserSubscription> findAllByUserIdWithPlanOrderByCreatedAtDesc(@Param("userId") UUID userId);
+
     @Query("SELECT us FROM UserSubscription us WHERE us.expiresAt < :now AND us.status = 'ACTIVE'")
     List<UserSubscription> findExpiredSubscriptions(@Param("now") LocalDateTime now);
 

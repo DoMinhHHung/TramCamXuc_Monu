@@ -10,13 +10,9 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReactionResponse {
-    private String   id;
-    private UUID     userId;
-    private UUID     songId;
+public class ReactionUserEntry {
+    private UUID        userId;
     private ReactionType type;
-    private long     likeCount;
-    private long     dislikeCount;
-    private Instant  createdAt;
-    private Instant  updatedAt;
+    private Instant     reactedAt;
 }
+
