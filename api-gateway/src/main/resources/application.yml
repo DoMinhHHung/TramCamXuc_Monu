@@ -11,6 +11,13 @@ spring:
           enabled: true
           lower-case-service-id: true
       routes:
+
+        - id: identity-swagger-legacy
+          uri: lb://IDENTITY-SERVICE
+          predicates:
+            - Path=/service-identity/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
         - id: identity-service
           uri: lb://IDENTITY-SERVICE
           predicates:
@@ -51,6 +58,27 @@ spring:
             - Path=/service-social/**
           filters:
             - StripPrefix=1
+
+        - id: music-swagger-legacy
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/service-music/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+
+        - id: payment-swagger-legacy
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/service-payment/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
+
+        - id: social-swagger-legacy
+          uri: lb://SOCIAL-SERVICE
+          predicates:
+            - Path=/service-social/swagger-ui.html
+          filters:
+            - SetPath=/swagger-ui/index.html
 
 eureka:
   client:

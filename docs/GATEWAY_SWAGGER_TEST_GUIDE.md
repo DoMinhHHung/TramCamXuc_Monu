@@ -40,10 +40,10 @@ Tài liệu này hướng dẫn **test thủ công từng service** thông qua *
 - `http://localhost:8080`
 
 ### Swagger UI từng service qua Gateway
-- Identity: `http://localhost:8080/service-identity/swagger-ui.html`
-- Music: `http://localhost:8080/service-music/swagger-ui.html`
-- Payment: `http://localhost:8080/service-payment/swagger-ui.html`
-- Social: `http://localhost:8080/service-social/swagger-ui.html`
+- Identity: `http://localhost:8080/service-identity/swagger-ui/index.html (hoặc /service-identity/swagger-ui.html)`
+- Music: `http://localhost:8080/service-music/swagger-ui/index.html (hoặc /service-music/swagger-ui.html)`
+- Payment: `http://localhost:8080/service-payment/swagger-ui/index.html (hoặc /service-payment/swagger-ui.html)`
+- Social: `http://localhost:8080/service-social/swagger-ui/index.html (hoặc /service-social/swagger-ui.html)`
 
 ### OpenAPI JSON qua Gateway (nếu cần import Postman)
 - Identity: `http://localhost:8080/service-identity/v3/api-docs`
@@ -84,7 +84,7 @@ Body ví dụ:
 ---
 
 ## 5.1 Identity Service (qua gateway)
-Swagger: `http://localhost:8080/service-identity/swagger-ui.html`
+Swagger: `http://localhost:8080/service-identity/swagger-ui/index.html (hoặc /service-identity/swagger-ui.html)`
 
 ### Smoke test
 1. `POST /api/v1/auth/register` — đăng ký user mới
@@ -101,7 +101,7 @@ Swagger: `http://localhost:8080/service-identity/swagger-ui.html`
 ---
 
 ## 5.2 Music Service (qua gateway)
-Swagger: `http://localhost:8080/service-music/swagger-ui.html`
+Swagger: `http://localhost:8080/service-music/swagger-ui/index.html (hoặc /service-music/swagger-ui.html)`
 
 ### Public API
 1. `GET /api/v1/songs`
@@ -126,7 +126,7 @@ Swagger: `http://localhost:8080/service-music/swagger-ui.html`
 ---
 
 ## 5.3 Payment Service (qua gateway)
-Swagger: `http://localhost:8080/service-payment/swagger-ui.html`
+Swagger: `http://localhost:8080/service-payment/swagger-ui/index.html (hoặc /service-payment/swagger-ui.html)`
 
 ### User flow
 1. `GET /subscriptions/plans` — lấy plan active
@@ -148,7 +148,7 @@ Swagger: `http://localhost:8080/service-payment/swagger-ui.html`
 ---
 
 ## 5.4 Social Service (qua gateway)
-Swagger: `http://localhost:8080/service-social/swagger-ui.html`
+Swagger: `http://localhost:8080/service-social/swagger-ui/index.html (hoặc /service-social/swagger-ui.html)`
 
 ### API chính
 1. `POST /api/v1/social/reactions`
@@ -199,6 +199,8 @@ Swagger: `http://localhost:8080/service-social/swagger-ui.html`
 ## 7) Lỗi thường gặp & cách xử lý nhanh
 
 ### 404 khi mở Swagger qua gateway
+- Ưu tiên URL dạng `/swagger-ui/index.html` thay vì chỉ `/swagger-ui.html`.
+- Gateway đã thêm route rewrite legacy `/service-*/swagger-ui.html` -> `/swagger-ui/index.html`.
 - Kiểm tra route gateway (`/service-identity/**`, `/service-music/**`, `/service-payment/**`, `/service-social/**`)
 - Kiểm tra service đã register Eureka
 
