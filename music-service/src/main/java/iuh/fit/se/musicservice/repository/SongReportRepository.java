@@ -14,8 +14,8 @@ import java.util.UUID;
 @Repository
 public interface SongReportRepository extends JpaRepository<SongReport, UUID> {
 
-    /** Kiểm tra user đã report bài hát này chưa (chỉ tính report PENDING) */
-    boolean existsBySongIdAndReporterIdAndStatus(UUID songId, UUID reporterId, ReportStatus status);
+    /** Kiểm tra user đã report bài hát này chưa */
+    boolean existsBySongIdAndReporterId(UUID songId, UUID reporterId);
 
     /** Danh sách report của một bài hát */
     Page<SongReport> findBySongId(UUID songId, Pageable pageable);

@@ -48,6 +48,7 @@ public class RabbitMQConfig {
 
     /** Dedicated exchange for the Jamendo import pipeline. */
     public static final String JAMENDO_EXCHANGE      = "jamendo.exchange";
+    public static final String SONG_LISTEN_FANOUT_EXCHANGE = "song.listen.fanout.exchange";
 
     // ── Queues ─────────────────────────────────────────────────────────────────
     public static final String TRANSCODE_SUCCESS_QUEUE = "transcode.success.queue";
@@ -119,6 +120,11 @@ public class RabbitMQConfig {
     @Bean
     public TopicExchange jamendoExchange() {
         return new TopicExchange(JAMENDO_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public FanoutExchange songListenFanoutExchange() {
+        return new FanoutExchange(SONG_LISTEN_FANOUT_EXCHANGE, true, false);
     }
 
     // ── Queues ─────────────────────────────────────────────────────────────────

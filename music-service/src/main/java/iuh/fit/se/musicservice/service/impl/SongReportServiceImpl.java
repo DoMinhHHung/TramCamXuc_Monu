@@ -13,6 +13,7 @@ import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.SongReportService;
 import iuh.fit.se.musicservice.service.SongService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -67,9 +68,7 @@ public class SongReportServiceImpl implements SongReportService {
 
         UUID reporterId = currentUserId();
 
-        // Một user chỉ có thể có 1 report PENDING cho cùng một bài hát
-        if (reporterId != null && reportRepository
-                .existsBySongIdAndReporterIdAndStatus(songId, reporterId, ReportStatus.PENDING)) {
+        if (reporterId != null && reportRepository.existsBySongIdAndReporterId(songId, reporterId)) {
             throw new AppException(ErrorCode.REPORT_ALREADY_SENT);
         }
 
@@ -81,7 +80,12 @@ public class SongReportServiceImpl implements SongReportService {
                 .status(ReportStatus.PENDING)
                 .build();
 
-        report = reportRepository.save(report);
+        try {
+            report = reportRepository.save(report);
+        } catch (DataIntegrityViolationException ex) {
+            throw new AppException(ErrorCode.REPORT_ALREADY_SENT);
+        }
+
         log.info("Song {} reported by user {} – reason: {}", songId, reporterId, request.getReason());
         return toResponse(report, song.getTitle());
     }

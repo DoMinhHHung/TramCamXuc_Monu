@@ -11,11 +11,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
-    public static final String MUSIC_EVENT_EXCHANGE   = "music.event.exchange";
+    public static final String SONG_LISTEN_FANOUT_EXCHANGE = "song.listen.fanout.exchange";
 
-    public static final String LISTEN_HISTORY_QUEUE   = "listen.history.queue";
-
-    public static final String SONG_LISTEN_ROUTING_KEY = "song.listened";
+    public static final String LISTEN_HISTORY_QUEUE = "listen.history.queue";
+    public static final String AI_DATALAKE_QUEUE = "listen.ai.datalake.queue";
 
     @Bean
     public MessageConverter jsonMessageConverter() {
@@ -30,8 +29,8 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public TopicExchange musicEventExchange() {
-        return new TopicExchange(MUSIC_EVENT_EXCHANGE, true, false);
+    public FanoutExchange songListenFanoutExchange() {
+        return new FanoutExchange(SONG_LISTEN_FANOUT_EXCHANGE, true, false);
     }
 
     @Bean
@@ -40,10 +39,19 @@ public class RabbitMQConfig {
     }
 
     @Bean
+    public Queue aiDataLakeQueue() {
+        return QueueBuilder.durable(AI_DATALAKE_QUEUE).build();
+    }
+
+    @Bean
     public Binding bindListenHistory(Queue listenHistoryQueue,
-                                     TopicExchange musicEventExchange) {
-        return BindingBuilder.bind(listenHistoryQueue)
-                .to(musicEventExchange)
-                .with(SONG_LISTEN_ROUTING_KEY);
+                                     FanoutExchange songListenFanoutExchange) {
+        return BindingBuilder.bind(listenHistoryQueue).to(songListenFanoutExchange);
+    }
+
+    @Bean
+    public Binding bindAiDataLake(Queue aiDataLakeQueue,
+                                  FanoutExchange songListenFanoutExchange) {
+        return BindingBuilder.bind(aiDataLakeQueue).to(songListenFanoutExchange);
     }
 }

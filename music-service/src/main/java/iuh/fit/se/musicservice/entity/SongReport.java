@@ -24,7 +24,11 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "song_reports", indexes = {
+@Table(name = "song_reports",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_song_report_user_song", columnNames = {"reporter_id", "song_id"})
+        },
+        indexes = {
         @Index(name = "idx_reports_song",     columnList = "song_id"),
         @Index(name = "idx_reports_reporter", columnList = "reporter_id"),
         @Index(name = "idx_reports_status",   columnList = "status")

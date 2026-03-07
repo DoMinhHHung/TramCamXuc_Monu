@@ -342,6 +342,11 @@ public class SongServiceImpl implements SongService {
                 RabbitMQConfig.SONG_LISTEN_ROUTING_KEY,
                 event
         );
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.SONG_LISTEN_FANOUT_EXCHANGE,
+                "",
+                event
+        );
     }
 
     @Override

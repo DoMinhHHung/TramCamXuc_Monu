@@ -44,3 +44,11 @@ springdoc:
 logging:
   level:
     iuh.fit.se.socialservice: DEBUG
+
+
+minio:
+  url: ${MINIO_ENDPOINT}
+  access-key: ${MINIO_ACCESS_KEY}
+  secret-key: ${MINIO_SECRET}
+  bucket:
+    ai-training-data: ${MINIO_AI_BUCKET:ai-training-data}
