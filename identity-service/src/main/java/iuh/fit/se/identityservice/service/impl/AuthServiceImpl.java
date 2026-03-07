@@ -103,7 +103,7 @@ public class AuthServiceImpl implements AuthService {
         publishNotification(NotificationEvent.builder()
                 .channel("EMAIL")
                 .recipient(user.getEmail())
-                .subject("Welcome to PhazelSound - Verify your account")
+                .subject("Welcome to TramCamXuc - Verify your account")
                 .templateCode("register-otp")
                 .paramMap(Map.of("name", request.getFullName(), "otp", otp))
                 .build());
