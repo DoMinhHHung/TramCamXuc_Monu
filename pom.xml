@@ -20,7 +20,6 @@
         <module>transcode-service</module>
         <module>music-service</module>
         <module>social-service</module>
-        <module>recommendation-service</module>
     </modules>
 
     <properties>
