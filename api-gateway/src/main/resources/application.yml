@@ -12,8 +12,6 @@ spring:
           lower-case-service-id: true
       routes:
 
-        # ── Identity Service (port 8081) ──────────────────────────────
-        # Controllers: /auth/**, /users/**, /internal/**
         - id: identity-service-auth
           uri: lb://IDENTITY-SERVICE
           predicates:
@@ -37,8 +35,6 @@ spring:
             - StripPrefix=1
 
         # ── Music Service (port 8083) ─────────────────────────────────
-        # Controllers: /api/v1/songs/**, /api/v1/albums/**, /api/v1/genres/**,
-        #              /api/v1/artists/**, /api/v1/playlists/**, /api/v1/admin/**
         - id: music-service-api
           uri: lb://MUSIC-SERVICE
           predicates:
@@ -52,8 +48,6 @@ spring:
             - StripPrefix=1
 
         # ── Payment Service (port 8084) ───────────────────────────────
-        # Controllers: /payments/**, /subscriptions/**, /admin/subscriptions/**,
-        #              /api/internal/subscriptions/**
         - id: payment-service-payments
           uri: lb://PAYMENT-SERVICE
           predicates:
@@ -82,8 +76,6 @@ spring:
             - StripPrefix=1
 
         # ── Social Service (port 8086) ────────────────────────────────
-        # Controllers: /social/**, /social/comments/**, /social/hearts/**,
-        #              /social/reactions/**, /social/share/**, /social/listen-history/**
         - id: social-service-api
           uri: lb://SOCIAL-SERVICE
           predicates:
@@ -96,13 +88,18 @@ spring:
           filters:
             - StripPrefix=1
 
-        - id: recommendation-service
-          uri: lb://recommendation-service
+        # ── Recommendation Service (port 8087) ────────────────────────
+        - id: recommendation-service-api
+          uri: lb://RECOMMENDATION-SERVICE
           predicates:
             - Path=/api/v1/recommendations/**
-          filters:
-            - StripPrefix=0
 
+        - id: recommendation-swagger
+          uri: lb://RECOMMENDATION-SERVICE
+          predicates:
+            - Path=/service-recommendation/**
+          filters:
+            - StripPrefix=1
 
 eureka:
   client:
@@ -121,6 +118,7 @@ springdoc:
         url: /service-payment/v3/api-docs
       - name: social-service
         url: /service-social/v3/api-docs
+      - name: recommendation-service
+        url: /service-recommendation/v3/api-docs
   api-docs:
     enabled: true
-

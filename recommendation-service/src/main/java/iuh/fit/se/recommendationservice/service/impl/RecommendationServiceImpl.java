@@ -2,6 +2,7 @@ package iuh.fit.se.recommendationservice.service.impl;
 
 import iuh.fit.se.recommendationservice.client.MusicServiceClient;
 import iuh.fit.se.recommendationservice.dto.*;
+import iuh.fit.se.recommendationservice.engine.HybridEngine;
 import iuh.fit.se.recommendationservice.engine.RuleBasedEngine;
 import iuh.fit.se.recommendationservice.engine.ScoringEngine;
 import iuh.fit.se.recommendationservice.service.RecommendationService;
@@ -22,6 +23,7 @@ public class RecommendationServiceImpl implements RecommendationService {
     private final ScoringEngine      scoringEngine;
     private final UserProfileService userProfileService;
     private final MusicServiceClient musicServiceClient;
+    private final HybridEngine hybridEngine;
 
     // ----------------------------------------------------------------
     // forYou — personalized
@@ -31,20 +33,45 @@ public class RecommendationServiceImpl implements RecommendationService {
     public RecommendationResponse forYou(UUID userId, int limit) {
         long start = System.currentTimeMillis();
 
-        UserProfileDto profile = userProfileService.buildProfile(userId);
-        List<SongScoreDto> songs = ruleBasedEngine.recommend(profile, limit);
+        Map<UUID, SongDto> songCatalog = buildSongCatalog();
 
-        // Nếu rule-based không đủ số lượng → bổ sung trending
-        if (songs.size() < limit) {
-            songs = fillWithTrending(songs, profile, limit);
+        if (songCatalog.isEmpty()) {
+            log.warn("Song catalog empty, using rule-based directly");
+            UserProfileDto profile = userProfileService.buildProfile(userId);
+            List<SongScoreDto> songs = ruleBasedEngine.recommend(profile, limit);
+            return RecommendationResponse.builder()
+                    .songs(songs)
+                    .strategy("rule_based")
+                    .mlUsed(false)
+                    .computeTimeMs(System.currentTimeMillis() - start)
+                    .build();
         }
 
-        return RecommendationResponse.builder()
-                .songs(songs)
-                .strategy("rule_based")
-                .mlUsed(false)
-                .computeTimeMs(System.currentTimeMillis() - start)
-                .build();
+        return hybridEngine.recommend(userId, limit, songCatalog);
+    }
+
+    private Map<UUID, SongDto> buildSongCatalog() {
+        Map<UUID, SongDto> catalog = new HashMap<>();
+        try {
+            ApiResponse<PageResponse<SongDto>> trending =
+                    musicServiceClient.getTrending(1, 50);
+            if (trending.getResult() != null
+                    && trending.getResult().getContent() != null) {
+                trending.getResult().getContent()
+                        .forEach(s -> catalog.put(s.getId(), s));
+            }
+
+            ApiResponse<PageResponse<SongDto>> newest =
+                    musicServiceClient.getNewest(1, 50);
+            if (newest.getResult() != null
+                    && newest.getResult().getContent() != null) {
+                newest.getResult().getContent()
+                        .forEach(s -> catalog.put(s.getId(), s));
+            }
+        } catch (Exception e) {
+            log.warn("Failed to build song catalog: {}", e.getMessage());
+        }
+        return catalog;
     }
 
     // ----------------------------------------------------------------
