@@ -26,7 +26,9 @@ public interface ReactionRepository extends MongoRepository<Reaction, String> {
 
     List<Reaction> findBySongId(UUID songId);
 
-    /** Tổng LIKE / DISLIKE theo artist — dùng cho ArtistStatsResponse */
     long countByArtistIdAndType(UUID artistId, ReactionType type);
+
+    List<Reaction> findByUserIdAndType(UUID userId, ReactionType type);
+
 }
 
