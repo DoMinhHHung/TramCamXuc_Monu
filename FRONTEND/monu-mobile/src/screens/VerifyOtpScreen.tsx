@@ -4,8 +4,8 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { verifyOtp, resendOtp } from '../services/auth';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { COLORS } from '../config/colors';
 
-const C = { bg: '#0A090E', surface: '#13111A', border: '#2A2640', accent: '#C084FC', accentDim: '#7C3AED', text: '#F3F0FF', muted: '#7B7591' };
 const OTP_LENGTH = 6;
 const RESEND_SECS = 60;
 
@@ -83,18 +83,18 @@ export default function VerifyOtpScreen() {
     };
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.container}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Text style={{ color: C.accent, fontSize: 15, fontWeight: '600' }}>← Quay lại</Text>
+                    <Text style={{ color: COLORS.accent, fontSize: 15, fontWeight: '600' }}>← Quay lại</Text>
                 </Pressable>
-                <View style={[styles.iconWrap, { backgroundColor: C.surface, borderColor: C.accentDim }]}>
+                <View style={[styles.iconWrap, { backgroundColor: COLORS.surface, borderColor: COLORS.accentDim }]}>
                     <Text style={{ fontSize: 36 }}>📬</Text>
                 </View>
-                <Text style={[styles.heading, { color: C.text }]}>Xác thực email</Text>
-                <Text style={{ fontSize: 14, color: C.muted, textAlign: 'center', lineHeight: 22, marginBottom: 36 }}>
+                <Text style={[styles.heading, { color: COLORS.text }]}>Xác thực email</Text>
+                <Text style={{ fontSize: 14, color: COLORS.muted, textAlign: 'center', lineHeight: 22, marginBottom: 36 }}>
                     Mã OTP 6 chữ số đã được gửi đến{'\n'}
-                    <Text style={{ color: C.accent, fontWeight: '700' }}>{email}</Text>
+                    <Text style={{ color: COLORS.accent, fontWeight: '700' }}>{email}</Text>
                 </Text>
 
                 <View style={styles.otpRow}>
@@ -102,28 +102,28 @@ export default function VerifyOtpScreen() {
                         <TextInput
                             key={i}
                             ref={r => { inputs.current[i] = r; }}
-                            style={[styles.cell, { borderColor: digit ? C.accent : C.border, backgroundColor: digit ? '#1E1630' : C.surface, color: C.text }]}
+                            style={[styles.cell, { borderColor: digit ? COLORS.accent : COLORS.border, backgroundColor: digit ? '#1E1630' : COLORS.surface, color: COLORS.text }]}
                             value={digit}
                             onChangeText={t => handleCellChange(t, i)}
                             onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
                             keyboardType="number-pad"
                             maxLength={OTP_LENGTH}
                             textAlign="center"
-                            selectionColor={C.accent}
+                            selectionColor={COLORS.accent}
                             placeholder="·"
-                            placeholderTextColor={C.border}
+                            placeholderTextColor={COLORS.border}
                         />
                     ))}
                 </View>
 
-                <Pressable style={[styles.btn, { backgroundColor: C.accentDim }, loading && { opacity: 0.5 }]} onPress={handleVerify} disabled={loading}>
+                <Pressable style={[styles.btn, { backgroundColor: COLORS.accentDim }, loading && { opacity: 0.5 }]} onPress={handleVerify} disabled={loading}>
                     <Text style={styles.btnText}>{loading ? 'Đang xác thực...' : 'Xác thực'}</Text>
                 </Pressable>
 
                 <View style={{ flexDirection: 'row', marginTop: 24, alignItems: 'center' }}>
-                    <Text style={{ color: C.muted, fontSize: 14 }}>Không nhận được mã? </Text>
+                    <Text style={{ color: COLORS.muted, fontSize: 14 }}>Không nhận được mã? </Text>
                     <Pressable onPress={handleResend} disabled={countdown > 0 || resending}>
-                        <Text style={{ color: countdown > 0 ? C.muted : C.accent, fontSize: 14, fontWeight: '700' }}>
+                        <Text style={{ color: countdown > 0 ? COLORS.muted : COLORS.accent, fontSize: 14, fontWeight: '700' }}>
                             {countdown > 0 ? `Gửi lại sau ${countdown}s` : resending ? 'Đang gửi...' : 'Gửi lại'}
                         </Text>
                     </Pressable>

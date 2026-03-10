@@ -8,6 +8,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SocialButton } from '../components/SocialButton';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { COLORS } from '../config/colors';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -71,41 +72,39 @@ export const LoginScreen = () => {
     } finally { setLoading(false); }
   };
 
-  const C = { bg: '#0A090E', surface: '#13111A', border: '#2A2640', accent: '#C084FC', accentDim: '#7C3AED', text: '#F3F0FF', muted: '#7B7591' };
-
   return (
-      <View style={[styles.container, { backgroundColor: C.bg }]}>
+      <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
         {/* Logo */}
-        <View style={[styles.logoRing, { borderColor: C.accent, backgroundColor: C.surface }]}>
+        <View style={[styles.logoRing, { borderColor: COLORS.accent, backgroundColor: COLORS.surface }]}>
           <Text style={{ fontSize: 36 }}>🎵</Text>
         </View>
-        <Text style={[styles.title, { color: C.text }]}>Monu Mobile</Text>
-        <Text style={[styles.subtitle, { color: C.muted }]}>Đăng nhập để tiếp tục</Text>
+        <Text style={[styles.title, { color: COLORS.text }]}>Monu Mobile</Text>
+        <Text style={[styles.subtitle, { color: COLORS.muted }]}>Đăng nhập để tiếp tục</Text>
 
         <TextInput
             autoCapitalize="none"
             keyboardType="email-address"
             placeholder="Email"
-            placeholderTextColor={C.muted}
-            style={[styles.input, { backgroundColor: C.surface, borderColor: C.border, color: C.text }]}
+            placeholderTextColor={COLORS.muted}
+            style={[styles.input, { backgroundColor: COLORS.surface, borderColor: COLORS.border, color: COLORS.text }]}
             value={email}
             onChangeText={setEmail}
         />
         <TextInput
             secureTextEntry
             placeholder="Mật khẩu"
-            placeholderTextColor={C.muted}
-            style={[styles.input, { backgroundColor: C.surface, borderColor: C.border, color: C.text }]}
+            placeholderTextColor={COLORS.muted}
+            style={[styles.input, { backgroundColor: COLORS.surface, borderColor: COLORS.border, color: COLORS.text }]}
             value={password}
             onChangeText={setPassword}
         />
 
         {/* Forgot password */}
         <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotRow}>
-          <Text style={{ color: C.accent, fontSize: 13, fontWeight: '600' }}>Quên mật khẩu?</Text>
+          <Text style={{ color: COLORS.accent, fontSize: 13, fontWeight: '600' }}>Quên mật khẩu?</Text>
         </Pressable>
 
-        <Pressable style={[styles.loginButton, { backgroundColor: C.accentDim }, loading && styles.disabled]} onPress={doEmailLogin} disabled={loading}>
+        <Pressable style={[styles.loginButton, { backgroundColor: COLORS.accentDim }, loading && styles.disabled]} onPress={doEmailLogin} disabled={loading}>
           <Text style={styles.loginText}>{loading ? 'Đang xử lý...' : 'Đăng nhập'}</Text>
         </Pressable>
 
@@ -114,8 +113,8 @@ export const LoginScreen = () => {
 
         {/* Register link */}
         <Pressable onPress={() => navigation.navigate('Register')} style={styles.registerRow}>
-          <Text style={{ color: C.muted, fontSize: 14 }}>
-            Chưa có tài khoản? <Text style={{ color: C.accent, fontWeight: '700' }}>Đăng ký</Text>
+          <Text style={{ color: COLORS.muted, fontSize: 14 }}>
+            Chưa có tài khoản? <Text style={{ color: COLORS.accent, fontWeight: '700' }}>Đăng ký</Text>
           </Text>
         </Pressable>
       </View>

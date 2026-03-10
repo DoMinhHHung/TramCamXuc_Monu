@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { COLORS } from '../config/colors';
 
 interface ArtistCardProps {
   id: string;
@@ -9,16 +10,6 @@ interface ArtistCardProps {
   onPress: () => void;
   disabled?: boolean;
 }
-
-const COLORS = {
-  bg: '#0A090E',
-  surface: '#13111A',
-  border: '#2A2640',
-  accent: '#C084FC',
-  accentDim: '#7C3AED',
-  text: '#F3F0FF',
-  muted: '#7B7591'
-};
 
 export const ArtistCard: React.FC<ArtistCardProps> = ({
   id,

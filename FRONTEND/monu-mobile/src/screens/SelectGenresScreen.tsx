@@ -16,19 +16,9 @@ import { getPopularGenres } from '../services/favorites';
 import { Genre } from '../types/favorites';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useAuth } from '../context/AuthContext';
+import { COLORS } from '../config/colors';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SelectGenres'>;
-
-const COLORS = {
-  bg: '#0A090E',
-  surface: '#13111A',
-  border: '#2A2640',
-  accent: '#C084FC',
-  accentDim: '#7C3AED',
-  text: '#F3F0FF',
-  muted: '#7B7591',
-  error: '#EF4444',
-};
 
 const MIN_GENRES = 1;
 const MAX_GENRES = 5;

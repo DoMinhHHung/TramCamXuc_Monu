@@ -7,8 +7,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { registerUser } from '../services/auth';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { COLORS } from '../config/colors';
 
-const C = { bg: '#0A090E', surface: '#13111A', border: '#2A2640', accent: '#C084FC', accentDim: '#7C3AED', text: '#F3F0FF', muted: '#7B7591', error: '#F87171' };
 type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
@@ -56,14 +56,14 @@ export default function RegisterScreen() {
     };
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: C.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
                 <View style={styles.header}>
-                    <View style={[styles.logoRing, { borderColor: C.accent, backgroundColor: C.surface }]}>
+                    <View style={[styles.logoRing, { borderColor: COLORS.accent, backgroundColor: COLORS.surface }]}>
                         <Text style={{ fontSize: 32 }}>🎵</Text>
                     </View>
-                    <Text style={[styles.heading, { color: C.text }]}>Tạo tài khoản</Text>
-                    <Text style={{ color: C.muted, marginTop: 4 }}>Gia nhập cộng đồng âm nhạc</Text>
+                    <Text style={[styles.heading, { color: COLORS.text }]}>Tạo tài khoản</Text>
+                    <Text style={{ color: COLORS.muted, marginTop: 4 }}>Gia nhập cộng đồng âm nhạc</Text>
                 </View>
 
                 <Field label="Họ và tên"  value={fullName}    onChangeText={setFullName}    placeholder="Nguyễn Văn A" />
@@ -74,21 +74,21 @@ export default function RegisterScreen() {
                 <Text style={styles.label}>Giới tính (tuỳ chọn)</Text>
                 <View style={styles.genderRow}>
                     {(['MALE', 'FEMALE', 'OTHER'] as Gender[]).map(g => (
-                        <Pressable key={g} style={[styles.genderBtn, { borderColor: C.border, backgroundColor: C.surface }, gender === g && { borderColor: C.accent, backgroundColor: '#2D1B69' }]} onPress={() => setGender(p => p === g ? null : g)}>
-                            <Text style={{ fontSize: 14, fontWeight: '600', color: gender === g ? C.accent : C.muted }}>
+                        <Pressable key={g} style={[styles.genderBtn, { borderColor: COLORS.border, backgroundColor: COLORS.surface }, gender === g && { borderColor: COLORS.accent, backgroundColor: '#2D1B69' }]} onPress={() => setGender(p => p === g ? null : g)}>
+                            <Text style={{ fontSize: 14, fontWeight: '600', color: gender === g ? COLORS.accent : COLORS.muted }}>
                                 {g === 'MALE' ? 'Nam' : g === 'FEMALE' ? 'Nữ' : 'Khác'}
                             </Text>
                         </Pressable>
                     ))}
                 </View>
 
-                <Pressable style={[styles.btn, { backgroundColor: C.accentDim }, loading && { opacity: 0.5 }]} onPress={handleRegister} disabled={loading}>
+                <Pressable style={[styles.btn, { backgroundColor: COLORS.accentDim }, loading && { opacity: 0.5 }]} onPress={handleRegister} disabled={loading}>
                     <Text style={styles.btnText}>{loading ? 'Đang xử lý...' : 'Đăng ký'}</Text>
                 </Pressable>
 
                 <Pressable onPress={() => navigation.goBack()} style={styles.linkRow}>
-                    <Text style={{ color: C.muted, fontSize: 14 }}>
-                        Đã có tài khoản? <Text style={{ color: C.accent, fontWeight: '700' }}>Đăng nhập</Text>
+                    <Text style={{ color: COLORS.muted, fontSize: 14 }}>
+                        Đã có tài khoản? <Text style={{ color: COLORS.accent, fontWeight: '700' }}>Đăng nhập</Text>
                     </Text>
                 </Pressable>
             </ScrollView>
@@ -104,7 +104,7 @@ function Field({ label, value, onChangeText, placeholder, secure, keyboard, auto
         <View style={{ marginBottom: 14 }}>
             <Text style={styles.label}>{label}</Text>
             <TextInput style={styles.input} value={value} onChangeText={onChangeText} placeholder={placeholder}
-                       placeholderTextColor={C.muted} secureTextEntry={secure} keyboardType={keyboard}
+                       placeholderTextColor={COLORS.muted} secureTextEntry={secure} keyboardType={keyboard}
                        autoCapitalize={autoCapitalize ?? 'words'} />
         </View>
     );
@@ -115,8 +115,8 @@ const styles = StyleSheet.create({
     header:    { alignItems: 'center', marginBottom: 32 },
     logoRing:  { width: 72, height: 72, borderRadius: 36, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
     heading:   { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
-    label:     { fontSize: 12, fontWeight: '600', color: C.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 },
-    input:     { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, color: C.text, fontSize: 15 },
+    label:     { fontSize: 12, fontWeight: '600', color: COLORS.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 },
+    input:     { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, color: COLORS.text, fontSize: 15 },
     genderRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
     genderBtn: { flex: 1, paddingVertical: 11, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
     btn:       { borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
