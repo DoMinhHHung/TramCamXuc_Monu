@@ -1,0 +1,65 @@
+server:
+  port: 8765
+
+spring:
+  application:
+    name: payment-service
+
+  datasource:
+    url: ${DB_URL_PAYMENT}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+jwt:
+  signerKey: ${JWT_SECRET}
+
+payos:
+  client-id: ${PAYOS_CLIENT_ID}
+  api-key: ${PAYOS_API_KEY}
+  checksum-key: ${PAYOS_CHECK_SUM}
+  return-url: ${PAYOS_RETURN_URL:https://phazelsound.oopsgolden.id.vn/payment/success}
+  cancel-url: ${PAYOS_CANCEL_URL:https://phazelsound.oopsgolden.id.vn/payment/cancel}
+
+app:
+  frontend:
+    url: ${FRONTEND_URL:https://phazelsound.oopsgolden.id.vn}
+
+open:
+  api:
+    title: Payment Service API
+    version: 1.0.0
+    server-url: ${GATEWAY_URL:http://localhost:8080}/service-payment
+    server-description: API Gateway
+
+scheduling:
+  subscription-check:
+    fixed-rate: 60000

@@ -1,0 +1,27 @@
+package iuh.fit.se.paymentservice.service;
+
+import iuh.fit.se.paymentservice.dto.request.SubscriptionPlanRequest;
+import iuh.fit.se.paymentservice.dto.request.SubscriptionPlanUpdateRequest;
+import iuh.fit.se.paymentservice.dto.response.SubscriptionPlanResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.util.List;
+import java.util.UUID;
+
+public interface SubscriptionPlanService {
+
+    SubscriptionPlanResponse createPlan(SubscriptionPlanRequest request);
+
+    SubscriptionPlanResponse updatePlan(UUID id, SubscriptionPlanUpdateRequest request);
+
+    void deletePlan(UUID id);
+
+    SubscriptionPlanResponse getPlanById(UUID id);
+
+    List<SubscriptionPlanResponse> getAllActivePlans();
+
+    Page<SubscriptionPlanResponse> getAllPlans(Pageable pageable);
+
+    void togglePlanStatus(UUID id);
+}

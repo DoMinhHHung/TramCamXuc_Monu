@@ -1,0 +1,73 @@
+server:
+  port: 8764
+
+spring:
+  application:
+    name: music-service
+
+  datasource:
+    url: ${DB_URL_MUSIC}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 210MB
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+jwt:
+  signerKey: ${JWT_SECRET}
+
+minio:
+  url: ${MINIO_ENDPOINT}
+  public-url: ${MINIO_PUBLIC_URL}
+  access-key: ${MINIO_ACCESS_KEY}
+  secret-key: ${MINIO_SECRET}
+  bucket:
+    raw-songs: ${MINIO_RAW_BUCKET:music}
+    public-songs: ${MINIO_PUBLIC_BUCKET:public-songs}
+
+# ── Jamendo API ────────────────────────────────────────────────────────────────
+jamendo:
+  client-id: ${JAMENDO_CLIENT_ID}
+
+open:
+  api:
+    title: Music Service API
+    version: 1.0.0
+    server-url: ${GATEWAY_URL:http://localhost:8080}/service-music
+    server-description: API Gateway
