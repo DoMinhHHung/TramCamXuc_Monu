@@ -9,16 +9,19 @@ import RegisterScreen from '../screens/RegisterScreen';
 import VerifyOtpScreen from '../screens/VerifyOtpScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
-import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { SelectGenresScreen } from '../screens/SelectGenresScreen';
+import { SelectArtistsScreen } from '../screens/SelectArtistsScreen';
 import { EditFavoritesScreen } from '../screens/EditFavoritesScreen';
 
+// Navigation parameter types for all screens
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   VerifyOtp: { email: string };
   ForgotPassword: undefined;
   ResetPassword: { email: string };
-  Onboarding: undefined;
+  SelectGenres: undefined;
+  SelectArtists: { selectedGenreIds: string[] };
   Home: undefined;
   EditFavorites: undefined;
 };
@@ -46,7 +49,10 @@ export const AppNavigator = () => {
           {authSession ? (
               <>
                 {needsOnboarding ? (
-                  <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+                  <>
+                    <Stack.Screen name="SelectGenres" component={SelectGenresScreen} />
+                    <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
+                  </>
                 ) : (
                   <>
                     <Stack.Screen name="Home" component={HomeScreen} />

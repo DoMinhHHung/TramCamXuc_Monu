@@ -116,27 +116,6 @@ public class MinioStorageService {
     // UPLOAD — Raw bytes (Jamendo import worker, no local disk I/O)
     // ──────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Uploads a pre-buffered {@code byte[]} directly to the <b>raw-songs</b> bucket.
-     *
-     * <p>Designed for the {@code JamendoDownloadWorker} which downloads the MP3
-     * into a byte array via {@code RestTemplate.getForObject(..., byte[].class)}
-     * and then hands it straight to this method — eliminating any local disk
-     * write and avoiding disk-space issues in containerised environments.</p>
-     *
-     * <h3>Why byte[] and not InputStream?</h3>
-     * <p>RestTemplate's {@code getForObject} already buffers the response body.
-     * Wrapping it in a {@code ByteArrayInputStream} is zero-copy and avoids a
-     * second read pass.  For very large files (>200 MB) consider switching to a
-     * streaming download, but Jamendo tracks are typically 3–15 MB so this is fine.</p>
-     *
-     * @param objectKey   Target path inside raw-songs bucket, e.g.
-     *                    {@code "raw/jamendo/<trackId>.mp3"}.
-     * @param data        Raw audio bytes downloaded from Jamendo CDN.
-     * @param contentType MIME type, typically {@code "audio/mpeg"}.
-     * @throws RuntimeException wrapping the underlying MinIO SDK exception if
-     *                          the upload fails (caller should NACK the message).
-     */
     public void uploadRawBytes(String objectKey, byte[] data, String contentType) {
         if (data == null || data.length == 0) {
             throw new IllegalArgumentException(
