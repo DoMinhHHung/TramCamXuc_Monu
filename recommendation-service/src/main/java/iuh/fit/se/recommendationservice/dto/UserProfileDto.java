@@ -16,4 +16,8 @@ public class UserProfileDto {
     private Set<UUID> likedSongIds;
     private Set<UUID> dislikedSongIds;
     private Set<UUID> heartedSongIds;
+
+    // ── Favorites for cold-start recommendation ────────────────────────────────
+    private Set<UUID> favoriteGenreIds;
+    private Set<UUID> favoriteArtistIds;
 }

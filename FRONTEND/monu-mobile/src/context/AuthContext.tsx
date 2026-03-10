@@ -9,6 +9,7 @@ interface AuthContextValue {
   loginWithSocialToken: (provider: SocialProvider, token: string) => Promise<void>;
   loginDirect: (accessToken: string, refreshToken: string) => Promise<void>; // ← thêm
   rehydrateByRefreshToken: (refreshTokenValue: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
   logout: () => void;
 }
 
@@ -47,13 +48,19 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     await finalizeLogin(tokens);
   };
 
+  const refreshProfile = async () => {
+    if (!authSession) return;
+    const profile = await getMyProfile();
+    setAuthSession({ ...authSession, profile });
+  };
+
   const logout = () => {
     setAuthSession(null);
     attachAccessToken(null);
   };
 
   const value = useMemo(
-      () => ({ authSession, login, loginWithSocialToken, loginDirect, rehydrateByRefreshToken, logout }),
+      () => ({ authSession, login, loginWithSocialToken, loginDirect, rehydrateByRefreshToken, refreshProfile, logout }),
       [authSession]
   );
 

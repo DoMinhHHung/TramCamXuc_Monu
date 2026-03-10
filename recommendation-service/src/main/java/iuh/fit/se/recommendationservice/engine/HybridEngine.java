@@ -75,11 +75,22 @@ public class HybridEngine {
         try {
             // Lấy listen history cho ML request
             List<ListenHistoryDto> history = fetchHistory(userId);
-            if (history.isEmpty()) return Optional.empty();
 
             List<String> followedArtists = profile.getFollowedArtistIds().stream()
                     .map(UUID::toString)
                     .collect(Collectors.toList());
+
+            List<String> favoriteGenres = profile.getFavoriteGenreIds() != null
+                    ? profile.getFavoriteGenreIds().stream()
+                    .map(UUID::toString)
+                    .collect(Collectors.toList())
+                    : List.of();
+
+            List<String> favoriteArtists = profile.getFavoriteArtistIds() != null
+                    ? profile.getFavoriteArtistIds().stream()
+                    .map(UUID::toString)
+                    .collect(Collectors.toList())
+                    : List.of();
 
             List<SongDto> candidates = new ArrayList<>(songCatalog.values());
 
@@ -88,7 +99,9 @@ public class HybridEngine {
                     history,
                     followedArtists,
                     candidates,
-                    limit
+                    limit,
+                    favoriteGenres,
+                    favoriteArtists
             );
 
             return mlServiceClient.getRecommendations(request);

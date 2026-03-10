@@ -7,18 +7,13 @@ import iuh.fit.se.musicservice.enums.ArtistStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface ArtistService {
 
     // ── Artist self ────────────────────────────────────────────────────────────
 
-    /**
-     * Đăng ký artist profile.
-     * Điều kiện: JWT phải chứa can_become_artist = true (subscription tier).
-     * Sau khi thành công, identity-service cấp lại JWT mới với ROLE_ARTIST
-     * → trả về trong ArtistResponse.newToken để client dùng ngay, không cần đăng nhập lại.
-     */
     ArtistResponse registerArtist(ArtistRegisterRequest request);
 
     /** Lấy profile của chính mình */
@@ -35,4 +30,10 @@ public interface ArtistService {
 
     /** Admin: đình chỉ / phục hồi artist */
     ArtistResponse updateStatus(UUID artistId, ArtistStatus status);
+
+    /**
+     * Lấy danh sách artists phổ biến.
+     * Dùng cho onboarding screen.
+     */
+    List<ArtistResponse> getPopularArtists(int limit);
 }

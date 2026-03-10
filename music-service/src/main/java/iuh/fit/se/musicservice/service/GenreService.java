@@ -12,4 +12,10 @@ public interface GenreService {
     void deleteGenre(UUID id);
     GenreResponse getGenreById(UUID id);
     List<GenreResponse> getAllGenres();
+
+    /**
+     * Lấy danh sách genres phổ biến (dựa vào số lượng bài hát).
+     * Dùng cho onboarding screen.
+     */
+    List<GenreResponse> getPopularGenres(int limit);
 }

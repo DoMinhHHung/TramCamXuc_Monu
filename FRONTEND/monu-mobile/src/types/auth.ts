@@ -35,6 +35,10 @@ export interface UserProfile {
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
   role?: 'USER' | 'ADMIN' | 'ARTIST';
   status?: 'PENDING_VERIFICATION' | 'ACTIVE' | 'BANNED';
+  // Favorites for onboarding
+  pickFavorite?: boolean;
+  favoriteGenreIds?: string[];
+  favoriteArtistIds?: string[];
 }
 
 export interface AuthSession {

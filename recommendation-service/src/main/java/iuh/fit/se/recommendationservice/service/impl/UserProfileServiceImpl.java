@@ -1,6 +1,7 @@
 package iuh.fit.se.recommendationservice.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import iuh.fit.se.recommendationservice.client.IdentityClient;
 import iuh.fit.se.recommendationservice.client.MusicServiceClient;
 import iuh.fit.se.recommendationservice.client.SocialServiceClient;
 import iuh.fit.se.recommendationservice.dto.*;
@@ -22,6 +23,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     private final SocialServiceClient socialServiceClient;
     private final MusicServiceClient  musicServiceClient;
+    private final IdentityClient      identityClient;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper        objectMapper;
 
@@ -96,6 +98,9 @@ public class UserProfileServiceImpl implements UserProfileService {
         // 5. Followed artists
         Set<UUID> followedArtists = fetchFollowedArtists(userId);
 
+        // 6. Favorites (for cold-start recommendation)
+        FavoritesDto favorites = fetchFavorites(userId);
+
         return UserProfileDto.builder()
                 .userId(userId)
                 .genreAffinity(genreAffinity)
@@ -105,6 +110,10 @@ public class UserProfileServiceImpl implements UserProfileService {
                 .likedSongIds(new HashSet<>())
                 .dislikedSongIds(new HashSet<>())
                 .heartedSongIds(new HashSet<>())
+                .favoriteGenreIds(favorites.getFavoriteGenreIds() != null
+                        ? favorites.getFavoriteGenreIds() : new HashSet<>())
+                .favoriteArtistIds(favorites.getFavoriteArtistIds() != null
+                        ? favorites.getFavoriteArtistIds() : new HashSet<>())
                 .build();
     }
 
@@ -231,6 +240,21 @@ public class UserProfileServiceImpl implements UserProfileService {
         } catch (Exception e) {
             log.warn("Failed to fetch followed artists for {}: {}", userId, e.getMessage());
             return Set.of();
+        }
+    }
+
+    private FavoritesDto fetchFavorites(UUID userId) {
+        try {
+            // Note: Trong production, cần pass JWT token thực tế
+            // Hiện tại assume internal call không cần auth hoặc có service-to-service auth
+            ApiResponse<FavoritesDto> response =
+                    identityClient.getMyFavorites("Bearer internal-call-" + userId);
+            return response.getResult() != null
+                    ? response.getResult()
+                    : FavoritesDto.builder().build();
+        } catch (Exception e) {
+            log.warn("Failed to fetch favorites for {}: {}", userId, e.getMessage());
+            return FavoritesDto.builder().build();
         }
     }
 

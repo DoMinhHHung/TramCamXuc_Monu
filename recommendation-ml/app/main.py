@@ -22,7 +22,7 @@ app = FastAPI(
 # CORS — chỉ cho phép recommendation-service gọi vào
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # production: đổi thành IP của recommendation-service
+    allow_origins=["*"],
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )

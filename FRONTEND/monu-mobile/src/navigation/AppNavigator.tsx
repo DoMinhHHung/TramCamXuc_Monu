@@ -9,6 +9,8 @@ import RegisterScreen from '../screens/RegisterScreen';
 import VerifyOtpScreen from '../screens/VerifyOtpScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
+import { OnboardingScreen } from '../screens/OnboardingScreen';
+import { EditFavoritesScreen } from '../screens/EditFavoritesScreen';
 
 export type RootStackParamList = {
   Login: undefined;
@@ -16,7 +18,9 @@ export type RootStackParamList = {
   VerifyOtp: { email: string };
   ForgotPassword: undefined;
   ResetPassword: { email: string };
+  Onboarding: undefined;
   Home: undefined;
+  EditFavorites: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -33,11 +37,23 @@ const linking: LinkingOptions<RootStackParamList> = {
 export const AppNavigator = () => {
   const { authSession } = useAuth();
 
+  // Check nếu user đã login nhưng chưa pick favorites
+  const needsOnboarding = authSession?.profile && !authSession.profile.pickFavorite;
+
   return (
       <NavigationContainer linking={linking}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           {authSession ? (
-              <Stack.Screen name="Home" component={HomeScreen} />
+              <>
+                {needsOnboarding ? (
+                  <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+                ) : (
+                  <>
+                    <Stack.Screen name="Home" component={HomeScreen} />
+                    <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
+                  </>
+                )}
+              </>
           ) : (
               <>
                 <Stack.Screen name="Login"          component={LoginScreen} />

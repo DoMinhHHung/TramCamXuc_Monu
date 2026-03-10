@@ -4,6 +4,7 @@ import iuh.fit.se.identityservice.enums.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -20,4 +21,9 @@ public class UserResponse {
     private Gender gender;
     private Role role;
     private AccountStatus status;
+
+    // Favorites for onboarding
+    private Boolean pickFavorite;
+    private Set<UUID> favoriteGenreIds;
+    private Set<UUID> favoriteArtistIds;
 }

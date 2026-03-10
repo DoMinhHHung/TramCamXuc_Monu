@@ -20,6 +20,9 @@ public class MlRecommendRequest {
     private List<MlSongFeatures> candidateSongFeatures;
     private int limit;
 
+    // Favorites for cold-start recommendation
+    private List<String> favoriteGenreIds;
+    private List<String> favoriteArtistIds;
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class MlListenEvent {
@@ -45,7 +48,9 @@ public class MlRecommendRequest {
             List<ListenHistoryDto> history,
             List<String> followedArtistIds,
             List<SongDto> candidates,
-            int limit) {
+            int limit,
+            List<String> favoriteGenreIds,
+            List<String> favoriteArtistIds) {
 
         List<MlListenEvent> events = history.stream()
                 .filter(h -> h.getSongId() != null)
@@ -80,6 +85,8 @@ public class MlRecommendRequest {
                 .followedArtistIds(followedArtistIds)
                 .candidateSongFeatures(features)
                 .limit(limit)
+                .favoriteGenreIds(favoriteGenreIds != null ? favoriteGenreIds : List.of())
+                .favoriteArtistIds(favoriteArtistIds != null ? favoriteArtistIds : List.of())
                 .build();
     }
 }

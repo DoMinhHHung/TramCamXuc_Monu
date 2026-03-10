@@ -18,14 +18,17 @@ import iuh.fit.se.musicservice.service.ArtistService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -184,5 +187,13 @@ public class ArtistServiceImpl implements ArtistService {
         artist.setStatus(status);
         log.info("Admin updated artist {} status to {}", artistId, status);
         return artistMapper.toResponse(artistRepository.save(artist));
+    }
+
+    @Override
+    public List<ArtistResponse> getPopularArtists(int limit) {
+        return artistRepository.findPopularArtists(PageRequest.of(0, limit))
+                .stream()
+                .map(artistMapper::toResponse)
+                .collect(Collectors.toList());
     }
 }

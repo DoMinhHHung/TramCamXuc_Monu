@@ -3,6 +3,8 @@ package iuh.fit.se.identityservice.service.impl;
 import iuh.fit.se.identityservice.dto.mapper.UserMapper;
 import iuh.fit.se.identityservice.dto.request.ChangePasswordRequest;
 import iuh.fit.se.identityservice.dto.request.ProfileUpdateRequest;
+import iuh.fit.se.identityservice.dto.request.UpdateFavoritesRequest;
+import iuh.fit.se.identityservice.dto.response.FavoritesResponse;
 import iuh.fit.se.identityservice.dto.response.UserResponse;
 import iuh.fit.se.identityservice.entity.User;
 import iuh.fit.se.identityservice.enums.AccountStatus;
@@ -111,5 +113,36 @@ public class UserServiceImpl implements UserService {
     private void requireAdmin() {
         if (currentUser().getRole() != Role.ADMIN)
             throw new AppException(ErrorCode.ACCESS_DENIED);
+    }
+
+    // ── Favorites for onboarding ──────────────────────────────────────────────
+
+    @Override
+    public FavoritesResponse getMyFavorites() {
+        User user = currentUser();
+        return FavoritesResponse.builder()
+                .pickFavorite(user.getPickFavorite())
+                .favoriteGenreIds(user.getFavoriteGenreIds())
+                .favoriteArtistIds(user.getFavoriteArtistIds())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public FavoritesResponse updateMyFavorites(UpdateFavoritesRequest request) {
+        User user = currentUser();
+
+        // Cập nhật favorites
+        user.setFavoriteGenreIds(request.getFavoriteGenreIds());
+        user.setFavoriteArtistIds(request.getFavoriteArtistIds());
+        user.setPickFavorite(true);
+
+        User saved = userRepository.save(user);
+
+        return FavoritesResponse.builder()
+                .pickFavorite(saved.getPickFavorite())
+                .favoriteGenreIds(saved.getFavoriteGenreIds())
+                .favoriteArtistIds(saved.getFavoriteArtistIds())
+                .build();
     }
 }

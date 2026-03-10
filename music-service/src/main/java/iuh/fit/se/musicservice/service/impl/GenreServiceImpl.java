@@ -10,6 +10,7 @@ import iuh.fit.se.musicservice.repository.GenreRepository;
 import iuh.fit.se.musicservice.service.GenreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,6 +72,14 @@ public class GenreServiceImpl implements GenreService {
     @Override
     public List<GenreResponse> getAllGenres() {
         return genreRepository.findAll().stream()
+                .map(genreMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<GenreResponse> getPopularGenres(int limit) {
+        return genreRepository.findPopularGenres(PageRequest.of(0, limit))
+                .stream()
                 .map(genreMapper::toResponse)
                 .collect(Collectors.toList());
     }

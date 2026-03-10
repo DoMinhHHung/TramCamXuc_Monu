@@ -29,6 +29,9 @@ class RecommendRequest(BaseModel):
     followed_artist_ids: List[str] = []
     candidate_song_features: List[SongFeatures] = []
     limit: int = 20
+    # Favorites for cold-start recommendation
+    favorite_genre_ids: List[str] = []
+    favorite_artist_ids: List[str] = []
 
 
 class SimilarRequest(BaseModel):

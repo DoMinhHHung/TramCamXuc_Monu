@@ -28,10 +28,11 @@ def recommend_for_you(request: RecommendRequest):
     """
     Personalized recommendation:
     1. Tính user song scores từ listen history
-    2. Collaborative Filtering → scored candidates
-    3. Content-based từ top listened songs → more candidates
-    4. Hybrid merge CF + CB
-    5. Trả về top N
+    2. Nếu cold-start (không có history), dùng favorites để recommend
+    3. Collaborative Filtering → scored candidates
+    4. Content-based từ top listened songs → more candidates
+    5. Hybrid merge CF + CB
+    6. Trả về top N
     """
     start = time.time()
 
@@ -40,14 +41,49 @@ def recommend_for_you(request: RecommendRequest):
     # Step 1: User implicit scores từ listen history
     user_scores = compute_user_song_scores(request.listen_history)
 
-    # Step 2: Collaborative Filtering
+    # Step 2: Cold-start check - nếu không có history, dùng favorites
+    if not user_scores and (request.favorite_genre_ids or request.favorite_artist_ids):
+        favorite_results = []
+        for song in request.candidate_song_features:
+            score = 0.0
+            reasons = []
+
+            # Check artist match
+            if song.artist_id and song.artist_id in request.favorite_artist_ids:
+                score += 0.6
+                reasons.append("favorite_artist")
+
+            # Check genre match
+            matching_genres = set(song.genre_ids) & set(request.favorite_genre_ids)
+            if matching_genres:
+                score += 0.4 * (len(matching_genres) / max(len(request.favorite_genre_ids), 1))
+                reasons.append("favorite_genre")
+
+            if score > 0:
+                favorite_results.append(ScoredSong(
+                    song_id=song.song_id,
+                    score=score,
+                    reason="cold_start_" + "_".join(reasons)
+                ))
+
+        # Sort by score và lấy top N
+        favorite_results.sort(key=lambda x: x.score, reverse=True)
+        elapsed = (time.time() - start) * 1000
+        return RecommendResponse(
+            user_id=request.user_id,
+            songs=favorite_results[:request.limit],
+            strategy="cold_start_favorites",
+            compute_time_ms=round(elapsed, 2),
+        )
+
+    # Step 3: Collaborative Filtering
     cf_results = collaborative_filter(
         user_scores=user_scores,
         followed_artist_ids=request.followed_artist_ids,
         candidate_song_features=request.candidate_song_features,
     )
 
-    # Step 3: Content-based từ top 3 bài user nghe nhiều nhất
+    # Step 4: Content-based từ top 3 bài user nghe nhiều nhất
     cb_results: List[ScoredSong] = []
     top_listened = sorted(user_scores.items(), key=lambda x: x[1], reverse=True)[:3]
 
@@ -62,7 +98,7 @@ def recommend_for_you(request: RecommendRequest):
         )
         cb_results.extend(cb)
 
-    # Step 4: Hybrid merge
+    # Step 5: Hybrid merge
     if cf_results and cb_results:
         merged = hybrid_score(
             cf_results=cf_results,
@@ -81,7 +117,7 @@ def recommend_for_you(request: RecommendRequest):
         merged = []
         strategy = "empty"
 
-    # Step 5: Deduplicate + lấy top N
+    # Step 6: Deduplicate + lấy top N
     seen = set()
     final: List[ScoredSong] = []
     for item in merged:

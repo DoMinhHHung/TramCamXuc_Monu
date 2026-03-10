@@ -3,6 +3,8 @@ package iuh.fit.se.identityservice.controller;
 import iuh.fit.se.identityservice.dto.ApiResponse;
 import iuh.fit.se.identityservice.dto.request.ChangePasswordRequest;
 import iuh.fit.se.identityservice.dto.request.ProfileUpdateRequest;
+import iuh.fit.se.identityservice.dto.request.UpdateFavoritesRequest;
+import iuh.fit.se.identityservice.dto.response.FavoritesResponse;
 import iuh.fit.se.identityservice.dto.response.UserResponse;
 import iuh.fit.se.identityservice.service.UserService;
 import jakarta.validation.Valid;
@@ -69,5 +71,31 @@ public class UserController {
     public ApiResponse<Void> banUser(@PathVariable String userId) {
         userService.banUser(userId);
         return ApiResponse.<Void>builder().message("User status updated successfully").build();
+    }
+
+    // ── Favorites for onboarding ──────────────────────────────────────────────
+
+    /**
+     * Lấy thông tin favorites của user hiện tại.
+     * GET /users/my-favorites
+     */
+    @GetMapping("/my-favorites")
+    public ApiResponse<FavoritesResponse> getMyFavorites() {
+        return ApiResponse.<FavoritesResponse>builder()
+                .result(userService.getMyFavorites())
+                .build();
+    }
+
+    /**
+     * Cập nhật favorites (lần đầu hoặc chọn lại).
+     * PUT /users/my-favorites
+     */
+    @PutMapping("/my-favorites")
+    public ApiResponse<FavoritesResponse> updateMyFavorites(
+            @RequestBody @Valid UpdateFavoritesRequest request) {
+        return ApiResponse.<FavoritesResponse>builder()
+                .result(userService.updateMyFavorites(request))
+                .message("Favorites updated successfully")
+                .build();
     }
 }

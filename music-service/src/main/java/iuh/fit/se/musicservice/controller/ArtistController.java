@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -61,19 +62,21 @@ public class ArtistController {
                 .build();
     }
 
+    /**
+     * Lấy danh sách artists phổ biến (dựa vào số lượng bài hát).
+     * Dùng cho onboarding screen.
+     * GET /api/v1/artists/popular?limit=10
+     */
+    @GetMapping("/popular")
+    public ApiResponse<List<ArtistResponse>> getPopularArtists(
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.<List<ArtistResponse>>builder()
+                .result(artistService.getPopularArtists(limit))
+                .build();
+    }
+
     // ── Authenticated ──────────────────────────────────────────────────────────
 
-    /**
-     * Đăng ký làm nghệ sĩ.
-     *
-     * Yêu cầu: JWT chứa claim {@code can_become_artist: true}
-     * (subscription tier cho phép).
-     *
-     * Response chứa {@code newToken} — client dùng ngay để gọi các API cần
-     * ROLE_ARTIST mà không cần đăng nhập lại.
-     *
-     * POST /api/v1/artists/register
-     */
     @PostMapping("/register")
     public ApiResponse<ArtistResponse> registerArtist(
             @Valid @RequestBody ArtistRegisterRequest request) {

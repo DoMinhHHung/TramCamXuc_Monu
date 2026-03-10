@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,4 +36,13 @@ public interface ArtistRepository extends JpaRepository<Artist, UUID> {
     );
 
     Optional<Artist> findByStageNameIgnoreCase(String stageName);
+
+    @Query("""
+            SELECT a FROM Artist a
+            LEFT JOIN Song s ON a.id = s.primaryArtistId AND s.deletedAt IS NULL
+            WHERE a.status = 'ACTIVE'
+            GROUP BY a.id
+            ORDER BY COUNT(s.id) DESC, a.stageName ASC
+            """)
+    List<Artist> findPopularArtists(Pageable pageable);
 }

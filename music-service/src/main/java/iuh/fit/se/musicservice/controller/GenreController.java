@@ -43,6 +43,19 @@ public class GenreController {
                 .build();
     }
 
+    /**
+     * Lấy danh sách genres phổ biến (dựa vào số lượng bài hát).
+     * Dùng cho onboarding screen.
+     * GET /api/v1/genres/popular?limit=10
+     */
+    @GetMapping("/popular")
+    public ApiResponse<List<GenreResponse>> getPopularGenres(
+            @RequestParam(defaultValue = "10") int limit) {
+        return ApiResponse.<List<GenreResponse>>builder()
+                .result(genreService.getPopularGenres(limit))
+                .build();
+    }
+
     // ===================== ADMIN =====================
 
     /**
