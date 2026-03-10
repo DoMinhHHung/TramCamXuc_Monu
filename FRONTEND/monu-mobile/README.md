@@ -56,3 +56,5 @@ npm run start
 ```
 
 Nếu test trên thiết bị thật, hãy sửa `REACT_NATIVE_PACKAGER_HOSTNAME` trong script `start` theo IP LAN của máy dev.
+
+Mặc định Metro bundler chạy ở port `8090` để tránh đụng port `8081`.
