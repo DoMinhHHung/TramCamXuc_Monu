@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useAuth } from '../context/AuthContext';
@@ -13,13 +13,25 @@ type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: ['monumobile://'],
+  config: {
+    screens: {
+      Home: 'home',
+    },
+  },
+};
+
 export const AppNavigator = () => {
   const { authSession } = useAuth();
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {authSession ? <Stack.Screen name="Home" component={HomeScreen} /> : <Stack.Screen name="Login" component={LoginScreen} />}
+    <NavigationContainer linking={linking}>
+      <Stack.Navigator key={authSession ? 'authed' : 'guest'} screenOptions={{ headerShown: false }}>
+        {authSession
+          ? <Stack.Screen name="Home" component={HomeScreen} />
+          : <Stack.Screen name="Login" component={LoginScreen} />
+        }
       </Stack.Navigator>
     </NavigationContainer>
   );

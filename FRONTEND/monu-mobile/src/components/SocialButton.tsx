@@ -5,11 +5,16 @@ interface SocialButtonProps {
   label: string;
   variant: 'google' | 'facebook';
   onPress: () => void;
+  disabled?: boolean;
 }
 
-export const SocialButton = ({ label, variant, onPress }: SocialButtonProps) => {
+export const SocialButton = ({ label, variant, onPress, disabled }: SocialButtonProps) => {
   return (
-    <Pressable style={[styles.button, variant === 'google' ? styles.google : styles.facebook]} onPress={onPress}>
+    <Pressable
+      style={[styles.button, variant === 'google' ? styles.google : styles.facebook, disabled && styles.disabled]}
+      onPress={onPress}
+      disabled={disabled}
+    >
       <Text style={styles.text}>{label}</Text>
     </Pressable>
   );
@@ -32,5 +37,8 @@ const styles = StyleSheet.create({
   text: {
     color: '#fff',
     fontWeight: '700'
+  },
+  disabled: {
+    opacity: 0.5
   }
 });
