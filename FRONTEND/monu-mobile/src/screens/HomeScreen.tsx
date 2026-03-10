@@ -4,11 +4,11 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
 export const HomeScreen = () => {
-  const { authData, logout } = useAuth();
+  const { authSession, logout } = useAuth();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Xin chào {authData?.user.name ?? authData?.user.email}</Text>
+      <Text style={styles.title}>Xin chào {authSession?.profile?.fullName ?? authSession?.profile?.email}</Text>
       <Text style={styles.caption}>Bạn đã đăng nhập thành công vào Monu Mobile.</Text>
       <Pressable style={styles.logoutButton} onPress={logout}>
         <Text style={styles.logoutText}>Đăng xuất</Text>

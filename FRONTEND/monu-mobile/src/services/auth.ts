@@ -1,25 +1,29 @@
-import { AuthResponse, LoginPayload } from '../types/auth';
+import {
+  ApiResponse,
+  AuthenticationResponse,
+  ExchangeTokenPayload,
+  LoginPayload,
+  RefreshPayload,
+  UserProfile
+} from '../types/auth';
 import { apiClient } from './api';
 
-export const loginWithEmail = async (payload: LoginPayload): Promise<AuthResponse> => {
-  const response = await apiClient.post<AuthResponse>('/auth/login', payload);
-  return response.data;
+export const loginWithEmail = async (payload: LoginPayload): Promise<AuthenticationResponse> => {
+  const response = await apiClient.post<ApiResponse<AuthenticationResponse>>('/auth/login', payload);
+  return response.data.result;
 };
 
-export const exchangeGoogleCode = async (code: string, redirectUri: string): Promise<AuthResponse> => {
-  const response = await apiClient.post<AuthResponse>('/auth/oauth/google/mobile', {
-    code,
-    redirectUri
-  });
-
-  return response.data;
+export const socialLogin = async (payload: ExchangeTokenPayload): Promise<AuthenticationResponse> => {
+  const response = await apiClient.post<ApiResponse<AuthenticationResponse>>('/auth/social', payload);
+  return response.data.result;
 };
 
-export const exchangeFacebookCode = async (code: string, redirectUri: string): Promise<AuthResponse> => {
-  const response = await apiClient.post<AuthResponse>('/auth/oauth/facebook/mobile', {
-    code,
-    redirectUri
-  });
+export const refreshToken = async (payload: RefreshPayload): Promise<AuthenticationResponse> => {
+  const response = await apiClient.post<ApiResponse<AuthenticationResponse>>('/auth/refresh', payload);
+  return response.data.result;
+};
 
-  return response.data;
+export const getMyProfile = async (): Promise<UserProfile> => {
+  const response = await apiClient.get<ApiResponse<UserProfile>>('/users/my-profile');
+  return response.data.result;
 };

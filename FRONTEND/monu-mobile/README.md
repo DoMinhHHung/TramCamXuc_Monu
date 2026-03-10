@@ -31,15 +31,19 @@ monu-mobile/
         └── env.d.ts
 ```
 
-## 2) Auth flow
-- Email/password: gọi `POST /auth/login`.
-- Google OAuth: mở auth URL, lấy `code`, gửi về backend qua `POST /auth/oauth/google/mobile`.
-- Facebook OAuth: mở auth URL, lấy `code`, gửi về backend qua `POST /auth/oauth/facebook/mobile`.
+## 2) Auth flow (đúng theo Identity API docs)
+- Email/password: `POST /auth/login` với body `{ email, password }`.
+- Google/Facebook:
+  - Mobile lấy **OAuth access token** từ provider.
+  - Gọi `POST /auth/social` với body `{ token, provider }` (provider: `GOOGLE` hoặc `FACEBOOK`).
+- Sau khi có JWT từ backend:
+  - Gắn `Authorization: Bearer <accessToken>`.
+  - Gọi `GET /users/my-profile` để lấy user profile.
 
 ## 3) Cấu hình ENV cho mobile
 
 File `.env` đã có sẵn các biến:
-- `API_BASE_URL`
+- `API_BASE_URL` (VD: `http://localhost:8080/service-identity`)
 - `GOOGLE_CLIENT_ID`
 - `FACEBOOK_CLIENT_ID`
 
@@ -51,4 +55,4 @@ npm install
 npm run start
 ```
 
-Nếu backend chạy local, hãy chỉnh `API_BASE_URL` theo địa chỉ backend thật (IP máy dev hoặc domain).
+Nếu test trên thiết bị thật, hãy sửa `REACT_NATIVE_PACKAGER_HOSTNAME` trong script `start` theo IP LAN của máy dev.

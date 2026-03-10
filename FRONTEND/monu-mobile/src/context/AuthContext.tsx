@@ -1,54 +1,58 @@
 import React, { createContext, PropsWithChildren, useContext, useMemo, useState } from 'react';
 
-import { exchangeFacebookCode, exchangeGoogleCode, loginWithEmail } from '../services/auth';
+import { getMyProfile, loginWithEmail, refreshToken, socialLogin } from '../services/auth';
 import { attachAccessToken } from '../services/api';
-import { AuthResponse } from '../types/auth';
+import { AuthSession, SocialProvider } from '../types/auth';
 
 interface AuthContextValue {
-  authData: AuthResponse | null;
+  authSession: AuthSession | null;
   login: (email: string, password: string) => Promise<void>;
-  loginByGoogleCode: (code: string, redirectUri: string) => Promise<void>;
-  loginByFacebookCode: (code: string, redirectUri: string) => Promise<void>;
+  loginWithSocialToken: (provider: SocialProvider, token: string) => Promise<void>;
+  rehydrateByRefreshToken: (refreshTokenValue: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const setAuthSession = (data: AuthResponse | null) => {
-  attachAccessToken(data?.accessToken ?? null);
+const setAccessToken = (token: string | null) => {
+  attachAccessToken(token);
 };
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
-  const [authData, setAuthData] = useState<AuthResponse | null>(null);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
 
-  const saveAuth = (data: AuthResponse) => {
-    setAuthData(data);
-    setAuthSession(data);
+  const finalizeLogin = async (tokens: { accessToken: string; refreshToken: string; authenticated: boolean }) => {
+    setAccessToken(tokens.accessToken);
+    const profile = await getMyProfile();
+    setAuthSession({ tokens, profile });
   };
 
   const login = async (email: string, password: string) => {
-    const data = await loginWithEmail({ email, password });
-    saveAuth(data);
+    const tokens = await loginWithEmail({ email, password });
+    await finalizeLogin(tokens);
   };
 
-  const loginByGoogleCode = async (code: string, redirectUri: string) => {
-    const data = await exchangeGoogleCode(code, redirectUri);
-    saveAuth(data);
+  const loginWithSocialToken = async (provider: SocialProvider, token: string) => {
+    const tokens = await socialLogin({
+      provider,
+      token
+    });
+    await finalizeLogin(tokens);
   };
 
-  const loginByFacebookCode = async (code: string, redirectUri: string) => {
-    const data = await exchangeFacebookCode(code, redirectUri);
-    saveAuth(data);
+  const rehydrateByRefreshToken = async (refreshTokenValue: string) => {
+    const tokens = await refreshToken({ refreshToken: refreshTokenValue });
+    await finalizeLogin(tokens);
   };
 
   const logout = () => {
-    setAuthData(null);
     setAuthSession(null);
+    setAccessToken(null);
   };
 
   const value = useMemo(
-    () => ({ authData, login, loginByGoogleCode, loginByFacebookCode, logout }),
-    [authData]
+    () => ({ authSession, login, loginWithSocialToken, rehydrateByRefreshToken, logout }),
+    [authSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
