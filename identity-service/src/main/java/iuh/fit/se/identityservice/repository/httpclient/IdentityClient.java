@@ -29,7 +29,8 @@ public class IdentityClient {
     public OutboundUserResponse getUserInfoFromGoogle(String token) {
         try {
             return restClient.get()
-                    .uri("https://oauth2.googleapis.com/tokeninfo?id_token={token}", token)
+                    .uri("https://www.googleapis.com/oauth2/v3/userinfo")
+                    .header("Authorization", "Bearer " + token)
                     .retrieve()
                     .body(OutboundUserResponse.class);
         } catch (Exception e) {

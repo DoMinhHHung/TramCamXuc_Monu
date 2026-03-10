@@ -1,85 +1,61 @@
-import * as Linking from 'expo-linking';
+import * as Google from 'expo-auth-session/providers/google';
+import * as Facebook from 'expo-auth-session/providers/facebook';
 import * as WebBrowser from 'expo-web-browser';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { SocialButton } from '../components/SocialButton';
 import { env } from '../config/env';
+import { SocialButton } from '../components/SocialButton';
 import { useAuth } from '../context/AuthContext';
-import { SocialProvider } from '../types/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const parseAccessToken = (url: string): string | null => {
-  try {
-    const [cleanUrl, hash] = url.split('#');
-
-    if (hash) {
-      const hashParams = new URLSearchParams(hash);
-      const tokenFromHash = hashParams.get('access_token');
-      if (tokenFromHash) {
-        return tokenFromHash;
-      }
-    }
-
-    const parsed = Linking.parse(cleanUrl);
-    const queryToken = parsed.queryParams?.access_token;
-    return typeof queryToken === 'string' ? queryToken : null;
-  } catch {
-    return null;
-  }
-};
-
-const buildAuthUrl = (provider: SocialProvider, redirectUri: string) => {
-  if (provider === 'GOOGLE') {
-    return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${env.googleClientId}&redirect_uri=${encodeURIComponent(
-      redirectUri
-    )}&response_type=token&scope=${encodeURIComponent('openid email profile')}&include_granted_scopes=true&prompt=consent`;
-  }
-
-  return `https://www.facebook.com/v20.0/dialog/oauth?client_id=${env.facebookClientId}&redirect_uri=${encodeURIComponent(
-    redirectUri
-  )}&response_type=token&scope=${encodeURIComponent('email public_profile')}`;
-};
-
 export const LoginScreen = () => {
-  const { login, loginWithSocialToken } = useAuth();
-  const redirectUri = useMemo(() => Linking.createURL('oauth'), []);
+  const { login, loginByGoogleToken, loginByFacebookToken } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Google Auth
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
+    clientId: env.googleClientId,
+  });
+
+  // Facebook Auth
+  const [fbRequest, fbResponse, fbPromptAsync] = Facebook.useAuthRequest({
+    clientId: env.facebookClientId,
+  });
+
+  // Xử lý kết quả Google
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { id_token } = googleResponse.params;
+      setLoading(true);
+      loginByGoogleToken(id_token)
+        .catch(() => Alert.alert('Google Login thất bại', 'Vui lòng thử lại.'))
+        .finally(() => setLoading(false));
+    }
+  }, [googleResponse]);
+
+  // Xử lý kết quả Facebook
+  useEffect(() => {
+    if (fbResponse?.type === 'success') {
+      const { access_token } = fbResponse.params;
+      setLoading(true);
+      loginByFacebookToken(access_token)
+        .catch(() => Alert.alert('Facebook Login thất bại', 'Vui lòng thử lại.'))
+        .finally(() => setLoading(false));
+    }
+  }, [fbResponse]);
+
   const doEmailLogin = async () => {
     try {
       setLoading(true);
-      await login(email.trim(), password);
-    } catch {
-      Alert.alert('Đăng nhập thất bại', 'Vui lòng kiểm tra lại tài khoản hoặc backend.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const doSocialLogin = async (provider: SocialProvider) => {
-    try {
-      setLoading(true);
-      const authUrl = buildAuthUrl(provider, redirectUri);
-      const response = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
-
-      if (response.type !== 'success') {
-        return;
-      }
-
-      const accessToken = parseAccessToken(response.url);
-      if (!accessToken) {
-        Alert.alert(`${provider} Login`, 'Không lấy được access token từ OAuth provider.');
-        return;
-      }
-
-      await loginWithSocialToken(provider, accessToken);
-    } catch {
-      Alert.alert(`${provider} Login thất bại`, 'Vui lòng kiểm tra cấu hình OAuth và backend /auth/social.');
+      await login(email, password);
+    } catch (error: any) {
+      console.error('[Login Error]', error);
+      Alert.alert('Đăng nhập thất bại', error?.message || 'Lỗi không xác định');
     } finally {
       setLoading(false);
     }
@@ -92,7 +68,6 @@ export const LoginScreen = () => {
 
       <TextInput
         autoCapitalize="none"
-        keyboardType="email-address"
         placeholder="Email"
         style={styles.input}
         value={email}
@@ -110,8 +85,18 @@ export const LoginScreen = () => {
         <Text style={styles.loginText}>{loading ? 'Đang xử lý...' : 'Đăng nhập'}</Text>
       </Pressable>
 
-      <SocialButton label="Đăng nhập với Google" variant="google" onPress={() => doSocialLogin('GOOGLE')} />
-      <SocialButton label="Đăng nhập với Facebook" variant="facebook" onPress={() => doSocialLogin('FACEBOOK')} />
+      <SocialButton
+        label="Đăng nhập với Google"
+        variant="google"
+        onPress={() => googlePromptAsync()}
+        disabled={!googleRequest || loading}
+      />
+      <SocialButton
+        label="Đăng nhập với Facebook"
+        variant="facebook"
+        onPress={() => fbPromptAsync()}
+        disabled={!fbRequest || loading}
+      />
     </View>
   );
 };

@@ -1,5 +1,5 @@
 server:
-  port: 8081
+  port: 8762
 
 spring:
   application:
@@ -60,3 +60,10 @@ open:
     version: 1.0.0
     server-url: ${GATEWAY_URL:http://localhost:8080}/service-identity
     server-description: API Gateway
+
+oauth:
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
+  facebook:
+    client-id: ${FACEBOOK_CLIENT_ID}
+  callback-base-url: ${OAUTH_CALLBACK_BASE_URL:https://phazelsound.oopsgolden.id.vn}
