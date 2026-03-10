@@ -3,14 +3,18 @@ import * as Facebook from 'expo-auth-session/providers/facebook';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { env } from '../config/env';
 import { SocialButton } from '../components/SocialButton';
 import { useAuth } from '../context/AuthContext';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export const LoginScreen = () => {
+type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
+
+export const LoginScreen = ({ navigation }: Props) => {
   const { login, loginByGoogleToken, loginByFacebookToken } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -97,6 +101,13 @@ export const LoginScreen = () => {
         onPress={() => fbPromptAsync()}
         disabled={!fbRequest || loading}
       />
+
+      <Pressable onPress={() => navigation.navigate('Register')}>
+        <Text style={styles.link}>Tạo tài khoản mới</Text>
+      </Pressable>
+      <Pressable onPress={() => navigation.navigate('ForgotPassword')}>
+        <Text style={styles.link}>Quên mật khẩu?</Text>
+      </Pressable>
     </View>
   );
 };
@@ -139,5 +150,11 @@ const styles = StyleSheet.create({
   loginText: {
     color: '#fff',
     fontWeight: '700'
+  },
+  link: {
+    textAlign: 'center',
+    color: '#2563eb',
+    marginTop: 12,
+    fontWeight: '600'
   }
 });
