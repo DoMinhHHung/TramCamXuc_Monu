@@ -7,7 +7,9 @@ interface AuthContextValue {
   authSession: AuthSession | null;
   login: (email: string, password: string) => Promise<void>;
   loginWithSocialToken: (provider: SocialProvider, token: string) => Promise<void>;
-  loginDirect: (accessToken: string, refreshToken: string) => Promise<void>; // ← thêm
+  loginByGoogleToken: (token: string) => Promise<void>;
+  loginByFacebookToken: (token: string) => Promise<void>;
+  loginDirect: (accessToken: string, refreshToken: string) => Promise<void>;
   rehydrateByRefreshToken: (refreshTokenValue: string) => Promise<void>;
   logout: () => void;
 }
@@ -33,12 +35,16 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     await finalizeLogin(tokens);
   };
 
+  const loginByGoogleToken = async (token: string) => loginWithSocialToken('GOOGLE', token);
+
+  const loginByFacebookToken = async (token: string) => loginWithSocialToken('FACEBOOK', token);
+
   const loginDirect = async (accessToken: string, rt: string) => {
     attachAccessToken(accessToken);
     const profile = await getMyProfile();
     setAuthSession({
       tokens: { accessToken, refreshToken: rt, authenticated: true },
-      profile,
+      profile
     });
   };
 
@@ -53,8 +59,17 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   };
 
   const value = useMemo(
-      () => ({ authSession, login, loginWithSocialToken, loginDirect, rehydrateByRefreshToken, logout }),
-      [authSession]
+    () => ({
+      authSession,
+      login,
+      loginWithSocialToken,
+      loginByGoogleToken,
+      loginByFacebookToken,
+      loginDirect,
+      rehydrateByRefreshToken,
+      logout
+    }),
+    [authSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

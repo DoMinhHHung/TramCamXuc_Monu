@@ -1,30 +1,34 @@
 import * as Google from 'expo-auth-session/providers/google';
 import * as Facebook from 'expo-auth-session/providers/facebook';
 import * as WebBrowser from 'expo-web-browser';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { env } from '../config/env';
 import { SocialButton } from '../components/SocialButton';
 import { useAuth } from '../context/AuthContext';
+import { RootStackParamList } from '../navigation/types';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export const LoginScreen = () => {
+type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
+
+export const LoginScreen = ({ navigation, route }: Props) => {
   const { login, loginByGoogleToken, loginByFacebookToken } = useAuth();
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(route.params?.presetEmail ?? '');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   // Google Auth
   const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
-    clientId: env.googleClientId,
+    clientId: env.googleClientId
   });
 
   // Facebook Auth
   const [fbRequest, fbResponse, fbPromptAsync] = Facebook.useAuthRequest({
-    clientId: env.facebookClientId,
+    clientId: env.facebookClientId
   });
 
   // Xử lý kết quả Google
@@ -36,7 +40,7 @@ export const LoginScreen = () => {
         .catch(() => Alert.alert('Google Login thất bại', 'Vui lòng thử lại.'))
         .finally(() => setLoading(false));
     }
-  }, [googleResponse]);
+  }, [googleResponse, loginByGoogleToken]);
 
   // Xử lý kết quả Facebook
   useEffect(() => {
@@ -47,7 +51,7 @@ export const LoginScreen = () => {
         .catch(() => Alert.alert('Facebook Login thất bại', 'Vui lòng thử lại.'))
         .finally(() => setLoading(false));
     }
-  }, [fbResponse]);
+  }, [fbResponse, loginByFacebookToken]);
 
   const doEmailLogin = async () => {
     try {
@@ -66,20 +70,8 @@ export const LoginScreen = () => {
       <Text style={styles.title}>Monu Mobile</Text>
       <Text style={styles.subtitle}>Đăng nhập để tiếp tục</Text>
 
-      <TextInput
-        autoCapitalize="none"
-        placeholder="Email"
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        secureTextEntry
-        placeholder="Mật khẩu"
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-      />
+      <TextInput autoCapitalize="none" placeholder="Email" style={styles.input} value={email} onChangeText={setEmail} />
+      <TextInput secureTextEntry placeholder="Mật khẩu" style={styles.input} value={password} onChangeText={setPassword} />
 
       <Pressable style={styles.loginButton} onPress={doEmailLogin} disabled={loading}>
         <Text style={styles.loginText}>{loading ? 'Đang xử lý...' : 'Đăng nhập'}</Text>
@@ -97,6 +89,13 @@ export const LoginScreen = () => {
         onPress={() => fbPromptAsync()}
         disabled={!fbRequest || loading}
       />
+
+      <Pressable onPress={() => navigation.navigate('Register')}>
+        <Text style={styles.link}>Tạo tài khoản mới</Text>
+      </Pressable>
+      <Pressable onPress={() => navigation.navigate('ForgotPassword')}>
+        <Text style={styles.link}>Quên mật khẩu?</Text>
+      </Pressable>
     </View>
   );
 };
@@ -139,5 +138,11 @@ const styles = StyleSheet.create({
   loginText: {
     color: '#fff',
     fontWeight: '700'
+  },
+  link: {
+    textAlign: 'center',
+    color: '#2563eb',
+    fontWeight: '600',
+    marginTop: 8
   }
 });

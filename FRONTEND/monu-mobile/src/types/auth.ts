@@ -26,6 +26,25 @@ export interface ExchangeTokenPayload {
   provider: 'LOCAL' | 'GOOGLE' | 'FACEBOOK';
 }
 
+export interface UserRegistrationPayload {
+  email: string;
+  password: string;
+  fullName: string;
+  dob: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
+}
+
+export interface VerifyOtpPayload {
+  email: string;
+  otp: string;
+}
+
+export interface PasswordResetPayload {
+  email: string;
+  otp: string;
+  newPassword: string;
+}
+
 export interface UserProfile {
   id: string;
   fullName: string;
