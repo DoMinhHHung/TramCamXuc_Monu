@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping("/internal/social")
 @RequiredArgsConstructor
 @Slf4j
 public class InternalRecommendationController {

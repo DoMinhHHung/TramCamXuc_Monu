@@ -17,17 +17,17 @@ export const updateMyFavorites = async (data: UpdateFavoritesRequest): Promise<F
 
 // ─── Music API - Genres & Artists ─────────────────────────────────────────────
 
-/** GET /api/v1/genres/popular?limit=10 */
+/** GET /genres/popular?limit=10 */
 export const getPopularGenres = async (limit: number = 10): Promise<Genre[]> => {
-  const response = await apiClient.get<Genre[]>(`/api/v1/genres/popular`, {
+  const response = await apiClient.get<Genre[]>(`/genres/popular`, {
     params: { limit }
   });
   return response.data;
 };
 
-/** GET /api/v1/artists/popular?limit=10 */
+/** GET /artists/popular?limit=10 */
 export const getPopularArtists = async (limit: number = 10): Promise<Artist[]> => {
-  const response = await apiClient.get<Artist[]>(`/api/v1/artists/popular`, {
+  const response = await apiClient.get<Artist[]>(`/artists/popular`, {
     params: { limit }
   });
   return response.data;

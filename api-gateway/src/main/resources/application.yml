@@ -67,7 +67,7 @@ spring:
         - id: music-service-api
           uri: lb://MUSIC-SERVICE
           predicates:
-            - Path=/api/v1/songs/**, /api/v1/albums/**, /api/v1/genres/**, /api/v1/artists/**, /api/v1/playlists/**, /api/v1/admin/**
+            - Path=/songs/**, /albums/**, /genres/**, /artists/**, /playlists/**, /admin/songs/**, /admin/jamendo/**, /admin/reports/**
           filters:
             - name: RequestRateLimiter
               args:
@@ -178,7 +178,7 @@ spring:
         - id: recommendation-service-api
           uri: lb://RECOMMENDATION-SERVICE
           predicates:
-            - Path=/api/v1/recommendations/**
+            - Path=/recommendations/**
           filters:
             - name: RequestRateLimiter
               args:

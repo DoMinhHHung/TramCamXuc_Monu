@@ -12,8 +12,7 @@ import java.util.UUID;
 
 @FeignClient(
         name = "music-service",
-        path = "/api/v1",
-        configuration = FeignConfig.class
+                configuration = FeignConfig.class
 )
 public interface MusicServiceClient {
 
