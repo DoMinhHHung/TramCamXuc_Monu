@@ -21,6 +21,7 @@
         <module>music-service</module>
         <module>social-service</module>
         <module>recommendation-service</module>
+        <module>ads-service</module>
     </modules>
 
     <properties>
