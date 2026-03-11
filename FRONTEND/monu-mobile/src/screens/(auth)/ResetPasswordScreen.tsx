@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { resetPassword, resendOtp } from '../../services/auth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { COLORS } from '../../config/colors';
+import { BackButton } from '../../components/BackButton';
 
 const OTP_LENGTH = 6;
 const RESEND_SECS = 60;
@@ -98,9 +99,7 @@ export default function ResetPasswordScreen() {
     return (
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 60 }} keyboardShouldPersistTaps="handled">
-                <Pressable onPress={() => navigation.goBack()} style={{ marginBottom: 32 }}>
-                    <Text style={{ color: COLORS.accent, fontSize: 15, fontWeight: '600' }}>← Quay lại</Text>
-                </Pressable>
+                <BackButton onPress={() => navigation.goBack()} />
 
                 <View style={[styles.iconWrap, { backgroundColor: COLORS.surface, borderColor: COLORS.accentDim }]}>
                     <Text style={{ fontSize: 34 }}>🛡️</Text>

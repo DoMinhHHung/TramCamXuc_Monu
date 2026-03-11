@@ -8,6 +8,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { registerUser } from '../../services/auth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { COLORS } from '../../config/colors';
+import { BackButton } from '../../components/BackButton';
 
 type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Register'>;
@@ -58,6 +59,7 @@ export default function RegisterScreen() {
     return (
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+                <BackButton onPress={() => navigation.goBack()} />
                 <View style={styles.header}>
                     <View style={[styles.logoRing, { borderColor: COLORS.accent, backgroundColor: COLORS.surface }]}>
                         <Text style={{ fontSize: 32 }}>🎵</Text>
@@ -86,7 +88,7 @@ export default function RegisterScreen() {
                     <Text style={styles.btnText}>{loading ? 'Đang xử lý...' : 'Đăng ký'}</Text>
                 </Pressable>
 
-                <Pressable onPress={() => navigation.goBack()} style={styles.linkRow}>
+                <Pressable onPress={() => navigation.navigate('LoginOptions')} style={styles.linkRow}>
                     <Text style={{ color: COLORS.muted, fontSize: 14 }}>
                         Đã có tài khoản? <Text style={{ color: COLORS.accent, fontWeight: '700' }}>Đăng nhập</Text>
                     </Text>
@@ -111,7 +113,7 @@ function Field({ label, value, onChangeText, placeholder, secure, keyboard, auto
 }
 
 const styles = StyleSheet.create({
-    scroll:    { flexGrow: 1, padding: 24, paddingTop: 60 },
+    scroll:    { flexGrow: 1, padding: 24, paddingTop: 24 },
     header:    { alignItems: 'center', marginBottom: 32 },
     logoRing:  { width: 72, height: 72, borderRadius: 36, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
     heading:   { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
