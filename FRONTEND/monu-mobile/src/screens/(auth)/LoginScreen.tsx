@@ -112,7 +112,7 @@ export const LoginScreen = () => {
         <SocialButton label="Đăng nhập với Facebook" variant="facebook" onPress={() => doSocialLogin('FACEBOOK')} disabled={loading} />
 
         {/* Register link */}
-        <Pressable onPress={() => navigation.navigate('Register')} style={styles.registerRow}>
+        <Pressable onPress={() => navigation.navigate('RegisterOptions')} style={styles.registerRow}>
           <Text style={{ color: COLORS.muted, fontSize: 14 }}>
             Chưa có tài khoản? <Text style={{ color: COLORS.accent, fontWeight: '700' }}>Đăng ký</Text>
           </Text>

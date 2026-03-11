@@ -86,7 +86,7 @@ export default function RegisterScreen() {
                     <Text style={styles.btnText}>{loading ? 'Đang xử lý...' : 'Đăng ký'}</Text>
                 </Pressable>
 
-                <Pressable onPress={() => navigation.goBack()} style={styles.linkRow}>
+                <Pressable onPress={() => navigation.navigate('LoginOptions')} style={styles.linkRow}>
                     <Text style={{ color: COLORS.muted, fontSize: 14 }}>
                         Đã có tài khoản? <Text style={{ color: COLORS.accent, fontWeight: '700' }}>Đăng nhập</Text>
                     </Text>

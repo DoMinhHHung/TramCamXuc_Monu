@@ -59,7 +59,7 @@ export const AppNavigator = () => {
 
   return (
     <NavigationContainer linking={linking}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
         {authSession ? (
           <>
             {needsOnboarding ? (
