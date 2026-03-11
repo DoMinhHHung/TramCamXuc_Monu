@@ -4,14 +4,14 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { useAuth } from '../context/AuthContext';
 import { HomeScreen } from '../screens/HomeScreen';
-import { LoginScreen } from '../screens/LoginScreen';
-import RegisterScreen from '../screens/RegisterScreen';
-import VerifyOtpScreen from '../screens/VerifyOtpScreen';
-import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
-import ResetPasswordScreen from '../screens/ResetPasswordScreen';
-import { SelectGenresScreen } from '../screens/SelectGenresScreen';
-import { SelectArtistsScreen } from '../screens/SelectArtistsScreen';
-import { EditFavoritesScreen } from '../screens/EditFavoritesScreen';
+import { LoginScreen } from '../screens/(auth)/LoginScreen';
+import RegisterScreen from '../screens/(auth)/RegisterScreen';
+import VerifyOtpScreen from '../screens/(auth)/VerifyOtpScreen';
+import ForgotPasswordScreen from '../screens/(auth)/ForgotPasswordScreen';
+import ResetPasswordScreen from '../screens/(auth)/ResetPasswordScreen';
+import { SelectGenresScreen } from '../screens/(onBoard)/SelectGenresScreen';
+import { SelectArtistsScreen } from '../screens/(onBoard)/SelectArtistsScreen';
+import { EditFavoritesScreen } from '../screens/(settings)/EditFavoritesScreen';
 
 // Navigation parameter types for all screens
 export type RootStackParamList = {

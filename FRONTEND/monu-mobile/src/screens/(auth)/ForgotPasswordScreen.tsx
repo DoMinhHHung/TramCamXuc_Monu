@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { forgotPassword } from '../services/auth';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { COLORS } from '../config/colors';
+import { forgotPassword } from '../../services/auth';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { COLORS } from '../../config/colors';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 

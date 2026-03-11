@@ -11,17 +11,17 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { ArtistCard } from '../components/ArtistCard';
-import { GenreChip } from '../components/GenreChip';
+import { ArtistCard } from '../../components/ArtistCard';
+import { GenreChip } from '../../components/GenreChip';
 import {
   getMyFavorites,
   getPopularArtists,
   getPopularGenres,
   updateMyFavorites
-} from '../services/favorites';
-import { Artist, Genre } from '../types/favorites';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { COLORS } from '../config/colors';
+} from '../../services/favorites';
+import { Artist, Genre } from '../../types/favorites';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { COLORS } from '../../config/colors';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'EditFavorites'>;
 

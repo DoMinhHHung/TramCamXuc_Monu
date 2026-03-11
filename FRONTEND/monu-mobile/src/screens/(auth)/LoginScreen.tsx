@@ -5,10 +5,10 @@ import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-nativ
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { SocialButton } from '../components/SocialButton';
-import { useAuth } from '../context/AuthContext';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { COLORS } from '../config/colors';
+import { SocialButton } from '../../components/SocialButton';
+import { useAuth } from '../../context/AuthContext';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { COLORS } from '../../config/colors';
 
 WebBrowser.maybeCompleteAuthSession();
 

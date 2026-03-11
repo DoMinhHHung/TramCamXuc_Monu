@@ -11,24 +11,14 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { GenreChip } from '../components/GenreChip';
-import { getPopularGenres } from '../services/favorites';
-import { Genre } from '../types/favorites';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { useAuth } from '../context/AuthContext';
+import { GenreChip } from '../../components/GenreChip';
+import { getPopularGenres } from '../../services/favorites';
+import { Genre } from '../../types/favorites';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { useAuth } from '../../context/AuthContext';
+import { COLORS } from '../../config/colors';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SelectGenres'>;
-
-const COLORS = {
-  bg: '#0A090E',
-  surface: '#13111A',
-  border: '#2A2640',
-  accent: '#C084FC',
-  accentDim: '#7C3AED',
-  text: '#F3F0FF',
-  muted: '#7B7591',
-  error: '#EF4444',
-};
 
 const MIN_GENRES = 1;
 const MAX_GENRES = 5;
@@ -75,97 +65,106 @@ export const SelectGenresScreen = () => {
       return;
     }
 
-    // Navigate to SelectArtists with selected genres
     navigation.navigate('SelectArtists', { selectedGenreIds: selectedGenres });
   };
 
   const handleSkip = async () => {
     Alert.alert(
-      'Bỏ qua?',
-      'Nếu bỏ qua, bạn sẽ không nhận được gợi ý nhạc phù hợp. Bạn có thể chọn sở thích sau trong phần cài đặt.',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { 
-          text: 'Bỏ qua', 
-          style: 'destructive',
-          onPress: async () => {
-            await refreshProfile();
+        'Bỏ qua?',
+        'Nếu bỏ qua, bạn sẽ không nhận được gợi ý nhạc phù hợp.',
+        [
+          { text: 'Hủy', style: 'cancel' },
+          {
+            text: 'Bỏ qua',
+            style: 'destructive',
+            onPress: async () => {
+              await refreshProfile();
+            }
           }
-        }
-      ]
+        ]
     );
   };
 
-  const canContinue = selectedGenres.length >= MIN_GENRES && 
-                      selectedGenres.length <= MAX_GENRES;
+  const canContinue =
+      selectedGenres.length >= MIN_GENRES &&
+      selectedGenres.length <= MAX_GENRES;
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-        <Text style={styles.loadingText}>Đang tải...</Text>
-      </View>
+        <View style={[styles.container, styles.centered]}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+          <Text style={styles.loadingText}>Đang tải...</Text>
+        </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView 
-        style={styles.scrollView} 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.emoji}>🎵</Text>
-          <Text style={styles.title}>Chào mừng đến Monu!</Text>
-          <Text style={styles.subtitle}>
-            Hãy cho chúng tôi biết thể loại nhạc yêu thích của bạn
-          </Text>
-          <View style={styles.stepIndicator}>
-            <View style={[styles.stepDot, styles.stepDotActive]} />
-            <View style={styles.stepDot} />
+      <View style={styles.container}>
+        <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <Text style={styles.emoji}>🎵</Text>
+            <Text style={styles.title}>Chào mừng đến Monu!</Text>
+            <Text style={styles.subtitle}>
+              Hãy cho chúng tôi biết thể loại nhạc yêu thích của bạn
+            </Text>
+
+            <View style={styles.stepIndicator}>
+              <View style={[styles.stepDot, styles.stepDotActive]} />
+              <View style={styles.stepDot} />
+            </View>
           </View>
-        </View>
 
-        {/* Genres Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Chọn {MIN_GENRES}-{MAX_GENRES} thể loại 
-            <Text style={styles.sectionCount}> ({selectedGenres.length}/{MAX_GENRES})</Text>
-          </Text>
-          <View style={styles.genresContainer}>
-            {genres.map(genre => (
-              <GenreChip
-                key={genre.id}
-                name={genre.name}
-                selected={selectedGenres.includes(genre.id)}
-                onPress={() => toggleGenre(genre.id)}
-                disabled={!selectedGenres.includes(genre.id) && selectedGenres.length >= MAX_GENRES}
-              />
-            ))}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              Chọn {MIN_GENRES}-{MAX_GENRES} thể loại
+              <Text style={styles.sectionCount}>
+                {' '}
+                ({selectedGenres.length}/{MAX_GENRES})
+              </Text>
+            </Text>
+
+            <View style={styles.genresContainer}>
+              {genres.map(genre => (
+                  <GenreChip
+                      key={genre.id}
+                      name={genre.name}
+                      selected={selectedGenres.includes(genre.id)}
+                      onPress={() => toggleGenre(genre.id)}
+                      disabled={
+                          !selectedGenres.includes(genre.id) &&
+                          selectedGenres.length >= MAX_GENRES
+                      }
+                  />
+              ))}
+            </View>
           </View>
-        </View>
 
-        {/* Buttons */}
-        <View style={styles.buttonsContainer}>
-          <Pressable
-            style={[styles.button, styles.buttonPrimary, !canContinue && styles.buttonDisabled]}
-            onPress={handleContinue}
-            disabled={!canContinue}
-          >
-            <Text style={styles.buttonPrimaryText}>Tiếp tục</Text>
-          </Pressable>
+          <View style={styles.buttonsContainer}>
+            <Pressable
+                style={[
+                  styles.button,
+                  styles.buttonPrimary,
+                  !canContinue && styles.buttonDisabled
+                ]}
+                onPress={handleContinue}
+                disabled={!canContinue}
+            >
+              <Text style={styles.buttonPrimaryText}>Tiếp tục</Text>
+            </Pressable>
 
-          <Pressable
-            style={[styles.button, styles.buttonSecondary]}
-            onPress={handleSkip}
-          >
-            <Text style={styles.buttonSecondaryText}>Bỏ qua</Text>
-          </Pressable>
-        </View>
-      </ScrollView>
-    </View>
+            <Pressable
+                style={[styles.button, styles.buttonSecondary]}
+                onPress={handleSkip}
+            >
+              <Text style={styles.buttonSecondaryText}>Bỏ qua</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </View>
   );
 };
 
@@ -174,31 +173,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.bg,
   },
+
   centered: {
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   scrollView: {
     flex: 1,
   },
+
   scrollContent: {
     padding: 20,
     paddingBottom: 40,
   },
+
   loadingText: {
     color: COLORS.muted,
     marginTop: 12,
     fontSize: 14,
   },
+
   header: {
     alignItems: 'center',
     marginBottom: 32,
     marginTop: 20,
   },
+
   emoji: {
     fontSize: 48,
     marginBottom: 12,
   },
+
   title: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -206,6 +212,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
+
   subtitle: {
     fontSize: 16,
     color: COLORS.muted,
@@ -213,66 +220,80 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingHorizontal: 10,
   },
+
   stepIndicator: {
     flexDirection: 'row',
     marginTop: 20,
     gap: 8,
   },
+
   stepDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: COLORS.border,
   },
+
   stepDotActive: {
     backgroundColor: COLORS.accent,
     width: 24,
   },
+
   section: {
     marginBottom: 32,
   },
+
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: COLORS.text,
     marginBottom: 16,
   },
+
   sectionCount: {
     color: COLORS.accent,
     fontWeight: 'bold',
   },
+
   genresContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
   },
+
   buttonsContainer: {
     gap: 12,
     marginTop: 20,
   },
+
   button: {
     height: 50,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   buttonPrimary: {
     backgroundColor: COLORS.accent,
   },
+
   buttonDisabled: {
     backgroundColor: COLORS.border,
     opacity: 0.5,
   },
+
   buttonPrimaryText: {
     color: COLORS.bg,
     fontSize: 16,
     fontWeight: '600',
   },
+
   buttonSecondary: {
     backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: COLORS.border,
   },
+
   buttonSecondaryText: {
     color: COLORS.muted,
     fontSize: 16,

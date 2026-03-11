@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { verifyOtp, resendOtp } from '../services/auth';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { COLORS } from '../config/colors';
+import { verifyOtp, resendOtp } from '../../services/auth';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { COLORS } from '../../config/colors';
 
 const OTP_LENGTH = 6;
 const RESEND_SECS = 60;

@@ -5,9 +5,9 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { registerUser } from '../services/auth';
-import { RootStackParamList } from '../navigation/AppNavigator';
-import { COLORS } from '../config/colors';
+import { registerUser } from '../../services/auth';
+import { RootStackParamList } from '../../navigation/AppNavigator';
+import { COLORS } from '../../config/colors';
 
 type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Register'>;
