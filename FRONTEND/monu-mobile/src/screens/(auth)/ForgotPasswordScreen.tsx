@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { forgotPassword } from '../../services/auth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { COLORS } from '../../config/colors';
+import { BackButton } from '../../components/BackButton';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 
@@ -28,9 +29,7 @@ export default function ForgotPasswordScreen() {
     return (
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.container}>
-                <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Text style={{ color: COLORS.accent, fontSize: 15, fontWeight: '600' }}>← Quay lại</Text>
-                </Pressable>
+                <BackButton onPress={() => navigation.goBack()} />
 
                 <View style={[styles.iconWrap, { backgroundColor: COLORS.surface, borderColor: COLORS.accentDim }]}>
                     <Text style={{ fontSize: 34 }}>{sent ? '✅' : '🔑'}</Text>
@@ -76,7 +75,7 @@ export default function ForgotPasswordScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, paddingHorizontal: 24, paddingTop: 60 },
-    backBtn:   { marginBottom: 40 },
+    
     iconWrap:  { width: 80, height: 80, borderRadius: 40, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 24, alignSelf: 'center' },
     heading:   { fontSize: 24, fontWeight: '800', marginBottom: 10, letterSpacing: -0.4 },
     label:     { fontSize: 12, fontWeight: '600', color: COLORS.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 },

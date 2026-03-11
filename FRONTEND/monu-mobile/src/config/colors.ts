@@ -15,6 +15,7 @@ export const COLORS = {
   accentDim: '#7C3AED',
 
   // Text colors
+  white: '#FFFFFF',
   text: '#F3F0FF',
   muted: '#7B7591',
 
