@@ -1,9 +1,14 @@
 import React from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { COLORS } from '../config/colors';
 import { useAuth } from '../context/AuthContext';
-import { HomeScreen } from '../screens/HomeScreen';
+import { WelcomeScreen } from '../screens/(auth)/WelcomeScreen';
+import { LoginOptionsScreen } from '../screens/(auth)/LoginOptionsScreen';
+import { RegisterOptionsScreen } from '../screens/(auth)/RegisterOptionsScreen';
 import { LoginScreen } from '../screens/(auth)/LoginScreen';
 import RegisterScreen from '../screens/(auth)/RegisterScreen';
 import VerifyOtpScreen from '../screens/(auth)/VerifyOtpScreen';
@@ -11,10 +16,18 @@ import ForgotPasswordScreen from '../screens/(auth)/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/(auth)/ResetPasswordScreen';
 import { SelectGenresScreen } from '../screens/(onBoard)/SelectGenresScreen';
 import { SelectArtistsScreen } from '../screens/(onBoard)/SelectArtistsScreen';
+import { CreateScreen } from '../screens/(tabs)/CreateScreen';
+import { LibraryScreen } from '../screens/(tabs)/LibraryScreen';
+import { PremiumScreen } from '../screens/(tabs)/PremiumScreen';
+import { ProfileScreen } from '../screens/(tabs)/ProfileScreen';
+import { SearchScreen } from '../screens/(tabs)/SearchScreen';
+import { HomeScreen } from '../screens/HomeScreen';
 import { EditFavoritesScreen } from '../screens/(settings)/EditFavoritesScreen';
 
-// Navigation parameter types for all screens
 export type RootStackParamList = {
+  Welcome: undefined;
+  LoginOptions: undefined;
+  RegisterOptions: undefined;
   Login: undefined;
   Register: undefined;
   VerifyOtp: { email: string };
@@ -22,54 +35,133 @@ export type RootStackParamList = {
   ResetPassword: { email: string };
   SelectGenres: undefined;
   SelectArtists: { selectedGenreIds: string[] };
-  Home: undefined;
+  MainTabs: undefined;
   EditFavorites: undefined;
 };
 
+export type MainTabParamList = {
+  Home: undefined;
+  Search: undefined;
+  Create: undefined;
+  Library: undefined;
+  Premium: undefined;
+  Profile: undefined;
+};
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<MainTabParamList>();
+
+const tabMeta: Record<keyof MainTabParamList, { label: string; icon: string }> = {
+  Home: { label: 'Trang chủ', icon: '🏠' },
+  Search: { label: 'Tìm kiếm', icon: '🔎' },
+  Create: { label: 'Tạo', icon: '➕' },
+  Library: { label: 'Thư viện', icon: '🎵' },
+  Premium: { label: 'Premium', icon: '💎' },
+  Profile: { label: 'Hồ sơ', icon: '👤' },
+};
 
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['monumobile://'],
   config: {
     screens: {
-      Home: 'home',
+      MainTabs: 'home',
     },
   },
 };
 
-export const AppNavigator = () => {
-  const { authSession } = useAuth();
+const MainTabNavigator = () => (
+  <Tab.Navigator
+    screenOptions={({ route }: { route: { name: keyof MainTabParamList } }) => {
+      const meta = tabMeta[route.name as keyof MainTabParamList];
+      const isCreate = route.name === 'Create';
 
-  // Check nếu user đã login nhưng chưa pick favorites
+      return {
+        headerShown: false,
+        tabBarLabel: meta.label,
+        tabBarStyle: {
+          backgroundColor: COLORS.surface,
+          borderTopColor: COLORS.border,
+          height: 78,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarActiveTintColor: COLORS.text,
+        tabBarInactiveTintColor: COLORS.muted,
+        tabBarIcon: ({ color }: { color: string }) => (
+          <View style={[styles.tabIconWrap, isCreate && styles.createIconWrap]}>
+            <Text style={[styles.tabIcon, { color: isCreate ? COLORS.white : color }]}>{meta.icon}</Text>
+          </View>
+        ),
+      };
+    }}
+  >
+    <Tab.Screen name="Home" component={HomeScreen} />
+    <Tab.Screen name="Search" component={SearchScreen} />
+    <Tab.Screen name="Create" component={CreateScreen} />
+    <Tab.Screen name="Library" component={LibraryScreen} />
+    <Tab.Screen name="Premium" component={PremiumScreen} />
+    <Tab.Screen name="Profile" component={ProfileScreen} />
+  </Tab.Navigator>
+);
+
+export const AppNavigator = () => {
+  const { authSession, isInitializing } = useAuth();
+
+  if (isInitializing) {
+    return (
+      <View style={styles.splashContainer}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
+      </View>
+    );
+  }
+
   const needsOnboarding = authSession?.profile && !authSession.profile.pickFavorite;
 
   return (
-      <NavigationContainer linking={linking}>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {authSession ? (
-              <>
-                {needsOnboarding ? (
-                  <>
-                    <Stack.Screen name="SelectGenres" component={SelectGenresScreen} />
-                    <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
-                  </>
-                ) : (
-                  <>
-                    <Stack.Screen name="Home" component={HomeScreen} />
-                    <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
-                  </>
-                )}
-              </>
+    <NavigationContainer linking={linking}>
+      <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
+        {authSession ? (
+          needsOnboarding ? (
+            <>
+              <Stack.Screen name="SelectGenres" component={SelectGenresScreen} />
+              <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
+            </>
           ) : (
-              <>
-                <Stack.Screen name="Login"          component={LoginScreen} />
-                <Stack.Screen name="Register"       component={RegisterScreen} />
-                <Stack.Screen name="VerifyOtp"      component={VerifyOtpScreen} />
-                <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-                <Stack.Screen name="ResetPassword"  component={ResetPasswordScreen} />
-              </>
-          )}
-        </Stack.Navigator>
-      </NavigationContainer>
+            <>
+              <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+              <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
+            </>
+          )
+        ) : (
+          <>
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="RegisterOptions" component={RegisterOptionsScreen} />
+            <Stack.Screen name="LoginOptions" component={LoginOptionsScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="VerifyOtp" component={VerifyOtpScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 };
+
+const styles = StyleSheet.create({
+  splashContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.bg,
+  },
+  tabIconWrap: { alignItems: 'center', justifyContent: 'center' },
+  tabIcon: { fontSize: 17 },
+  createIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.accentDim,
+  },
+});

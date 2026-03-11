@@ -11,6 +11,7 @@ import iuh.fit.se.identityservice.enums.AccountStatus;
 import iuh.fit.se.identityservice.enums.Role;
 import iuh.fit.se.identityservice.exception.AppException;
 import iuh.fit.se.identityservice.exception.ErrorCode;
+import iuh.fit.se.identityservice.repository.RefreshTokenRepository;
 import iuh.fit.se.identityservice.repository.UserRepository;
 import iuh.fit.se.identityservice.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final StorageService storageService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     private User currentUser() {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -75,7 +77,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public void deleteAccount() {
-        userRepository.delete(currentUser());
+        User user = currentUser();
+        refreshTokenRepository.deleteByUser(user);
+        userRepository.delete(user);
     }
 
     @Override

@@ -5,6 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { verifyOtp, resendOtp } from '../../services/auth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { COLORS } from '../../config/colors';
+import { BackButton } from '../../components/BackButton';
 
 const OTP_LENGTH = 6;
 const RESEND_SECS = 60;
@@ -85,9 +86,7 @@ export default function VerifyOtpScreen() {
     return (
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.container}>
-                <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Text style={{ color: COLORS.accent, fontSize: 15, fontWeight: '600' }}>← Quay lại</Text>
-                </Pressable>
+                <BackButton onPress={() => navigation.goBack()} />
                 <View style={[styles.iconWrap, { backgroundColor: COLORS.surface, borderColor: COLORS.accentDim }]}>
                     <Text style={{ fontSize: 36 }}>📬</Text>
                 </View>
@@ -135,7 +134,7 @@ export default function VerifyOtpScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, paddingHorizontal: 24, paddingTop: 60, alignItems: 'center' },
-    backBtn:   { alignSelf: 'flex-start', marginBottom: 32 },
+    
     iconWrap:  { width: 80, height: 80, borderRadius: 40, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
     heading:   { fontSize: 24, fontWeight: '800', marginBottom: 10, letterSpacing: -0.4 },
     otpRow:    { flexDirection: 'row', gap: 10, marginBottom: 32 },
