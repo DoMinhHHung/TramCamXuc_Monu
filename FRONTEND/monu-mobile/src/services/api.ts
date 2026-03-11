@@ -102,6 +102,16 @@ apiClient.interceptors.response.use(
     const requestUrl = originalRequest?.url ?? '';
     const isRefreshRequest = requestUrl.includes(REFRESH_ENDPOINT);
 
+    if (status === 429) {
+      const retryAfter = error.response?.headers?.["retry-after"];
+      const backendMessage = (error.response?.data as { message?: string } | undefined)?.message;
+      error.message = backendMessage
+        ?? (retryAfter
+          ? `Bạn thao tác quá nhanh. Vui lòng thử lại sau ${retryAfter} giây.`
+          : 'Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.');
+      return Promise.reject(error);
+    }
+
     if (!originalRequest || status !== 401 || originalRequest._retry || isRefreshRequest) {
       const backendMessage = (error.response?.data as { message?: string } | undefined)?.message;
       if (backendMessage) {
