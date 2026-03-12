@@ -8,13 +8,18 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+
   cloud:
     gateway:
       discovery:
         locator:
           enabled: true
           lower-case-service-id: true
+
       routes:
+
+        # ================= IDENTITY =================
+
         - id: identity-service-auth
           uri: lb://IDENTITY-SERVICE
           predicates:
@@ -23,9 +28,9 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 1
-                redis-rate-limiter.burstCapacity: 5
-                redis-rate-limiter.requestedTokens: 12 # ~5 requests/minute
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
 
         - id: identity-service-users
           uri: lb://IDENTITY-SERVICE
@@ -35,21 +40,9 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 20
-                redis-rate-limiter.requestedTokens: 4 # ~30 requests/minute
-
-        - id: identity-service-internal
-          uri: lb://IDENTITY-SERVICE
-          predicates:
-            - Path=/internal/**
-          filters:
-            - name: RequestRateLimiter
-              args:
-                key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 2
-                redis-rate-limiter.burstCapacity: 10
-                redis-rate-limiter.requestedTokens: 6 # ~20 requests/minute
+                redis-rate-limiter.requestedTokens: 1
 
         - id: identity-swagger
           uri: lb://IDENTITY-SERVICE
@@ -60,9 +53,11 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 1
-                redis-rate-limiter.burstCapacity: 10
-                redis-rate-limiter.requestedTokens: 2 # ~30 requests/minute
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+
+        # ================= MUSIC =================
 
         - id: music-service-api
           uri: lb://MUSIC-SERVICE
@@ -72,9 +67,9 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 4
-                redis-rate-limiter.burstCapacity: 40
-                redis-rate-limiter.requestedTokens: 4 # ~60 requests/minute
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
 
         - id: music-swagger
           uri: lb://MUSIC-SERVICE
@@ -85,9 +80,11 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 1
-                redis-rate-limiter.burstCapacity: 10
-                redis-rate-limiter.requestedTokens: 2
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+
+        # ================= PAYMENT =================
 
         - id: payment-service-payments
           uri: lb://PAYMENT-SERVICE
@@ -97,9 +94,9 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 20
-                redis-rate-limiter.requestedTokens: 4
+                redis-rate-limiter.requestedTokens: 1
 
         - id: payment-service-subscriptions
           uri: lb://PAYMENT-SERVICE
@@ -109,9 +106,9 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 20
-                redis-rate-limiter.requestedTokens: 4
+                redis-rate-limiter.requestedTokens: 1
 
         - id: payment-service-admin
           uri: lb://PAYMENT-SERVICE
@@ -121,21 +118,9 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.replenishRate: 5
                 redis-rate-limiter.burstCapacity: 10
-                redis-rate-limiter.requestedTokens: 4
-
-        - id: payment-service-internal
-          uri: lb://PAYMENT-SERVICE
-          predicates:
-            - Path=/api/internal/subscriptions/**
-          filters:
-            - name: RequestRateLimiter
-              args:
-                key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 1
-                redis-rate-limiter.burstCapacity: 8
-                redis-rate-limiter.requestedTokens: 6
+                redis-rate-limiter.requestedTokens: 1
 
         - id: payment-swagger
           uri: lb://PAYMENT-SERVICE
@@ -146,9 +131,11 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 1
-                redis-rate-limiter.burstCapacity: 10
-                redis-rate-limiter.requestedTokens: 2
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+
+        # ================= SOCIAL =================
 
         - id: social-service-api
           uri: lb://SOCIAL-SERVICE
@@ -158,9 +145,9 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 3
-                redis-rate-limiter.burstCapacity: 30
-                redis-rate-limiter.requestedTokens: 3 # ~60 requests/minute
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
 
         - id: social-swagger
           uri: lb://SOCIAL-SERVICE
@@ -171,9 +158,11 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 1
-                redis-rate-limiter.burstCapacity: 10
-                redis-rate-limiter.requestedTokens: 2
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+
+        # ================= RECOMMENDATION =================
 
         - id: recommendation-service-api
           uri: lb://RECOMMENDATION-SERVICE
@@ -183,9 +172,9 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 2
-                redis-rate-limiter.burstCapacity: 20
-                redis-rate-limiter.requestedTokens: 2 # ~60 requests/minute
+                redis-rate-limiter.replenishRate: 15
+                redis-rate-limiter.burstCapacity: 30
+                redis-rate-limiter.requestedTokens: 1
 
         - id: recommendation-swagger
           uri: lb://RECOMMENDATION-SERVICE
@@ -196,9 +185,9 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 1
-                redis-rate-limiter.burstCapacity: 10
-                redis-rate-limiter.requestedTokens: 2
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
 
 eureka:
   client:
