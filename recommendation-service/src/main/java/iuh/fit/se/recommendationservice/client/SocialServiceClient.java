@@ -11,7 +11,7 @@ import java.util.UUID;
 
 @FeignClient(
         name = "social-service",
-        path = "/api/v1",
+        path = "/internal/social",
         configuration = FeignConfig.class
 )
 public interface SocialServiceClient {

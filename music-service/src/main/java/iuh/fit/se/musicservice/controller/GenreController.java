@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/genres")
+@RequestMapping("/genres")
 @RequiredArgsConstructor
 public class GenreController {
 
@@ -23,7 +23,7 @@ public class GenreController {
 
     /**
      * Lấy toàn bộ danh sách thể loại (dùng cho filter / dropdown trên UI).
-     * GET /api/v1/genres
+     * GET /genres
      */
     @GetMapping
     public ApiResponse<List<GenreResponse>> getAllGenres() {
@@ -34,7 +34,7 @@ public class GenreController {
 
     /**
      * Lấy thông tin một thể loại theo ID.
-     * GET /api/v1/genres/{id}
+     * GET /genres/{id}
      */
     @GetMapping("/{id}")
     public ApiResponse<GenreResponse> getGenreById(@PathVariable UUID id) {
@@ -46,7 +46,7 @@ public class GenreController {
     /**
      * Lấy danh sách genres phổ biến (dựa vào số lượng bài hát).
      * Dùng cho onboarding screen.
-     * GET /api/v1/genres/popular?limit=10
+     * GET /genres/popular?limit=10
      */
     @GetMapping("/popular")
     public ApiResponse<List<GenreResponse>> getPopularGenres(
@@ -60,7 +60,7 @@ public class GenreController {
 
     /**
      * Tạo thể loại mới.
-     * POST /api/v1/genres
+     * POST /genres
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -72,7 +72,7 @@ public class GenreController {
 
     /**
      * Cập nhật thể loại.
-     * PUT /api/v1/genres/{id}
+     * PUT /genres/{id}
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -87,7 +87,7 @@ public class GenreController {
 
     /**
      * Xóa thể loại (chỉ khi không còn bài hát nào sử dụng).
-     * DELETE /api/v1/genres/{id}
+     * DELETE /genres/{id}
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")

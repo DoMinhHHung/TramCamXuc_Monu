@@ -10,7 +10,6 @@ import iuh.fit.se.identityservice.dto.request.*;
 import iuh.fit.se.identityservice.dto.response.AuthenticationResponse;
 import iuh.fit.se.identityservice.dto.response.OutboundUserResponse;
 import iuh.fit.se.identityservice.dto.response.UserResponse;
-import iuh.fit.se.identityservice.entity.RefreshToken;
 import iuh.fit.se.identityservice.entity.User;
 import iuh.fit.se.identityservice.enums.AccountStatus;
 import iuh.fit.se.identityservice.enums.AuthProvider;
@@ -18,7 +17,6 @@ import iuh.fit.se.identityservice.enums.Role;
 import iuh.fit.se.identityservice.event.NotificationEvent;
 import iuh.fit.se.identityservice.exception.AppException;
 import iuh.fit.se.identityservice.exception.ErrorCode;
-import iuh.fit.se.identityservice.repository.RefreshTokenRepository;
 import iuh.fit.se.identityservice.repository.UserRepository;
 import iuh.fit.se.identityservice.repository.httpclient.IdentityClient;
 import iuh.fit.se.identityservice.service.AuthService;
@@ -32,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -43,7 +40,6 @@ import java.util.stream.Collectors;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final IdentityClient identityClient;
@@ -185,16 +181,19 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthenticationResponse refreshToken(RefreshRequest request) {
-        RefreshToken stored = refreshTokenRepository.findByToken(request.getRefreshToken())
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REFRESH_TOKEN));
+        String redisKey = refreshTokenRedisKey(request.getRefreshToken());
+        Object userIdRaw = redisTemplate.opsForValue().get(redisKey);
 
-        if (stored.getExpiryDate().isBefore(LocalDateTime.now())) {
-            refreshTokenRepository.delete(stored);
-            throw new AppException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+        if (userIdRaw == null) {
+            validateRefreshTokenExpiry(request.getRefreshToken());
+            throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        User user = stored.getUser();
-        refreshTokenRepository.delete(stored);
+        UUID userId = UUID.fromString(String.valueOf(userIdRaw));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        redisTemplate.delete(redisKey);
         return buildTokenResponse(user);
     }
 
@@ -284,11 +283,35 @@ public class AuthServiceImpl implements AuthService {
     }
 
     void saveRefreshToken(User user, String token) {
-        refreshTokenRepository.save(RefreshToken.builder()
-                .token(token)
-                .user(user)
-                .expiryDate(LocalDateTime.now().plusNanos(refreshableDuration * 1_000_000))
-                .build());
+        redisTemplate.opsForValue().set(
+                refreshTokenRedisKey(token),
+                user.getId().toString(),
+                refreshableDuration,
+                TimeUnit.MILLISECONDS
+        );
+    }
+
+    private String refreshTokenRedisKey(String token) {
+        return "auth:refresh:" + token;
+    }
+
+    private void validateRefreshTokenExpiry(String refreshToken) {
+        try {
+            Date expiration = Jwts.parserBuilder()
+                    .setSigningKey(Keys.hmacShaKeyFor(Decoders.BASE64.decode(signerKey)))
+                    .build()
+                    .parseClaimsJws(refreshToken)
+                    .getBody()
+                    .getExpiration();
+
+            if (expiration.before(new Date())) {
+                throw new AppException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+            }
+        } catch (AppException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
+        }
     }
 
     String generateOtp() {

@@ -10,11 +10,11 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Exposes artist-scoped song endpoints under /api/v1/artists/{artistId}/songs.
+ * Exposes artist-scoped song endpoints under /artists/{artistId}/songs.
  * Called by recommendation-service via Feign: MusicServiceClient.getSongsByArtist().
  */
 @RestController
-@RequestMapping("/api/v1/artists")
+@RequestMapping("/artists")
 @RequiredArgsConstructor
 public class ArtistSongController {
 
@@ -22,7 +22,7 @@ public class ArtistSongController {
 
     /**
      * Top bài hát PUBLIC của một nghệ sĩ, sắp xếp theo playCount DESC.
-     * GET /api/v1/artists/{artistId}/songs?limit=10
+     * GET /artists/{artistId}/songs?limit=10
      * Cached 15 min — safe for recommendation-service to call frequently.
      */
     @GetMapping("/{artistId}/songs")

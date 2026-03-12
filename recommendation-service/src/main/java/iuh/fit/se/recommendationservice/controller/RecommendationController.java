@@ -11,14 +11,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/recommendations")
+@RequestMapping("/recommendations")
 @RequiredArgsConstructor
 public class RecommendationController {
 
     private final RecommendationService recommendationService;
 
     /**
-     * GET /api/v1/recommendations/for-you?limit=20
+     * GET /recommendations/for-you?limit=20
      * Personalized — cần JWT
      */
     @GetMapping("/for-you")
@@ -31,7 +31,7 @@ public class RecommendationController {
     }
 
     /**
-     * GET /api/v1/recommendations/trending?limit=20
+     * GET /recommendations/trending?limit=20
      * Public
      */
     @GetMapping("/trending")
@@ -41,7 +41,7 @@ public class RecommendationController {
     }
 
     /**
-     * GET /api/v1/recommendations/similar/{songId}?limit=10
+     * GET /recommendations/similar/{songId}?limit=10
      * Public — content-based
      */
     @GetMapping("/similar/{songId}")
@@ -52,7 +52,7 @@ public class RecommendationController {
     }
 
     /**
-     * GET /api/v1/recommendations/new-releases?limit=20
+     * GET /recommendations/new-releases?limit=20
      * Public
      */
     @GetMapping("/new-releases")

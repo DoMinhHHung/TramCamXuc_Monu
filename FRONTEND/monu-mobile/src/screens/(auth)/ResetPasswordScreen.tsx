@@ -122,6 +122,13 @@ export default function ResetPasswordScreen() {
                         <Text style={{ color: COLORS.accent }}>{email}</Text>
                     </Text>
                 </LinearGradient>
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 60 }} keyboardShouldPersistTaps="handled">
+                <BackButton onPress={() => navigation.goBack()} />
+
+                <View style={[styles.iconWrap, { backgroundColor: COLORS.surface, borderColor: COLORS.accentDim }]}>
+                    <Text style={{ fontSize: 34 }}>🛡️</Text>
+                </View>
 
                 <View style={[styles.form, { paddingBottom: insets.bottom + 32 }]}>
                     {/* OTP */}

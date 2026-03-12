@@ -42,6 +42,12 @@ export default function ForgotPasswordScreen() {
 
                 <View style={styles.iconWrap}>
                     <Text style={{ fontSize: 40 }}>{sent ? '✅' : '🔑'}</Text>
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.container}>
+                <BackButton onPress={() => navigation.goBack()} />
+
+                <View style={[styles.iconWrap, { backgroundColor: COLORS.surface, borderColor: COLORS.accentDim }]}>
+                    <Text style={{ fontSize: 34 }}>{sent ? '✅' : '🔑'}</Text>
                 </View>
 
                 <Text style={styles.title}>
@@ -187,4 +193,12 @@ const styles = StyleSheet.create({
         borderColor: 'COLORS.glass12',
     },
     secondaryBtnText: { color: 'COLORS.glass60', fontWeight: '600', fontSize: 15 },
+    container: { flex: 1, paddingHorizontal: 24, paddingTop: 60 },
+    
+    iconWrap:  { width: 80, height: 80, borderRadius: 40, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 24, alignSelf: 'center' },
+    heading:   { fontSize: 24, fontWeight: '800', marginBottom: 10, letterSpacing: -0.4 },
+    label:     { fontSize: 12, fontWeight: '600', color: COLORS.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 },
+    input:     { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 20 },
+    btn:       { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+    btnText:   { color: '#fff', fontWeight: '800', fontSize: 15 },
 });

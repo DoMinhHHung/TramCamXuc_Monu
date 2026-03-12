@@ -4,6 +4,10 @@ import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo
 
 import { attachAccessToken, configureApiAuthHandlers } from '../services/api';
 import { getMyProfile, loginWithEmail, logoutApi, refreshToken, socialLogin } from '../services/auth';
+import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+
+import { attachAccessToken, configureApiAuthHandlers } from '../services/api';
+import { getMyProfile, loginWithEmail, refreshToken, socialLogin } from '../services/auth';
 import { AuthSession, SocialProvider, UserProfile } from '../types/auth';
 
 const ACCESS_TOKEN_STORAGE_KEY = 'auth.accessToken';
@@ -93,6 +97,13 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         return null;
       }
       return profile;
+export const AuthProvider = ({ children }: PropsWithChildren) => {
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
+
+  const hydrateProfileNonBlocking = async (): Promise<UserProfile | null> => {
+    try {
+      return await getMyProfile();
     } catch {
       return null;
     }
@@ -111,6 +122,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   const finalizeLogin = async (tokens: { accessToken: string; refreshToken: string; authenticated: boolean }): Promise<void> => {
     await ensureNotAdmin(tokens.accessToken);
 
+  const finalizeLogin = async (tokens: { accessToken: string; refreshToken: string; authenticated: boolean }): Promise<void> => {
     await saveTokens(tokens);
     attachAccessToken(tokens.accessToken);
 
@@ -136,6 +148,20 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         await ensureNotAdmin(accessToken);
         await saveTokens({ accessToken, refreshToken: refreshedToken });
 
+  const logout = async (): Promise<void> => {
+    await clearTokens();
+    setAuthSession(null);
+    attachAccessToken(null);
+  };
+
+  useEffect(() => {
+    configureApiAuthHandlers({
+      getRefreshToken: async () => {
+        const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+        return storedRefreshToken;
+      },
+      persistTokens: async ({ accessToken, refreshToken: refreshedToken }) => {
+        await saveTokens({ accessToken, refreshToken: refreshedToken });
         setAuthSession((prevSession) => {
           if (!prevSession) return prevSession;
           return {
@@ -224,6 +250,8 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       return;
     }
 
+
+    const profile = await getMyProfile();
     setAuthSession((prevSession) => {
       if (!prevSession) return prevSession;
       return { ...prevSession, profile };

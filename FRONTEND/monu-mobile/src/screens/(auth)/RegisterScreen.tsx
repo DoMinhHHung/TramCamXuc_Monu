@@ -82,6 +82,12 @@ export default function RegisterScreen() {
                         <Text style={styles.heroEmoji}>🎵</Text>
                         <Text style={styles.title}>Tạo tài khoản</Text>
                         <Text style={styles.subtitle}>Gia nhập cộng đồng âm nhạc</Text>
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+                <BackButton onPress={() => navigation.goBack()} />
+                <View style={styles.header}>
+                    <View style={[styles.logoRing, { borderColor: COLORS.accent, backgroundColor: COLORS.surface }]}>
+                        <Text style={{ fontSize: 32 }}>🎵</Text>
                     </View>
                 </LinearGradient>
 
@@ -153,6 +159,11 @@ export default function RegisterScreen() {
                         </Text>
                     </Pressable>
                 </View>
+                <Pressable onPress={() => navigation.navigate('LoginOptions')} style={styles.linkRow}>
+                    <Text style={{ color: COLORS.muted, fontSize: 14 }}>
+                        Đã có tài khoản? <Text style={{ color: COLORS.accent, fontWeight: '700' }}>Đăng nhập</Text>
+                    </Text>
+                </Pressable>
             </ScrollView>
         </KeyboardAvoidingView>
     );
@@ -250,4 +261,15 @@ const styles = StyleSheet.create({
     linkRow: { alignItems: 'center', paddingTop: 20 },
     linkText: { color: 'COLORS.glass40', fontSize: 14 },
     linkAccent: { color: COLORS.accent, fontWeight: '700' },
+    scroll:    { flexGrow: 1, padding: 24, paddingTop: 24 },
+    header:    { alignItems: 'center', marginBottom: 32 },
+    logoRing:  { width: 72, height: 72, borderRadius: 36, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    heading:   { fontSize: 26, fontWeight: '800', letterSpacing: -0.5 },
+    label:     { fontSize: 12, fontWeight: '600', color: COLORS.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 6 },
+    input:     { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, color: COLORS.text, fontSize: 15 },
+    genderRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+    genderBtn: { flex: 1, paddingVertical: 11, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
+    btn:       { borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+    btnText:   { color: '#fff', fontWeight: '800', fontSize: 15 },
+    linkRow:   { alignItems: 'center', marginTop: 20 },
 });

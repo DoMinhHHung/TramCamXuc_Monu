@@ -99,6 +99,11 @@ export default function VerifyOtpScreen() {
 
                 <View style={styles.iconWrap}>
                     <Text style={{ fontSize: 40 }}>📬</Text>
+        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={styles.container}>
+                <BackButton onPress={() => navigation.goBack()} />
+                <View style={[styles.iconWrap, { backgroundColor: COLORS.surface, borderColor: COLORS.accentDim }]}>
+                    <Text style={{ fontSize: 36 }}>📬</Text>
                 </View>
                 <Text style={styles.title}>Xác thực email</Text>
                 <Text style={styles.subtitle}>
@@ -223,4 +228,12 @@ const styles = StyleSheet.create({
     resendPrefix: { color: 'COLORS.glass40', fontSize: 14 },
     resendBtn: { color: COLORS.accent, fontSize: 14, fontWeight: '700' },
     resendDisabled: { color: 'COLORS.glass30' },
+    container: { flex: 1, paddingHorizontal: 24, paddingTop: 60, alignItems: 'center' },
+    
+    iconWrap:  { width: 80, height: 80, borderRadius: 40, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+    heading:   { fontSize: 24, fontWeight: '800', marginBottom: 10, letterSpacing: -0.4 },
+    otpRow:    { flexDirection: 'row', gap: 10, marginBottom: 32 },
+    cell:      { width: 46, height: 58, borderRadius: 12, borderWidth: 1.5, fontSize: 22, fontWeight: '700' },
+    btn:       { width: '100%', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+    btnText:   { color: '#fff', fontWeight: '800', fontSize: 15 },
 });

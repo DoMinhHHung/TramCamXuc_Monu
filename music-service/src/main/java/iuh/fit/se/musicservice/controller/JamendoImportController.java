@@ -11,7 +11,7 @@ import java.util.Map;
 /**
  * Admin-only HTTP endpoint to trigger a Jamendo import run.
  *
- * POST /api/v1/admin/jamendo/import
+ * POST /admin/jamendo/import
  *   ?tags=pop              – Jamendo genre tag filter (optional)
  *   ?limit=500             – max tracks to enqueue (default 500)
  *
@@ -19,7 +19,7 @@ import java.util.Map;
  * Actual downloads and transcoding happen asynchronously in the background.
  */
 @RestController
-@RequestMapping("/api/v1/admin/jamendo")
+@RequestMapping("/admin/jamendo")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class JamendoImportController {

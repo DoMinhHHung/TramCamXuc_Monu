@@ -80,6 +80,14 @@ export const apiClient: AxiosInstance = axios.create({
   timeout: 10000,
 });
 
+export const apiClient: AxiosInstance = axios.create({
+  baseURL: env.apiBaseUrl,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 10000,
+});
+
 apiClient.interceptors.request.use((config) => {
   if (accessTokenInMemory) {
     setAuthorizationHeader(config, accessTokenInMemory);
@@ -101,6 +109,24 @@ apiClient.interceptors.response.use(
     const status = error.response?.status;
     const requestUrl = originalRequest?.url ?? '';
     const isRefreshRequest = requestUrl.includes(REFRESH_ENDPOINT);
+
+    if (!originalRequest || status !== 401 || originalRequest._retry || isRefreshRequest) {
+      const backendMessage = (error.response?.data as { message?: string } | undefined)?.message;
+      if (backendMessage) {
+        error.message = backendMessage;
+      }
+      return Promise.reject(error);
+    }
+
+    if (status === 429) {
+      const retryAfter = error.response?.headers?.["retry-after"];
+      const backendMessage = (error.response?.data as { message?: string } | undefined)?.message;
+      error.message = backendMessage
+        ?? (retryAfter
+          ? `Bạn thao tác quá nhanh. Vui lòng thử lại sau ${retryAfter} giây.`
+          : 'Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.');
+      return Promise.reject(error);
+    }
 
     if (!originalRequest || status !== 401 || originalRequest._retry || isRefreshRequest) {
       const backendMessage = (error.response?.data as { message?: string } | undefined)?.message;

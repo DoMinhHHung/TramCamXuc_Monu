@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -7,6 +8,7 @@ import { MaterialIcons  } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
 import { useAuth } from '../context/AuthContext';
+import { HomeScreen } from '../screens/HomeScreen';
 import { WelcomeScreen } from '../screens/(auth)/WelcomeScreen';
 import { LoginOptionsScreen } from '../screens/(auth)/LoginOptionsScreen';
 import { RegisterOptionsScreen } from '../screens/(auth)/RegisterOptionsScreen';
@@ -136,6 +138,19 @@ export const AppNavigator = () => {
               <Stack.Screen name="Profile" component={ProfileScreen} />
             </>
           )
+          <>
+            {needsOnboarding ? (
+              <>
+                <Stack.Screen name="SelectGenres" component={SelectGenresScreen} />
+                <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
+              </>
+            ) : (
+              <>
+                <Stack.Screen name="Home" component={HomeScreen} />
+                <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
+              </>
+            )}
+          </>
         ) : (
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
