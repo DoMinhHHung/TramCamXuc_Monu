@@ -34,21 +34,6 @@ public class PlayCountSyncService {
         stringRedisTemplate.opsForValue().increment(KEY_PREFIX + songId);
     }
 
-    /**
-     * Flush Redis play-count deltas to the DB every 5 minutes.
-     *
-     * <p>Strategy: <b>read first, delete after commit</b>.
-     * The old approach used an atomic Lua GET+DEL, which meant that if
-     * {@code batchUpdate} threw an exception the delta was already gone from
-     * Redis and would be lost forever.  Now we:
-     * <ol>
-     *   <li>GET (non-destructive) each key into {@code batchArgs}.</li>
-     *   <li>Write all deltas to the DB in a single {@code batchUpdate}.</li>
-     *   <li>Delete the Redis keys <em>only after the DB commit succeeds</em>.</li>
-     * </ol>
-     * If the DB write fails the keys survive in Redis and will be retried on
-     * the next scheduled run (counts accumulate, so no double-counting occurs).
-     */
     @Scheduled(cron = "0 */5 * * * *")
     @Transactional
     public void flushToDatabase() {

@@ -16,6 +16,11 @@ spring:
           enabled: true
           lower-case-service-id: true
 
+      filter:
+        request-rate-limiter:
+          deny-empty-key: false
+          empty-key-status-code: 200
+
       routes:
 
         # ================= IDENTITY =================

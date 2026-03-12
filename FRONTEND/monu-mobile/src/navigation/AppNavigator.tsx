@@ -3,10 +3,12 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { MaterialIcons  } from '@expo/vector-icons';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
 import { useAuth } from '../context/AuthContext';
+import { MiniPlayer } from '../components/MiniPlayer';
+import { FullPlayerModal } from '../components/FullPlayerModal';
 import { HomeScreen } from '../screens/HomeScreen';
 import { WelcomeScreen } from '../screens/(auth)/WelcomeScreen';
 import { LoginOptionsScreen } from '../screens/(auth)/LoginOptionsScreen';
@@ -50,61 +52,57 @@ export type MainTabParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-const Tab = createBottomTabNavigator<MainTabParamList>();
+const Tab   = createBottomTabNavigator<MainTabParamList>();
 
 const tabMeta: Record<keyof MainTabParamList, { label: string; icon: string }> = {
-  Home: { label: 'Trang chủ', icon: 'home' },
-  Search: { label: 'Tìm kiếm', icon: 'search' },
-  Create: { label: 'Tạo', icon: 'add' },
-  Library: { label: 'Thư viện', icon: 'library-music' },
-  Premium: { label: 'Premium', icon: 'redeem' },
+  Home:    { label: 'Trang chủ',  icon: 'home' },
+  Search:  { label: 'Tìm kiếm',  icon: 'search' },
+  Create:  { label: 'Tạo',       icon: 'add' },
+  Library: { label: 'Thư viện',  icon: 'library-music' },
+  Premium: { label: 'Premium',   icon: 'redeem' },
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['monumobile://'],
-  config: {
-    screens: {
-      MainTabs: 'home',
-    },
-  },
+  config: { screens: { MainTabs: 'home' } },
 };
 
 const MainTabNavigator = () => (
-  <Tab.Navigator
-    screenOptions={({ route }: { route: { name: keyof MainTabParamList } }) => {
-      const meta = tabMeta[route.name as keyof MainTabParamList];
-      const isCreate = route.name === 'Create';
+    <Tab.Navigator
+        screenOptions={({ route }) => {
+          const meta     = tabMeta[route.name as keyof MainTabParamList];
+          const isCreate = route.name === 'Create';
 
-      return {
-        headerShown: false,
-        tabBarLabel: meta.label,
-        tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          height: 78,
-          paddingBottom: 8,
-          paddingTop: 8,
-        },
-        tabBarActiveTintColor: COLORS.text,
-        tabBarInactiveTintColor: COLORS.muted,
-        tabBarIcon: ({ color }: { color: string }) => (
-          <View style={[styles.tabIconWrap, isCreate && styles.createIconWrap]}>
-            <MaterialIcons
-                name={meta.icon as any}
-                size={isCreate ? 20 : 18}
-                color={isCreate ? COLORS.white : color}
-            />
-          </View>
-        ),
-      };
-    }}
-  >
-    <Tab.Screen name="Home" component={HomeScreen} />
-    <Tab.Screen name="Search" component={SearchScreen} />
-    <Tab.Screen name="Create" component={CreateScreen} />
-    <Tab.Screen name="Library" component={LibraryScreen} />
-    <Tab.Screen name="Premium" component={PremiumScreen} />
-  </Tab.Navigator>
+          return {
+            headerShown: false,
+            tabBarLabel: meta.label,
+            tabBarStyle: {
+              backgroundColor: COLORS.surface,
+              borderTopColor: COLORS.border,
+              height: 78,
+              paddingBottom: 8,
+              paddingTop: 8,
+            },
+            tabBarActiveTintColor:   COLORS.text,
+            tabBarInactiveTintColor: COLORS.muted,
+            tabBarIcon: ({ color }: { color: string }) => (
+                <View style={[styles.tabIconWrap, isCreate && styles.createIconWrap]}>
+                  <MaterialIcons
+                      name={meta.icon as any}
+                      size={isCreate ? 20 : 18}
+                      color={isCreate ? COLORS.white : color}
+                  />
+                </View>
+            ),
+          };
+        }}
+    >
+      <Tab.Screen name="Home"    component={HomeScreen} />
+      <Tab.Screen name="Search"  component={SearchScreen} />
+      <Tab.Screen name="Create"  component={CreateScreen} />
+      <Tab.Screen name="Library" component={LibraryScreen} />
+      <Tab.Screen name="Premium" component={PremiumScreen} />
+    </Tab.Navigator>
 );
 
 export const AppNavigator = () => {
@@ -112,44 +110,56 @@ export const AppNavigator = () => {
 
   if (isInitializing) {
     return (
-      <View style={styles.splashContainer}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
-      </View>
+        <View style={styles.splashContainer}>
+          <ActivityIndicator size="large" color={COLORS.accent} />
+        </View>
     );
   }
 
   const needsOnboarding = authSession?.profile && !authSession.profile.pickFavorite;
 
   return (
-    <NavigationContainer linking={linking}>
-      <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
-        {authSession ? (
-          needsOnboarding ? (
-            <>
-              <Stack.Screen name="SelectGenres" component={SelectGenresScreen} />
-              <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
-            </>
+      <NavigationContainer linking={linking}>
+        <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
+          {authSession ? (
+              needsOnboarding ? (
+                  <>
+                    <Stack.Screen name="SelectGenres"  component={SelectGenresScreen} />
+                    <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
+                  </>
+              ) : (
+                  <>
+                    <Stack.Screen name="MainTabs"     component={MainTabNavigator} />
+                    <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
+                    <Stack.Screen name="Profile"       component={ProfileScreen} />
+                  </>
+              )
           ) : (
+              <>
+                <Stack.Screen name="Welcome"         component={WelcomeScreen} />
+                <Stack.Screen name="RegisterOptions" component={RegisterOptionsScreen} />
+                <Stack.Screen name="LoginOptions"    component={LoginOptionsScreen} />
+                <Stack.Screen name="Login"           component={LoginScreen} />
+                <Stack.Screen name="Register"        component={RegisterScreen} />
+                <Stack.Screen name="VerifyOtp"       component={VerifyOtpScreen} />
+                <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen} />
+                <Stack.Screen name="ResetPassword"   component={ResetPasswordScreen} />
+              </>
+          )}
+        </Stack.Navigator>
+
+        {/*
+        MiniPlayer + FullPlayerModal nằm ngoài Stack.Navigator
+        để luôn hiển thị dù navigate đến màn nào.
+        Chỉ render khi đã login (authSession có).
+      */}
+        {authSession && !needsOnboarding && (
             <>
-              <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-              <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
-              <Stack.Screen name="Profile" component={ProfileScreen} />
+              <MiniPlayer />
+              <FullPlayerModal />
             </>
-          )
-        ) : (
-          <>
-            <Stack.Screen name="Welcome" component={WelcomeScreen} />
-            <Stack.Screen name="RegisterOptions" component={RegisterOptionsScreen} />
-            <Stack.Screen name="LoginOptions" component={LoginOptionsScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="VerifyOtp" component={VerifyOtpScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-          </>
         )}
-      </Stack.Navigator>
-    </NavigationContainer>
+      </NavigationContainer>
   );
 };
 
@@ -160,8 +170,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.bg,
   },
-  tabIconWrap: { alignItems: 'center', justifyContent: 'center' },
-  tabIcon: { fontSize: 17 },
+  tabIconWrap:    { alignItems: 'center', justifyContent: 'center' },
   createIconWrap: {
     width: 34,
     height: 34,

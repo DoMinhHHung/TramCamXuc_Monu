@@ -50,6 +50,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                 String userId = claims.getSubject();
 
                 exchange.getAttributes().put("X-User-Id", userId);
+                ServerWebExchange mutated = exchange.mutate()
+                        .request(r -> r.header("X-User-Id", userId))
+                        .build();
+                return chain.filter(mutated);
 
             } catch (Exception ex) {
                 log.error("[GW-Auth] Invalid Token: {}", ex.getMessage());
