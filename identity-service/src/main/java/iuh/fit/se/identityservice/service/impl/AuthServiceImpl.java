@@ -229,9 +229,6 @@ public class AuthServiceImpl implements AuthService {
         if (request == null || request.getRefreshToken() == null || request.getRefreshToken().isBlank()) {
             return;
         }
-
-        refreshTokenRepository.findByToken(request.getRefreshToken())
-                .ifPresent(refreshTokenRepository::delete);
     }
 
     @Override
