@@ -222,6 +222,18 @@ public class AuthServiceImpl implements AuthService {
         return buildTokenResponse(user);
     }
 
+
+    @Override
+    @Transactional
+    public void logout(RefreshRequest request) {
+        if (request == null || request.getRefreshToken() == null || request.getRefreshToken().isBlank()) {
+            return;
+        }
+
+        refreshTokenRepository.findByToken(request.getRefreshToken())
+                .ifPresent(refreshTokenRepository::delete);
+    }
+
     @Override
     @Transactional
     public String grantArtistRoleAndIssueToken(UUID userId) {

@@ -59,4 +59,10 @@ public class AuthController {
     public ApiResponse<AuthenticationResponse> social(@RequestBody @Valid ExchangeTokenRequest request) {
         return ApiResponse.<AuthenticationResponse>builder().result(authService.outboundAuthentication(request)).build();
     }
+
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(@RequestBody RefreshRequest request) {
+        authService.logout(request);
+        return ApiResponse.<Void>builder().message("Logged out").build();
+    }
 }
