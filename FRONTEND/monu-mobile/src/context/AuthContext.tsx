@@ -1,4 +1,9 @@
 import * as SecureStore from 'expo-secure-store';
+import { Alert } from 'react-native';
+import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+
+import { attachAccessToken, configureApiAuthHandlers } from '../services/api';
+import { getMyProfile, loginWithEmail, logoutApi, refreshToken, socialLogin } from '../services/auth';
 import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
 
 import { attachAccessToken, configureApiAuthHandlers } from '../services/api';
@@ -44,6 +49,54 @@ const loadStoredTokens = async (): Promise<{ accessToken: string | null; refresh
   return { accessToken, refreshToken: refreshTokenValue };
 };
 
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) return null;
+
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=');
+    const decoded = globalThis.atob ? globalThis.atob(base64) : null;
+    if (!decoded) return null;
+
+    return JSON.parse(decoded) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+};
+
+const isAdminRoleFromAccessToken = (accessToken: string): boolean => {
+  const payload = decodeJwtPayload(accessToken);
+  return payload?.role === 'ADMIN';
+};
+
+export const AuthProvider = ({ children }: PropsWithChildren) => {
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
+
+  const logout = async (): Promise<void> => {
+    const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+    if (storedRefreshToken) {
+      try {
+        await logoutApi({ refreshToken: storedRefreshToken });
+      } catch {
+        // no-op: local cleanup still must execute
+      }
+    }
+
+    await clearTokens();
+    setAuthSession(null);
+    attachAccessToken(null);
+  };
+
+  const hydrateProfileNonBlocking = async (): Promise<UserProfile | null> => {
+    try {
+      const profile = await getMyProfile();
+      if (profile.role === 'ADMIN') {
+        Alert.alert('Truy cập bị từ chối', 'Admins cannot use the mobile client');
+        await logout();
+        return null;
+      }
+      return profile;
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
@@ -55,6 +108,19 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       return null;
     }
   };
+
+  const ensureNotAdmin = async (accessToken: string): Promise<void> => {
+    if (!isAdminRoleFromAccessToken(accessToken)) return;
+
+    await clearTokens();
+    attachAccessToken(null);
+    setAuthSession(null);
+    Alert.alert('Truy cập bị từ chối', 'Admins cannot use the mobile client');
+    throw new Error('Admins cannot use the mobile client');
+  };
+
+  const finalizeLogin = async (tokens: { accessToken: string; refreshToken: string; authenticated: boolean }): Promise<void> => {
+    await ensureNotAdmin(tokens.accessToken);
 
   const finalizeLogin = async (tokens: { accessToken: string; refreshToken: string; authenticated: boolean }): Promise<void> => {
     await saveTokens(tokens);
@@ -74,6 +140,13 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       });
     });
   };
+
+  useEffect(() => {
+    configureApiAuthHandlers({
+      getRefreshToken: async () => SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY),
+      persistTokens: async ({ accessToken, refreshToken: refreshedToken }) => {
+        await ensureNotAdmin(accessToken);
+        await saveTokens({ accessToken, refreshToken: refreshedToken });
 
   const logout = async (): Promise<void> => {
     await clearTokens();
@@ -114,6 +187,8 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           await clearTokens();
           return;
         }
+
+        await ensureNotAdmin(accessToken);
 
         attachAccessToken(accessToken);
         setAuthSession({
@@ -167,6 +242,14 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const refreshProfile = async (): Promise<void> => {
     if (!authSession) return;
+
+    const profile = await getMyProfile();
+    if (profile.role === 'ADMIN') {
+      Alert.alert('Truy cập bị từ chối', 'Admins cannot use the mobile client');
+      await logout();
+      return;
+    }
+
 
     const profile = await getMyProfile();
     setAuthSession((prevSession) => {

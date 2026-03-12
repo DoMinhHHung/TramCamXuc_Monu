@@ -1,22 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View
+  ActivityIndicator, Alert, Pressable,
+  ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BackButton } from '../../components/BackButton';
 import { GenreChip } from '../../components/GenreChip';
+import { COLORS } from '../../config/colors';
+import { useAuth } from '../../context/AuthContext';
+import { RootStackParamList } from '../../navigation/AppNavigator';
 import { getPopularGenres } from '../../services/favorites';
 import { Genre } from '../../types/favorites';
-import { RootStackParamList } from '../../navigation/AppNavigator';
-import { useAuth } from '../../context/AuthContext';
-import { COLORS } from '../../config/colors';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SelectGenres'>;
 
@@ -25,73 +24,61 @@ const MAX_GENRES = 5;
 
 export const SelectGenresScreen = () => {
   const navigation = useNavigation<Nav>();
-  const { refreshProfile } = useAuth();
+  const { refreshProfile, logout } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
 
-  useEffect(() => {
-    loadGenres();
-  }, []);
+  useEffect(() => { void loadGenres(); }, []);
 
   const loadGenres = async () => {
     try {
       setLoading(true);
-      const genresData = await getPopularGenres(20);
-      setGenres(genresData);
+      setGenres(await getPopularGenres(20));
     } catch (error: any) {
       Alert.alert('Lỗi', error?.message || 'Không thể tải dữ liệu. Vui lòng thử lại.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
+  };
+
+  const handleBack = () => {
+    Alert.alert('Huỷ thiết lập?', 'Bạn có muốn hủy và đăng xuất?', [
+      { text: 'Không', style: 'cancel' },
+      {
+        text: 'Đăng xuất',
+        style: 'destructive',
+        onPress: async () => {
+          await logout();
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        },
+      },
+    ]);
   };
 
   const toggleGenre = (id: string) => {
-    if (selectedGenres.includes(id)) {
-      setSelectedGenres(selectedGenres.filter(g => g !== id));
-    } else {
-      if (selectedGenres.length >= MAX_GENRES) {
-        Alert.alert('Giới hạn', `Bạn chỉ có thể chọn tối đa ${MAX_GENRES} thể loại.`);
-        return;
-      }
-      setSelectedGenres([...selectedGenres, id]);
-    }
+    if (selectedGenres.includes(id)) { setSelectedGenres(selectedGenres.filter(g => g !== id)); return; }
+    if (selectedGenres.length >= MAX_GENRES) { Alert.alert('Giới hạn', `Tối đa ${MAX_GENRES} thể loại.`); return; }
+    setSelectedGenres([...selectedGenres, id]);
   };
 
   const handleContinue = () => {
-    if (selectedGenres.length < MIN_GENRES || selectedGenres.length > MAX_GENRES) {
-      Alert.alert('Lỗi', `Vui lòng chọn từ ${MIN_GENRES} đến ${MAX_GENRES} thể loại.`);
-      return;
-    }
-
+    if (selectedGenres.length < MIN_GENRES) { Alert.alert('Lỗi', `Vui lòng chọn ít nhất ${MIN_GENRES} thể loại.`); return; }
     navigation.navigate('SelectArtists', { selectedGenreIds: selectedGenres });
   };
 
-  const handleSkip = async () => {
-    Alert.alert(
-        'Bỏ qua?',
-        'Nếu bỏ qua, bạn sẽ không nhận được gợi ý nhạc phù hợp.',
-        [
-          { text: 'Hủy', style: 'cancel' },
-          {
-            text: 'Bỏ qua',
-            style: 'destructive',
-            onPress: async () => {
-              await refreshProfile();
-            }
-          }
-        ]
-    );
+  const handleSkip = () => {
+    Alert.alert('Bỏ qua?', 'Bạn sẽ không nhận được gợi ý nhạc phù hợp.', [
+      { text: 'Hủy', style: 'cancel' },
+      { text: 'Bỏ qua', style: 'destructive', onPress: async () => { await refreshProfile(); } },
+    ]);
   };
 
-  const canContinue =
-      selectedGenres.length >= MIN_GENRES &&
-      selectedGenres.length <= MAX_GENRES;
+  const canContinue = selectedGenres.length >= MIN_GENRES;
 
   if (loading) {
     return (
-        <View style={[styles.container, styles.centered]}>
+        <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
           <ActivityIndicator size="large" color={COLORS.accent} />
           <Text style={styles.loadingText}>Đang tải...</Text>
         </View>
@@ -99,68 +86,61 @@ export const SelectGenresScreen = () => {
   }
 
   return (
-      <View style={styles.container}>
-        <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.emoji}>🎵</Text>
-            <Text style={styles.title}>Chào mừng đến Monu!</Text>
-            <Text style={styles.subtitle}>
-              Hãy cho chúng tôi biết thể loại nhạc yêu thích của bạn
-            </Text>
+      <View style={styles.root}>
+        <StatusBar style="light" />
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <LinearGradient
+              colors={[COLORS.gradNavy, COLORS.bg]}
+              style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
+          >
+            <BackButton onPress={handleBack} />
 
-            <View style={styles.stepIndicator}>
-              <View style={[styles.stepDot, styles.stepDotActive]} />
+            <View style={styles.stepRow}>
+              <View style={[styles.stepDotActive]} />
               <View style={styles.stepDot} />
             </View>
-          </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              Chọn {MIN_GENRES}-{MAX_GENRES} thể loại
-              <Text style={styles.sectionCount}>
-                {' '}
-                ({selectedGenres.length}/{MAX_GENRES})
-              </Text>
-            </Text>
+            <Text style={styles.emoji}>🎵</Text>
+            <Text style={styles.title}>Chào mừng đến{'\n'}PhazelSound!</Text>
+            <Text style={styles.subtitle}>Chọn thể loại nhạc bạn yêu thích</Text>
+          </LinearGradient>
 
-            <View style={styles.genresContainer}>
+          <View style={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
+            <View style={styles.countRow}>
+              <Text style={styles.countLabel}>Chọn {MIN_GENRES}–{MAX_GENRES} thể loại</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{selectedGenres.length}/{MAX_GENRES}</Text>
+              </View>
+            </View>
+
+            <View style={styles.genresWrap}>
               {genres.map(genre => (
                   <GenreChip
                       key={genre.id}
                       name={genre.name}
                       selected={selectedGenres.includes(genre.id)}
                       onPress={() => toggleGenre(genre.id)}
-                      disabled={
-                          !selectedGenres.includes(genre.id) &&
-                          selectedGenres.length >= MAX_GENRES
-                      }
+                      disabled={!selectedGenres.includes(genre.id) && selectedGenres.length >= MAX_GENRES}
                   />
               ))}
             </View>
-          </View>
 
-          <View style={styles.buttonsContainer}>
             <Pressable
-                style={[
-                  styles.button,
-                  styles.buttonPrimary,
-                  !canContinue && styles.buttonDisabled
-                ]}
+                style={({ pressed }) => [styles.primaryBtn, !canContinue && styles.btnDisabled, pressed && { opacity: 0.85 }]}
                 onPress={handleContinue}
                 disabled={!canContinue}
             >
-              <Text style={styles.buttonPrimaryText}>Tiếp tục</Text>
+              <LinearGradient
+                  colors={canContinue ? [COLORS.accent, COLORS.accentAlt] : [COLORS.surfaceMid, COLORS.surfaceMid]}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={styles.btnGradient}
+              >
+                <Text style={styles.primaryBtnText}>Tiếp tục →</Text>
+              </LinearGradient>
             </Pressable>
 
-            <Pressable
-                style={[styles.button, styles.buttonSecondary]}
-                onPress={handleSkip}
-            >
-              <Text style={styles.buttonSecondaryText}>Bỏ qua</Text>
+            <Pressable style={styles.skipBtn} onPress={handleSkip}>
+              <Text style={styles.skipText}>Bỏ qua bước này</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -169,134 +149,52 @@ export const SelectGenresScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
+  root: { flex: 1, backgroundColor: COLORS.bg },
+  loadingText: { color: 'COLORS.glass40', marginTop: 12 },
 
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  gradientTop: { paddingHorizontal: 24, paddingBottom: 32 },
 
-  scrollView: {
-    flex: 1,
-  },
+  stepRow: { flexDirection: 'row', gap: 8, marginTop: 20, marginBottom: 24 },
+  stepDotActive: { width: 24, height: 8, borderRadius: 4, backgroundColor: COLORS.accent },
+  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'COLORS.glass20' },
 
-  scrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  },
+  emoji: { fontSize: 44, marginBottom: 14 },
+  title: { color: COLORS.white, fontSize: 30, fontWeight: '800', lineHeight: 38, marginBottom: 10 },
+  subtitle: { color: 'COLORS.glass50', fontSize: 15, lineHeight: 22 },
 
-  loadingText: {
-    color: COLORS.muted,
-    marginTop: 12,
-    fontSize: 14,
-  },
+  body: { paddingHorizontal: 20, paddingTop: 24 },
 
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-    marginTop: 20,
-  },
-
-  emoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.text,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-
-  subtitle: {
-    fontSize: 16,
-    color: COLORS.muted,
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 10,
-  },
-
-  stepIndicator: {
+  countRow: {
     flexDirection: 'row',
-    marginTop: 20,
-    gap: 8,
-  },
-
-  stepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.border,
-  },
-
-  stepDotActive: {
-    backgroundColor: COLORS.accent,
-    width: 24,
-  },
-
-  section: {
-    marginBottom: 32,
-  },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
   },
-
-  sectionCount: {
-    color: COLORS.accent,
-    fontWeight: 'bold',
-  },
-
-  genresContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-
-  buttonsContainer: {
-    gap: 12,
-    marginTop: 20,
-  },
-
-  button: {
-    height: 50,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  buttonPrimary: {
-    backgroundColor: COLORS.accent,
-  },
-
-  buttonDisabled: {
-    backgroundColor: COLORS.border,
-    opacity: 0.5,
-  },
-
-  buttonPrimaryText: {
-    color: COLORS.bg,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  buttonSecondary: {
-    backgroundColor: 'transparent',
+  countLabel: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  countBadge: {
+    backgroundColor: 'COLORS.accentFill25',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'COLORS.accentBorder30',
   },
+  countBadgeText: { color: COLORS.accent, fontWeight: '700', fontSize: 13 },
 
-  buttonSecondaryText: {
-    color: COLORS.muted,
-    fontSize: 16,
-    fontWeight: '600',
+  genresWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 28 },
+
+  primaryBtn: { borderRadius: 999, overflow: 'hidden', marginBottom: 12 },
+  btnDisabled: { opacity: 0.5 },
+  btnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
+  primaryBtnText: { color: COLORS.white, fontWeight: '800', fontSize: 16 },
+
+  skipBtn: {
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'COLORS.glass10',
   },
+  skipText: { color: 'COLORS.glass45', fontWeight: '600', fontSize: 15 },
 });

@@ -1,7 +1,10 @@
 import React from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { MaterialIcons  } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +19,12 @@ import ForgotPasswordScreen from '../screens/(auth)/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/(auth)/ResetPasswordScreen';
 import { SelectGenresScreen } from '../screens/(onBoard)/SelectGenresScreen';
 import { SelectArtistsScreen } from '../screens/(onBoard)/SelectArtistsScreen';
+import { CreateScreen } from '../screens/(tabs)/CreateScreen';
+import { LibraryScreen } from '../screens/(tabs)/LibraryScreen';
+import { PremiumScreen } from '../screens/(tabs)/PremiumScreen';
+import { ProfileScreen } from '../screens/(tabs)/ProfileScreen';
+import { SearchScreen } from '../screens/(tabs)/SearchScreen';
+import { HomeScreen } from '../screens/HomeScreen';
 import { EditFavoritesScreen } from '../screens/(settings)/EditFavoritesScreen';
 
 export type RootStackParamList = {
@@ -29,20 +38,76 @@ export type RootStackParamList = {
   ResetPassword: { email: string };
   SelectGenres: undefined;
   SelectArtists: { selectedGenreIds: string[] };
-  Home: undefined;
+  MainTabs: undefined;
   EditFavorites: undefined;
+  Profile: undefined;
+};
+
+export type MainTabParamList = {
+  Home: undefined;
+  Search: undefined;
+  Create: undefined;
+  Library: undefined;
+  Premium: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<MainTabParamList>();
+
+const tabMeta: Record<keyof MainTabParamList, { label: string; icon: string }> = {
+  Home: { label: 'Trang chủ', icon: 'home' },
+  Search: { label: 'Tìm kiếm', icon: 'search' },
+  Create: { label: 'Tạo', icon: 'add' },
+  Library: { label: 'Thư viện', icon: 'library-music' },
+  Premium: { label: 'Premium', icon: 'redeem' },
+};
 
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: ['monumobile://'],
   config: {
     screens: {
-      Home: 'home',
+      MainTabs: 'home',
     },
   },
 };
+
+const MainTabNavigator = () => (
+  <Tab.Navigator
+    screenOptions={({ route }: { route: { name: keyof MainTabParamList } }) => {
+      const meta = tabMeta[route.name as keyof MainTabParamList];
+      const isCreate = route.name === 'Create';
+
+      return {
+        headerShown: false,
+        tabBarLabel: meta.label,
+        tabBarStyle: {
+          backgroundColor: COLORS.surface,
+          borderTopColor: COLORS.border,
+          height: 78,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarActiveTintColor: COLORS.text,
+        tabBarInactiveTintColor: COLORS.muted,
+        tabBarIcon: ({ color }: { color: string }) => (
+          <View style={[styles.tabIconWrap, isCreate && styles.createIconWrap]}>
+            <MaterialIcons
+                name={meta.icon as any}
+                size={isCreate ? 20 : 18}
+                color={isCreate ? COLORS.white : color}
+            />
+          </View>
+        ),
+      };
+    }}
+  >
+    <Tab.Screen name="Home" component={HomeScreen} />
+    <Tab.Screen name="Search" component={SearchScreen} />
+    <Tab.Screen name="Create" component={CreateScreen} />
+    <Tab.Screen name="Library" component={LibraryScreen} />
+    <Tab.Screen name="Premium" component={PremiumScreen} />
+  </Tab.Navigator>
+);
 
 export const AppNavigator = () => {
   const { authSession, isInitializing } = useAuth();
@@ -61,6 +126,18 @@ export const AppNavigator = () => {
     <NavigationContainer linking={linking}>
       <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
         {authSession ? (
+          needsOnboarding ? (
+            <>
+              <Stack.Screen name="SelectGenres" component={SelectGenresScreen} />
+              <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
+            </>
+          ) : (
+            <>
+              <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+              <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
+            </>
+          )
           <>
             {needsOnboarding ? (
               <>
@@ -97,5 +174,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: COLORS.bg,
+  },
+  tabIconWrap: { alignItems: 'center', justifyContent: 'center' },
+  tabIcon: { fontSize: 17 },
+  createIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.accentDim,
   },
 });

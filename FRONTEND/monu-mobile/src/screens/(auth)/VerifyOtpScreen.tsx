@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { verifyOtp, resendOtp } from '../../services/auth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { COLORS } from '../../config/colors';
@@ -10,18 +13,19 @@ import { BackButton } from '../../components/BackButton';
 const OTP_LENGTH = 6;
 const RESEND_SECS = 60;
 
-type Nav   = NativeStackNavigationProp<RootStackParamList, 'VerifyOtp'>;
+type Nav = NativeStackNavigationProp<RootStackParamList, 'VerifyOtp'>;
 type Route = RouteProp<RootStackParamList, 'VerifyOtp'>;
 
 export default function VerifyOtpScreen() {
     const navigation = useNavigation<Nav>();
     const route = useRoute<Route>();
     const { email } = route.params;
+    const insets = useSafeAreaInsets();
 
-    const [otp, setOtp]               = useState<string[]>(Array(OTP_LENGTH).fill(''));
-    const [loading, setLoading]       = useState(false);
-    const [resending, setResending]   = useState(false);
-    const [countdown, setCountdown]   = useState(RESEND_SECS);
+    const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+    const [loading, setLoading] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [countdown, setCountdown] = useState(RESEND_SECS);
     const inputs = useRef<(TextInput | null)[]>(Array(OTP_LENGTH).fill(null));
 
     useEffect(() => {
@@ -31,7 +35,6 @@ export default function VerifyOtpScreen() {
     }, [countdown]);
 
     const handleCellChange = (text: string, index: number) => {
-        // Handle paste
         if (text.length > 1) {
             const digits = text.replace(/\D/g, '').slice(0, OTP_LENGTH).split('');
             const next = Array(OTP_LENGTH).fill('');
@@ -57,9 +60,10 @@ export default function VerifyOtpScreen() {
     };
 
     const code = otp.join('');
+    const isComplete = code.length === OTP_LENGTH;
 
     const handleVerify = async () => {
-        if (code.length < OTP_LENGTH) { Alert.alert('Thiếu mã OTP', 'Vui lòng nhập đủ 6 chữ số.'); return; }
+        if (!isComplete) { Alert.alert('Thiếu mã OTP', 'Vui lòng nhập đủ 6 chữ số.'); return; }
         setLoading(true);
         try {
             await verifyOtp({ email, otp: code });
@@ -84,24 +88,44 @@ export default function VerifyOtpScreen() {
     };
 
     return (
+        <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <StatusBar style="light" />
+
+            <LinearGradient
+                colors={[COLORS.gradIndigo, COLORS.bg]}
+                style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
+            >
+                <BackButton onPress={() => navigation.goBack()} />
+
+                <View style={styles.iconWrap}>
+                    <Text style={{ fontSize: 40 }}>📬</Text>
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.container}>
                 <BackButton onPress={() => navigation.goBack()} />
                 <View style={[styles.iconWrap, { backgroundColor: COLORS.surface, borderColor: COLORS.accentDim }]}>
                     <Text style={{ fontSize: 36 }}>📬</Text>
                 </View>
-                <Text style={[styles.heading, { color: COLORS.text }]}>Xác thực email</Text>
-                <Text style={{ fontSize: 14, color: COLORS.muted, textAlign: 'center', lineHeight: 22, marginBottom: 36 }}>
-                    Mã OTP 6 chữ số đã được gửi đến{'\n'}
-                    <Text style={{ color: COLORS.accent, fontWeight: '700' }}>{email}</Text>
+                <Text style={styles.title}>Xác thực email</Text>
+                <Text style={styles.subtitle}>
+                    Mã OTP 6 chữ số đã được gửi đến
                 </Text>
+                <View style={styles.emailBadge}>
+                    <Text style={styles.emailBadgeText}>{email}</Text>
+                </View>
+            </LinearGradient>
 
+            <View style={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
+                {/* OTP cells */}
                 <View style={styles.otpRow}>
                     {otp.map((digit, i) => (
                         <TextInput
                             key={i}
                             ref={r => { inputs.current[i] = r; }}
-                            style={[styles.cell, { borderColor: digit ? COLORS.accent : COLORS.border, backgroundColor: digit ? '#1E1630' : COLORS.surface, color: COLORS.text }]}
+                            style={[
+                                styles.cell,
+                                digit ? styles.cellFilled : {},
+                                i === otp.findIndex(d => !d) && styles.cellActive,
+                            ]}
                             value={digit}
                             onChangeText={t => handleCellChange(t, i)}
                             onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
@@ -110,19 +134,29 @@ export default function VerifyOtpScreen() {
                             textAlign="center"
                             selectionColor={COLORS.accent}
                             placeholder="·"
-                            placeholderTextColor={COLORS.border}
+                            placeholderTextColor="COLORS.glass20"
                         />
                     ))}
                 </View>
 
-                <Pressable style={[styles.btn, { backgroundColor: COLORS.accentDim }, loading && { opacity: 0.5 }]} onPress={handleVerify} disabled={loading}>
-                    <Text style={styles.btnText}>{loading ? 'Đang xác thực...' : 'Xác thực'}</Text>
+                <Pressable
+                    style={({ pressed }) => [styles.btn, !isComplete && styles.btnDisabled, (loading || pressed) && { opacity: 0.8 }]}
+                    onPress={handleVerify}
+                    disabled={loading || !isComplete}
+                >
+                    <LinearGradient
+                        colors={isComplete ? [COLORS.accent, COLORS.accentAlt] : [COLORS.surfaceDim, COLORS.surfaceDim]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={styles.btnGradient}
+                    >
+                        <Text style={styles.btnText}>{loading ? 'Đang xác thực...' : 'Xác thực'}</Text>
+                    </LinearGradient>
                 </Pressable>
 
-                <View style={{ flexDirection: 'row', marginTop: 24, alignItems: 'center' }}>
-                    <Text style={{ color: COLORS.muted, fontSize: 14 }}>Không nhận được mã? </Text>
+                <View style={styles.resendRow}>
+                    <Text style={styles.resendPrefix}>Không nhận được mã?{'  '}</Text>
                     <Pressable onPress={handleResend} disabled={countdown > 0 || resending}>
-                        <Text style={{ color: countdown > 0 ? COLORS.muted : COLORS.accent, fontSize: 14, fontWeight: '700' }}>
+                        <Text style={[styles.resendBtn, countdown > 0 && styles.resendDisabled]}>
                             {countdown > 0 ? `Gửi lại sau ${countdown}s` : resending ? 'Đang gửi...' : 'Gửi lại'}
                         </Text>
                     </Pressable>
@@ -133,6 +167,67 @@ export default function VerifyOtpScreen() {
 }
 
 const styles = StyleSheet.create({
+    root: { flex: 1, backgroundColor: COLORS.bg },
+
+    gradientTop: { paddingHorizontal: 24, paddingBottom: 36, alignItems: 'center' },
+
+    iconWrap: {
+        width: 88,
+        height: 88,
+        borderRadius: 44,
+        backgroundColor: 'COLORS.glass07',
+        borderWidth: 1.5,
+        borderColor: 'COLORS.accentBorder40',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 24,
+        marginBottom: 20,
+    },
+
+    title: { color: COLORS.white, fontSize: 28, fontWeight: '800', marginBottom: 10 },
+    subtitle: { color: 'COLORS.glass50', fontSize: 15, marginBottom: 10 },
+
+    emailBadge: {
+        backgroundColor: 'COLORS.accentFill20',
+        borderRadius: 999,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderWidth: 1,
+        borderColor: 'COLORS.accentBorder30',
+    },
+    emailBadgeText: { color: COLORS.accent, fontWeight: '700', fontSize: 14 },
+
+    content: { paddingHorizontal: 24, paddingTop: 16 },
+
+    otpRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32 },
+    cell: {
+        width: 50,
+        height: 60,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: 'COLORS.glass12',
+        backgroundColor: 'COLORS.glass05',
+        fontSize: 24,
+        fontWeight: '800',
+        color: COLORS.white,
+    },
+    cellFilled: {
+        borderColor: COLORS.accent,
+        backgroundColor: 'COLORS.accentFill20',
+    },
+    cellActive: {
+        borderColor: 'COLORS.accentBorder50',
+    },
+
+    btn: { borderRadius: 999, overflow: 'hidden' },
+    btnDisabled: { opacity: 0.5 },
+    btnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
+    btnText: { color: COLORS.white, fontWeight: '800', fontSize: 16 },
+
+    resendRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 24 },
+    resendPrefix: { color: 'COLORS.glass40', fontSize: 14 },
+    resendBtn: { color: COLORS.accent, fontSize: 14, fontWeight: '700' },
+    resendDisabled: { color: 'COLORS.glass30' },
     container: { flex: 1, paddingHorizontal: 24, paddingTop: 60, alignItems: 'center' },
     
     iconWrap:  { width: 80, height: 80, borderRadius: 40, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
