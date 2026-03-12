@@ -37,8 +37,9 @@ export const HomeScreen = () => {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 11) return 'Chào buổi sáng ☀';
-    if (hour >= 11 && hour < 14) return 'Chúc buổi trưa vui vẻ 🌤';
+    if (hour >= 6 && hour < 10) return 'Chào buổi sáng ☀';
+    if (hour >= 10 && hour < 13) return 'Buổi trưa vui vẻ 🌤';
+    if (hour >= 13 && hour < 17) return 'Good afternoon 🌤';
     if (hour >= 14 && hour < 22) return 'Chào buổi tối 🌆';
     return 'Chúc ngủ ngon 🌙';
   };

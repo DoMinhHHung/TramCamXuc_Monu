@@ -113,18 +113,6 @@ export const ProfileScreen = () => {
                     ))}
                 </View>
 
-                {/* Danger zone */}
-                <View style={[styles.menuCard, styles.dangerCard]}>
-                    <Pressable style={styles.menuRow} onPress={() => setLogoutOpen(true)}>
-                        <View style={[styles.menuIconWrap, styles.dangerIconWrap]}>
-                            <Text>🚪</Text>
-                        </View>
-                        <Text style={styles.menuLabel}>Đăng xuất</Text>
-                        <Text style={styles.menuArrow}>›</Text>
-                    </Pressable>
-                    <View style={styles.menuRowBorder} />
-                </View>
-
                 <View style={{ height: insets.bottom + 20 }} />
             </ScrollView>
 

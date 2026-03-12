@@ -3,12 +3,12 @@ import {
   Alert, KeyboardAvoidingView, Platform, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
 
 import { BackButton } from '../../components/BackButton';
 import { COLORS } from '../../config/colors';
@@ -48,7 +48,6 @@ export const LoginScreen = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
         >
-          {/* Gradient top zone */}
           <LinearGradient
               colors={[COLORS.gradIndigo, COLORS.bg]}
               style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
@@ -63,14 +62,13 @@ export const LoginScreen = () => {
             <Text style={styles.subtitle}>Chào mừng trở lại với Monu</Text>
           </LinearGradient>
 
-          {/* Form */}
           <View style={[styles.form, { paddingBottom: insets.bottom + 32 }]}>
             <Text style={styles.fieldLabel}>Email</Text>
             <TextInput
                 autoCapitalize="none"
                 keyboardType="email-address"
                 placeholder="you@example.com"
-                placeholderTextColor="COLORS.glass25"
+                placeholderTextColor={COLORS.glass25}
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
@@ -81,13 +79,18 @@ export const LoginScreen = () => {
               <TextInput
                   secureTextEntry={!showPw}
                   placeholder="••••••••"
-                  placeholderTextColor="COLORS.glass25"
+                  placeholderTextColor={COLORS.glass25}
                   style={styles.pwInput}
                   value={password}
                   onChangeText={setPassword}
               />
-              <Pressable onPress={() => setShowPw(p => !p)} style={styles.eyeBtn}>
-                <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁️'}</Text>
+              <Pressable onPress={() => setShowPw(!showPw)}>
+                <MaterialIcons
+                    name={showPw ? 'visibility-off' : 'visibility'}
+                    size={20}
+                    color="#999"
+                    style={{ transform: [{ translateX: -5 }] }}
+                />
               </Pressable>
             </View>
 
@@ -122,77 +125,25 @@ export const LoginScreen = () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    <View style={[styles.container, { backgroundColor: COLORS.bg }]}>
-      <BackButton onPress={() => navigation.goBack()} />
-
-      <View style={styles.formWrap}>
-        <View style={[styles.logoRing, { borderColor: COLORS.accent, backgroundColor: COLORS.surface }]}>
-          <Text style={{ fontSize: 36 }}>🎵</Text>
-        </View>
-        <Text style={[styles.title, { color: COLORS.text }]}>Monu Mobile</Text>
-        <Text style={[styles.subtitle, { color: COLORS.muted }]}>Đăng nhập để tiếp tục</Text>
-
-        <TextInput
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholder="Email"
-          placeholderTextColor={COLORS.muted}
-          style={[styles.input, { backgroundColor: COLORS.surface, borderColor: COLORS.border, color: COLORS.text }]}
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInput
-          secureTextEntry
-          placeholder="Mật khẩu"
-          placeholderTextColor={COLORS.muted}
-          style={[styles.input, { backgroundColor: COLORS.surface, borderColor: COLORS.border, color: COLORS.text }]}
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotRow}>
-          <Text style={{ color: COLORS.accent, fontSize: 13, fontWeight: '600' }}>Quên mật khẩu?</Text>
-        </Pressable>
-
-        <Pressable
-          style={[styles.loginButton, { backgroundColor: COLORS.accentDim }, loading && styles.disabled]}
-          onPress={doEmailLogin}
-          disabled={loading}
-        >
-          <Text style={styles.loginText}>{loading ? 'Đang xử lý...' : 'Đăng nhập'}</Text>
-        </Pressable>
-      </View>
-    </View>
   );
 };
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
-
-  gradientTop: {
-    paddingHorizontal: 24,
-    paddingBottom: 36,
-  },
-
+  gradientTop: { paddingHorizontal: 24, paddingBottom: 36 },
   logoRow: { alignItems: 'center', marginTop: 20, marginBottom: 20 },
   logoRing: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'COLORS.glass06',
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: COLORS.glass06,
     borderWidth: 1.5,
-    borderColor: 'COLORS.accentBorder40',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: COLORS.accentBorder40,
+    alignItems: 'center', justifyContent: 'center',
   },
-
   title: { color: COLORS.white, fontSize: 30, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
-  subtitle: { color: 'COLORS.glass45', fontSize: 15, textAlign: 'center' },
-
+  subtitle: { color: COLORS.glass45, fontSize: 15, textAlign: 'center' },
   form: { paddingHorizontal: 24, paddingTop: 8 },
-
   fieldLabel: {
-    color: 'COLORS.glass40',
+    color: COLORS.glass40,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -201,60 +152,31 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   input: {
-    backgroundColor: 'COLORS.glass06',
+    backgroundColor: COLORS.glass06,
     borderWidth: 1,
-    borderColor: 'COLORS.glass10',
+    borderColor: COLORS.glass10,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 15,
     color: COLORS.white,
     fontSize: 15,
   },
-
   pwWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'COLORS.glass06',
+    backgroundColor: COLORS.glass06,
     borderWidth: 1,
-    borderColor: 'COLORS.glass10',
+    borderColor: COLORS.glass10,
     borderRadius: 14,
   },
   pwInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 15, color: COLORS.white, fontSize: 15 },
   eyeBtn: { paddingHorizontal: 14 },
-
   forgotRow: { alignSelf: 'flex-end', marginTop: 10, marginBottom: 6 },
   forgotText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
-
   loginBtn: { borderRadius: 999, overflow: 'hidden', marginTop: 20 },
-  loginBtnGradient: {
-    minHeight: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 999,
-  },
+  loginBtnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
   loginText: { color: COLORS.white, fontWeight: '800', fontSize: 16 },
-
   registerRow: { alignItems: 'center', paddingTop: 22 },
-  registerText: { color: 'COLORS.glass40', fontSize: 14 },
+  registerText: { color: COLORS.glass40, fontSize: 14 },
   registerLink: { color: COLORS.accent, fontWeight: '700' },
-});
-  container: { flex: 1, padding: 24, paddingTop: 56 },
-  formWrap: { flex: 1, justifyContent: 'center' },
-  logoRing: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  title: { fontSize: 28, fontWeight: '800', marginBottom: 4, textAlign: 'center', letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, marginBottom: 28, textAlign: 'center' },
-  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 12, fontSize: 15 },
-  forgotRow: { alignSelf: 'flex-end', marginBottom: 16, marginTop: -4 },
-  loginButton: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  loginText: { color: COLORS.white, fontWeight: '800', fontSize: 15 },
-  disabled: { opacity: 0.5 },
 });

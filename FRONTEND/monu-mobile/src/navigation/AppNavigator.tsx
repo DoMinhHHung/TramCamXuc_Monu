@@ -1,5 +1,4 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -24,7 +23,6 @@ import { LibraryScreen } from '../screens/(tabs)/LibraryScreen';
 import { PremiumScreen } from '../screens/(tabs)/PremiumScreen';
 import { ProfileScreen } from '../screens/(tabs)/ProfileScreen';
 import { SearchScreen } from '../screens/(tabs)/SearchScreen';
-import { HomeScreen } from '../screens/HomeScreen';
 import { EditFavoritesScreen } from '../screens/(settings)/EditFavoritesScreen';
 
 export type RootStackParamList = {
@@ -138,19 +136,6 @@ export const AppNavigator = () => {
               <Stack.Screen name="Profile" component={ProfileScreen} />
             </>
           )
-          <>
-            {needsOnboarding ? (
-              <>
-                <Stack.Screen name="SelectGenres" component={SelectGenresScreen} />
-                <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
-              </>
-            ) : (
-              <>
-                <Stack.Screen name="Home" component={HomeScreen} />
-                <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
-              </>
-            )}
-          </>
         ) : (
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
