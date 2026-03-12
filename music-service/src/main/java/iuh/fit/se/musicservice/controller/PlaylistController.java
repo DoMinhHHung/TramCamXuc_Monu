@@ -19,7 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/playlists")
+@RequestMapping("/playlists")
 @RequiredArgsConstructor
 public class PlaylistController {
 

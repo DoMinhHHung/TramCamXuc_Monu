@@ -20,9 +20,9 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/v1/recommendations/trending",
-            "/api/v1/recommendations/new-releases",
-            "/api/v1/recommendations/similar/**",
+            "/recommendations/trending",
+            "/recommendations/new-releases",
+            "/recommendations/similar/**",
             "/swagger-ui/**",
             "/api-docs/**",
             "/actuator/**"
