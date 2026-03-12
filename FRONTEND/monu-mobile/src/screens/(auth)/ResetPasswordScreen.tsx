@@ -2,6 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { resetPassword, resendOtp } from '../../services/auth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { COLORS } from '../../config/colors';
@@ -10,19 +13,20 @@ import { BackButton } from '../../components/BackButton';
 const OTP_LENGTH = 6;
 const RESEND_SECS = 60;
 
-type Nav   = NativeStackNavigationProp<RootStackParamList, 'ResetPassword'>;
+type Nav = NativeStackNavigationProp<RootStackParamList, 'ResetPassword'>;
 type Route = RouteProp<RootStackParamList, 'ResetPassword'>;
 
 export default function ResetPasswordScreen() {
     const navigation = useNavigation<Nav>();
     const route = useRoute<Route>();
     const { email } = route.params;
+    const insets = useSafeAreaInsets();
 
-    const [otp, setOtp]             = useState<string[]>(Array(OTP_LENGTH).fill(''));
-    const [newPassword, setNewPw]   = useState('');
+    const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+    const [newPassword, setNewPw] = useState('');
     const [confirmPw, setConfirmPw] = useState('');
-    const [showPw, setShowPw]       = useState(false);
-    const [loading, setLoading]     = useState(false);
+    const [showPw, setShowPw] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [resending, setResending] = useState(false);
     const [countdown, setCountdown] = useState(RESEND_SECS);
     const inputs = useRef<(TextInput | null)[]>(Array(OTP_LENGTH).fill(null));
@@ -62,10 +66,10 @@ export default function ResetPasswordScreen() {
     const code = otp.join('');
 
     const validate = () => {
-        if (code.length < OTP_LENGTH)      return 'Vui lòng nhập đủ 6 chữ số OTP.';
-        if (!newPassword)                   return 'Vui lòng nhập mật khẩu mới.';
-        if (!pwRegex.test(newPassword))     return 'Mật khẩu cần ≥ 8 ký tự, chữ hoa, thường, số và ký tự đặc biệt.';
-        if (newPassword !== confirmPw)      return 'Mật khẩu nhập lại không khớp.';
+        if (code.length < OTP_LENGTH) return 'Vui lòng nhập đủ 6 chữ số OTP.';
+        if (!newPassword) return 'Vui lòng nhập mật khẩu mới.';
+        if (!pwRegex.test(newPassword)) return 'Mật khẩu cần ≥ 8 ký tự, chữ hoa, thường, số và ký tự đặc biệt.';
+        if (newPassword !== confirmPw) return 'Mật khẩu nhập lại không khớp.';
         return null;
     };
 
@@ -92,79 +96,202 @@ export default function ResetPasswordScreen() {
     };
 
     const pwStrength = !newPassword ? null
-        : pwRegex.test(newPassword)  ? { label: 'Mạnh', color: COLORS.success }
-            : newPassword.length >= 6    ? { label: 'Trung bình', color: '#FBBF24' }
-                : { label: 'Yếu', color: COLORS.error };
+        : pwRegex.test(newPassword) ? { label: 'Mạnh 💪', color: COLORS.success, w: '100%' as const }
+            : newPassword.length >= 6 ? { label: 'Trung bình', color: COLORS.warningMid, w: '60%' as const }
+                : { label: 'Yếu', color: COLORS.error, w: '30%' as const };
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1, backgroundColor: COLORS.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 60 }} keyboardShouldPersistTaps="handled">
-                <BackButton onPress={() => navigation.goBack()} />
-
-                <View style={[styles.iconWrap, { backgroundColor: COLORS.surface, borderColor: COLORS.accentDim }]}>
-                    <Text style={{ fontSize: 34 }}>🛡️</Text>
-                </View>
-
-                <Text style={[styles.heading, { color: COLORS.text }]}>Đặt lại mật khẩu</Text>
-                <Text style={{ fontSize: 14, color: COLORS.muted, lineHeight: 22, marginBottom: 28 }}>
-                    Nhập mã OTP đã gửi đến <Text style={{ color: COLORS.accent }}>{email}</Text> và mật khẩu mới.
-                </Text>
-
-                {/* OTP */}
-                <Text style={styles.label}>Mã OTP</Text>
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
-                    {otp.map((digit, i) => (
-                        <TextInput key={i} ref={r => { inputs.current[i] = r; }}
-                                   style={[styles.cell, { borderColor: digit ? COLORS.accent : COLORS.border, backgroundColor: digit ? '#1E1630' : COLORS.surface, color: COLORS.text }]}
-                                   value={digit} onChangeText={t => handleCellChange(t, i)}
-                                   onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
-                                   keyboardType="number-pad" maxLength={OTP_LENGTH} textAlign="center"
-                                   selectionColor={COLORS.accent} placeholder="·" placeholderTextColor={COLORS.border} />
-                    ))}
-                </View>
-
-                <Pressable onPress={handleResend} disabled={countdown > 0 || resending} style={{ alignSelf: 'flex-end', marginBottom: 20 }}>
-                    <Text style={{ color: countdown > 0 ? COLORS.muted : COLORS.accent, fontSize: 13, fontWeight: '600' }}>
-                        {countdown > 0 ? `Gửi lại OTP sau ${countdown}s` : resending ? 'Đang gửi...' : 'Gửi lại OTP'}
+        <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <StatusBar style="light" />
+            <ScrollView
+                contentContainerStyle={{ flexGrow: 1 }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                <LinearGradient
+                    colors={[COLORS.gradIndigo, COLORS.bg]}
+                    style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
+                >
+                    <BackButton onPress={() => navigation.goBack()} />
+                    <View style={styles.iconWrap}>
+                        <Text style={{ fontSize: 38 }}>🛡️</Text>
+                    </View>
+                    <Text style={styles.title}>Đặt lại mật khẩu</Text>
+                    <Text style={styles.subtitle}>
+                        Nhập mã OTP đã gửi đến{' '}
+                        <Text style={{ color: COLORS.accent }}>{email}</Text>
                     </Text>
-                </Pressable>
+                </LinearGradient>
 
-                {/* New password */}
-                <Text style={styles.label}>Mật khẩu mới</Text>
-                <View style={[styles.pwWrap, { backgroundColor: COLORS.surface, borderColor: COLORS.border }]}>
-                    <TextInput style={[styles.pwInput, { color: COLORS.text }]} value={newPassword} onChangeText={setNewPw}
-                               placeholder="••••••••" placeholderTextColor={COLORS.muted} secureTextEntry={!showPw} autoCapitalize="none" />
-                    <Pressable onPress={() => setShowPw(p => !p)} style={{ paddingHorizontal: 14 }}>
-                        <Text style={{ fontSize: 18 }}>{showPw ? '🙈' : '👁️'}</Text>
+                <View style={[styles.form, { paddingBottom: insets.bottom + 32 }]}>
+                    {/* OTP */}
+                    <Text style={styles.fieldLabel}>Mã OTP</Text>
+                    <View style={styles.otpRow}>
+                        {otp.map((digit, i) => (
+                            <TextInput
+                                key={i}
+                                ref={r => { inputs.current[i] = r; }}
+                                style={[styles.cell, digit ? styles.cellFilled : {}]}
+                                value={digit}
+                                onChangeText={t => handleCellChange(t, i)}
+                                onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, i)}
+                                keyboardType="number-pad"
+                                maxLength={OTP_LENGTH}
+                                textAlign="center"
+                                selectionColor={COLORS.accent}
+                                placeholder="·"
+                                placeholderTextColor="COLORS.glass20"
+                            />
+                        ))}
+                    </View>
+
+                    <Pressable
+                        onPress={handleResend}
+                        disabled={countdown > 0 || resending}
+                        style={styles.resendRow}
+                    >
+                        <Text style={[styles.resendText, countdown > 0 && styles.resendDisabled]}>
+                            {countdown > 0 ? `Gửi lại OTP sau ${countdown}s` : resending ? 'Đang gửi...' : 'Gửi lại OTP'}
+                        </Text>
+                    </Pressable>
+
+                    {/* New password */}
+                    <Text style={styles.fieldLabel}>Mật khẩu mới</Text>
+                    <View style={styles.pwWrap}>
+                        <TextInput
+                            style={styles.pwInput}
+                            value={newPassword}
+                            onChangeText={setNewPw}
+                            placeholder="••••••••"
+                            placeholderTextColor="COLORS.glass25"
+                            secureTextEntry={!showPw}
+                            autoCapitalize="none"
+                        />
+                        <Pressable onPress={() => setShowPw(p => !p)} style={styles.eyeBtn}>
+                            <Text style={{ fontSize: 16 }}>{showPw ? '🙈' : '👁️'}</Text>
+                        </Pressable>
+                    </View>
+                    {pwStrength && (
+                        <View style={styles.strengthWrap}>
+                            <View style={styles.strengthBar}>
+                                <View style={[styles.strengthFill, { width: pwStrength.w, backgroundColor: pwStrength.color }]} />
+                            </View>
+                            <Text style={[styles.strengthLabel, { color: pwStrength.color }]}>{pwStrength.label}</Text>
+                        </View>
+                    )}
+
+                    <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Xác nhận mật khẩu</Text>
+                    <TextInput
+                        style={[styles.input, confirmPw && newPassword !== confirmPw && styles.inputError]}
+                        value={confirmPw}
+                        onChangeText={setConfirmPw}
+                        placeholder="••••••••"
+                        placeholderTextColor="COLORS.glass25"
+                        secureTextEntry={!showPw}
+                        autoCapitalize="none"
+                    />
+                    {confirmPw && newPassword !== confirmPw && (
+                        <Text style={styles.errorText}>Mật khẩu không khớp</Text>
+                    )}
+
+                    <Pressable
+                        style={({ pressed }) => [styles.btn, (loading || pressed) && { opacity: 0.8 }]}
+                        onPress={handleReset}
+                        disabled={loading}
+                    >
+                        <LinearGradient
+                            colors={[COLORS.accent, COLORS.accentAlt]}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                            style={styles.btnGradient}
+                        >
+                            <Text style={styles.btnText}>{loading ? 'Đang đặt lại...' : 'Đặt lại mật khẩu'}</Text>
+                        </LinearGradient>
                     </Pressable>
                 </View>
-                {pwStrength && <Text style={{ fontSize: 12, fontWeight: '600', marginBottom: 8, color: pwStrength.color }}>Độ mạnh: {pwStrength.label}</Text>}
-
-                <Text style={[styles.label, { marginTop: 14 }]}>Xác nhận mật khẩu</Text>
-                <TextInput
-                    style={[styles.input, { backgroundColor: COLORS.surface, borderColor: confirmPw && newPassword !== confirmPw ? COLORS.error : COLORS.border, color: COLORS.text }]}
-                    value={confirmPw} onChangeText={setConfirmPw} placeholder="••••••••"
-                    placeholderTextColor={COLORS.muted} secureTextEntry={!showPw} autoCapitalize="none" />
-                {confirmPw && newPassword !== confirmPw && (
-                    <Text style={{ fontSize: 12, color: COLORS.error, marginBottom: 8 }}>Mật khẩu không khớp</Text>
-                )}
-
-                <Pressable style={[styles.btn, { backgroundColor: COLORS.accentDim }, loading && { opacity: 0.5 }]} onPress={handleReset} disabled={loading}>
-                    <Text style={styles.btnText}>{loading ? 'Đang đặt lại...' : 'Đặt lại mật khẩu'}</Text>
-                </Pressable>
             </ScrollView>
         </KeyboardAvoidingView>
     );
 }
 
 const styles = StyleSheet.create({
-    iconWrap: { width: 80, height: 80, borderRadius: 40, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginBottom: 20, alignSelf: 'center' },
-    heading:  { fontSize: 24, fontWeight: '800', marginBottom: 10, letterSpacing: -0.4 },
-    label:    { fontSize: 12, fontWeight: '600', color: COLORS.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 },
-    cell:     { flex: 1, height: 54, borderRadius: 12, borderWidth: 1.5, fontSize: 20, fontWeight: '700' },
-    input:    { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, marginBottom: 4 },
-    pwWrap:   { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, marginBottom: 4 },
-    pwInput:  { flex: 1, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15 },
-    btn:      { borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
-    btnText:  { color: '#fff', fontWeight: '800', fontSize: 15 },
+    root: { flex: 1, backgroundColor: COLORS.bg },
+
+    gradientTop: { paddingHorizontal: 24, paddingBottom: 32, alignItems: 'center' },
+    iconWrap: {
+        width: 88,
+        height: 88,
+        borderRadius: 44,
+        backgroundColor: 'COLORS.glass07',
+        borderWidth: 1.5,
+        borderColor: 'COLORS.accentBorder40',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 24,
+        marginBottom: 18,
+    },
+    title: { color: COLORS.white, fontSize: 26, fontWeight: '800', marginBottom: 8 },
+    subtitle: { color: 'COLORS.glass50', fontSize: 14, textAlign: 'center', lineHeight: 22 },
+
+    form: { paddingHorizontal: 24, paddingTop: 4 },
+
+    fieldLabel: {
+        color: 'COLORS.glass40',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+        marginBottom: 10,
+        marginTop: 16,
+    },
+
+    otpRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+    cell: {
+        width: 48,
+        height: 56,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        borderColor: 'COLORS.glass12',
+        backgroundColor: 'COLORS.glass05',
+        fontSize: 22,
+        fontWeight: '800',
+        color: COLORS.white,
+    },
+    cellFilled: { borderColor: COLORS.accent, backgroundColor: 'COLORS.accentFill20' },
+
+    resendRow: { alignSelf: 'flex-end', paddingVertical: 8 },
+    resendText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
+    resendDisabled: { color: 'COLORS.glass30' },
+
+    input: {
+        backgroundColor: 'COLORS.glass06',
+        borderWidth: 1,
+        borderColor: 'COLORS.glass10',
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 15,
+        color: COLORS.white,
+        fontSize: 15,
+    },
+    inputError: { borderColor: COLORS.error },
+    errorText: { color: COLORS.error, fontSize: 12, marginTop: 4 },
+
+    pwWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'COLORS.glass06',
+        borderWidth: 1,
+        borderColor: 'COLORS.glass10',
+        borderRadius: 14,
+    },
+    pwInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 15, color: COLORS.white, fontSize: 15 },
+    eyeBtn: { paddingHorizontal: 14 },
+
+    strengthWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
+    strengthBar: { flex: 1, height: 3, backgroundColor: 'COLORS.glass10', borderRadius: 2 },
+    strengthFill: { height: 3, borderRadius: 2 },
+    strengthLabel: { fontSize: 12, fontWeight: '600' },
+
+    btn: { borderRadius: 999, overflow: 'hidden', marginTop: 24 },
+    btnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
+    btnText: { color: COLORS.white, fontWeight: '800', fontSize: 16 },
 });

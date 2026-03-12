@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { MaterialIcons  } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +38,7 @@ export type RootStackParamList = {
   SelectArtists: { selectedGenreIds: string[] };
   MainTabs: undefined;
   EditFavorites: undefined;
+  Profile: undefined;
 };
 
 export type MainTabParamList = {
@@ -45,19 +47,17 @@ export type MainTabParamList = {
   Create: undefined;
   Library: undefined;
   Premium: undefined;
-  Profile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const tabMeta: Record<keyof MainTabParamList, { label: string; icon: string }> = {
-  Home: { label: 'Trang chủ', icon: '🏠' },
-  Search: { label: 'Tìm kiếm', icon: '🔎' },
-  Create: { label: 'Tạo', icon: '➕' },
-  Library: { label: 'Thư viện', icon: '🎵' },
-  Premium: { label: 'Premium', icon: '💎' },
-  Profile: { label: 'Hồ sơ', icon: '👤' },
+  Home: { label: 'Trang chủ', icon: 'home' },
+  Search: { label: 'Tìm kiếm', icon: 'search' },
+  Create: { label: 'Tạo', icon: 'add' },
+  Library: { label: 'Thư viện', icon: 'library-music' },
+  Premium: { label: 'Premium', icon: 'redeem' },
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
@@ -89,7 +89,11 @@ const MainTabNavigator = () => (
         tabBarInactiveTintColor: COLORS.muted,
         tabBarIcon: ({ color }: { color: string }) => (
           <View style={[styles.tabIconWrap, isCreate && styles.createIconWrap]}>
-            <Text style={[styles.tabIcon, { color: isCreate ? COLORS.white : color }]}>{meta.icon}</Text>
+            <MaterialIcons
+                name={meta.icon as any}
+                size={isCreate ? 20 : 18}
+                color={isCreate ? COLORS.white : color}
+            />
           </View>
         ),
       };
@@ -100,7 +104,6 @@ const MainTabNavigator = () => (
     <Tab.Screen name="Create" component={CreateScreen} />
     <Tab.Screen name="Library" component={LibraryScreen} />
     <Tab.Screen name="Premium" component={PremiumScreen} />
-    <Tab.Screen name="Profile" component={ProfileScreen} />
   </Tab.Navigator>
 );
 
@@ -130,6 +133,7 @@ export const AppNavigator = () => {
             <>
               <Stack.Screen name="MainTabs" component={MainTabNavigator} />
               <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
             </>
           )
         ) : (
