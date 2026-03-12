@@ -139,7 +139,21 @@ public class SongController {
     // ===================== AUTHENTICATED =====================
 
     /**
-     * Lấy URL stream HLS theo chất lượng subscription.
+     * Lấy URL stream HLS cho bài hát với quality dựa trên subscription tier.
+     * 
+     * AUTHENTICATION: Required for ALL songs (including PUBLIC)
+     * 
+     * QUALITY TIERS:
+     * - Free/No subscription: 64kbps
+     * - Basic tier: 128kbps
+     * - Premium tier: 256kbps
+     * - Lossless tier: 320kbps
+     * - Owner/Admin: Full quality (master.m3u8 adaptive streaming)
+     * 
+     * PRIVATE/DRAFT songs: Only owner or admin can access (full quality)
+     * 
+     * Returns: MinIO presigned URL (15 min expiry) for direct streaming from MinIO
+     * 
      * GET /songs/{songId}/stream
      */
     @GetMapping("/{songId}/stream")

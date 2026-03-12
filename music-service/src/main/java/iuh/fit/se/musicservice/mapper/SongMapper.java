@@ -18,6 +18,7 @@ public interface SongMapper {
         if (song == null) return null;
         return SongResponse.ArtistInfo.builder()
                 .artistId(song.getPrimaryArtistId())
+                .userId(null) 
                 .stageName(song.getPrimaryArtistStageName())
                 .avatarUrl(song.getPrimaryArtistAvatarUrl())
                 .build();

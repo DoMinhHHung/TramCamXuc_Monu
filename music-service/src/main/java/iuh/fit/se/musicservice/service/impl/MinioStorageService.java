@@ -76,7 +76,7 @@ public class MinioStorageService {
                             .method(Method.GET)
                             .bucket(publicBucket)
                             .object(objectKey)
-                            .expiry(1, TimeUnit.MINUTES)
+                            .expiry(15, TimeUnit.MINUTES)
                             .build());
         } catch (Exception e) {
             log.error("Cannot generate presigned stream URL for key: {}", objectKey, e);

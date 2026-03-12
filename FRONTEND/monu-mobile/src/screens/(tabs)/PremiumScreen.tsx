@@ -1,10 +1,12 @@
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, Alert, Linking, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/colors';
+import { getActiveSubscriptionPlans, purchaseSubscription, SubscriptionPlan, getMySubscription, UserSubscription } from '../../services/payment';
+import { useAuth } from '../../context/AuthContext';
 
 const PERKS = [
     { icon: '🎵', title: 'Nghe không giới hạn', desc: 'Không bị gián đoạn bởi quảng cáo' },
@@ -15,6 +17,114 @@ const PERKS = [
 
 export const PremiumScreen = () => {
     const insets = useSafeAreaInsets();
+    const { authSession } = useAuth();
+    const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+    const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+    const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [purchasing, setPurchasing] = useState(false);
+
+    useEffect(() => {
+        fetchData();
+    }, []);
+
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            const [plansData, subscriptionData] = await Promise.allSettled([
+                getActiveSubscriptionPlans(),
+                authSession ? getMySubscription() : null,
+            ]);
+
+            if (plansData.status === 'fulfilled') {
+                setPlans(plansData.value);
+                // Auto-select the first plan or the cheapest one
+                if (plansData.value.length > 0) {
+                    const cheapest = plansData.value.reduce((prev, curr) => 
+                        curr.price < prev.price ? curr : prev
+                    );
+                    setSelectedPlan(cheapest);
+                }
+            }
+
+            if (subscriptionData.status === 'fulfilled' && subscriptionData.value) {
+                setCurrentSubscription(subscriptionData.value);
+            }
+        } catch (error: any) {
+            console.error('Error fetching plans:', error);
+            Alert.alert('Lỗi', error.message || 'Không thể tải thông tin gói cước');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handlePurchase = async () => {
+        if (!authSession) {
+            Alert.alert('Chưa đăng nhập', 'Vui lòng đăng nhập để mua gói Premium');
+            return;
+        }
+
+        if (!selectedPlan) {
+            Alert.alert('Lỗi', 'Vui lòng chọn một gói cước');
+            return;
+        }
+
+        try {
+            setPurchasing(true);
+            const response = await purchaseSubscription({ planId: selectedPlan.id });
+
+            // Open PayOS checkout URL
+            const supported = await Linking.canOpenURL(response.checkoutUrl);
+            if (supported) {
+                await Linking.openURL(response.checkoutUrl);
+                Alert.alert(
+                    'Thanh toán',
+                    'Vui lòng hoàn tất thanh toán trong trình duyệt. Sau khi thanh toán thành công, quay lại ứng dụng và đăng nhập lại để nhận quyền Premium.',
+                    [
+                        {
+                            text: 'Đã hiểu',
+                            onPress: () => fetchData(), // Refresh data after payment
+                        },
+                    ]
+                );
+            } else {
+                Alert.alert('Lỗi', 'Không thể mở liên kết thanh toán');
+            }
+        } catch (error: any) {
+            console.error('Purchase error:', error);
+            Alert.alert('Lỗi', error.message || 'Không thể tạo thanh toán. Vui lòng thử lại.');
+        } finally {
+            setPurchasing(false);
+        }
+    };
+
+    const formatPrice = (price: number) => {
+        return new Intl.NumberFormat('vi-VN').format(price);
+    };
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('vi-VN');
+    };
+
+    const isFreeOrBasic = (plan: SubscriptionPlan) => {
+        return plan.price === 0 || plan.subsName.toLowerCase().includes('free') || plan.subsName.toLowerCase().includes('basic');
+    };
+
+    const renderFeatureValue = (value: any): string => {
+        if (typeof value === 'boolean') return value ? 'Có' : 'Không';
+        if (typeof value === 'number') return value.toString();
+        if (typeof value === 'string') return value;
+        return JSON.stringify(value);
+    };
+
+    if (loading) {
+        return (
+            <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={COLORS.accent} />
+                <Text style={[styles.heroSub, { marginTop: 16 }]}>Đang tải...</Text>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.root}>
@@ -31,38 +141,128 @@ export const PremiumScreen = () => {
                     <Text style={styles.heroTitle}>Monu Premium</Text>
                     <Text style={styles.heroSub}>Trải nghiệm âm nhạc đỉnh cao</Text>
 
-                    <View style={styles.priceCard}>
-                        <Text style={styles.priceLabel}>CHỈ TỪ</Text>
-                        <Text style={styles.price}>59.000 <Text style={styles.pricePer}>đ/tháng</Text></Text>
-                    </View>
+                    {currentSubscription && currentSubscription.status === 'ACTIVE' ? (
+                        <View style={styles.activeSubscriptionCard}>
+                            <Text style={styles.activeLabel}>✨ Đang kích hoạt</Text>
+                            <Text style={styles.activePlan}>{currentSubscription.plan.subsName}</Text>
+                            <Text style={styles.activeExpiry}>
+                                Hết hạn: {formatDate(currentSubscription.expiresAt)}
+                            </Text>
+                        </View>
+                    ) : selectedPlan ? (
+                        <View style={styles.priceCard}>
+                            <Text style={styles.priceLabel}>CHỈ TỪ</Text>
+                            <Text style={styles.price}>
+                                {formatPrice(selectedPlan.price)} <Text style={styles.pricePer}>đ/{selectedPlan.durationDays} ngày</Text>
+                            </Text>
+                        </View>
+                    ) : null}
                 </LinearGradient>
 
                 <View style={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
-                    {PERKS.map((perk, i) => (
-                        <View key={i} style={styles.perkRow}>
-                            <LinearGradient colors={[COLORS.surface, COLORS.surfaceLow]} style={styles.perkIcon}>
-                                <Text style={{ fontSize: 22 }}>{perk.icon}</Text>
-                            </LinearGradient>
-                            <View style={styles.perkInfo}>
-                                <Text style={styles.perkTitle}>{perk.title}</Text>
-                                <Text style={styles.perkDesc}>{perk.desc}</Text>
-                            </View>
-                            <Text style={styles.checkmark}>✓</Text>
+                    {/* Available Plans */}
+                    {plans.length > 0 && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Các gói cước</Text>
+                            {plans.map((plan) => {
+                                const isFree = isFreeOrBasic(plan);
+                                return (
+                                    <Pressable
+                                        key={plan.id}
+                                        style={[
+                                            styles.planCard,
+                                            selectedPlan?.id === plan.id && styles.planCardSelected,
+                                            isFree && styles.planCardFree,
+                                        ]}
+                                        onPress={() => !isFree && setSelectedPlan(plan)}
+                                        disabled={isFree}
+                                    >
+                                        <View style={styles.planHeader}>
+                                            <View style={{ flex: 1 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                    <Text style={styles.planName}>{plan.subsName}</Text>
+                                                    {isFree && (
+                                                        <View style={styles.freeBadge}>
+                                                            <Text style={styles.freeBadgeText}>MIỄN PHÍ</Text>
+                                                        </View>
+                                                    )}
+                                                </View>
+                                                <Text style={styles.planDesc}>{plan.subsDescription}</Text>
+                                                
+                                                {/* Features */}
+                                                {plan.features && Object.keys(plan.features).length > 0 && (
+                                                    <View style={styles.featuresContainer}>
+                                                        {Object.entries(plan.features).map(([key, value]) => (
+                                                            <Text key={key} style={styles.featureItem}>
+                                                                • {key.replace(/_/g, ' ')}: {renderFeatureValue(value)}
+                                                            </Text>
+                                                        ))}
+                                                    </View>
+                                                )}
+                                            </View>
+                                            {!isFree && (
+                                                <Text style={styles.planPrice}>{formatPrice(plan.price)}đ</Text>
+                                            )}
+                                        </View>
+                                        {!isFree && (selectedPlan && !isFreeOrBasic(selectedPlan) && 
+                                            <Text style={styles.planDuration}>Thời hạn: {plan.durationDays} ngày</Text>
+                                        )}
+                                    </Pressable>
+                                );
+                            })}
                         </View>
-                    ))}
+                    )}
 
-                    <Pressable style={({ pressed }) => [styles.upgradeBtn, pressed && { opacity: 0.85 }]}>
-                        <LinearGradient
-                            colors={[COLORS.warning, COLORS.error]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.upgradeBtnGradient}
-                        >
-                            <Text style={styles.upgradeBtnText}>👑  Nâng cấp ngay</Text>
-                        </LinearGradient>
-                    </Pressable>
+                    {/* Perks */}
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Tính năng</Text>
+                        {PERKS.map((perk, i) => (
+                            <View key={i} style={styles.perkRow}>
+                                <LinearGradient colors={[COLORS.surface, COLORS.surfaceLow]} style={styles.perkIcon}>
+                                    <Text style={{ fontSize: 22 }}>{perk.icon}</Text>
+                                </LinearGradient>
+                                <View style={styles.perkInfo}>
+                                    <Text style={styles.perkTitle}>{perk.title}</Text>
+                                    <Text style={styles.perkDesc}>{perk.desc}</Text>
+                                </View>
+                                <Text style={styles.checkmark}>✓</Text>
+                            </View>
+                        ))}
+                    </View>
 
-                    <Text style={styles.trial}>Dùng thử miễn phí 30 ngày. Hủy bất cứ lúc nào.</Text>
+                    {/* Purchase Button */}
+                    {currentSubscription?.status !== 'ACTIVE' && (
+                        <>
+                            <Pressable
+                                style={({ pressed }) => [
+                                    styles.upgradeBtn,
+                                    pressed && { opacity: 0.85 },
+                                    purchasing && { opacity: 0.6 },
+                                ]}
+                                onPress={handlePurchase}
+                                disabled={purchasing || !selectedPlan}
+                            >
+                                <LinearGradient
+                                    colors={[COLORS.warning, COLORS.error]}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.upgradeBtnGradient}
+                                >
+                                    {purchasing ? (
+                                        <ActivityIndicator color={COLORS.white} />
+                                    ) : (
+                                        <Text style={styles.upgradeBtnText}>
+                                            👑  {selectedPlan ? `Mua ngay ${formatPrice(selectedPlan.price)}đ` : 'Chọn gói cước'}
+                                        </Text>
+                                    )}
+                                </LinearGradient>
+                            </Pressable>
+
+                            <Text style={styles.trial}>
+                                Thanh toán qua PayOS. Hủy bất cứ lúc nào.
+                            </Text>
+                        </>
+                    )}
                 </View>
             </ScrollView>
         </View>
@@ -105,7 +305,77 @@ const styles = StyleSheet.create({
     price: { color: COLORS.white, fontSize: 28, fontWeight: '800', marginTop: 4 },
     pricePer: { fontSize: 15, fontWeight: '500', color: 'COLORS.glass50' },
 
+    activeSubscriptionCard: {
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        borderRadius: 14,
+        paddingVertical: 14,
+        paddingHorizontal: 28,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(34, 197, 94, 0.3)',
+    },
+    activeLabel: {
+        color: '#22c55e',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1.5,
+    },
+    activePlan: { color: COLORS.white, fontSize: 24, fontWeight: '800', marginTop: 4 },
+    activeExpiry: { fontSize: 13, fontWeight: '500', color: '#86efac', marginTop: 4 },
+
     body: { paddingHorizontal: 20, paddingTop: 24 },
+
+    section: { marginBottom: 24 },
+    sectionTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700', marginBottom: 12 },
+
+    planCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 2,
+        borderColor: 'transparent',
+    },
+    planCardSelected: {
+        borderColor: COLORS.accent,
+        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    },
+    planCardFree: {
+        borderColor: COLORS.glass20,
+        opacity: 0.7,
+    },
+    planHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 8,
+    },
+    planName: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+    planDesc: { color: COLORS.muted, fontSize: 13, marginTop: 4 },
+    planPrice: { color: COLORS.accent, fontSize: 18, fontWeight: '800' },
+    planDuration: { color: COLORS.muted, fontSize: 12 },
+
+    freeBadge: {
+        backgroundColor: COLORS.glass15,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
+    freeBadgeText: {
+        color: COLORS.glass60,
+        fontSize: 10,
+        fontWeight: '700',
+    },
+
+    featuresContainer: {
+        marginTop: 8,
+        gap: 4,
+    },
+    featureItem: {
+        color: COLORS.glass50,
+        fontSize: 12,
+        lineHeight: 18,
+    },
 
     perkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
     perkIcon: {
