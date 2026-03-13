@@ -80,7 +80,7 @@ export const PremiumScreen = () => {
                 await Linking.openURL(response.checkoutUrl);
                 Alert.alert(
                     'Thanh toán',
-                    'Vui lòng hoàn tất thanh toán trong trình duyệt. Sau khi thanh toán thành công, quay lại ứng dụng và đăng nhập lại để nhận quyền Premium.',
+                    'Vui lòng hoàn tất thanh toán trong trình duyệt. Sau khi thanh toán thành công, quay lại ứng dụng, hệ thống sẽ tự làm mới token và cập nhật quyền Premium.',
                     [
                         {
                             text: 'Đã hiểu',
