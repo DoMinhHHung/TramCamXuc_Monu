@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/colors';
+import  PremiumCard  from "../../components/PremiumCard";
 import { getActiveSubscriptionPlans, purchaseSubscription, SubscriptionPlan, getMySubscription, UserSubscription } from '../../services/payment';
 import { useAuth } from '../../context/AuthContext';
 
@@ -164,52 +165,25 @@ export const PremiumScreen = () => {
                     {plans.length > 0 && (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Các gói cước</Text>
-                            {plans.map((plan) => {
-                                const isFree = isFreeOrBasic(plan);
-                                return (
-                                    <Pressable
-                                        key={plan.id}
-                                        style={[
-                                            styles.planCard,
-                                            selectedPlan?.id === plan.id && styles.planCardSelected,
-                                            isFree && styles.planCardFree,
-                                        ]}
-                                        onPress={() => !isFree && setSelectedPlan(plan)}
-                                        disabled={isFree}
-                                    >
-                                        <View style={styles.planHeader}>
-                                            <View style={{ flex: 1 }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                    <Text style={styles.planName}>{plan.subsName}</Text>
-                                                    {isFree && (
-                                                        <View style={styles.freeBadge}>
-                                                            <Text style={styles.freeBadgeText}>MIỄN PHÍ</Text>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                                <Text style={styles.planDesc}>{plan.subsDescription}</Text>
-                                                
-                                                {/* Features */}
-                                                {plan.features && Object.keys(plan.features).length > 0 && (
-                                                    <View style={styles.featuresContainer}>
-                                                        {Object.entries(plan.features).map(([key, value]) => (
-                                                            <Text key={key} style={styles.featureItem}>
-                                                                • {key.replace(/_/g, ' ')}: {renderFeatureValue(value)}
-                                                            </Text>
-                                                        ))}
-                                                    </View>
-                                                )}
-                                            </View>
-                                            {!isFree && (
-                                                <Text style={styles.planPrice}>{formatPrice(plan.price)}đ</Text>
-                                            )}
-                                        </View>
-                                        {!isFree && (selectedPlan && !isFreeOrBasic(selectedPlan) && 
-                                            <Text style={styles.planDuration}>Thời hạn: {plan.durationDays} ngày</Text>
-                                        )}
-                                    </Pressable>
-                                );
-                            })}
+                            {plans.map((plan) => (
+                                <PremiumCard
+                                    key={plan.id}
+                                    name={plan.subsName}
+                                    price={`${formatPrice(plan.price)}đ`}
+                                    duration={`${plan.durationDays} ngày`}
+                                    features={
+                                        plan.features
+                                            ? Object.entries(plan.features).map(
+                                                ([k, v]) => `${k.replace(/_/g, ' ')}: ${renderFeatureValue(v)}`
+                                            )
+                                            : []
+                                    }
+                                    onBuy={() => {
+                                        setSelectedPlan(plan);
+                                        handlePurchase();
+                                    }}
+                                />
+                            ))}
                         </View>
                     )}
 

@@ -1,4 +1,6 @@
 .env
+package-lock.json
+yarn.lock
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar

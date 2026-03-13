@@ -28,7 +28,7 @@ public interface SongService {
     SongResponse getSongById(UUID songId);
     String getStreamUrl(UUID songId);
     void recordPlay(UUID songId);
-    void recordListen(UUID songId, UUID playlistId, UUID albumId, int durationSeconds);
+    void recordListen(UUID songId, UUID playlistId, UUID albumId, int durationSeconds, boolean completed);
     Page<SongResponse> searchSongs(String keyword, UUID genreId, UUID artistId, Pageable pageable);
     Page<SongResponse> getTrending(Pageable pageable);
     Page<SongResponse> getNewest(Pageable pageable);

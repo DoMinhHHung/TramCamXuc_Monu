@@ -17,6 +17,7 @@ import iuh.fit.se.identityservice.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -83,14 +84,14 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public Page<UserResponse> getAllUsers(Pageable pageable) {
-        requireAdmin();
         return userRepository.findAllByRoleNot(Role.ADMIN, pageable).map(userMapper::toResponse);
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN')")
     public UserResponse getUserById(String id) {
-        requireAdmin();
         User user = userRepository.findById(UUID.fromString(id))
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         if (user.getRole() == Role.ADMIN)
@@ -109,16 +110,10 @@ public class UserServiceImpl implements UserService {
             user.setStatus(AccountStatus.ACTIVE);
         } else {
             user.setStatus(AccountStatus.BANNED);
-            user.getRefreshTokens().clear();
+            refreshTokenRepository.deleteByUser(user);
         }
         userRepository.save(user);
     }
-
-    private void requireAdmin() {
-        if (currentUser().getRole() != Role.ADMIN)
-            throw new AppException(ErrorCode.ACCESS_DENIED);
-    }
-
     // ── Favorites for onboarding ──────────────────────────────────────────────
 
     @Override

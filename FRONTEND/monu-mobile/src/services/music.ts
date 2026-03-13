@@ -31,10 +31,7 @@ export interface Song {
 
 export interface PageResponse<T> {
   content: T[];
-  pageable: {
-    pageNumber: number;
-    pageSize: number;
-  };
+  pageable: { pageNumber: number; pageSize: number };
   totalElements: number;
   totalPages: number;
   last: boolean;
@@ -44,10 +41,7 @@ export interface PageResponse<T> {
 
 // ─── Music API ────────────────────────────────────────────────────────────────
 
-/**
- * Search songs with filters
- * GET /songs?keyword=&genreId=&artistId=&page=1&size=20
- */
+/** GET /songs?keyword=&genreId=&artistId=&page=1&size=20 */
 export const searchSongs = async (params: {
   keyword?: string;
   genreId?: string;
@@ -59,10 +53,17 @@ export const searchSongs = async (params: {
   return response.data;
 };
 
-/**
- * Get trending songs
- * GET /songs/trending
- */
+/** GET /artists?keyword=&page=&size= */
+export const searchArtists = async (params: {
+  keyword?: string;
+  page?: number;
+  size?: number;
+}): Promise<PageResponse<Artist>> => {
+  const response = await apiClient.get<PageResponse<Artist>>('/artists', { params });
+  return response.data;
+};
+
+/** GET /songs/trending */
 export const getTrendingSongs = async (params?: {
   page?: number;
   size?: number;
@@ -71,10 +72,7 @@ export const getTrendingSongs = async (params?: {
   return response.data;
 };
 
-/**
- * Get newest songs
- * GET /songs/newest
- */
+/** GET /songs/newest */
 export const getNewestSongs = async (params?: {
   page?: number;
   size?: number;
@@ -83,65 +81,61 @@ export const getNewestSongs = async (params?: {
   return response.data;
 };
 
-/**
- * Get song by ID
- * GET /songs/{songId}
- */
+/** GET /songs/{songId} */
 export const getSongById = async (songId: string): Promise<Song> => {
   const response = await apiClient.get<Song>(`/songs/${songId}`);
   return response.data;
 };
 
-/**
- * Get songs by artist
- * GET /songs/by-artist/{artistId}
- */
+/** GET /songs/by-artist/{artistId} */
 export const getSongsByArtist = async (
-  artistId: string,
-  params?: { page?: number; size?: number }
+    artistId: string,
+    params?: { page?: number; size?: number },
 ): Promise<PageResponse<Song>> => {
-  const response = await apiClient.get<PageResponse<Song>>(`/songs/by-artist/${artistId}`, {
-    params,
-  });
+  const response = await apiClient.get<PageResponse<Song>>(
+      `/songs/by-artist/${artistId}`, { params },
+  );
   return response.data;
 };
 
-/**
- * Get stream URL for authenticated user
- * GET /songs/{songId}/stream
- */
+/** GET /songs/{songId}/stream */
 export const getStreamUrl = async (songId: string): Promise<string> => {
   const response = await apiClient.get<string>(`/songs/${songId}/stream`);
   return response.data;
 };
 
 /**
- * Record play count (public)
  * POST /songs/{songId}/play
+ * Gọi ngay khi bắt đầu stream — tính play count.
  */
 export const recordPlay = async (songId: string): Promise<void> => {
   await apiClient.post(`/songs/${songId}/play`);
 };
 
 /**
- * Record listen event
  * POST /songs/{songId}/listen
+ * Gọi khi user nghe đủ 30s HOẶC khi bài kết thúc.
+ *
+ * @param completed  true nếu user nghe ≥ 90% bài
+ * @param artistId   primary artist id (backend có thể tự look-up, nhưng gửi kèm để analytics nhanh hơn)
+ * @param genreIds   comma-separated genre ids
+ * @param durationSeconds  tổng giây nghe thực sự (không tính pause)
  */
 export const recordListen = async (
-  songId: string,
-  params?: {
-    playlistId?: string;
-    albumId?: string;
-    durationSeconds?: number;
-  }
+    songId: string,
+    params?: {
+      playlistId?: string;
+      albumId?: string;
+      durationSeconds?: number;
+      completed?: boolean;
+      artistId?: string;
+      genreIds?: string;
+    },
 ): Promise<void> => {
   await apiClient.post(`/songs/${songId}/listen`, null, { params });
 };
 
-/**
- * Batch fetch songs by IDs
- * GET /songs/batch?ids=id1,id2,...
- */
+/** GET /songs/batch?ids=id1,id2,... */
 export const getSongsByIds = async (ids: string[]): Promise<Song[]> => {
   const response = await apiClient.get<Song[]>('/songs/batch', {
     params: { ids: ids.join(',') },

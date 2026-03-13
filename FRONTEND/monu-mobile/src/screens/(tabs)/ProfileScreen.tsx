@@ -12,9 +12,12 @@ import { ConfirmModal } from '../../components/ConfirmModal';
 import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { deleteMyProfile, updateMyProfile, uploadAvatar } from '../../services/auth';
+import {BackButton} from "@/components/BackButton";
+import {useNavigation} from "@react-navigation/native";
 
 export const ProfileScreen = () => {
     const { authSession, refreshProfile, logout } = useAuth();
+    const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const [menuOpen, setMenuOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
@@ -57,6 +60,7 @@ export const ProfileScreen = () => {
                 >
                     {/* Top bar */}
                     <View style={styles.topBar}>
+                        <BackButton onPress={() => navigation.goBack()}/>
                         <Text style={styles.topBarTitle}>Hồ sơ</Text>
                         <Pressable onPress={() => setMenuOpen(p => !p)} style={styles.gearBtn}>
                             <Text style={styles.gearIcon}>⚙️</Text>

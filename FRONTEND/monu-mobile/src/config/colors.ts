@@ -138,6 +138,14 @@ export const COLORS = {
   catClassicFrom: '#1a100a',
   catClassicTo:   '#5A300A',
 
+  // ── Premium UI ──────────────────────────────────────────────────────────────
+  premiumGlow: '#C084FC',
+  premiumGlowSoft: 'rgba(192,132,252,0.35)',
+  premiumCardFrom: '#1A1040',
+  premiumCardTo: '#2D1B69',
+  premiumShine: 'rgba(255,255,255,0.15)',
+  premiumBorder: 'rgba(192,132,252,0.35)',
+
 } as const;
 
 export type ColorScheme = typeof COLORS;

@@ -130,9 +130,10 @@ public class SongController {
             @PathVariable UUID songId,
             @RequestParam(required = false) UUID playlistId,
             @RequestParam(required = false) UUID albumId,
-            @RequestParam(defaultValue = "30") int durationSeconds) {
+            @RequestParam(defaultValue = "30")    int durationSeconds,
+            @RequestParam(defaultValue = "false") boolean completed) {
 
-        songService.recordListen(songId, playlistId, albumId, durationSeconds);
+        songService.recordListen(songId, playlistId, albumId, durationSeconds, completed);
         return ApiResponse.<Void>builder().message("Listen recorded.").build();
     }
 

@@ -226,9 +226,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void logout(RefreshRequest request) {
-        if (request == null || request.getRefreshToken() == null || request.getRefreshToken().isBlank()) {
-            return;
-        }
+        if (request == null || request.getRefreshToken() == null
+                || request.getRefreshToken().isBlank()) return;
+        redisTemplate.delete(refreshTokenRedisKey(request.getRefreshToken()));
     }
 
     @Override

@@ -159,4 +159,12 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
             ORDER BY s.playCount DESC
             """)
     List<Song> findTopByArtistId(@Param("artistId") UUID artistId, Pageable pageable);
+
+    @Query("""
+        SELECT s FROM Song s
+        LEFT JOIN FETCH s.genres
+        WHERE s.id = :id
+        AND s.deletedAt IS NULL
+        """)
+    Optional<Song> findByIdWithGenres(@Param("id") UUID id);
 }
