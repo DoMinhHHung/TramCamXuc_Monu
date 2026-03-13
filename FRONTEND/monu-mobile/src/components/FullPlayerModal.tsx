@@ -1,7 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
     Animated, Image, Modal, PanResponder,
-    Pressable, StyleSheet, Text, View,
+    Pressable, StyleSheet, Text, View, Share,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +18,8 @@ const formatTime = (seconds: number): string => {
 
 const THUMB_RADIUS = 9;
 
+const PUBLIC_LINK_BASE = 'https://phazelsound.oopsgolden.id.vn';
+
 const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
     { value: 64,  label: '64k'  },
     { value: 128, label: '128k' },
@@ -27,6 +29,8 @@ const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
 
 export const FullPlayerModal = () => {
     const insets = useSafeAreaInsets();
+    const [menuOpen, setMenuOpen] = useState(false);
+
     const {
         currentSong, isFullScreen, setFullScreen,
         isPlaying, isLoaded, currentTime, duration,
@@ -122,7 +126,7 @@ export const FullPlayerModal = () => {
                             <Text style={styles.chevron}>⌄</Text>
                         </Pressable>
                         <Text style={styles.headerTitle}>Đang phát</Text>
-                        <View style={{ width: 32 }} />
+                        <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}><Text style={styles.moreBtn}>⋯</Text></Pressable>
                     </View>
 
                     {/* Artwork */}
@@ -219,6 +223,20 @@ export const FullPlayerModal = () => {
                         </Text>
                     </View>
 
+
+                    <Modal visible={menuOpen} transparent animationType="slide" onRequestClose={() => setMenuOpen(false)}>
+                        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+                            <View style={styles.menuSheet}>
+                                <Text style={styles.menuTitle}>{currentSong.title}</Text>
+                                <Pressable onPress={() => void Share.share({ message: `${currentSong.title}
+${PUBLIC_LINK_BASE}/song/${currentSong.id}` })}><Text style={styles.menuItem}>Chia sẻ</Text></Pressable>
+                                <Pressable onPress={() => setMenuOpen(false)}><Text style={styles.menuItem}>Thêm vào playlist</Text></Pressable>
+                                <Pressable onPress={() => setMenuOpen(false)}><Text style={styles.menuItem}>Dislike: Không quan tâm</Text></Pressable>
+                                <Pressable onPress={() => setMenuOpen(false)}><Text style={styles.menuItem}>Tải xuống</Text></Pressable>
+                            </View>
+                        </Pressable>
+                    </Modal>
+
                     {/* Stats */}
                     <View style={styles.stats}>
                         <Text style={styles.statsText}>
@@ -238,6 +256,7 @@ const styles = StyleSheet.create({
     header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16 },
     chevron:            { color: COLORS.white, fontSize: 32, lineHeight: 32, fontWeight: '700' },
     headerTitle:        { color: COLORS.glass60, fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+    moreBtn:            { color: COLORS.white, fontSize: 30, lineHeight: 30 },
     artworkSection:     { alignItems: 'center', marginTop: 8, marginBottom: 20 },
     artwork:            { width: 240, height: 240, borderRadius: 20, backgroundColor: COLORS.surface },
     artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.accentBorder25, backgroundColor: COLORS.accentFill20 },
@@ -271,6 +290,10 @@ const styles = StyleSheet.create({
     qualityBtnTextActive:   { color: COLORS.accent },
     qualityBtnTextLocked:   { color: COLORS.glass25 },
     qualityHint:            { color: COLORS.glass30, fontSize: 11, lineHeight: 16 },
+    menuBackdrop:       { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
+    menuSheet:          { backgroundColor: COLORS.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, gap: 10 },
+    menuTitle:          { color: COLORS.white, fontSize: 16, fontWeight: '800', marginBottom: 6 },
+    menuItem:           { color: COLORS.glass90, fontSize: 14 },
     stats:              { alignItems: 'center' },
     statsText:          { color: COLORS.glass30, fontSize: 13 },
 });

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,6 +10,8 @@ import { useAuth } from '../../context/AuthContext';
 import { Album, getMyAlbums, getMyPlaylists, getMySongs, Playlist, Song } from '../../services/music';
 import { createFeedPost } from '../../services/social';
 
+const PUBLIC_LINK_BASE = 'https://phazelsound.oopsgolden.id.vn';
+
 export const LibraryScreen = () => {
   const insets = useSafeAreaInsets();
   const { authSession } = useAuth();
@@ -17,10 +19,15 @@ export const LibraryScreen = () => {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [songs, setSongs] = useState<Song[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
+  const [qrLink, setQrLink] = useState<string | null>(null);
+  const [feedSharePayload, setFeedSharePayload] = useState<{id: string; type: 'PLAYLIST' | 'SONG' | 'ALBUM'; defaultTitle: string} | null>(null);
+  const [feedTitleInput, setFeedTitleInput] = useState('');
 
   useFocusEffect(
     useCallback(() => {
       void loadLibrary();
+      const id = setInterval(() => void loadLibrary(), 12000);
+      return () => clearInterval(id);
     }, [authSession?.tokens.accessToken]),
   );
 
@@ -44,33 +51,23 @@ export const LibraryScreen = () => {
   const handleShare = async (
     type: 'playlist' | 'song' | 'album',
     id: string,
-    title: string,
+    defaultTitle: string,
     method: 'qr' | 'link' | 'feed',
   ) => {
-    const link = `https://monu.app/${type}/${id}`;
+    const link = `${PUBLIC_LINK_BASE}/${type}/${id}`;
 
     if (method === 'qr') {
-      Alert.alert('Share qua QR', `QR cho ${title} sẽ hiển thị ở bước tiếp theo.\nLink: ${link}`);
+      setQrLink(link);
       return;
     }
 
     if (method === 'link') {
-      await Share.share({ message: `Nghe ngay: ${title}\n${link}` });
+      await Share.share({ message: `Nghe ngay: ${defaultTitle}\n${link}` });
       return;
     }
 
-    try {
-      await createFeedPost({
-        visibility: 'PUBLIC',
-        title,
-        caption: `Mình vừa chia sẻ ${title} 🎧`,
-        contentId: id,
-        contentType: type.toUpperCase() as 'PLAYLIST' | 'SONG' | 'ALBUM',
-      });
-      Alert.alert('Đã chia sẻ', 'Nội dung đã được đăng lên feed.');
-    } catch (error: any) {
-      Alert.alert('Không thể chia sẻ feed', error?.message || 'Vui lòng thử lại.');
-    }
+    setFeedSharePayload({ id, type: type.toUpperCase() as 'PLAYLIST' | 'SONG' | 'ALBUM', defaultTitle });
+    setFeedTitleInput(defaultTitle);
   };
 
   const renderShareActions = (type: 'playlist' | 'song' | 'album', id: string, title: string) => (
@@ -119,6 +116,53 @@ export const LibraryScreen = () => {
           ))}
         </View>
       </ScrollView>
+
+
+      <Modal visible={!!feedSharePayload} transparent animationType="slide" onRequestClose={() => setFeedSharePayload(null)}>
+        <Pressable style={styles.qrBackdrop} onPress={() => setFeedSharePayload(null)}>
+          <View style={styles.qrCard}>
+            <Text style={styles.qrTitle}>Đăng lên Feed</Text>
+            <TextInput
+              style={styles.feedInput}
+              value={feedTitleInput}
+              onChangeText={setFeedTitleInput}
+              placeholder="Title"
+              placeholderTextColor={COLORS.glass45}
+            />
+            <Pressable
+              style={styles.feedBtn}
+              onPress={async () => {
+                if (!feedSharePayload) return;
+                try {
+                  await createFeedPost({
+                    visibility: 'PUBLIC',
+                    title: feedTitleInput.trim() || feedSharePayload.defaultTitle,
+                    caption: `Mình vừa chia sẻ ${feedSharePayload.defaultTitle} 🎧`,
+                    contentId: feedSharePayload.id,
+                    contentType: feedSharePayload.type,
+                  });
+                  setFeedSharePayload(null);
+                  Alert.alert('Đã chia sẻ', 'Nội dung đã được đăng lên feed.');
+                } catch (error: any) {
+                  Alert.alert('Không thể chia sẻ feed', error?.message || 'Vui lòng thử lại.');
+                }
+              }}
+            >
+              <Text style={styles.feedBtnText}>Đăng</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={!!qrLink} transparent animationType="slide" onRequestClose={() => setQrLink(null)}>
+        <Pressable style={styles.qrBackdrop} onPress={() => setQrLink(null)}>
+          <View style={styles.qrCard}>
+            <Text style={styles.qrTitle}>QR Chia sẻ</Text>
+            <View style={styles.qrPlaceholder}><Text style={styles.qrPlaceholderText}>▦ QR ▦</Text></View>
+            <Text style={styles.qrLink}>{qrLink}</Text>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -130,16 +174,18 @@ const styles = StyleSheet.create({
   headerSub: { color: COLORS.glass50, marginTop: 6 },
   body: { paddingHorizontal: 20 },
   sectionTitle: { color: COLORS.white, fontWeight: '700', marginTop: 18, marginBottom: 10, fontSize: 17 },
-  itemCard: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    borderColor: COLORS.glass10,
-    borderWidth: 1,
-    padding: 12,
-    marginBottom: 10,
-  },
+  itemCard: { backgroundColor: COLORS.surface, borderRadius: 12, borderColor: COLORS.glass10, borderWidth: 1, padding: 12, marginBottom: 10 },
   itemTitle: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
   shareLabel: { color: COLORS.glass45, fontSize: 12 },
   shareAction: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
+  qrBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
+  qrCard: { backgroundColor: COLORS.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 18, alignItems: 'center' },
+  qrTitle: { color: COLORS.white, fontWeight: '800', fontSize: 18, marginBottom: 10 },
+  qrPlaceholder: { width: 180, height: 180, borderRadius: 12, borderWidth: 2, borderColor: COLORS.white, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  qrPlaceholderText: { color: COLORS.white, fontSize: 28, fontWeight: '900' },
+  qrLink: { color: COLORS.glass70, textAlign: 'center' },
+  feedInput: { width: '100%', color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
+  feedBtn: { width: '100%', minHeight: 40, borderRadius: 8, backgroundColor: COLORS.accentDim, alignItems: 'center', justifyContent: 'center' },
+  feedBtnText: { color: COLORS.white, fontWeight: '700' },
 });

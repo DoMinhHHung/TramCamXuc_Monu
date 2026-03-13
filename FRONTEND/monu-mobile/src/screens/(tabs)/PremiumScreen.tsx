@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, Alert, Linking, ActivityIndicator } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { COLORS } from '../../config/colors';
 import  PremiumCard  from "../../components/PremiumCard";
-import { getActiveSubscriptionPlans, purchaseSubscription, SubscriptionPlan, getMySubscription, UserSubscription } from '../../services/payment';
+import { getActiveSubscriptionPlans, getMySubscriptionHistory, purchaseSubscription, SubscriptionPlan, getMySubscription, UserSubscription } from '../../services/payment';
 import { useAuth } from '../../context/AuthContext';
 
 const PERKS = [
@@ -25,17 +26,27 @@ export const PremiumScreen = () => {
     const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
     const [loading, setLoading] = useState(true);
     const [purchasing, setPurchasing] = useState(false);
+    const [subscriptionHistory, setSubscriptionHistory] = useState<UserSubscription[]>([]);
 
     useEffect(() => {
         fetchData();
     }, []);
 
+    useFocusEffect(
+        useCallback(() => {
+            void fetchData();
+            const id = setInterval(() => void fetchData(), 12000);
+            return () => clearInterval(id);
+        }, [authSession?.tokens.accessToken]),
+    );
+
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [plansData, subscriptionData] = await Promise.allSettled([
+            const [plansData, subscriptionData, historyData] = await Promise.allSettled([
                 getActiveSubscriptionPlans(),
                 authSession ? getMySubscription() : null,
+                authSession ? getMySubscriptionHistory() : [],
             ]);
 
             if (plansData.status === 'fulfilled') {
@@ -54,6 +65,10 @@ export const PremiumScreen = () => {
 
             if (subscriptionData.status === 'fulfilled' && subscriptionData.value) {
                 setCurrentSubscription(subscriptionData.value);
+            }
+
+            if (historyData.status === 'fulfilled') {
+                setSubscriptionHistory(historyData.value ?? []);
             }
         } catch (error: any) {
             console.error('Error fetching plans:', error);
@@ -143,6 +158,17 @@ export const PremiumScreen = () => {
 
     const isPurchasablePlan = (plan: SubscriptionPlan) => !isFreeOrBasic(plan);
 
+    const remainingDays = useMemo(() => {
+        if (!currentSubscription?.expiresAt) return 0;
+        const diff = new Date(currentSubscription.expiresAt).getTime() - Date.now();
+        return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    }, [currentSubscription?.expiresAt]);
+
+    const latestPaymentStatus = useMemo(() => {
+        if (subscriptionHistory.length === 0) return currentSubscription?.status ?? 'UNKNOWN';
+        return subscriptionHistory[0]?.status ?? currentSubscription?.status ?? 'UNKNOWN';
+    }, [subscriptionHistory, currentSubscription?.status]);
+
     const renderFeatureValue = (value: any): string => {
         if (typeof value === 'boolean') return value ? 'Có' : 'Không';
         if (typeof value === 'number') return value.toString();
@@ -192,7 +218,16 @@ export const PremiumScreen = () => {
                     ) : null}
                 </LinearGradient>
 
+
                 <View style={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
+                    {authSession && (
+                        <View style={styles.paymentStatusCard}>
+                            <Text style={styles.paymentStatusTitle}>Trạng thái thanh toán trong app</Text>
+                            <Text style={styles.paymentStatusText}>Gói hiện tại: {currentSubscription?.plan?.subsName ?? 'Chưa có'}</Text>
+                            <Text style={styles.paymentStatusText}>Còn lại: {remainingDays} ngày</Text>
+                            <Text style={styles.paymentStatusText}>Trạng thái: {latestPaymentStatus}</Text>
+                        </View>
+                    )}
                     {/* Available Plans */}
                     {plans.length > 0 && (
                         <View style={styles.section}>
@@ -330,6 +365,10 @@ const styles = StyleSheet.create({
     activeExpiry: { fontSize: 13, fontWeight: '500', color: '#86efac', marginTop: 4 },
 
     body: { paddingHorizontal: 20, paddingTop: 24 },
+
+    paymentStatusCard: { backgroundColor: COLORS.glass07, borderWidth: 1, borderColor: COLORS.glass15, borderRadius: 12, padding: 12, marginBottom: 16 },
+    paymentStatusTitle: { color: COLORS.white, fontWeight: '800', marginBottom: 8 },
+    paymentStatusText: { color: COLORS.glass80, fontSize: 13, marginBottom: 4 },
 
     section: { marginBottom: 24 },
     sectionTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700', marginBottom: 12 },

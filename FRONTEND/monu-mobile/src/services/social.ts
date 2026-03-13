@@ -43,3 +43,20 @@ export const createFeedPost = async (payload: FeedPostRequest): Promise<FeedPost
   const response = await apiClient.post<FeedPost>('/social/feed', payload);
   return response.data;
 };
+
+export const updateFeedPost = async (postId: string, payload: FeedPostRequest): Promise<FeedPost> => {
+  const response = await apiClient.patch<FeedPost>(`/social/feed/${postId}`, payload);
+  return response.data;
+};
+
+export const deleteFeedPost = async (postId: string): Promise<void> => {
+  await apiClient.delete(`/social/feed/${postId}`);
+};
+
+export const likeFeedPost = async (postId: string): Promise<void> => {
+  await apiClient.post(`/social/feed/${postId}/like`);
+};
+
+export const unlikeFeedPost = async (postId: string): Promise<void> => {
+  await apiClient.delete(`/social/feed/${postId}/like`);
+};
