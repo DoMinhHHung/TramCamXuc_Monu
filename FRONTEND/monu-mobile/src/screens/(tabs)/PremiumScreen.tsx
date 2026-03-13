@@ -29,20 +29,20 @@ export const PremiumScreen = () => {
     const [subscriptionHistory, setSubscriptionHistory] = useState<UserSubscription[]>([]);
 
     useEffect(() => {
-        fetchData();
+        fetchData(false);
     }, []);
 
     useFocusEffect(
         useCallback(() => {
-            void fetchData();
-            const id = setInterval(() => void fetchData(), 12000);
+            void fetchData(true);
+            const id = setInterval(() => void fetchData(true), 12000);
             return () => clearInterval(id);
         }, [authSession?.tokens.accessToken]),
     );
 
-    const fetchData = async () => {
+    const fetchData = async (silent = false) => {
         try {
-            setLoading(true);
+            if (!silent) setLoading(true);
             const [plansData, subscriptionData, historyData] = await Promise.allSettled([
                 getActiveSubscriptionPlans(),
                 authSession ? getMySubscription() : null,
@@ -74,7 +74,7 @@ export const PremiumScreen = () => {
             console.error('Error fetching plans:', error);
             Alert.alert('Lỗi', error.message || 'Không thể tải thông tin gói cước');
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 

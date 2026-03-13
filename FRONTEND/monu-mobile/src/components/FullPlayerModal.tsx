@@ -1,13 +1,14 @@
 import React, { useRef, useState } from 'react';
 import {
     Animated, Image, Modal, PanResponder,
-    Pressable, StyleSheet, Text, View, Share,
+    Pressable, StyleSheet, Text, View, Share, TextInput, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config/colors';
 import { AudioQuality, usePlayer } from '../context/PlayerContext';
+import { addSongToPlaylist, createPlaylist, getMyPlaylists, Playlist } from '../services/music';
 
 const formatTime = (seconds: number): string => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -30,6 +31,9 @@ const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
 export const FullPlayerModal = () => {
     const insets = useSafeAreaInsets();
     const [menuOpen, setMenuOpen] = useState(false);
+    const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+    const [playlists, setPlaylists] = useState<Playlist[]>([]);
+    const [newPlaylistName, setNewPlaylistName] = useState('');
 
     const {
         currentSong, isFullScreen, setFullScreen,
@@ -103,6 +107,18 @@ export const FullPlayerModal = () => {
     const thumbLeft = Math.max(0, progress * barWidthRef.current - THUMB_RADIUS);
 
     if (!currentSong) return null;
+
+    const openPlaylistPicker = async () => {
+        try {
+            const data = await getMyPlaylists({ page: 1, size: 50 });
+            setPlaylists(data.content ?? []);
+            setPlaylistPickerOpen(true);
+        } catch {
+            setPlaylists([]);
+            setPlaylistPickerOpen(true);
+        }
+    };
+
 
     return (
         <Modal
@@ -230,9 +246,47 @@ export const FullPlayerModal = () => {
                                 <Text style={styles.menuTitle}>{currentSong.title}</Text>
                                 <Pressable onPress={() => void Share.share({ message: `${currentSong.title}
 ${PUBLIC_LINK_BASE}/song/${currentSong.id}` })}><Text style={styles.menuItem}>Chia sẻ</Text></Pressable>
-                                <Pressable onPress={() => setMenuOpen(false)}><Text style={styles.menuItem}>Thêm vào playlist</Text></Pressable>
+                                <Pressable onPress={() => { setMenuOpen(false); void openPlaylistPicker(); }}><Text style={styles.menuItem}>Thêm vào playlist</Text></Pressable>
                                 <Pressable onPress={() => setMenuOpen(false)}><Text style={styles.menuItem}>Dislike: Không quan tâm</Text></Pressable>
                                 <Pressable onPress={() => setMenuOpen(false)}><Text style={styles.menuItem}>Tải xuống</Text></Pressable>
+                            </View>
+                        </Pressable>
+                    </Modal>
+
+
+                    <Modal visible={playlistPickerOpen} transparent animationType="slide" onRequestClose={() => setPlaylistPickerOpen(false)}>
+                        <Pressable style={styles.menuBackdrop} onPress={() => setPlaylistPickerOpen(false)}>
+                            <View style={styles.menuSheet}>
+                                <Text style={styles.menuTitle}>Thêm vào playlist</Text>
+                                {playlists.map((p) => (
+                                    <Pressable key={p.id} onPress={async () => {
+                                        try {
+                                            await addSongToPlaylist(p.id, currentSong.id);
+                                            Alert.alert('Thành công', `Đã thêm vào ${p.name}`);
+                                            setPlaylistPickerOpen(false);
+                                        } catch (error: any) {
+                                            Alert.alert('Lỗi', error?.message || 'Không thể thêm vào playlist');
+                                        }
+                                    }}><Text style={styles.menuItem}>{p.name}</Text></Pressable>
+                                ))}
+                                <TextInput
+                                    style={styles.playlistInput}
+                                    value={newPlaylistName}
+                                    onChangeText={setNewPlaylistName}
+                                    placeholder="Tạo playlist mới"
+                                    placeholderTextColor={COLORS.glass45}
+                                />
+                                <Pressable onPress={async () => {
+                                    if (!newPlaylistName.trim()) return;
+                                    try {
+                                        const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
+                                        await addSongToPlaylist(pl.id, currentSong.id);
+                                        setNewPlaylistName('');
+                                        setPlaylistPickerOpen(false);
+                                    } catch (error: any) {
+                                        Alert.alert('Lỗi', error?.message || 'Không thể tạo playlist mới');
+                                    }
+                                }}><Text style={styles.menuItemAccent}>+ Tạo mới và thêm</Text></Pressable>
                             </View>
                         </Pressable>
                     </Modal>
@@ -293,7 +347,9 @@ const styles = StyleSheet.create({
     menuBackdrop:       { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
     menuSheet:          { backgroundColor: COLORS.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, gap: 10 },
     menuTitle:          { color: COLORS.white, fontSize: 16, fontWeight: '800', marginBottom: 6 },
-    menuItem:           { color: COLORS.glass90, fontSize: 14 },
+    menuItem:           { color: COLORS.glass90, fontSize: 14, marginBottom: 8 },
+    menuItemAccent:     { color: COLORS.accent, fontSize: 14, fontWeight: '700' },
+    playlistInput:      { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
     stats:              { alignItems: 'center' },
     statsText:          { color: COLORS.glass30, fontSize: 13 },
 });

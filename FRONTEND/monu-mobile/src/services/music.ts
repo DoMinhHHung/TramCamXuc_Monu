@@ -172,3 +172,9 @@ export const createPlaylist = async (payload: PlaylistCreateRequest): Promise<Pl
   const response = await apiClient.post<Playlist>('/playlists', payload);
   return response.data;
 };
+
+
+export const addSongToPlaylist = async (playlistId: string, songId: string): Promise<Playlist> => {
+  const response = await apiClient.post<Playlist>(`/playlists/${playlistId}/songs/${songId}`);
+  return response.data;
+};

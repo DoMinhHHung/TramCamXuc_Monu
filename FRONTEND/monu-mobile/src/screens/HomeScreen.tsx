@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Pressable, ScrollView, StyleSheet, Text, View,
-  ActivityIndicator, Alert, Modal,
+  ActivityIndicator, Alert, Modal, TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -13,7 +13,9 @@ import { COLORS } from '../config/colors';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { getTrendingSongs, getNewestSongs, Song } from '../services/music';
+import { addSongToPlaylist, createPlaylist, getMyPlaylists, getTrendingSongs, getNewestSongs, Playlist, Song } from '../services/music';
+import { getPopularGenres } from '../services/favorites';
+import { Genre } from '../types/favorites';
 import { SongSection } from '../components/SongSection';
 
 const PUBLIC_LINK_BASE = 'https://phazelsound.oopsgolden.id.vn';
@@ -37,26 +39,32 @@ export const HomeScreen = () => {
   const [newestSongs, setNewestSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
 
-  const fetchSongs = async () => {
+  const fetchSongs = async (silent = false) => {
     try {
-      setLoading(true);
-      const [trending, newest] = await Promise.all([
+      if (!silent) setLoading(true);
+      const [trending, newest, popularGenres] = await Promise.all([
         getTrendingSongs({ page: 1, size: 10 }),
         getNewestSongs({ page: 1, size: 10 }),
+        getPopularGenres(12),
       ]);
       setTrendingSongs(trending.content);
       setNewestSongs(newest.content);
+      setGenres(popularGenres);
     } catch {
       Alert.alert('Lỗi', 'Không thể tải danh sách nhạc');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    void fetchSongs();
-    const id = setInterval(() => void fetchSongs(), 12000);
+    void fetchSongs(false);
+    const id = setInterval(() => void fetchSongs(true), 12000);
     return () => clearInterval(id);
   }, []);
 
@@ -118,6 +126,16 @@ export const HomeScreen = () => {
 
         {!loading && (
           <>
+
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🎶 Thể loại nhạc</Text>
+          <View style={styles.genreWrap}>
+            {genres.map(g => (
+              <View key={g.id} style={styles.genreChip}><Text style={styles.genreText}>{g.name}</Text></View>
+            ))}
+          </View>
+        </View>
             <SongSection
               title="🔥 Trending"
               songs={trendingSongs}
@@ -145,9 +163,51 @@ export const HomeScreen = () => {
           <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>{selectedSong?.title}</Text>
             <Text style={styles.sheetItem}>Chia sẻ: {PUBLIC_LINK_BASE}/song/{selectedSong?.id}</Text>
-            <Text style={styles.sheetItem}>Thêm vào playlist</Text>
+            <Pressable onPress={async () => {
+              if (!selectedSong) return;
+              try {
+                const myPl = await getMyPlaylists({ page: 1, size: 50 });
+                setPlaylists(myPl.content ?? []);
+                setPlaylistPickerOpen(true);
+              } catch {
+                setPlaylists([]);
+                setPlaylistPickerOpen(true);
+              }
+            }}><Text style={styles.sheetItem}>Thêm vào playlist</Text></Pressable>
             <Text style={styles.sheetItem}>Dislike: Không quan tâm</Text>
             <Text style={styles.sheetItem}>Tải xuống</Text>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={playlistPickerOpen} transparent animationType="slide" onRequestClose={() => setPlaylistPickerOpen(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setPlaylistPickerOpen(false)}>
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle}>Thêm vào playlist</Text>
+            {playlists.map((p) => (
+              <Pressable key={p.id} onPress={async () => {
+                if (!selectedSong) return;
+                try {
+                  await addSongToPlaylist(p.id, selectedSong.id);
+                  Alert.alert('Thành công', `Đã thêm vào ${p.name}`);
+                  setPlaylistPickerOpen(false);
+                } catch (error: any) {
+                  Alert.alert('Lỗi', error?.message || 'Không thể thêm vào playlist');
+                }
+              }}><Text style={styles.sheetItem}>{p.name}</Text></Pressable>
+            ))}
+            <TextInput style={styles.playlistInput} value={newPlaylistName} onChangeText={setNewPlaylistName} placeholder="Tạo playlist mới" placeholderTextColor={COLORS.glass45} />
+            <Pressable onPress={async () => {
+              if (!selectedSong || !newPlaylistName.trim()) return;
+              try {
+                const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
+                await addSongToPlaylist(pl.id, selectedSong.id);
+                setNewPlaylistName('');
+                setPlaylistPickerOpen(false);
+              } catch (error: any) {
+                Alert.alert('Lỗi', error?.message || 'Không thể tạo playlist mới');
+              }
+            }}><Text style={styles.sheetItemAccent}>+ Tạo mới và thêm</Text></Pressable>
           </View>
         </Pressable>
       </Modal>
@@ -176,4 +236,9 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: COLORS.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 18, gap: 10 },
   sheetTitle: { color: COLORS.white, fontSize: 17, fontWeight: '800' },
   sheetItem: { color: COLORS.glass85, fontSize: 14 },
+  genreWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  genreChip: { backgroundColor: COLORS.surface, borderRadius: 999, borderWidth: 1, borderColor: COLORS.glass15, paddingHorizontal: 12, paddingVertical: 6 },
+  genreText: { color: COLORS.glass85, fontSize: 12 },
+  playlistInput: { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
+  sheetItemAccent: { color: COLORS.accent, fontSize: 14, fontWeight: '700' },
 });

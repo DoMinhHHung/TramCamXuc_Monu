@@ -17,6 +17,20 @@ export interface FeedPost {
   createdAt: string;
 }
 
+export interface Comment {
+  id: string;
+  userId: string;
+  songId?: string;
+  parentId?: string;
+  content: string;
+  likeCount: number;
+  edited: boolean;
+  likedByCurrentUser: boolean;
+  replyCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PageResponse<T> {
   content: T[];
   totalElements: number;
@@ -32,6 +46,13 @@ export interface FeedPostRequest {
   contentType?: 'SONG' | 'ALBUM' | 'PLAYLIST';
   title?: string;
   coverImageUrl?: string;
+}
+
+export interface ShareResponse {
+  shareUrl: string;
+  qrCodeBase64?: string;
+  platform?: string;
+  shareCount?: number;
 }
 
 export const getTimeline = async (params?: { page?: number; size?: number }): Promise<PageResponse<FeedPost>> => {
@@ -60,3 +81,53 @@ export const likeFeedPost = async (postId: string): Promise<void> => {
 export const unlikeFeedPost = async (postId: string): Promise<void> => {
   await apiClient.delete(`/social/feed/${postId}/like`);
 };
+
+// comments for feed post
+export const getPostComments = async (postId: string, params?: { page?: number; size?: number }): Promise<PageResponse<Comment>> => {
+  const response = await apiClient.get<PageResponse<Comment>>('/social/comments/post', { params: { postId, ...params } });
+  return response.data;
+};
+
+export const createPostComment = async (payload: { postId: string; content: string; parentId?: string }): Promise<Comment> => {
+  const response = await apiClient.post<Comment>('/social/comments/post', payload);
+  return response.data;
+};
+
+export const updateComment = async (commentId: string, content: string): Promise<Comment> => {
+  const response = await apiClient.patch<Comment>(`/social/comments/${commentId}`, { content });
+  return response.data;
+};
+
+export const deleteComment = async (commentId: string): Promise<void> => {
+  await apiClient.delete(`/social/comments/${commentId}`);
+};
+
+export const likeComment = async (commentId: string): Promise<void> => {
+  await apiClient.post(`/social/comments/${commentId}/like`);
+};
+
+export const unlikeComment = async (commentId: string): Promise<void> => {
+  await apiClient.delete(`/social/comments/${commentId}/like`);
+};
+
+// share-service (song endpoint) + playlist link/qr helper
+export const getSongShareLink = async (songId: string, platform = 'direct'): Promise<ShareResponse> => {
+  const response = await apiClient.get<ShareResponse>('/social/share', { params: { songId, platform } });
+  return response.data;
+};
+
+export const getSongShareQr = async (songId: string): Promise<ShareResponse> => {
+  const response = await apiClient.get<ShareResponse>('/social/share/qr', { params: { songId } });
+  return response.data;
+};
+
+export const getPlaylistShareLink = (playlistId: string): ShareResponse => ({
+  shareUrl: `https://phazelsound.oopsgolden.id.vn/playlist/${playlistId}`,
+  platform: 'direct',
+});
+
+export const getPlaylistShareQr = (playlistId: string): ShareResponse => ({
+  shareUrl: `https://phazelsound.oopsgolden.id.vn/playlist/${playlistId}`,
+  qrCodeBase64: '',
+  platform: 'qr',
+});
