@@ -6,6 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/colors';
+import { useAuth } from '../../context/AuthContext';
 import {
   Comment,
   createFeedPost,
@@ -38,6 +39,7 @@ const timeAgo = (iso: string): string => {
 
 export const DiscoverScreen = () => {
   const insets = useSafeAreaInsets();
+  const { authSession } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -159,6 +161,7 @@ export const DiscoverScreen = () => {
           {posts.map((post) => (
             <View key={post.id} style={styles.postCard}>
               <Text style={styles.postTitle}>{post.title || 'Bài chia sẻ âm nhạc'}</Text>
+              <Text style={styles.postOwner}>Đăng bởi: {post.ownerType} • {post.ownerId}</Text>
               {!!post.caption && <Text style={styles.postCaption}>{post.caption}</Text>}
               <Text style={styles.postMeta}>{post.contentType} • {timeAgo(post.createdAt)}</Text>
               <View style={styles.statRow}><Text style={styles.stat}>❤️ {post.likeCount}</Text><Text style={styles.stat}>💬 {post.commentCount}</Text><Text style={styles.stat}>↗ {post.shareCount}</Text></View>
@@ -166,8 +169,10 @@ export const DiscoverScreen = () => {
                 <Pressable onPress={() => void toggleFeedLike(post)}><Text style={styles.action}>{post.likedByCurrentUser ? '💜 Bỏ tim' : '🤍 Tim'}</Text></Pressable>
                 <Pressable onPress={async () => { setCommentPost(post); await loadComments(post.id); }}><Text style={styles.action}>💬 Comment</Text></Pressable>
                 <Pressable onPress={() => void Share.share({ message: `${post.title ?? 'Feed post'}\n${PUBLIC_LINK_BASE}/feed/${post.id}` })}><Text style={styles.action}>↗ Share</Text></Pressable>
-                <Pressable onPress={async () => { await deleteFeedPost(post.id); await loadFeed('silent'); }}><Text style={styles.actionDanger}>🗑 Xóa</Text></Pressable>
-                <Pressable onPress={() => { setEditingPost(post); setEditingTitle(post.title ?? ''); setEditingCaption(post.caption ?? ''); }}><Text style={styles.action}>✏ Sửa</Text></Pressable>
+                {(authSession?.profile?.id === post.ownerId || authSession?.profile?.role === 'ADMIN') && (<>
+                  <Pressable onPress={async () => { await deleteFeedPost(post.id); await loadFeed('silent'); }}><Text style={styles.actionDanger}>🗑 Xóa</Text></Pressable>
+                  <Pressable onPress={() => { setEditingPost(post); setEditingTitle(post.title ?? ''); setEditingCaption(post.caption ?? ''); }}><Text style={styles.action}>✏ Sửa</Text></Pressable>
+                </>)}
               </View>
             </View>
           ))}
@@ -239,6 +244,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 20, gap: 12 },
   postCard: { backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.glass07, padding: 14 },
   postTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  postOwner: { color: COLORS.glass50, marginTop: 4, fontSize: 12 },
   postCaption: { color: COLORS.glass70, marginTop: 8, lineHeight: 20 },
   postMeta: { color: COLORS.glass45, marginTop: 10, fontSize: 12 },
   statRow: { flexDirection: 'row', gap: 14, marginTop: 10 },

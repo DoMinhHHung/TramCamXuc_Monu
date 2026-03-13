@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -22,7 +22,7 @@ export const LibraryScreen = () => {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [songs, setSongs] = useState<Song[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
-  const [qrLink, setQrLink] = useState<string | null>(null);
+  const [qrData, setQrData] = useState<{ link: string; image?: string } | null>(null);
   const [feedSharePayload, setFeedSharePayload] = useState<{id: string; type: 'PLAYLIST' | 'SONG' | 'ALBUM'; defaultTitle: string} | null>(null);
   const [feedTitleInput, setFeedTitleInput] = useState('');
   const [addSongTarget, setAddSongTarget] = useState<Song | null>(null);
@@ -64,9 +64,9 @@ export const LibraryScreen = () => {
     if (method === 'qr') {
       if (type === 'playlist') {
         const qr = await getPlaylistShareQr(id);
-        setQrLink(qr.shareUrl);
+        setQrData({ link: qr.shareUrl, image: qr.qrCodeBase64 });
       } else {
-        setQrLink(link);
+        setQrData({ link });
       }
       return;
     }
@@ -194,12 +194,12 @@ export const LibraryScreen = () => {
         </Pressable>
       </Modal>
 
-      <Modal visible={!!qrLink} transparent animationType="slide" onRequestClose={() => setQrLink(null)}>
-        <Pressable style={styles.qrBackdrop} onPress={() => setQrLink(null)}>
+      <Modal visible={!!qrData} transparent animationType="slide" onRequestClose={() => setQrData(null)}>
+        <Pressable style={styles.qrBackdrop} onPress={() => setQrData(null)}>
           <View style={styles.sheetCard}>
             <Text style={styles.qrTitle}>QR Chia sẻ</Text>
-            <View style={styles.qrPlaceholder}><Text style={styles.qrPlaceholderText}>▦ QR ▦</Text></View>
-            <Text style={styles.qrLink}>{qrLink}</Text>
+            {qrData?.image ? <Image source={{ uri: qrData.image }} style={styles.qrImage} /> : <View style={styles.qrPlaceholder}><Text style={styles.qrPlaceholderText}>▦ QR ▦</Text></View>}
+            <Text style={styles.qrLink}>{qrData?.link}</Text>
           </View>
         </Pressable>
       </Modal>
@@ -227,6 +227,7 @@ const styles = StyleSheet.create({
   qrPlaceholder: { width: 180, height: 180, borderRadius: 12, borderWidth: 2, borderColor: COLORS.white, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 10 },
   qrPlaceholderText: { color: COLORS.white, fontSize: 28, fontWeight: '900' },
   qrLink: { color: COLORS.glass70, textAlign: 'center' },
+  qrImage: { width: 180, height: 180, borderRadius: 12, marginBottom: 10 },
   input: { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
   newBtn: { minHeight: 40, borderRadius: 8, backgroundColor: COLORS.accentDim, alignItems: 'center', justifyContent: 'center' },
   newBtnText: { color: COLORS.white, fontWeight: '700' },

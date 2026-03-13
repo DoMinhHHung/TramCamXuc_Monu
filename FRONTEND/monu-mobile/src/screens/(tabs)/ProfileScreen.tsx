@@ -28,6 +28,7 @@ export const ProfileScreen = () => {
     const [saving, setSaving] = useState(false);
     const [fullName, setFullName] = useState(authSession?.profile?.fullName ?? '');
     const [canBecomeArtist, setCanBecomeArtist] = useState(false);
+    const [artistProfile, setArtistProfile] = useState<{ stageName?: string; bio?: string; status?: string } | null>(null);
 
     const pickAvatar = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -56,6 +57,16 @@ export const ProfileScreen = () => {
             }
         };
         void loadSubscriptionFeature();
+
+        const loadArtistProfile = async () => {
+            try {
+                const artist = await apiClient.get('/artists/me');
+                setArtistProfile(artist.data as any);
+            } catch {
+                setArtistProfile(null);
+            }
+        };
+        void loadArtistProfile();
     }, []);
 
     const registerArtist = async () => {
@@ -130,13 +141,15 @@ export const ProfileScreen = () => {
                 </LinearGradient>
 
 
-                {canBecomeArtist && (
+                {(canBecomeArtist || artistProfile) && (
                     <View style={styles.artistCard}>
-                        <Text style={styles.artistTitle}>Nâng cấp Artist đã bật</Text>
+                        <Text style={styles.artistTitle}>Your Artist Profile</Text>
+                        {!!artistProfile && <Text style={styles.artistMeta}>{artistProfile.stageName} • {artistProfile.status}</Text>}
+                        {!!artistProfile?.bio && <Text style={styles.artistMeta}>{artistProfile.bio}</Text>}
                         <View style={styles.artistActions}>
-                            <Pressable style={styles.artistBtn} onPress={registerArtist}><Text style={styles.artistBtnText}>Đăng ký artist</Text></Pressable>
-                            <Pressable style={styles.artistBtn} onPress={updateArtist}><Text style={styles.artistBtnText}>Sửa artist</Text></Pressable>
-                            <Pressable style={styles.artistBtn} onPress={() => Alert.alert('Thông báo', 'Backend chưa có API xóa artist profile.') }><Text style={styles.artistBtnText}>Xóa artist</Text></Pressable>
+                            <Pressable style={styles.artistBtn} onPress={registerArtist}><Text style={styles.artistBtnText}>Tạo artist profile</Text></Pressable>
+                            <Pressable style={styles.artistBtn} onPress={updateArtist}><Text style={styles.artistBtnText}>Sửa artist profile</Text></Pressable>
+                            <Pressable style={styles.artistBtn} onPress={() => Alert.alert('Thông báo', 'Hiện backend chưa có endpoint delete artist profile trực tiếp.') }><Text style={styles.artistBtnText}>Xóa artist profile</Text></Pressable>
                         </View>
                     </View>
                 )}
@@ -267,6 +280,7 @@ const styles = StyleSheet.create({
 
     artistCard: { marginHorizontal: 20, marginTop: 16, backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.glass10, padding: 12 },
     artistTitle: { color: COLORS.white, fontWeight: '800', marginBottom: 8 },
+    artistMeta: { color: COLORS.glass70, marginBottom: 6 },
     artistActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     artistBtn: { backgroundColor: COLORS.accentFill20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.accentBorder25 },
     artistBtnText: { color: COLORS.accent, fontWeight: '700', fontSize: 12 },

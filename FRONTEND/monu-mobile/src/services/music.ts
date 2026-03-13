@@ -204,3 +204,8 @@ export const reorderPlaylistSong = async (playlistId: string, payload: { dragged
   const response = await apiClient.patch<Playlist>(`/playlists/${playlistId}/songs/reorder`, payload);
   return response.data;
 };
+
+
+export const reportSong = async (songId: string, payload: { reason: 'COPYRIGHT_VIOLATION' | 'EXPLICIT_CONTENT' | 'HATE_SPEECH' | 'SPAM' | 'MISINFORMATION' | 'OTHER'; description?: string }): Promise<void> => {
+  await apiClient.post(`/songs/${songId}/report`, payload);
+};

@@ -8,7 +8,8 @@ import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { getMySubscription, UserSubscription } from '../../services/payment';
 import { apiClient } from '../../services/api';
-import { confirmUploadSong, requestUploadSong } from '../../services/music';
+import { confirmUploadSong, Genre, requestUploadSong } from '../../services/music';
+import { getPopularGenres } from '../../services/favorites';
 
 type ArtistProfile = {
   id: string;
@@ -24,7 +25,8 @@ export const CreateScreen = () => {
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [uploadTitle, setUploadTitle] = useState('');
   const [uploadExt, setUploadExt] = useState('mp3');
-  const [genreIdsInput, setGenreIdsInput] = useState('');
+  const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
+  const [genres, setGenres] = useState<Genre[]>([]);
   const [pendingSongId, setPendingSongId] = useState<string | null>(null);
   const [uploadUrl, setUploadUrl] = useState<string | null>(null);
 
@@ -36,9 +38,10 @@ export const CreateScreen = () => {
     if (!authSession) return;
     setLoading(true);
     try {
-      const [artistRes, subRes] = await Promise.allSettled([
+      const [artistRes, subRes, genreRes] = await Promise.allSettled([
         apiClient.get<ArtistProfile>('/artists/me'),
         getMySubscription(),
+        getPopularGenres(20),
       ]);
 
       if (artistRes.status === 'fulfilled') {
@@ -53,11 +56,11 @@ export const CreateScreen = () => {
         setArtistProfile(null);
       }
 
-      if (subRes.status === 'fulfilled') {
-        setSubscription(subRes.value);
-      } else {
-        setSubscription(null);
-      }
+      if (subRes.status === 'fulfilled') setSubscription(subRes.value);
+      else setSubscription(null);
+
+      if (genreRes.status === 'fulfilled') setGenres(genreRes.value as unknown as Genre[]);
+      else setGenres([]);
     } finally {
       setLoading(false);
     }
@@ -85,21 +88,22 @@ export const CreateScreen = () => {
     Alert.alert('Sẵn sàng', 'Bạn đã đủ điều kiện artist + gói cước để upload.');
   };
 
-
-
   const handleRequestUpload = async () => {
     if (!canCreateSongAlbum) return handleCreateSongAlbum();
-    if (!uploadTitle.trim() || !genreIdsInput.trim()) {
-      return Alert.alert('Thiếu dữ liệu', 'Nhập title và ít nhất 1 genreId (cách nhau bởi dấu phẩy).');
+    if (!uploadTitle.trim() || selectedGenreIds.length === 0) {
+      return Alert.alert('Thiếu dữ liệu', 'Nhập title và chọn ít nhất 1 genre.');
     }
     try {
-      const genreIds = genreIdsInput.split(',').map(s => s.trim()).filter(Boolean);
-      const created = await requestUploadSong({ title: uploadTitle.trim(), fileExtension: uploadExt.trim(), genreIds });
+      const created = await requestUploadSong({
+        title: uploadTitle.trim(),
+        fileExtension: uploadExt.trim().toLowerCase(),
+        genreIds: selectedGenreIds,
+      });
       setPendingSongId(created.id);
       setUploadUrl(created.uploadUrl || null);
-      Alert.alert('Bước 1 thành công', 'Đã tạo upload URL. Hãy upload file nhạc lên URL này, sau đó bấm Xác nhận upload.');
+      Alert.alert('Bước 1 thành công', 'Đã tạo upload URL. Upload file lên URL và bấm Xác nhận upload.');
     } catch (error: any) {
-      Alert.alert('Lỗi upload', error?.message || 'Không thể tạo request upload');
+      Alert.alert('Lỗi upload', error?.message || 'Không thể tạo request upload. Kiểm tra genre hoặc định dạng file.');
     }
   };
 
@@ -115,6 +119,10 @@ export const CreateScreen = () => {
     }
   };
 
+  const toggleGenre = (id: string) => {
+    setSelectedGenreIds(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
+  };
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
@@ -127,25 +135,37 @@ export const CreateScreen = () => {
 
         <View style={styles.body}>
           {loading ? <ActivityIndicator color={COLORS.accent} /> : (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Thêm bài hát / Album</Text>
-              <Text style={styles.cardDesc}>Kiểm tra artist, gói cước và trạng thái ban trước khi tạo.</Text>
-              <Pressable onPress={handleCreateSongAlbum} style={[styles.primaryBtn, !canCreateSongAlbum && styles.disabledBtn]}>
-                <Text style={styles.primaryBtnText}>{canCreateSongAlbum ? 'Tiếp tục tạo nội dung' : 'Chưa đủ điều kiện'}</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Upload bài hát cho mọi người cùng nghe</Text>
-              <TextInput style={styles.input} value={uploadTitle} onChangeText={setUploadTitle} placeholder="Tên bài hát" placeholderTextColor={COLORS.glass45} />
-              <TextInput style={styles.input} value={uploadExt} onChangeText={setUploadExt} placeholder="Định dạng (mp3,wav,...)" placeholderTextColor={COLORS.glass45} />
-              <TextInput style={styles.input} value={genreIdsInput} onChangeText={setGenreIdsInput} placeholder="genreIds, phân tách bằng dấu phẩy" placeholderTextColor={COLORS.glass45} />
-              {!!uploadUrl && <Text style={styles.uploadUrl}>Upload URL: {uploadUrl}</Text>}
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <Pressable onPress={handleRequestUpload} style={[styles.primaryBtn, { flex: 1 }]}><Text style={styles.primaryBtnText}>Tạo upload URL</Text></Pressable>
-                <Pressable onPress={handleConfirmUpload} style={[styles.primaryBtn, { flex: 1 }, !pendingSongId && styles.disabledBtn]}><Text style={styles.primaryBtnText}>Xác nhận upload</Text></Pressable>
+            <>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Thêm bài hát / Album</Text>
+                <Text style={styles.cardDesc}>Kiểm tra artist, gói cước và trạng thái ban trước khi tạo.</Text>
+                <Pressable onPress={handleCreateSongAlbum} style={[styles.primaryBtn, !canCreateSongAlbum && styles.disabledBtn]}>
+                  <Text style={styles.primaryBtnText}>{canCreateSongAlbum ? 'Tiếp tục tạo nội dung' : 'Chưa đủ điều kiện'}</Text>
+                </Pressable>
               </View>
-            </View>
+
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Upload bài hát cho mọi người cùng nghe</Text>
+                <TextInput style={styles.input} value={uploadTitle} onChangeText={setUploadTitle} placeholder="Tên bài hát" placeholderTextColor={COLORS.glass45} />
+                <TextInput style={styles.input} value={uploadExt} onChangeText={setUploadExt} placeholder="Định dạng (mp3,wav,...)" placeholderTextColor={COLORS.glass45} />
+                <Text style={styles.genreLabel}>Chọn thể loại</Text>
+                <View style={styles.genreWrap}>
+                  {genres.map((g) => {
+                    const active = selectedGenreIds.includes(g.id);
+                    return (
+                      <Pressable key={g.id} style={[styles.genreChip, active && styles.genreChipActive]} onPress={() => toggleGenre(g.id)}>
+                        <Text style={[styles.genreText, active && styles.genreTextActive]}>{g.name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {!!uploadUrl && <Text style={styles.uploadUrl}>Upload URL: {uploadUrl}</Text>}
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable onPress={handleRequestUpload} style={[styles.primaryBtn, { flex: 1 }]}><Text style={styles.primaryBtnText}>Tạo upload URL</Text></Pressable>
+                  <Pressable onPress={handleConfirmUpload} style={[styles.primaryBtn, { flex: 1 }, !pendingSongId && styles.disabledBtn]}><Text style={styles.primaryBtnText}>Xác nhận upload</Text></Pressable>
+                </View>
+              </View>
+            </>
           )}
         </View>
       </ScrollView>
@@ -164,6 +184,12 @@ const styles = StyleSheet.create({
   cardTitle: { color: COLORS.white, fontWeight: '700', fontSize: 18, marginBottom: 6 },
   cardDesc: { color: COLORS.glass60, marginBottom: 12 },
   input: { borderWidth: 1, borderColor: COLORS.glass15, backgroundColor: COLORS.surfaceLow, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, color: COLORS.white, marginBottom: 8 },
+  genreLabel: { color: COLORS.glass60, marginBottom: 6 },
+  genreWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  genreChip: { borderRadius: 999, borderWidth: 1, borderColor: COLORS.glass20, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: COLORS.surfaceLow },
+  genreChipActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
+  genreText: { color: COLORS.glass70, fontSize: 12 },
+  genreTextActive: { color: COLORS.accent, fontWeight: '700' },
   uploadUrl: { color: COLORS.glass60, fontSize: 12, marginBottom: 8 },
   primaryBtn: { backgroundColor: COLORS.accentDim, borderRadius: 12, minHeight: 46, alignItems: 'center', justifyContent: 'center' },
   disabledBtn: { backgroundColor: COLORS.surfaceDim },

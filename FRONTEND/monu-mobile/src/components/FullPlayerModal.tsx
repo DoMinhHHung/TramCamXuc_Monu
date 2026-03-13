@@ -8,7 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config/colors';
 import { AudioQuality, usePlayer } from '../context/PlayerContext';
-import { addSongToPlaylist, createPlaylist, getMyPlaylists, Playlist } from '../services/music';
+import { addSongToPlaylist, createPlaylist, getMyPlaylists, Playlist, reportSong } from '../services/music';
+import { getSongShareQr } from '../services/social';
 
 const formatTime = (seconds: number): string => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -34,6 +35,7 @@ export const FullPlayerModal = () => {
     const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
     const [newPlaylistName, setNewPlaylistName] = useState('');
+    const [shareQr, setShareQr] = useState<string | null>(null);
 
     const {
         currentSong, isFullScreen, setFullScreen,
@@ -244,9 +246,9 @@ export const FullPlayerModal = () => {
                         <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
                             <View style={styles.menuSheet}>
                                 <Text style={styles.menuTitle}>{currentSong.title}</Text>
-                                <Pressable onPress={() => void Share.share({ message: `${currentSong.title}
-${PUBLIC_LINK_BASE}/song/${currentSong.id}` })}><Text style={styles.menuItem}>Chia sẻ</Text></Pressable>
+                                <Pressable onPress={async () => { const qr = await getSongShareQr(currentSong.id); setShareQr(qr.qrCodeBase64 || null); setMenuOpen(false); }}><Text style={styles.menuItem}>Chia sẻ QR</Text></Pressable>
                                 <Pressable onPress={() => { setMenuOpen(false); void openPlaylistPicker(); }}><Text style={styles.menuItem}>Thêm vào playlist</Text></Pressable>
+                                <Pressable onPress={async () => { await reportSong(currentSong.id, { reason: 'SPAM', description: 'Reported from full player' }); setMenuOpen(false); }}><Text style={styles.menuItem}>Report song</Text></Pressable>
                                 <Pressable onPress={() => setMenuOpen(false)}><Text style={styles.menuItem}>Dislike: Không quan tâm</Text></Pressable>
                                 <Pressable onPress={() => setMenuOpen(false)}><Text style={styles.menuItem}>Tải xuống</Text></Pressable>
                             </View>
@@ -287,6 +289,16 @@ ${PUBLIC_LINK_BASE}/song/${currentSong.id}` })}><Text style={styles.menuItem}>Ch
                                         Alert.alert('Lỗi', error?.message || 'Không thể tạo playlist mới');
                                     }
                                 }}><Text style={styles.menuItemAccent}>+ Tạo mới và thêm</Text></Pressable>
+                            </View>
+                        </Pressable>
+                    </Modal>
+
+
+                    <Modal visible={!!shareQr} transparent animationType="fade" onRequestClose={() => setShareQr(null)}>
+                        <Pressable style={styles.menuBackdrop} onPress={() => setShareQr(null)}>
+                            <View style={styles.menuSheet}>
+                                <Text style={styles.menuTitle}>QR Share</Text>
+                                {shareQr ? <Image source={{ uri: shareQr }} style={{ width: 220, height: 220, borderRadius: 10, alignSelf: 'center' }} /> : <Text style={styles.menuItem}>Không tạo được QR</Text>}
                             </View>
                         </Pressable>
                     </Modal>
