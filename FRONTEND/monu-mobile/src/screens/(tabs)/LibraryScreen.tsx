@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/colors';
@@ -17,9 +18,11 @@ export const LibraryScreen = () => {
   const [songs, setSongs] = useState<Song[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
 
-  useEffect(() => {
-    void loadLibrary();
-  }, [authSession?.tokens.accessToken]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadLibrary();
+    }, [authSession?.tokens.accessToken]),
+  );
 
   const loadLibrary = async () => {
     try {

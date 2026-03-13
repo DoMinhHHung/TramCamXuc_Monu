@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, Alert, Linking, ActivityIndicator } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -62,6 +63,23 @@ export const PremiumScreen = () => {
         }
     };
 
+
+    const openCheckoutUrl = async (checkoutUrl: string): Promise<boolean> => {
+        try {
+            await Linking.openURL(checkoutUrl);
+            return true;
+        } catch {
+            // fallback to in-app browser if external browser cannot be opened
+        }
+
+        try {
+            const result = await WebBrowser.openBrowserAsync(checkoutUrl);
+            return result.type === 'opened' || result.type === 'cancel' || result.type === 'dismiss';
+        } catch {
+            return false;
+        }
+    };
+
     const handlePurchase = async (planOverride?: SubscriptionPlan) => {
         if (!authSession) {
             Alert.alert('Chưa đăng nhập', 'Vui lòng đăng nhập để mua gói Premium');
@@ -84,23 +102,25 @@ export const PremiumScreen = () => {
             setPurchasing(true);
             const response = await purchaseSubscription({ planId: planToBuy.id });
 
-            // Open PayOS checkout URL
-            const supported = await Linking.canOpenURL(response.checkoutUrl);
-            if (supported) {
-                await Linking.openURL(response.checkoutUrl);
+            const opened = await openCheckoutUrl(response.checkoutUrl);
+            if (!opened) {
                 Alert.alert(
-                    'Thanh toán',
-                    'Vui lòng hoàn tất thanh toán trong trình duyệt. Sau khi thanh toán thành công, quay lại ứng dụng, hệ thống sẽ tự làm mới token và cập nhật quyền Premium.',
-                    [
-                        {
-                            text: 'Đã hiểu',
-                            onPress: () => fetchData(), // Refresh data after payment
-                        },
-                    ]
+                    'Không thể mở link thanh toán',
+                    `Vui lòng mở thủ công đường dẫn sau:\n${response.checkoutUrl}`
                 );
-            } else {
-                Alert.alert('Lỗi', 'Không thể mở liên kết thanh toán');
+                return;
             }
+
+            Alert.alert(
+                'Thanh toán',
+                'Vui lòng hoàn tất thanh toán trong trình duyệt. Sau khi thanh toán thành công, quay lại ứng dụng, hệ thống sẽ tự làm mới token và cập nhật quyền Premium.',
+                [
+                    {
+                        text: 'Đã hiểu',
+                        onPress: () => fetchData(), // Refresh data after payment
+                    },
+                ]
+            );
         } catch (error: any) {
             console.error('Purchase error:', error);
             Alert.alert('Lỗi', error.message || 'Không thể tạo thanh toán. Vui lòng thử lại.');
