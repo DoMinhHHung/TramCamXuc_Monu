@@ -71,7 +71,7 @@ const linking: LinkingOptions<RootStackParamList> = {
 
 const MainTabNavigator = () => (
     <Tab.Navigator
-        screenOptions={({ route }) => {
+        screenOptions={({ route }: any) => {
             const meta     = tabMeta[route.name as keyof MainTabParamList];
             const isCreate = route.name === 'Create';
             return {

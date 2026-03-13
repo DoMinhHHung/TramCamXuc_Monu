@@ -118,7 +118,7 @@ export default function PremiumCard({
 const styles = StyleSheet.create({
     wrapper: {
         marginBottom: 20,
-        perspective: 1000,
+        transform: [{ perspective: 1000 }],
     },
 
     card: {

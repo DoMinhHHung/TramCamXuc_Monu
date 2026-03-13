@@ -114,12 +114,11 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     // ── Audio session ─────────────────────────────────────────────────────────
     useEffect(() => {
         setAudioModeAsync({
-            playsInSilentModeIOS: true,
-            shouldDuckAndroid: true,
-            playThroughEarpieceAndroid: false,
-        }).catch(e => console.warn('[PlayerContext] setAudioModeAsync failed:', e));
+            playsInSilentMode: true,
+        }).catch(e =>
+            console.warn('[PlayerContext] setAudioModeAsync failed:', e)
+        );
     }, []);
-
     // ── Autoplay khi source load xong ─────────────────────────────────────────
     useEffect(() => {
         if (status.isLoaded && shouldAutoPlayRef.current) {

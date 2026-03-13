@@ -12,8 +12,8 @@ import { ConfirmModal } from '../../components/ConfirmModal';
 import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { deleteMyProfile, updateMyProfile, uploadAvatar } from '../../services/auth';
-import {BackButton} from "@/components/BackButton";
-import {useNavigation} from "@react-navigation/native";
+import { BackButton } from '../../components/BackButton';
+import { useNavigation } from '@react-navigation/native';
 
 export const ProfileScreen = () => {
     const { authSession, refreshProfile, logout } = useAuth();

@@ -100,9 +100,11 @@ export const HomeScreen = () => {
 
             {/* Search bar giả — bấm vào navigate sang SearchScreen */}
             <Pressable
-                style={styles.searchBar}
                 onPress={() => navigation.navigate('Search')}
-                activeOpacity={0.8}
+                style={({ pressed }) => [
+                  styles.searchBar,
+                  { opacity: pressed ? 0.8 : 1 }
+                ]}
             >
               <Text style={styles.searchIcon}>🔍</Text>
               <Text style={styles.searchPlaceholder}>Tìm bài hát, nghệ sĩ...</Text>
