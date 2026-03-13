@@ -11,6 +11,7 @@ import iuh.fit.se.socialservice.repository.ListenHistoryRepository;
 import iuh.fit.se.socialservice.repository.ReactionRepository;
 import iuh.fit.se.socialservice.repository.SongShareRepository;
 import iuh.fit.se.socialservice.service.FollowService;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -30,6 +32,35 @@ public class FollowServiceImpl implements FollowService {
     private final ReactionRepository reactionRepository;
     private final SongShareRepository songShareRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+
+    private static final int    FAMOUS_THRESHOLD  = 500;
+    private static final String FAMOUS_ARTISTS_KEY = "social:famous:artists";
+
+    @PostConstruct
+    public void rebuildFamousArtistsCache() {
+        try {
+            log.info("Rebuilding famous artists cache from MongoDB...");
+
+            redisTemplate.delete(FAMOUS_ARTISTS_KEY);
+
+            List<UUID> famousArtistIds = followRepository.findArtistIdsWithFollowerCountGte(
+                    FAMOUS_THRESHOLD);
+
+            if (famousArtistIds.isEmpty()) {
+                log.info("No famous artists found at startup.");
+                return;
+            }
+
+            String[] ids = famousArtistIds.stream()
+                    .map(UUID::toString)
+                    .toArray(String[]::new);
+            redisTemplate.opsForSet().add(FAMOUS_ARTISTS_KEY, (Object[]) ids);
+
+            log.info("Rebuilt famous artists cache: {} artists added.", famousArtistIds.size());
+        } catch (Exception e) {
+            log.warn("Failed to rebuild famous artists cache: {}", e.getMessage());
+        }
+    }
 
     private void evictFollowCache(UUID followerId) {
         try {
@@ -52,6 +83,7 @@ public class FollowServiceImpl implements FollowService {
 
         follow = followRepository.save(follow);
         evictFollowCache(followerId);
+        updateFamousStatus(artistId);
         return toResponse(follow);
     }
 
@@ -62,6 +94,7 @@ public class FollowServiceImpl implements FollowService {
         }
         followRepository.deleteByFollowerIdAndArtistId(followerId, artistId);
         evictFollowCache(followerId);
+        updateFamousStatus(artistId);
     }
 
     @Override
@@ -108,5 +141,19 @@ public class FollowServiceImpl implements FollowService {
                 .artistId(follow.getArtistId())
                 .createdAt(follow.getCreatedAt())
                 .build();
+    }
+
+    private void updateFamousStatus(UUID artistId) {
+        try {
+            long count = followRepository.countByArtistId(artistId);
+            if (count >= FAMOUS_THRESHOLD) {
+                redisTemplate.opsForSet().add(FAMOUS_ARTISTS_KEY, artistId.toString());
+            } else {
+                redisTemplate.opsForSet().remove(FAMOUS_ARTISTS_KEY, artistId.toString());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to update famous status for artistId={}: {}",
+                    artistId, e.getMessage());
+        }
     }
 }

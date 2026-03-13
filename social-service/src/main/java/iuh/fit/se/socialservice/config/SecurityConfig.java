@@ -36,6 +36,9 @@ public class SecurityConfig {
             "/internal/social/listen-history/**",
             "/internal/social/follows/**",
             "/internal/social/reactions/**",
+            "/social/feed/owner/**",
+            "/social/comments/post",
+            "/social/comments/post/count",
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"

@@ -2,6 +2,7 @@ package iuh.fit.se.socialservice.service.impl;
 
 import iuh.fit.se.socialservice.document.Comment;
 import iuh.fit.se.socialservice.document.CommentLike;
+import iuh.fit.se.socialservice.document.FeedPost;
 import iuh.fit.se.socialservice.dto.response.CommentResponse;
 import iuh.fit.se.socialservice.exception.AppException;
 import iuh.fit.se.socialservice.exception.ErrorCode;
@@ -149,6 +150,45 @@ public class CommentServiceImpl implements CommentService {
                             Comment.class
                     );
                 });
+    }
+
+    @Override
+    public CommentResponse addPostComment(UUID userId, String postId,
+                                          String parentId, String content) {
+        if (parentId != null) {
+            commentRepository.findById(parentId)
+                    .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
+        }
+        Comment comment = Comment.builder()
+                .userId(userId)
+                .postId(postId)   // ← dùng postId thay vì songId
+                .parentId(parentId)
+                .content(content)
+                .likeCount(0).edited(false)
+                .build();
+        comment = commentRepository.save(comment);
+
+        // Tăng commentCount trên FeedPost (atomic)
+        mongoTemplate.updateFirst(
+                Query.query(Criteria.where("id").is(postId)),
+                new Update().inc("commentCount", 1),
+                FeedPost.class);
+
+        return toResponse(comment, userId);
+    }
+
+    @Override
+    public Page<CommentResponse> getPostComments(String postId,
+                                                 UUID currentUserId,
+                                                 Pageable pageable) {
+        return commentRepository
+                .findByPostIdAndParentIdIsNullOrderByCreatedAtDesc(postId, pageable)
+                .map(c -> toResponse(c, currentUserId));
+    }
+
+    @Override
+    public long getPostCommentCount(String postId) {
+        return commentRepository.countByPostIdAndParentIdIsNull(postId);
     }
 
     private CommentResponse toResponse(Comment comment, UUID currentUserId) {

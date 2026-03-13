@@ -3,6 +3,7 @@ package iuh.fit.se.socialservice.repository;
 import iuh.fit.se.socialservice.document.Follow;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -30,4 +31,11 @@ public interface FollowRepository extends MongoRepository<Follow, String> {
 
     @Query(value = "{'followerId': ?0}", fields = "{'artistId': 1, '_id': 0}")
     List<Follow> findArtistIdsByFollowerId(UUID followerId);
+
+    @Aggregation(pipeline = {
+            "{ $group: { _id: '$artistId', count: { $sum: 1 } } }",
+            "{ $match: { count: { $gte: ?0 } } }",
+            "{ $project: { _id: 1 } }"
+    })
+    List<UUID> findArtistIdsWithFollowerCountGte(int minCount);
 }

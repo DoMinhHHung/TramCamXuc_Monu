@@ -95,7 +95,6 @@ export default function PremiumCard({
                             styles.back,
                             {
                                 opacity: backOpacity,
-                                transform: [{ rotateY: "180deg" }],
                             },
                         ]}
                     >
@@ -154,7 +153,6 @@ const styles = StyleSheet.create({
 
     back: {
         position: "absolute",
-        width: "100%",
     },
 
     plan: {

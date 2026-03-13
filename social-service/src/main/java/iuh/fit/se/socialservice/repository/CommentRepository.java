@@ -20,4 +20,9 @@ public interface CommentRepository extends MongoRepository<Comment, String> {
     long countByParentId(String parentId);
 
     void deleteBySongId(UUID songId);
+
+    Page<Comment> findByPostIdAndParentIdIsNullOrderByCreatedAtDesc(
+            String postId, Pageable pageable);
+
+    long countByPostIdAndParentIdIsNull(String postId);
 }
