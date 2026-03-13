@@ -39,12 +39,15 @@ export const PremiumScreen = () => {
 
             if (plansData.status === 'fulfilled') {
                 setPlans(plansData.value);
-                // Auto-select the first plan or the cheapest one
-                if (plansData.value.length > 0) {
-                    const cheapest = plansData.value.reduce((prev, curr) => 
+                // Auto-select cheapest paid plan (exclude Free/Basic)
+                const paidPlans = plansData.value.filter(isPurchasablePlan);
+                if (paidPlans.length > 0) {
+                    const cheapestPaid = paidPlans.reduce((prev, curr) =>
                         curr.price < prev.price ? curr : prev
                     );
-                    setSelectedPlan(cheapest);
+                    setSelectedPlan(cheapestPaid);
+                } else {
+                    setSelectedPlan(null);
                 }
             }
 
@@ -59,20 +62,27 @@ export const PremiumScreen = () => {
         }
     };
 
-    const handlePurchase = async () => {
+    const handlePurchase = async (planOverride?: SubscriptionPlan) => {
         if (!authSession) {
             Alert.alert('Chưa đăng nhập', 'Vui lòng đăng nhập để mua gói Premium');
             return;
         }
 
-        if (!selectedPlan) {
-            Alert.alert('Lỗi', 'Vui lòng chọn một gói cước');
+        const planToBuy = planOverride ?? selectedPlan;
+
+        if (!planToBuy) {
+            Alert.alert('Lỗi', 'Vui lòng chọn một gói cước trả phí');
+            return;
+        }
+
+        if (!isPurchasablePlan(planToBuy)) {
+            Alert.alert('Không hợp lệ', 'Không thể thanh toán gói Free/Basic. Vui lòng chọn gói Premium khác.');
             return;
         }
 
         try {
             setPurchasing(true);
-            const response = await purchaseSubscription({ planId: selectedPlan.id });
+            const response = await purchaseSubscription({ planId: planToBuy.id });
 
             // Open PayOS checkout URL
             const supported = await Linking.canOpenURL(response.checkoutUrl);
@@ -110,6 +120,8 @@ export const PremiumScreen = () => {
     const isFreeOrBasic = (plan: SubscriptionPlan) => {
         return plan.price === 0 || plan.subsName.toLowerCase().includes('free') || plan.subsName.toLowerCase().includes('basic');
     };
+
+    const isPurchasablePlan = (plan: SubscriptionPlan) => !isFreeOrBasic(plan);
 
     const renderFeatureValue = (value: any): string => {
         if (typeof value === 'boolean') return value ? 'Có' : 'Không';
@@ -180,7 +192,7 @@ export const PremiumScreen = () => {
                                     }
                                     onBuy={() => {
                                         setSelectedPlan(plan);
-                                        handlePurchase();
+                                        void handlePurchase(plan);
                                     }}
                                 />
                             ))}
@@ -214,7 +226,7 @@ export const PremiumScreen = () => {
                                     purchasing && { opacity: 0.6 },
                                 ]}
                                 onPress={handlePurchase}
-                                disabled={purchasing || !selectedPlan}
+                                disabled={purchasing || !selectedPlan || !isPurchasablePlan(selectedPlan)}
                             >
                                 <LinearGradient
                                     colors={[COLORS.warning, COLORS.error]}
@@ -226,7 +238,7 @@ export const PremiumScreen = () => {
                                         <ActivityIndicator color={COLORS.white} />
                                     ) : (
                                         <Text style={styles.upgradeBtnText}>
-                                            👑  {selectedPlan ? `Mua ngay ${formatPrice(selectedPlan.price)}đ` : 'Chọn gói cước'}
+                                            👑  {selectedPlan ? `Mua ngay ${formatPrice(selectedPlan.price)}đ` : 'Chọn gói trả phí'}
                                         </Text>
                                     )}
                                 </LinearGradient>
