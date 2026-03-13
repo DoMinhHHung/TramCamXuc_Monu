@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/colors';
@@ -16,6 +16,7 @@ const PUBLIC_LINK_BASE = 'https://phazelsound.oopsgolden.id.vn';
 export const LibraryScreen = () => {
   const insets = useSafeAreaInsets();
   const { authSession } = useAuth();
+  const navigation = useNavigation<any>();
   const { playSong, currentSong, isPlaying } = usePlayer();
   const [loading, setLoading] = useState(true);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -24,7 +25,6 @@ export const LibraryScreen = () => {
   const [qrLink, setQrLink] = useState<string | null>(null);
   const [feedSharePayload, setFeedSharePayload] = useState<{id: string; type: 'PLAYLIST' | 'SONG' | 'ALBUM'; defaultTitle: string} | null>(null);
   const [feedTitleInput, setFeedTitleInput] = useState('');
-  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [addSongTarget, setAddSongTarget] = useState<Song | null>(null);
   const [newPlaylistName, setNewPlaylistName] = useState('');
 
@@ -63,7 +63,8 @@ export const LibraryScreen = () => {
 
     if (method === 'qr') {
       if (type === 'playlist') {
-        setQrLink(getPlaylistShareQr(id).shareUrl);
+        const qr = await getPlaylistShareQr(id);
+        setQrLink(qr.shareUrl);
       } else {
         setQrLink(link);
       }
@@ -71,7 +72,7 @@ export const LibraryScreen = () => {
     }
 
     if (method === 'link') {
-      const shareUrl = type === 'playlist' ? getPlaylistShareLink(id).shareUrl : link;
+      const shareUrl = type === 'playlist' ? (await getPlaylistShareLink(id)).shareUrl : link;
       await Share.share({ message: `Nghe ngay: ${defaultTitle}\n${shareUrl}` });
       return;
     }
@@ -116,9 +117,9 @@ export const LibraryScreen = () => {
 
           <Text style={styles.sectionTitle}>Playlist ({playlists.length})</Text>
           {playlists.map((p) => (
-            <Pressable key={p.id} style={styles.itemCard} onPress={() => setSelectedPlaylist(p)}>
+            <Pressable key={p.id} style={styles.itemCard} onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug })}>
               <Text style={styles.itemTitle}>{p.name}</Text>
-              <Text style={styles.itemSub}>{p.songCount ?? p.songs?.length ?? 0} bài hát</Text>
+              <Text style={styles.itemSub}>{p.totalSongs ?? p.songs?.length ?? 0} bài hát</Text>
               {renderShareActions('playlist', p.id, p.name)}
             </Pressable>
           ))}
@@ -145,20 +146,6 @@ export const LibraryScreen = () => {
         </View>
       </ScrollView>
 
-      <Modal visible={!!selectedPlaylist} transparent animationType="slide" onRequestClose={() => setSelectedPlaylist(null)}>
-        <Pressable style={styles.qrBackdrop} onPress={() => setSelectedPlaylist(null)}>
-          <View style={styles.sheetCard}>
-            <Text style={styles.qrTitle}>{selectedPlaylist?.name}</Text>
-            {(selectedPlaylist?.songs ?? []).map(song => (
-              <Pressable key={song.id} style={styles.playlistSongRow} onPress={() => playSong(song, selectedPlaylist?.songs ?? [])}>
-                <Text style={styles.playlistSongTitle}>{song.title}</Text>
-                <Text style={styles.playlistSongMeta}>{song.primaryArtist.stageName} • {formatDuration(song.durationSeconds)}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Pressable>
-      </Modal>
-
       <Modal visible={!!addSongTarget} transparent animationType="slide" onRequestClose={() => setAddSongTarget(null)}>
         <Pressable style={styles.qrBackdrop} onPress={() => setAddSongTarget(null)}>
           <View style={styles.sheetCard}>
@@ -166,7 +153,7 @@ export const LibraryScreen = () => {
             {playlists.map(p => (
               <Pressable key={p.id} style={styles.addPlaylistItem} onPress={() => addSongTarget && void handleAddSongToPlaylist(p.id, addSongTarget.id)}>
                 <Text style={styles.itemTitle}>{p.name}</Text>
-                <Text style={styles.itemSub}>{p.songCount ?? p.songs?.length ?? 0} bài hát</Text>
+                <Text style={styles.itemSub}>{p.totalSongs ?? p.songs?.length ?? 0} bài hát</Text>
               </Pressable>
             ))}
             <TextInput value={newPlaylistName} onChangeText={setNewPlaylistName} placeholder="Tên playlist mới" placeholderTextColor={COLORS.glass45} style={styles.input} />

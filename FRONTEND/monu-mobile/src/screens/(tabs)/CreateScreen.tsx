@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { getMySubscription, UserSubscription } from '../../services/payment';
 import { apiClient } from '../../services/api';
+import { confirmUploadSong, requestUploadSong } from '../../services/music';
 
 type ArtistProfile = {
   id: string;
@@ -21,6 +22,11 @@ export const CreateScreen = () => {
   const [loading, setLoading] = useState(false);
   const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadExt, setUploadExt] = useState('mp3');
+  const [genreIdsInput, setGenreIdsInput] = useState('');
+  const [pendingSongId, setPendingSongId] = useState<string | null>(null);
+  const [uploadUrl, setUploadUrl] = useState<string | null>(null);
 
   React.useEffect(() => {
     void loadCreatorState();
@@ -79,6 +85,36 @@ export const CreateScreen = () => {
     Alert.alert('Sẵn sàng', 'Bạn đã đủ điều kiện artist + gói cước để upload.');
   };
 
+
+
+  const handleRequestUpload = async () => {
+    if (!canCreateSongAlbum) return handleCreateSongAlbum();
+    if (!uploadTitle.trim() || !genreIdsInput.trim()) {
+      return Alert.alert('Thiếu dữ liệu', 'Nhập title và ít nhất 1 genreId (cách nhau bởi dấu phẩy).');
+    }
+    try {
+      const genreIds = genreIdsInput.split(',').map(s => s.trim()).filter(Boolean);
+      const created = await requestUploadSong({ title: uploadTitle.trim(), fileExtension: uploadExt.trim(), genreIds });
+      setPendingSongId(created.id);
+      setUploadUrl(created.uploadUrl || null);
+      Alert.alert('Bước 1 thành công', 'Đã tạo upload URL. Hãy upload file nhạc lên URL này, sau đó bấm Xác nhận upload.');
+    } catch (error: any) {
+      Alert.alert('Lỗi upload', error?.message || 'Không thể tạo request upload');
+    }
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!pendingSongId) return;
+    try {
+      await confirmUploadSong(pendingSongId);
+      Alert.alert('Đã xác nhận', 'Upload confirmed, hệ thống đang transcode.');
+      setPendingSongId(null);
+      setUploadUrl(null);
+    } catch (error: any) {
+      Alert.alert('Lỗi', error?.message || 'Không thể xác nhận upload');
+    }
+  };
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
@@ -98,6 +134,18 @@ export const CreateScreen = () => {
                 <Text style={styles.primaryBtnText}>{canCreateSongAlbum ? 'Tiếp tục tạo nội dung' : 'Chưa đủ điều kiện'}</Text>
               </Pressable>
             </View>
+
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Upload bài hát cho mọi người cùng nghe</Text>
+              <TextInput style={styles.input} value={uploadTitle} onChangeText={setUploadTitle} placeholder="Tên bài hát" placeholderTextColor={COLORS.glass45} />
+              <TextInput style={styles.input} value={uploadExt} onChangeText={setUploadExt} placeholder="Định dạng (mp3,wav,...)" placeholderTextColor={COLORS.glass45} />
+              <TextInput style={styles.input} value={genreIdsInput} onChangeText={setGenreIdsInput} placeholder="genreIds, phân tách bằng dấu phẩy" placeholderTextColor={COLORS.glass45} />
+              {!!uploadUrl && <Text style={styles.uploadUrl}>Upload URL: {uploadUrl}</Text>}
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Pressable onPress={handleRequestUpload} style={[styles.primaryBtn, { flex: 1 }]}><Text style={styles.primaryBtnText}>Tạo upload URL</Text></Pressable>
+                <Pressable onPress={handleConfirmUpload} style={[styles.primaryBtn, { flex: 1 }, !pendingSongId && styles.disabledBtn]}><Text style={styles.primaryBtnText}>Xác nhận upload</Text></Pressable>
+              </View>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -115,6 +163,8 @@ const styles = StyleSheet.create({
   card: { backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1, borderColor: COLORS.glass10, padding: 16 },
   cardTitle: { color: COLORS.white, fontWeight: '700', fontSize: 18, marginBottom: 6 },
   cardDesc: { color: COLORS.glass60, marginBottom: 12 },
+  input: { borderWidth: 1, borderColor: COLORS.glass15, backgroundColor: COLORS.surfaceLow, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, color: COLORS.white, marginBottom: 8 },
+  uploadUrl: { color: COLORS.glass60, fontSize: 12, marginBottom: 8 },
   primaryBtn: { backgroundColor: COLORS.accentDim, borderRadius: 12, minHeight: 46, alignItems: 'center', justifyContent: 'center' },
   disabledBtn: { backgroundColor: COLORS.surfaceDim },
   primaryBtnText: { color: COLORS.white, fontWeight: '700' },

@@ -121,13 +121,12 @@ export const getSongShareQr = async (songId: string): Promise<ShareResponse> => 
   return response.data;
 };
 
-export const getPlaylistShareLink = (playlistId: string): ShareResponse => ({
-  shareUrl: `https://phazelsound.oopsgolden.id.vn/playlist/${playlistId}`,
-  platform: 'direct',
-});
+export const getPlaylistShareLink = async (playlistId: string, platform = 'direct'): Promise<ShareResponse> => {
+  const response = await apiClient.get<ShareResponse>('/social/share/playlist', { params: { playlistId, platform } });
+  return response.data;
+};
 
-export const getPlaylistShareQr = (playlistId: string): ShareResponse => ({
-  shareUrl: `https://phazelsound.oopsgolden.id.vn/playlist/${playlistId}`,
-  qrCodeBase64: '',
-  platform: 'qr',
-});
+export const getPlaylistShareQr = async (playlistId: string): Promise<ShareResponse> => {
+  const response = await apiClient.get<ShareResponse>('/social/share/playlist/qr', { params: { playlistId } });
+  return response.data;
+};

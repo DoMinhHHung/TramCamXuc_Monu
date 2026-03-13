@@ -1,7 +1,5 @@
 import { apiClient } from './api';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export interface Artist {
   artistId: string;
   stageName: string;
@@ -27,18 +25,32 @@ export interface Song {
   streamUrl?: string;
   createdAt: string;
   updatedAt: string;
+  uploadUrl?: string;
+}
+
+export interface PlaylistSong {
+  playlistSongId: string;
+  prevId?: string | null;
+  nextId?: string | null;
+  songId: string;
+  title: string;
+  thumbnailUrl?: string;
+  durationSeconds?: number;
+  playCount?: number;
+  artistId?: string;
+  artistStageName?: string;
 }
 
 export interface Playlist {
   id: string;
-  userId: string;
   name: string;
-  description?: string;
   slug: string;
+  description?: string;
   coverUrl?: string;
+  ownerId: string;
   visibility: 'PUBLIC' | 'PRIVATE' | 'COLLABORATIVE';
-  songs: Song[];
-  songCount: number;
+  totalSongs?: number;
+  songs?: PlaylistSong[];
   createdAt: string;
   updatedAt: string;
 }
@@ -69,8 +81,6 @@ export interface PlaylistCreateRequest {
   description?: string;
   visibility: 'PUBLIC' | 'PRIVATE' | 'COLLABORATIVE';
 }
-
-// ─── Music API ────────────────────────────────────────────────────────────────
 
 export const searchSongs = async (params: {
   keyword?: string;
@@ -117,9 +127,7 @@ export const getSongsByArtist = async (
   artistId: string,
   params?: { page?: number; size?: number },
 ): Promise<PageResponse<Song>> => {
-  const response = await apiClient.get<PageResponse<Song>>(
-    `/songs/by-artist/${artistId}`, { params },
-  );
+  const response = await apiClient.get<PageResponse<Song>>(`/songs/by-artist/${artistId}`, { params });
   return response.data;
 };
 
@@ -158,6 +166,15 @@ export const getMySongs = async (params?: { page?: number; size?: number }): Pro
   return response.data;
 };
 
+export const requestUploadSong = async (payload: { title: string; fileExtension: string; genreIds: string[] }): Promise<Song> => {
+  const response = await apiClient.post<Song>('/songs/request-upload', payload);
+  return response.data;
+};
+
+export const confirmUploadSong = async (songId: string): Promise<void> => {
+  await apiClient.post(`/songs/${songId}/confirm`);
+};
+
 export const getMyAlbums = async (params?: { page?: number; size?: number }): Promise<PageResponse<Album>> => {
   const response = await apiClient.get<PageResponse<Album>>('/albums/my', { params });
   return response.data;
@@ -168,13 +185,22 @@ export const getMyPlaylists = async (params?: { page?: number; size?: number }):
   return response.data;
 };
 
+export const getPlaylistBySlug = async (slug: string): Promise<Playlist> => {
+  const response = await apiClient.get<Playlist>(`/playlists/${slug}`);
+  return response.data;
+};
+
 export const createPlaylist = async (payload: PlaylistCreateRequest): Promise<Playlist> => {
   const response = await apiClient.post<Playlist>('/playlists', payload);
   return response.data;
 };
 
-
 export const addSongToPlaylist = async (playlistId: string, songId: string): Promise<Playlist> => {
   const response = await apiClient.post<Playlist>(`/playlists/${playlistId}/songs/${songId}`);
+  return response.data;
+};
+
+export const reorderPlaylistSong = async (playlistId: string, payload: { draggedId: string; prevId?: string | null; nextId?: string | null }): Promise<Playlist> => {
+  const response = await apiClient.patch<Playlist>(`/playlists/${playlistId}/songs/reorder`, payload);
   return response.data;
 };

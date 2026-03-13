@@ -79,6 +79,36 @@ public class ShareServiceImpl implements ShareService {
         return songShareRepository.countBySongId(songId);
     }
 
+    @Override
+    public ShareResponse getPlaylistShareLink(UUID playlistId, String platform) {
+        String url = frontendUrl + "/playlist/" + playlistId;
+        String platformUrl = buildPlatformUrl(platform, url);
+        return ShareResponse.builder()
+                .shareUrl(platformUrl)
+                .platform(platform)
+                .build();
+    }
+
+    @Override
+    public ShareResponse getPlaylistQrCode(UUID playlistId) {
+        String url = frontendUrl + "/playlist/" + playlistId;
+        try {
+            QRCodeWriter writer = new QRCodeWriter();
+            BitMatrix matrix = writer.encode(url, BarcodeFormat.QR_CODE, 300, 300);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(matrix, "PNG", baos);
+            String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
+            return ShareResponse.builder()
+                    .shareUrl(url)
+                    .qrCodeBase64("data:image/png;base64," + base64)
+                    .platform("qr")
+                    .build();
+        } catch (Exception e) {
+            log.error("Playlist QR generation failed for playlistId={}", playlistId, e);
+            return ShareResponse.builder().shareUrl(url).platform("qr").build();
+        }
+    }
+
     private void recordShare(UUID songId, UUID artistId, UUID userId, String platform) {
         songShareRepository.save(SongShare.builder()
                 .songId(songId)
