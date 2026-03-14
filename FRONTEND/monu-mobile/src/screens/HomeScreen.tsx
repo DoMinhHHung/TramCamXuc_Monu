@@ -43,6 +43,7 @@ export const HomeScreen = () => {
   const [genres, setGenres] = useState<Genre[]>([]);
   const [genreSongs, setGenreSongs] = useState<Record<string, Song[]>>({});
   const [expandedGenreIds, setExpandedGenreIds] = useState<string[]>([]);
+  const [loadingGenreId, setLoadingGenreId] = useState<string | null>(null);
 
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -101,11 +102,16 @@ export const HomeScreen = () => {
       return;
     }
 
-    if (!genreSongs[genreId]) {
-      const res = await searchSongs({ genreId, page: 1, size: 8 });
-      setGenreSongs(prev => ({ ...prev, [genreId]: res.content ?? [] }));
+    try {
+      if (!genreSongs[genreId]) {
+        setLoadingGenreId(genreId);
+        const res = await searchSongs({ genreId, page: 1, size: 8 });
+        setGenreSongs(prev => ({ ...prev, [genreId]: res.content ?? [] }));
+      }
+      setExpandedGenreIds(prev => [...prev, genreId]);
+    } finally {
+      setLoadingGenreId(null);
     }
-    setExpandedGenreIds(prev => [...prev, genreId]);
   };
 
   return (
@@ -145,10 +151,12 @@ export const HomeScreen = () => {
               <View style={styles.genreWrap}>
                 {genres.map(g => (
                   <Pressable key={g.id} style={[styles.genreChip, expandedGenreIds.includes(g.id) && styles.genreChipActive]} onPress={() => void toggleGenre(g.id)}>
-                    <Text style={[styles.genreText, expandedGenreIds.includes(g.id) && styles.genreTextActive]}>{g.name}</Text>
+                    <Text style={[styles.genreText, expandedGenreIds.includes(g.id) && styles.genreTextActive]}>{expandedGenreIds.includes(g.id) ? '▼ ' : '▶ '} {g.name}</Text>
                   </Pressable>
                 ))}
               </View>
+
+              {loadingGenreId && <ActivityIndicator color={COLORS.accent} style={{ marginTop: 10 }} />}
 
               {expandedGenreIds.map((id) => {
                 const genre = genres.find(g => g.id === id);
