@@ -7,8 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
-import { addSongToPlaylist, Album, createPlaylist, getMyAlbums, getMyPlaylists, getMySongs, Playlist, Song } from '../../services/music';
-import { createFeedPost, getPlaylistShareLink, getPlaylistShareQr } from '../../services/social';
+import { addSongToPlaylist, Album, createPlaylist, deletePlaylist, getMyAlbums, getMyPlaylists, getMySongs, Playlist, Song, updatePlaylist } from '../../services/music';
+import { createFeedPost, getAlbumShareLink, getAlbumShareQr, getPlaylistShareLink, getPlaylistShareQr, getSongShareLink, getSongShareQr } from '../../services/social';
 import { usePlayer } from '../../context/PlayerContext';
 
 const PUBLIC_LINK_BASE = 'https://phazelsound.oopsgolden.id.vn';
@@ -27,6 +27,8 @@ export const LibraryScreen = () => {
   const [feedTitleInput, setFeedTitleInput] = useState('');
   const [addSongTarget, setAddSongTarget] = useState<Song | null>(null);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [editingPlaylist, setEditingPlaylist] = useState<Playlist | null>(null);
+  const [playlistEditName, setPlaylistEditName] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -65,14 +67,21 @@ export const LibraryScreen = () => {
       if (type === 'playlist') {
         const qr = await getPlaylistShareQr(id);
         setQrData({ link: qr.shareUrl, image: qr.qrCodeBase64 });
+      } else if (type === 'song') {
+        const qr = await getSongShareQr(id);
+        setQrData({ link: qr.shareUrl, image: qr.qrCodeBase64 });
       } else {
-        setQrData({ link });
+        const qr = await getAlbumShareQr(id);
+        setQrData({ link: qr.shareUrl, image: qr.qrCodeBase64 });
       }
       return;
     }
 
     if (method === 'link') {
-      const shareUrl = type === 'playlist' ? (await getPlaylistShareLink(id)).shareUrl : link;
+      let shareUrl = link;
+      if (type === 'playlist') shareUrl = (await getPlaylistShareLink(id)).shareUrl;
+      if (type === 'song') shareUrl = (await getSongShareLink(id)).shareUrl;
+      if (type === 'album') shareUrl = (await getAlbumShareLink(id)).shareUrl;
       await Share.share({ message: `Nghe ngay: ${defaultTitle}\n${shareUrl}` });
       return;
     }
@@ -89,6 +98,16 @@ export const LibraryScreen = () => {
       await loadLibrary(true);
     } catch (error: any) {
       Alert.alert('Lỗi', error?.message || 'Không thể thêm bài hát vào playlist');
+    }
+  };
+
+  const handleDeletePlaylist = async (playlistId: string) => {
+    try {
+      await deletePlaylist(playlistId);
+      Alert.alert('Đã xóa', 'Playlist đã được xóa thành công.');
+      await loadLibrary(true);
+    } catch (error: any) {
+      Alert.alert('Lỗi', error?.message || 'Không thể xóa playlist');
     }
   };
 
@@ -120,6 +139,13 @@ export const LibraryScreen = () => {
             <Pressable key={p.id} style={styles.itemCard} onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug, name: p.name })}>
               <Text style={styles.itemTitle}>{p.name}</Text>
               <Text style={styles.itemSub}>{p.totalSongs ?? p.songs?.length ?? 0} bài hát</Text>
+              <View style={styles.songActionRow}>
+                <Pressable onPress={() => { setEditingPlaylist(p); setPlaylistEditName(p.name); }}><Text style={styles.shareAction}>✏ Sửa</Text></Pressable>
+                <Pressable onPress={() => Alert.alert('Xóa playlist', `Bạn có chắc muốn xóa "${p.name}"?`, [
+                  { text: 'Hủy', style: 'cancel' },
+                  { text: 'Xóa', style: 'destructive', onPress: () => void handleDeletePlaylist(p.id) },
+                ])}><Text style={styles.dangerAction}>🗑 Xóa</Text></Pressable>
+              </View>
               {renderShareActions('playlist', p.id, p.name)}
             </Pressable>
           ))}
@@ -138,10 +164,11 @@ export const LibraryScreen = () => {
 
           <Text style={styles.sectionTitle}>Album ({albums.length})</Text>
           {albums.map((a) => (
-            <View key={a.id} style={styles.itemCard}>
+            <Pressable key={a.id} style={styles.itemCard} onPress={() => navigation.navigate('AlbumDetail', { albumId: a.id })}>
               <Text style={styles.itemTitle}>{a.title}</Text>
+              <Text style={styles.itemSub}>{a.status} • {a.songs?.length ?? 0} bài hát</Text>
               {renderShareActions('album', a.id, a.title)}
-            </View>
+            </Pressable>
           ))}
         </View>
       </ScrollView>
@@ -203,6 +230,29 @@ export const LibraryScreen = () => {
           </View>
         </Pressable>
       </Modal>
+
+      <Modal visible={!!editingPlaylist} transparent animationType="slide" onRequestClose={() => setEditingPlaylist(null)}>
+        <Pressable style={styles.qrBackdrop} onPress={() => setEditingPlaylist(null)}>
+          <View style={styles.sheetCard}>
+            <Text style={styles.qrTitle}>Sửa playlist</Text>
+            <TextInput value={playlistEditName} onChangeText={setPlaylistEditName} placeholder="Tên playlist" placeholderTextColor={COLORS.glass45} style={styles.input} />
+            <Pressable style={styles.newBtn} onPress={async () => {
+              if (!editingPlaylist || !playlistEditName.trim()) return;
+              try {
+                await updatePlaylist(editingPlaylist.id, {
+                  name: playlistEditName.trim(),
+                  description: editingPlaylist.description,
+                  visibility: editingPlaylist.visibility,
+                });
+                setEditingPlaylist(null);
+                await loadLibrary(true);
+              } catch (error: any) {
+                Alert.alert('Lỗi', error?.message || 'Không thể cập nhật playlist');
+              }
+            }}><Text style={styles.newBtnText}>Lưu thay đổi</Text></Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -221,6 +271,7 @@ const styles = StyleSheet.create({
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
   shareLabel: { color: COLORS.glass45, fontSize: 12 },
   shareAction: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
+  dangerAction: { color: '#ff6b6b', fontSize: 13, fontWeight: '700' },
   qrBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
   sheetCard: { backgroundColor: COLORS.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 18 },
   qrTitle: { color: COLORS.white, fontWeight: '800', fontSize: 18, marginBottom: 10 },

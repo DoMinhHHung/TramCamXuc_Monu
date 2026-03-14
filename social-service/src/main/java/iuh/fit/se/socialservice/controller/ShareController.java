@@ -57,6 +57,19 @@ public class ShareController {
         return ResponseEntity.ok(ApiResponse.success(shareService.getPlaylistQrCode(playlistId)));
     }
 
+    @GetMapping("/album")
+    public ResponseEntity<ApiResponse<ShareResponse>> albumShareLink(
+            @RequestParam UUID albumId,
+            @RequestParam(defaultValue = "direct") String platform) {
+        return ResponseEntity.ok(ApiResponse.success(shareService.getAlbumShareLink(albumId, platform)));
+    }
+
+    @GetMapping("/album/qr")
+    public ResponseEntity<ApiResponse<ShareResponse>> albumQr(
+            @RequestParam UUID albumId) {
+        return ResponseEntity.ok(ApiResponse.success(shareService.getAlbumQrCode(albumId)));
+    }
+
     private UUID tryExtractUserId(Authentication auth) {
         try {
             if (auth != null && auth.isAuthenticated()

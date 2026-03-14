@@ -15,5 +15,7 @@ public interface ShareService {
 
     ShareResponse getPlaylistShareLink(UUID playlistId, String platform);
     ShareResponse getPlaylistQrCode(UUID playlistId);
-}
 
+    ShareResponse getAlbumShareLink(UUID albumId, String platform);
+    ShareResponse getAlbumQrCode(UUID albumId);
+}

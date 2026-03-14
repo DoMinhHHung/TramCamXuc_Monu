@@ -28,6 +28,7 @@ import { SearchScreen } from '../screens/(tabs)/SearchScreen';
 import { DiscoverScreen } from '../screens/(tabs)/DiscoverScreen';
 import { EditFavoritesScreen } from '../screens/(settings)/EditFavoritesScreen';
 import { PlaylistDetailScreen } from '../screens/PlaylistDetailScreen';
+import { AlbumDetailScreen } from '../screens/AlbumDetailScreen';
 
 export type RootStackParamList = {
     Welcome: undefined;
@@ -45,6 +46,7 @@ export type RootStackParamList = {
     Profile: undefined;
     Search: undefined;
     PlaylistDetail: { slug: string };
+    AlbumDetail: { albumId: string };
 };
 
 export type MainTabParamList = {
@@ -137,6 +139,7 @@ export const AppNavigator = () => {
                             <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
                             <Stack.Screen name="Profile"       component={ProfileScreen} />
                             <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
+                            <Stack.Screen name="AlbumDetail" component={AlbumDetailScreen} />
                         </>
                     )
                 ) : (

@@ -130,3 +130,13 @@ export const getPlaylistShareQr = async (playlistId: string): Promise<ShareRespo
   const response = await apiClient.get<ShareResponse>('/social/share/playlist/qr', { params: { playlistId } });
   return response.data;
 };
+
+export const getAlbumShareLink = async (albumId: string, platform = 'direct'): Promise<ShareResponse> => {
+  const response = await apiClient.get<ShareResponse>('/social/share/album', { params: { albumId, platform } });
+  return response.data;
+};
+
+export const getAlbumShareQr = async (albumId: string): Promise<ShareResponse> => {
+  const response = await apiClient.get<ShareResponse>('/social/share/album/qr', { params: { albumId } });
+  return response.data;
+};

@@ -180,6 +180,16 @@ export const getMyAlbums = async (params?: { page?: number; size?: number }): Pr
   return response.data;
 };
 
+export const getAlbumById = async (albumId: string): Promise<Album> => {
+  const response = await apiClient.get<Album>(`/albums/${albumId}`);
+  return response.data;
+};
+
+export const getMyAlbumById = async (albumId: string): Promise<Album> => {
+  const response = await apiClient.get<Album>(`/albums/my/${albumId}`);
+  return response.data;
+};
+
 export const getMyPlaylists = async (params?: { page?: number; size?: number }): Promise<PageResponse<Playlist>> => {
   const response = await apiClient.get<PageResponse<Playlist>>('/playlists/my-playlists', { params });
   return response.data;
@@ -193,6 +203,15 @@ export const getPlaylistBySlug = async (slug: string): Promise<Playlist> => {
 export const createPlaylist = async (payload: PlaylistCreateRequest): Promise<Playlist> => {
   const response = await apiClient.post<Playlist>('/playlists', payload);
   return response.data;
+};
+
+export const updatePlaylist = async (playlistId: string, payload: { name: string; description?: string; visibility: 'PUBLIC' | 'PRIVATE' | 'COLLABORATIVE' }): Promise<Playlist> => {
+  const response = await apiClient.put<Playlist>(`/playlists/${playlistId}`, payload);
+  return response.data;
+};
+
+export const deletePlaylist = async (playlistId: string): Promise<void> => {
+  await apiClient.delete(`/playlists/${playlistId}`);
 };
 
 export const addSongToPlaylist = async (playlistId: string, songId: string): Promise<Playlist> => {
