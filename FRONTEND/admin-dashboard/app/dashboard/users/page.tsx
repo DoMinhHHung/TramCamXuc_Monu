@@ -291,7 +291,7 @@ export default function UsersPage() {
     const [statusFilter, setStatusFilter] = useState<Status | 'ALL'>('ALL');
     const [showFilters,  setShowFilters]  = useState(false);
 
-    const timerRef = useRef<ReturnType<typeof setTimeout>>();
+    const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     // ── Helpers ───────────────────────────────────────────────────────────
     const notify = (msg: string, type: 'ok' | 'err') => {

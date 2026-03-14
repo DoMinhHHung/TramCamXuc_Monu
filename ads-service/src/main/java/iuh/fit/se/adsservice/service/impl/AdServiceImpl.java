@@ -28,8 +28,8 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
@@ -45,8 +45,6 @@ public class AdServiceImpl implements AdService {
     private final AdSessionService       sessionService;
     private final MinioService           minioService;
 
-    private final Random random = new Random();
-
     // ─────────────────────────────────────────────────────────────────────────
     // ADMIN: CRUD
     // ─────────────────────────────────────────────────────────────────────────
@@ -59,29 +57,74 @@ public class AdServiceImpl implements AdService {
         if (!isAudioFile(audioFile))
             throw new IllegalArgumentException("Only MP3 audio files are accepted");
 
+        /*
+         * FIX: Upload MinIO BEFORE saving entity to DB.
+         *
+         * Previous (broken) order:
+         *   1. adRepository.save(ad)          ← INSERT with audioFileKey = null
+         *   2. minioService.uploadAudioFile()  ← upload AFTER → NOT NULL violated on commit
+         *   3. ad.setAudioFileKey(key)
+         *   4. adRepository.save(ad)           ← too late
+         *
+         * Correct order:
+         *   1. Generate a stable UUID for the ad
+         *   2. minioService.uploadAudioFile()  ← upload FIRST, use pre-generated UUID as path
+         *   3. adRepository.save(ad)           ← INSERT with audioFileKey already set → OK
+         */
+        UUID adId    = UUID.randomUUID();
+        String audioKey = minioService.uploadAudioFile(audioFile, adId);
+
         Ad ad = Ad.builder()
                 .advertiserName(request.getAdvertiserName())
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .targetUrl(request.getTargetUrl())
-                .cpmVnd(request.getCpmVnd())
-                .budgetVnd(request.getBudgetVnd())
+                .cpmVnd(request.getCpmVnd()     != null ? request.getCpmVnd()     : BigDecimal.ZERO)
+                .budgetVnd(request.getBudgetVnd() != null ? request.getBudgetVnd() : BigDecimal.ZERO)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .status(AdStatus.ACTIVE)
+                .audioFileKey(audioKey)
+                .durationSeconds(request.getDurationSeconds() != null ? request.getDurationSeconds() : 30)
                 .totalImpressions(0L)
                 .totalClicks(0L)
                 .build();
 
-        ad = adRepository.save(ad);
+        // Use the pre-generated UUID so the MinIO path matches the DB id
+        // Hibernate will use the provided id instead of generating a new one
+        ad = saveWithId(ad, adId);
 
-        String audioKey = minioService.uploadAudioFile(audioFile, ad.getId());
-        ad.setAudioFileKey(audioKey);
-        ad.setDurationSeconds(request.getDurationSeconds() != null ? request.getDurationSeconds() : 30);
-
-        ad = adRepository.save(ad);
-        log.info("Created ad id={} advertiser={}", ad.getId(), ad.getAdvertiserName());
+        log.info("Created ad id={} advertiser={} audioKey={}", ad.getId(), ad.getAdvertiserName(), audioKey);
         return toResponse(ad);
+    }
+
+    /**
+     * Save entity with a pre-assigned UUID.
+     * Spring Data JPA's save() calls persist() for new entities — we set the id
+     * before calling save() so Hibernate uses it instead of generating one.
+     */
+    private Ad saveWithId(Ad ad, UUID id) {
+        // Reflection-free approach: rebuild with explicit id
+        Ad withId = Ad.builder()
+                .advertiserName(ad.getAdvertiserName())
+                .title(ad.getTitle())
+                .description(ad.getDescription())
+                .targetUrl(ad.getTargetUrl())
+                .cpmVnd(ad.getCpmVnd())
+                .budgetVnd(ad.getBudgetVnd())
+                .startDate(ad.getStartDate())
+                .endDate(ad.getEndDate())
+                .status(ad.getStatus())
+                .audioFileKey(ad.getAudioFileKey())
+                .durationSeconds(ad.getDurationSeconds())
+                .totalImpressions(ad.getTotalImpressions())
+                .totalClicks(ad.getTotalClicks())
+                .build();
+
+        // Ad entity uses @GeneratedValue(strategy = GenerationType.UUID).
+        // To override: save a detached entity that has the id already set via setId.
+        withId.setId(id);
+        return adRepository.save(withId);
     }
 
     @Override
@@ -103,6 +146,7 @@ public class AdServiceImpl implements AdService {
         if (audioFile != null && !audioFile.isEmpty()) {
             if (!isAudioFile(audioFile))
                 throw new IllegalArgumentException("Only MP3 audio files are accepted");
+            // Delete old file first, then upload new one
             minioService.deleteAudioFile(ad.getAudioFileKey());
             ad.setAudioFileKey(minioService.uploadAudioFile(audioFile, ad.getId()));
         }
@@ -202,7 +246,8 @@ public class AdServiceImpl implements AdService {
             return null;
         }
 
-        Ad ad = eligible.get(random.nextInt(eligible.size()));
+        // FIX: use ThreadLocalRandom instead of shared Random (thread-safe)
+        Ad ad = eligible.get(ThreadLocalRandom.current().nextInt(eligible.size()));
         sessionService.resetSession(userId);
 
         String audioUrl = minioService.getPresignedUrl(ad.getAudioFileKey());
@@ -223,8 +268,6 @@ public class AdServiceImpl implements AdService {
     @Transactional
     public void recordPlayed(UUID adId, UUID userId, UUID songId, boolean completed) {
         findOrThrow(adId);
-
-        // playedAt is @CreatedDate — set manually here since we build the object explicitly
         impressionRepository.save(AdImpression.builder()
                 .adId(adId)
                 .userId(userId)
@@ -232,7 +275,6 @@ public class AdServiceImpl implements AdService {
                 .completed(completed)
                 .playedAt(LocalDateTime.now())
                 .build());
-
         adRepository.incrementImpressions(adId);
         log.debug("Recorded impression adId={} userId={} completed={}", adId, userId, completed);
     }
@@ -241,22 +283,17 @@ public class AdServiceImpl implements AdService {
     @Transactional
     public void recordClicked(UUID adId, UUID userId) {
         findOrThrow(adId);
-
-        // Anti-spam: max CLICK_ANTI_SPAM_LIMIT clicks per user per minute
         LocalDateTime windowStart = LocalDateTime.now().minusSeconds(CLICK_WINDOW_SECONDS);
         long recentClicks = clickRepository.countByAdIdAndUserIdAndClickedAtAfter(adId, userId, windowStart);
         if (recentClicks >= CLICK_ANTI_SPAM_LIMIT) {
             log.warn("Click anti-spam triggered: adId={} userId={}", adId, userId);
             return;
         }
-
-        // clickedAt is @CreatedDate — set manually since builder bypasses JPA lifecycle
         clickRepository.save(AdClick.builder()
                 .adId(adId)
                 .userId(userId)
                 .clickedAt(LocalDateTime.now())
                 .build());
-
         adRepository.incrementClicks(adId);
         log.debug("Recorded click adId={} userId={}", adId, userId);
     }
@@ -299,6 +336,11 @@ public class AdServiceImpl implements AdService {
 
     private boolean isAudioFile(MultipartFile file) {
         String ct = file.getContentType();
-        return ct != null && (ct.startsWith("audio/") || ct.equals("application/octet-stream"));
+        if (ct == null) return false;
+        // Check content type AND file extension for better validation
+        boolean validType = ct.startsWith("audio/") || ct.equals("application/octet-stream");
+        String filename   = file.getOriginalFilename();
+        boolean validExt  = filename != null && filename.toLowerCase().endsWith(".mp3");
+        return validType && validExt;
     }
 }

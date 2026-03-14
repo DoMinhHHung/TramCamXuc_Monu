@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     description: 'Admin dashboard',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({children,}: { children: React.ReactNode; }) {
     return (
         <html lang="vi" className={cn(mono.variable, 'dark')} suppressHydrationWarning>
         <body className="font-mono antialiased">
