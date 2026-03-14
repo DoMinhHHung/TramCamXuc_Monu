@@ -60,7 +60,7 @@ public class UserServiceImpl implements UserService {
     public void changePassword(ChangePasswordRequest request) {
         User user = currentUser();
         if (user.getPassword() == null)
-            throw new AppException(ErrorCode.INVALID_PASSWORD);
+            throw new AppException(ErrorCode.CANNOT_CHANGE_PASSWORD_SOCIAL_USER);
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword()))
             throw new AppException(ErrorCode.INVALID_PASSWORD);
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));

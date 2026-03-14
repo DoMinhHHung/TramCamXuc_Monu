@@ -311,13 +311,11 @@ public class SongServiceImpl implements SongService {
     @Override
     public void recordListen(UUID songId, UUID playlistId, UUID albumId,
                              int durationSeconds, boolean completed) {
-        // Dùng findByIdWithGenres để tránh LazyInitializationException
         Song song = songRepository.findByIdWithGenres(songId)
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
 
         UUID currentUser = tryGetCurrentUserId();
 
-        // Lấy genre ids + names trực tiếp từ entity (backend là source of truth)
         List<String> genreIds   = Collections.emptyList();
         List<String> genreNames = Collections.emptyList();
         if (song.getGenres() != null && !song.getGenres().isEmpty()) {
@@ -344,11 +342,6 @@ public class SongServiceImpl implements SongService {
         event.put("genreNames",       genreNames);
         event.put("listenedAt",       Instant.now().toString());
 
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.MUSIC_EVENT_EXCHANGE,
-                RabbitMQConfig.SONG_LISTEN_ROUTING_KEY,
-                event
-        );
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.SONG_LISTEN_FANOUT_EXCHANGE,
                 "",

@@ -49,9 +49,6 @@ import { apiClient } from '../../services/api';
 
 type Tab = 'playlists' | 'songs' | 'albums';
 
-// ─── Transcode status → friendly label ───────────────────────────────────────
-// Không dùng từ kỹ thuật "transcode" với user
-
 const getSongStatusLabel = (song: Song): { label: string; color: string; pulse: boolean } => {
   if (song.status === 'DELETED') {
     return { label: 'Đã xoá', color: COLORS.error, pulse: false };
@@ -1091,7 +1088,7 @@ export const LibraryScreen = () => {
       <>
         <Pressable
             style={styles.createBtn}
-            onPress={() => setCreateAlbumOpen(false) || navigation.navigate('Create')}
+            onPress={() => {setCreateAlbumOpen(false);navigation.navigate('Create');}}
         >
           <View style={styles.createBtnInner}>
             <Text style={styles.createBtnIcon}>+</Text>

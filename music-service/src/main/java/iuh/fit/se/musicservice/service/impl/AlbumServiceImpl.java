@@ -503,7 +503,7 @@ public class AlbumServiceImpl implements AlbumService {
     @Scheduled(fixedDelay = 60_000)
     public void autoPublishScheduledAlbums() {
         Boolean acquired = stringRedisTemplate.opsForValue()
-                .setIfAbsent(LOCK_AUTO_PUBLISH, "1", Duration.ofSeconds(55));
+                .setIfAbsent(LOCK_AUTO_PUBLISH, "1", Duration.ofSeconds(65));
         if (!Boolean.TRUE.equals(acquired)) {
             log.debug("autoPublishScheduledAlbums skipped — lock held by another instance");
             return;

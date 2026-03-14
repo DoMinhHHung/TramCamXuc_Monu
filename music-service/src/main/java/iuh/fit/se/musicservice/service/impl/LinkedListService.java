@@ -28,27 +28,48 @@ public class LinkedListService {
 
     @Transactional
     public void append(UUID playlistId, PlaylistSong newNode) {
+
         List<PlaylistSong> tailCandidates = playlistSongRepository.findTailCandidates(playlistId);
 
         if (tailCandidates.size() > 1) {
-            log.warn("[LL] playlist={} has {} tail nodes. Auto-select latest tail to continue append.", playlistId, tailCandidates.size());
+            log.warn("[LL-HEAL] playlist={} detected {} tail nodes. Healing...", playlistId, tailCandidates.size());
+
+            PlaylistSong correctTail = tailCandidates.get(0);
+
+            for (int i = 1; i < tailCandidates.size(); i++) {
+                PlaylistSong broken = tailCandidates.get(i);
+
+                broken.setNextId(null);
+                playlistSongRepository.save(broken);
+
+                log.warn("[LL-HEAL] fixed broken tail node={}", broken.getId());
+            }
+
+            tailCandidates = List.of(correctTail);
         }
 
         PlaylistSong tail = tailCandidates.isEmpty() ? null : tailCandidates.get(0);
 
         if (tail == null) {
-            // List rỗng → node mới là cả HEAD lẫn TAIL
+
             newNode.setPrevId(null);
             newNode.setNextId(null);
+
             playlistSongRepository.save(newNode);
             playlistRepository.updateHead(playlistId, newNode.getId());
+
             log.debug("[LL] playlist={} empty → new HEAD={}", playlistId, newNode.getId());
+
         } else {
+
             tail.setNextId(newNode.getId());
+
             newNode.setPrevId(tail.getId());
             newNode.setNextId(null);
+
             playlistSongRepository.save(tail);
             playlistSongRepository.save(newNode);
+
             log.debug("[LL] playlist={} appended={} after tail={}", playlistId, newNode.getId(), tail.getId());
         }
     }
