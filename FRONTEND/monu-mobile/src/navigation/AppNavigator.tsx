@@ -7,8 +7,10 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
 import { useAuth } from '../context/AuthContext';
+import { UploadProvider } from '../context/UploadContext';
 import { MiniPlayer } from '../components/MiniPlayer';
 import { FullPlayerModal } from '../components/FullPlayerModal';
+import { UploadProgressBanner } from '../components/UploadProgressBanner';
 import { HomeScreen } from '../screens/HomeScreen';
 import { WelcomeScreen } from '../screens/(auth)/WelcomeScreen';
 import { LoginOptionsScreen } from '../screens/(auth)/LoginOptionsScreen';
@@ -124,50 +126,68 @@ export const AppNavigator = () => {
     const needsOnboarding = authSession?.profile && !authSession.profile.pickFavorite;
 
     return (
-        <NavigationContainer linking={linking}>
-            <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
-                {authSession ? (
-                    needsOnboarding ? (
-                        <>
-                            <Stack.Screen name="SelectGenres"  component={SelectGenresScreen} />
-                            <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
-                        </>
+        // UploadProvider bọc toàn bộ navigator để state sống độc lập với screen
+        <UploadProvider>
+            <NavigationContainer linking={linking}>
+                <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
+                    {authSession ? (
+                        needsOnboarding ? (
+                            <>
+                                <Stack.Screen name="SelectGenres"  component={SelectGenresScreen} />
+                                <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
+                            </>
+                        ) : (
+                            <>
+                                <Stack.Screen name="MainTabs"      component={MainTabNavigator} />
+                                <Stack.Screen name="Search"        component={SearchScreen} />
+                                <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
+                                <Stack.Screen name="Profile"       component={ProfileScreen} />
+                                <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
+                                <Stack.Screen name="AlbumDetail"   component={AlbumDetailScreen} />
+                            </>
+                        )
                     ) : (
                         <>
-                            <Stack.Screen name="MainTabs"      component={MainTabNavigator} />
-                            <Stack.Screen name="Search"        component={SearchScreen} />
-                            <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
-                            <Stack.Screen name="Profile"       component={ProfileScreen} />
-                            <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
-                            <Stack.Screen name="AlbumDetail" component={AlbumDetailScreen} />
+                            <Stack.Screen name="Welcome"         component={WelcomeScreen} />
+                            <Stack.Screen name="RegisterOptions" component={RegisterOptionsScreen} />
+                            <Stack.Screen name="LoginOptions"    component={LoginOptionsScreen} />
+                            <Stack.Screen name="Login"           component={LoginScreen} />
+                            <Stack.Screen name="Register"        component={RegisterScreen} />
+                            <Stack.Screen name="VerifyOtp"       component={VerifyOtpScreen} />
+                            <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen} />
+                            <Stack.Screen name="ResetPassword"   component={ResetPasswordScreen} />
                         </>
-                    )
-                ) : (
+                    )}
+                </Stack.Navigator>
+
+                {/* Các overlay global — chỉ render khi đã login và qua onboarding */}
+                {authSession && !needsOnboarding && (
                     <>
-                        <Stack.Screen name="Welcome"         component={WelcomeScreen} />
-                        <Stack.Screen name="RegisterOptions" component={RegisterOptionsScreen} />
-                        <Stack.Screen name="LoginOptions"    component={LoginOptionsScreen} />
-                        <Stack.Screen name="Login"           component={LoginScreen} />
-                        <Stack.Screen name="Register"        component={RegisterScreen} />
-                        <Stack.Screen name="VerifyOtp"       component={VerifyOtpScreen} />
-                        <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen} />
-                        <Stack.Screen name="ResetPassword"   component={ResetPasswordScreen} />
+                        <MiniPlayer />
+                        {/* Banner upload nằm ngay trên MiniPlayer */}
+                        <UploadProgressBanner />
+                        <FullPlayerModal />
                     </>
                 )}
-            </Stack.Navigator>
-
-            {authSession && !needsOnboarding && (
-                <>
-                    <MiniPlayer />
-                    <FullPlayerModal />
-                </>
-            )}
-        </NavigationContainer>
+            </NavigationContainer>
+        </UploadProvider>
     );
 };
 
 const styles = StyleSheet.create({
-    splashContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.bg },
+    splashContainer: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.bg,
+    },
     tabIconWrap:    { alignItems: 'center', justifyContent: 'center' },
-    createIconWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: COLORS.accentDim },
+    createIconWrap: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        backgroundColor: COLORS.accentDim,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });
