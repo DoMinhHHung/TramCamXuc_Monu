@@ -5,75 +5,85 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 
-import { COLORS } from '../config/colors';
-import { useAuth } from '../context/AuthContext';
-import { UploadProvider } from '../context/UploadContext';
-import { MiniPlayer } from '../components/MiniPlayer';
-import { FullPlayerModal } from '../components/FullPlayerModal';
-import { UploadProgressBanner } from '../components/UploadProgressBanner';
-import { HomeScreen } from '../screens/HomeScreen';
-import { WelcomeScreen } from '../screens/(auth)/WelcomeScreen';
-import { LoginOptionsScreen } from '../screens/(auth)/LoginOptionsScreen';
-import { RegisterOptionsScreen } from '../screens/(auth)/RegisterOptionsScreen';
-import { LoginScreen } from '../screens/(auth)/LoginScreen';
-import RegisterScreen from '../screens/(auth)/RegisterScreen';
-import VerifyOtpScreen from '../screens/(auth)/VerifyOtpScreen';
-import ForgotPasswordScreen from '../screens/(auth)/ForgotPasswordScreen';
-import ResetPasswordScreen from '../screens/(auth)/ResetPasswordScreen';
-import { SelectGenresScreen } from '../screens/(onBoard)/SelectGenresScreen';
-import { SelectArtistsScreen } from '../screens/(onBoard)/SelectArtistsScreen';
-import { CreateScreen } from '../screens/(tabs)/CreateScreen';
-import { LibraryScreen } from '../screens/(tabs)/LibraryScreen';
-import { PremiumScreen } from '../screens/(tabs)/PremiumScreen';
-import { ProfileScreen } from '../screens/(tabs)/ProfileScreen';
-import { SearchScreen } from '../screens/(tabs)/SearchScreen';
-import { DiscoverScreen } from '../screens/(tabs)/DiscoverScreen';
-import { EditFavoritesScreen } from '../screens/(settings)/EditFavoritesScreen';
-import { PlaylistDetailScreen } from '../screens/PlaylistDetailScreen';
-import { AlbumDetailScreen } from '../screens/AlbumDetailScreen';
+import { COLORS }                 from '../config/colors';
+import { useAuth }                from '../context/AuthContext';
+import { usePlayer }              from '../context/PlayerContext';
+import { UploadProvider }         from '../context/UploadContext';
+
+import { MiniPlayer }             from '../components/MiniPlayer';
+import { FullPlayerModal }        from '../components/FullPlayerModal';
+import { UploadProgressBanner }   from '../components/UploadProgressBanner';
+import { AdPlayerModal }          from '../components/AdPlayerModal';
+
+import { HomeScreen }             from '../screens/HomeScreen';
+import { WelcomeScreen }          from '../screens/(auth)/WelcomeScreen';
+import { LoginOptionsScreen }     from '../screens/(auth)/LoginOptionsScreen';
+import { RegisterOptionsScreen }  from '../screens/(auth)/RegisterOptionsScreen';
+import { LoginScreen }            from '../screens/(auth)/LoginScreen';
+import RegisterScreen             from '../screens/(auth)/RegisterScreen';
+import VerifyOtpScreen            from '../screens/(auth)/VerifyOtpScreen';
+import ForgotPasswordScreen       from '../screens/(auth)/ForgotPasswordScreen';
+import ResetPasswordScreen        from '../screens/(auth)/ResetPasswordScreen';
+import { SelectGenresScreen }     from '../screens/(onBoard)/SelectGenresScreen';
+import { SelectArtistsScreen }    from '../screens/(onBoard)/SelectArtistsScreen';
+import { CreateScreen }           from '../screens/(tabs)/CreateScreen';
+import { LibraryScreen }          from '../screens/(tabs)/LibraryScreen';
+import { PremiumScreen }          from '../screens/(tabs)/PremiumScreen';
+import { ProfileScreen }          from '../screens/(tabs)/ProfileScreen';
+import { SearchScreen }           from '../screens/(tabs)/SearchScreen';
+import { DiscoverScreen }         from '../screens/(tabs)/DiscoverScreen';
+import { EditFavoritesScreen }    from '../screens/(settings)/EditFavoritesScreen';
+import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
+import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
+
+// ─── Navigation types ──────────────────────────────────────────────────────────
 
 export type RootStackParamList = {
-    Welcome: undefined;
-    LoginOptions: undefined;
+    Welcome:         undefined;
+    LoginOptions:    undefined;
     RegisterOptions: undefined;
-    Login: undefined;
-    Register: undefined;
-    VerifyOtp: { email: string };
-    ForgotPassword: undefined;
-    ResetPassword: { email: string };
-    SelectGenres: undefined;
-    SelectArtists: { selectedGenreIds: string[] };
-    MainTabs: undefined;
-    EditFavorites: undefined;
-    Profile: undefined;
-    Search: undefined;
-    PlaylistDetail: { slug: string };
-    AlbumDetail: { albumId: string };
+    Login:           undefined;
+    Register:        undefined;
+    VerifyOtp:       { email: string };
+    ForgotPassword:  undefined;
+    ResetPassword:   { email: string };
+    SelectGenres:    undefined;
+    SelectArtists:   { selectedGenreIds: string[] };
+    MainTabs:        undefined;
+    EditFavorites:   undefined;
+    Profile:         undefined;
+    Search:          undefined;
+    PlaylistDetail:  { slug: string };
+    AlbumDetail:     { albumId: string };
 };
 
 export type MainTabParamList = {
-    Home: undefined;
+    Home:     undefined;
     Discover: undefined;
-    Create: undefined;
-    Library: undefined;
-    Premium: undefined;
+    Create:   undefined;
+    Library:  undefined;
+    Premium:  undefined;
 };
+
+// ─── Navigators ────────────────────────────────────────────────────────────────
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab   = createBottomTabNavigator<MainTabParamList>();
 
 const tabMeta: Record<keyof MainTabParamList, { label: string; icon: string }> = {
-    Home:     { label: 'Trang chủ', icon: 'home' },
-    Discover: { label: 'Khám phá',  icon: 'explore' },
-    Create:   { label: 'Tạo',       icon: 'add' },
+    Home:     { label: 'Trang chủ', icon: 'home'          },
+    Discover: { label: 'Khám phá',  icon: 'explore'       },
+    Create:   { label: 'Tạo',       icon: 'add'           },
     Library:  { label: 'Thư viện',  icon: 'library-music' },
-    Premium:  { label: 'Premium',   icon: 'redeem' },
+    Premium:  { label: 'Premium',   icon: 'redeem'        },
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
     prefixes: ['monumobile://'],
     config: { screens: { MainTabs: 'home' } },
 };
+
+// ─── Tab navigator ────────────────────────────────────────────────────────────
 
 const MainTabNavigator = () => (
     <Tab.Navigator
@@ -85,10 +95,10 @@ const MainTabNavigator = () => (
                 tabBarLabel: meta.label,
                 tabBarStyle: {
                     backgroundColor: COLORS.surface,
-                    borderTopColor: COLORS.border,
-                    height: 78,
+                    borderTopColor:  COLORS.border,
+                    height:      78,
                     paddingBottom: 8,
-                    paddingTop: 8,
+                    paddingTop:    8,
                 },
                 tabBarActiveTintColor:   COLORS.text,
                 tabBarInactiveTintColor: COLORS.muted,
@@ -104,13 +114,35 @@ const MainTabNavigator = () => (
             };
         }}
     >
-        <Tab.Screen name="Home"     component={HomeScreen} />
+        <Tab.Screen name="Home"     component={HomeScreen}     />
         <Tab.Screen name="Discover" component={DiscoverScreen} />
-        <Tab.Screen name="Create"   component={CreateScreen} />
-        <Tab.Screen name="Library"  component={LibraryScreen} />
-        <Tab.Screen name="Premium"  component={PremiumScreen} />
+        <Tab.Screen name="Create"   component={CreateScreen}   />
+        <Tab.Screen name="Library"  component={LibraryScreen}  />
+        <Tab.Screen name="Premium"  component={PremiumScreen}  />
     </Tab.Navigator>
 );
+
+// ─── Global overlays (ads + mini player + etc.) ───────────────────────────────
+// Tách ra component riêng để dùng usePlayer hook (hook phải trong PlayerProvider)
+
+const GlobalOverlays = () => {
+    const { pendingAd, dismissAd } = usePlayer();
+
+    return (
+        <>
+            <MiniPlayer />
+            <UploadProgressBanner />
+            <FullPlayerModal />
+            {/* Ads modal — chỉ render khi có ad pending */}
+            <AdPlayerModal
+                ad={pendingAd}
+                onFinished={dismissAd}
+            />
+        </>
+    );
+};
+
+// ─── App navigator ────────────────────────────────────────────────────────────
 
 export const AppNavigator = () => {
     const { authSession, isInitializing } = useAuth();
@@ -123,56 +155,51 @@ export const AppNavigator = () => {
         );
     }
 
-    const needsOnboarding = authSession?.profile && !authSession.profile.pickFavorite;
+    const needsOnboarding =
+        authSession?.profile && !authSession.profile.pickFavorite;
 
     return (
-        // UploadProvider bọc toàn bộ navigator để state sống độc lập với screen
         <UploadProvider>
             <NavigationContainer linking={linking}>
                 <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
                     {authSession ? (
                         needsOnboarding ? (
                             <>
-                                <Stack.Screen name="SelectGenres"  component={SelectGenresScreen} />
+                                <Stack.Screen name="SelectGenres"  component={SelectGenresScreen}  />
                                 <Stack.Screen name="SelectArtists" component={SelectArtistsScreen} />
                             </>
                         ) : (
                             <>
-                                <Stack.Screen name="MainTabs"      component={MainTabNavigator} />
-                                <Stack.Screen name="Search"        component={SearchScreen} />
+                                <Stack.Screen name="MainTabs"      component={MainTabNavigator}    />
+                                <Stack.Screen name="Search"        component={SearchScreen}        />
                                 <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
-                                <Stack.Screen name="Profile"       component={ProfileScreen} />
+                                <Stack.Screen name="Profile"       component={ProfileScreen}       />
                                 <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
-                                <Stack.Screen name="AlbumDetail"   component={AlbumDetailScreen} />
+                                <Stack.Screen name="AlbumDetail"   component={AlbumDetailScreen}   />
                             </>
                         )
                     ) : (
                         <>
-                            <Stack.Screen name="Welcome"         component={WelcomeScreen} />
+                            <Stack.Screen name="Welcome"         component={WelcomeScreen}         />
                             <Stack.Screen name="RegisterOptions" component={RegisterOptionsScreen} />
-                            <Stack.Screen name="LoginOptions"    component={LoginOptionsScreen} />
-                            <Stack.Screen name="Login"           component={LoginScreen} />
-                            <Stack.Screen name="Register"        component={RegisterScreen} />
-                            <Stack.Screen name="VerifyOtp"       component={VerifyOtpScreen} />
-                            <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen} />
-                            <Stack.Screen name="ResetPassword"   component={ResetPasswordScreen} />
+                            <Stack.Screen name="LoginOptions"    component={LoginOptionsScreen}    />
+                            <Stack.Screen name="Login"           component={LoginScreen}           />
+                            <Stack.Screen name="Register"        component={RegisterScreen}        />
+                            <Stack.Screen name="VerifyOtp"       component={VerifyOtpScreen}       />
+                            <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen}  />
+                            <Stack.Screen name="ResetPassword"   component={ResetPasswordScreen}   />
                         </>
                     )}
                 </Stack.Navigator>
 
-                {/* Các overlay global — chỉ render khi đã login và qua onboarding */}
-                {authSession && !needsOnboarding && (
-                    <>
-                        <MiniPlayer />
-                        {/* Banner upload nằm ngay trên MiniPlayer */}
-                        <UploadProgressBanner />
-                        <FullPlayerModal />
-                    </>
-                )}
+                {/* Global overlays — chỉ khi đã đăng nhập và qua onboarding */}
+                {authSession && !needsOnboarding && <GlobalOverlays />}
             </NavigationContainer>
         </UploadProvider>
     );
 };
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
     splashContainer: {

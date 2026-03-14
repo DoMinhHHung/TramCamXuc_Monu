@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useDownload } from '../context/DownloadContext';
 
 import { COLORS } from '../config/colors';
 import { useAuth } from '../context/AuthContext';
@@ -49,6 +50,19 @@ export const HomeScreen = () => {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [qrModal, setQrModal] = useState<{ songTitle: string; qr?: string } | null>(null);
+
+  const { startDownload, isDownloaded, getJobStatus } = useDownload();
+
+  const handleDownloadSong = async (song: Song) => {
+    try {
+      await startDownload(song);
+    } catch (e: any) {
+      Alert.alert(
+          'Cần nâng cấp',
+          'Tính năng tải nhạc cần gói Premium. Vào tab Premium để nâng cấp.',
+      );
+    }
+  };
 
   const fetchHomeData = async (silent = false) => {
     try {
@@ -183,32 +197,84 @@ export const HomeScreen = () => {
       </ScrollView>
 
       <SongActionSheet
-        visible={!!selectedSong}
-        title={selectedSong?.title}
-        onClose={() => setSelectedSong(null)}
-        onShareQr={async () => {
-          if (!selectedSong) return;
-          const qr = await getSongShareQr(selectedSong.id);
-          setQrModal({ songTitle: selectedSong.title, qr: qr.qrCodeBase64 });
-          setSelectedSong(null);
-        }}
-        onAddToPlaylist={() => {
-          if (!selectedSong) return;
-          setSongToAdd(selectedSong);
-          setSelectedSong(null);
-          setPlaylistPickerOpen(true);
-        }}
-        onReportSong={async () => {
-          if (!selectedSong) return;
-          await reportSong(selectedSong.id, { reason: 'SPAM', description: 'User reported from action sheet' });
-          Alert.alert('Đã báo cáo', 'Cảm ơn bạn, chúng tôi sẽ xem xét bài hát này.');
-          setSelectedSong(null);
-        }}
+          visible={!!selectedSong}
+          title={selectedSong?.title}
+          subtitle={selectedSong?.primaryArtist?.stageName}
+          thumbnailUrl={selectedSong?.thumbnailUrl}
+          onClose={() => setSelectedSong(null)}
+          actions={[
+            {
+              icon: '↗',
+              label: 'Chia sẻ qua QR',
+              onPress: async () => {
+                if (!selectedSong) return;
+                const qr = await getSongShareQr(selectedSong.id);
+                setQrModal({ songTitle: selectedSong.title, qr: qr.qrCodeBase64 });
+              },
+            },
+            {
+              icon: '➕',
+              label: 'Thêm vào playlist',
+              onPress: () => {
+                if (!selectedSong) return;
+                setSongToAdd(selectedSong);
+                setPlaylistPickerOpen(true);
+              },
+            },
+            {
+              icon: isDownloaded(selectedSong?.id ?? '')
+                  ? '✓'
+                  : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
+                      ? '⬇'
+                      : '⬇️',
+              label: isDownloaded(selectedSong?.id ?? '')
+                  ? 'Đã tải xuống'
+                  : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
+                      ? `Đang tải... ${
+                          getJobStatus(selectedSong?.id ?? '').state === 'downloading'
+                              ? (getJobStatus(selectedSong?.id ?? '') as any).progress + '%'
+                              : ''
+                      }`
+                      : 'Tải xuống (Offline)',
+              sublabel: isDownloaded(selectedSong?.id ?? '')
+                  ? 'Có thể nghe offline'
+                  : 'Cần gói Premium',
+              onPress: () => {
+                if (!selectedSong) return;
+                void handleDownloadSong(selectedSong);
+              },
+              disabled: isDownloaded(selectedSong?.id ?? ''),
+            },
+            {
+              icon: '🚩',
+              label: 'Báo cáo bài hát',
+              separator: true,
+              destructive: true,
+              onPress: async () => {
+                if (!selectedSong) return;
+                await reportSong(selectedSong.id, {
+                  reason: 'SPAM',
+                  description: 'Reported from action sheet',
+                });
+                Alert.alert('Đã báo cáo', 'Cảm ơn bạn, chúng tôi sẽ xem xét.');
+              },
+            },
+          ]}
       />
 
       <Modal visible={playlistPickerOpen} transparent animationType="fade" onRequestClose={() => { setPlaylistPickerOpen(false); setSongToAdd(null); }}>
         <View style={styles.centerBackdrop}>
           <View style={styles.centerCard}>
+            <Pressable
+                style={styles.modalCloseBtn}
+                onPress={() => {
+                  setPlaylistPickerOpen(false);
+                  setSongToAdd(null);
+                }}
+            >
+              <Text style={styles.modalCloseIcon}>✕</Text>
+            </Pressable>
+
             <Text style={styles.sheetTitle}>Thêm vào playlist</Text>
             <ScrollView style={{ maxHeight: 240 }}>
               {playlists.map((p) => (
@@ -245,8 +311,24 @@ export const HomeScreen = () => {
       <Modal visible={!!qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(null)}>
         <View style={styles.centerBackdrop}>
           <View style={styles.centerCard}>
+            <Pressable
+                style={styles.modalCloseBtn}
+                onPress={() => setQrModal(null)}
+            >
+              <Text style={styles.modalCloseIcon}>✕</Text>
+            </Pressable>
+
             <Text style={styles.sheetTitle}>QR Share • {qrModal?.songTitle}</Text>
-            {qrModal?.qr ? <Image source={{ uri: qrModal.qr }} style={{ width: 220, height: 220, borderRadius: 8 }} /> : <Text style={styles.sheetItem}>Không tạo được QR</Text>}
+            <View style={styles.qrContainer}>
+              {qrModal?.qr ? (
+                  <Image
+                      source={{ uri: qrModal.qr }}
+                      style={styles.qrImage}
+                  />
+              ) : (
+                  <Text style={styles.sheetItem}>Không tạo được QR</Text>
+              )}
+            </View>
           </View>
         </View>
       </Modal>
@@ -276,7 +358,7 @@ const styles = StyleSheet.create({
   centerBackdrop: { flex: 1, backgroundColor: COLORS.scrim, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   centerCard: { width: '100%', backgroundColor: COLORS.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: COLORS.glass10 },
   sheetTitle: { color: COLORS.white, fontSize: 17, fontWeight: '800' },
-  sheetItem: { color: COLORS.glass85, fontSize: 14, marginTop: 8 },
+  sheetItem: { color: COLORS.glass85, fontSize: 14, marginTop: 8, alignItems: "center" },
   genreWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   genreChip: { backgroundColor: COLORS.surface, borderRadius: 999, borderWidth: 1, borderColor: COLORS.glass15, paddingHorizontal: 12, paddingVertical: 6 },
   genreChipActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
@@ -284,4 +366,12 @@ const styles = StyleSheet.create({
   genreTextActive: { color: COLORS.accent, fontWeight: '700' },
   playlistInput: { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 10 },
   sheetItemAccent: { color: COLORS.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
+  modalCloseBtn: {position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.glass10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.glass15, zIndex: 10,
+  },
+  modalCloseIcon: {color: COLORS.white, fontSize: 16, fontWeight: '700',
+  },
+  qrContainer: {alignItems: 'center', justifyContent: 'center', marginTop: 16,
+  },
+  qrImage: {width: 220, height: 220, borderRadius: 8,
+  },
 });

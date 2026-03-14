@@ -11,8 +11,11 @@ import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-au
 
 import { recordPlay, recordListen, Song } from '../services/music';
 import { getMySubscription } from '../services/payment';
+import { getNextAd, AdDelivery } from '../services/ads';
+import { isSongDownloaded } from '../services/download';
 
 // ─── Quality ──────────────────────────────────────────────────────────────────
+
 export type AudioQuality = 64 | 128 | 256 | 320;
 
 const QUALITY_STREAM: Record<AudioQuality, string> = {
@@ -44,6 +47,7 @@ function parseMaxQuality(features: Record<string, any>): AudioQuality {
 }
 
 // ─── Context types ────────────────────────────────────────────────────────────
+
 interface PlayerContextValue {
     currentSong:     Song | null;
     queue:           Song[];
@@ -62,63 +66,83 @@ interface PlayerContextValue {
     selectedQuality: AudioQuality;
     maxQuality:      AudioQuality;
     setQuality:      (q: AudioQuality) => void;
+    // ── Ads ──────────────────────────────────────────────────────────────────
+    /** Quảng cáo đang chờ phát — null nếu không có */
+    pendingAd:  AdDelivery | null;
+    /** true khi đang block player để phát quảng cáo */
+    isPlayingAd: boolean;
+    /** Gọi từ AdPlayerModal khi quảng cáo kết thúc → resume nhạc */
+    dismissAd:   () => void;
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
 
-// ─── Provider ────────────────────────────────────────────────────────────────
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
 export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const [currentSong,  setCurrentSong]  = useState<Song | null>(null);
     const [queue,        setQueue]        = useState<Song[]>([]);
     const [queueIndex,   setQueueIndex]   = useState(0);
     const [isFullScreen, setFullScreen]   = useState(false);
 
-    // Quality
-    const [maxQuality,      setMaxQuality]      = useState<AudioQuality>(128);
-    const [selectedQuality, setSelectedQuality] = useState<AudioQuality>(128);
+    // ── Quality ────────────────────────────────────────────────────────────────
+    const [maxQuality,       setMaxQuality]      = useState<AudioQuality>(128);
+    const [selectedQuality,  setSelectedQuality] = useState<AudioQuality>(128);
     const selectedQualityRef = useRef<AudioQuality>(128);
     useEffect(() => { selectedQualityRef.current = selectedQuality; }, [selectedQuality]);
 
+    // ── Ads ────────────────────────────────────────────────────────────────────
+    const [pendingAd,   setPendingAd]   = useState<AdDelivery | null>(null);
+    const [isPlayingAd, setIsPlayingAd] = useState(false);
+    /** true = user có gói no_ads → không bao giờ hiện quảng cáo */
+    const noAdsRef   = useRef(false);
+    /** Tránh check ads khi đang check rồi */
+    const checkingAdRef = useRef(false);
+
+    // ── Player ─────────────────────────────────────────────────────────────────
     const shouldAutoPlayRef = useRef(false);
     const player            = useAudioPlayer(null);
     const status            = useAudioPlayerStatus(player);
 
     // ── Listen tracking refs ───────────────────────────────────────────────────
-    // Tracking thời gian nghe thực sự (không tính khi pause)
-    const listenTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const playSegmentStartRef = useRef<number | null>(null);
-    const accumulatedMsRef    = useRef(0);
-    const listenFiredRef      = useRef(false);    // đã fire 30s event chưa
-    const completionFiredRef  = useRef(false);    // đã fire completion event chưa
-    const currentSongRef      = useRef<Song | null>(null);
-    const prevPlayingRef      = useRef(false);    // giá trị playing của frame trước
+    const listenTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const playSegmentStartRef  = useRef<number | null>(null);
+    const accumulatedMsRef     = useRef(0);
+    const listenFiredRef       = useRef(false);
+    const completionFiredRef   = useRef(false);
+    const currentSongRef       = useRef<Song | null>(null);
+    const prevPlayingRef       = useRef(false);
 
     useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
 
-    // ── Fetch subscription → maxQuality ───────────────────────────────────────
+    // ── Load subscription → maxQuality + noAds flag ────────────────────────────
     useEffect(() => {
         getMySubscription()
-            .then(sub => {
+            .then((sub) => {
                 if (sub?.plan?.features) {
-                    const max = parseMaxQuality(sub.plan.features);
+                    const features = sub.plan.features;
+
+                    // No-ads flag
+                    noAdsRef.current = Boolean(features.no_ads);
+
+                    // Max quality
+                    const max = parseMaxQuality(features);
                     setMaxQuality(max);
-                    setSelectedQuality(prev => (prev > max ? max : prev) as AudioQuality);
+                    setSelectedQuality((prev) => (prev > max ? max : prev) as AudioQuality);
                     selectedQualityRef.current = Math.min(
-                        selectedQualityRef.current, max,
+                        selectedQualityRef.current,
+                        max,
                     ) as AudioQuality;
                 }
             })
-            .catch(() => { /* free user — default 128k */ });
+            .catch(() => { /* free user — defaults */ });
     }, []);
 
-    // ── Audio session ─────────────────────────────────────────────────────────
+    // ── Audio session ──────────────────────────────────────────────────────────
     useEffect(() => {
-        setAudioModeAsync({
-            playsInSilentMode: true,
-        }).catch(e =>
-            console.warn('[PlayerContext] setAudioModeAsync failed:', e)
-        );
+        setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     }, []);
+
     // ── Autoplay khi source load xong ─────────────────────────────────────────
     useEffect(() => {
         if (status.isLoaded && shouldAutoPlayRef.current) {
@@ -127,7 +151,39 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         }
     }, [status.isLoaded]);
 
-    // ── Theo dõi play/pause — tích lũy thời gian + timer 30s ─────────────────
+    // ── Check & show ads ───────────────────────────────────────────────────────
+    const checkForAd = useCallback(async (): Promise<void> => {
+        if (noAdsRef.current) return;          // premium user
+        if (checkingAdRef.current) return;     // đang check rồi
+        if (isPlayingAd) return;              // đang phát ad
+
+        checkingAdRef.current = true;
+        try {
+            const ad = await getNextAd();
+            if (!ad) return;
+
+            // Có ad → pause nhạc, set pending ad
+            player.pause();
+            setPendingAd(ad);
+            setIsPlayingAd(true);
+        } catch {
+            // Silent fail — không block nhạc
+        } finally {
+            checkingAdRef.current = false;
+        }
+    }, [player, isPlayingAd]);
+
+    // ── Dismiss ad (gọi từ AdPlayerModal) ─────────────────────────────────────
+    const dismissAd = useCallback((): void => {
+        setPendingAd(null);
+        setIsPlayingAd(false);
+        // Resume nhạc nếu còn bài đang chờ
+        if (currentSongRef.current) {
+            player.play();
+        }
+    }, [player]);
+
+    // ── Theo dõi play/pause — tích lũy thời gian + timer 30s ──────────────────
     useEffect(() => {
         if (status.playing) {
             if (playSegmentStartRef.current === null) {
@@ -140,26 +196,24 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     if (listenFiredRef.current) return;
                     const song = currentSongRef.current;
                     if (!song) return;
+
                     listenFiredRef.current = true;
 
-                    // Tính xem user đã nghe xong bài chưa tại thời điểm này
-                    const dur = status.duration ?? 0;
+                    const dur = status.duration    ?? 0;
                     const pos = status.currentTime ?? 0;
                     const completed = dur > 0 && pos >= dur * 0.9;
 
-                    console.log('[PlayerContext] 30s listen →', song.title, { completed });
                     recordListen(song.id, {
                         durationSeconds: 30,
                         completed,
                         artistId:  song.primaryArtist?.artistId,
-                        genreIds:  song.genres?.map(g => g.id).join(',') ?? '',
+                        genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
                     }).catch(() => {});
 
                     if (completed) completionFiredRef.current = true;
                 }, remaining);
             }
         } else {
-            // Pause / stop — tích lũy đoạn hiện tại
             if (playSegmentStartRef.current !== null) {
                 accumulatedMsRef.current += Date.now() - playSegmentStartRef.current;
                 playSegmentStartRef.current = null;
@@ -171,15 +225,15 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         }
     }, [status.playing]);
 
-    // ── Phát hiện bài kết thúc tự nhiên (playing: true → false, pos ≥ 90%) ───
+    // ── Phát hiện bài kết thúc tự nhiên ───────────────────────────────────────
     useEffect(() => {
         const wasPlaying = prevPlayingRef.current;
         prevPlayingRef.current = status.playing;
 
-        if (!wasPlaying || status.playing) return; // chỉ xử lý khi vừa dừng
-        if (completionFiredRef.current) return;
+        if (!wasPlaying || status.playing) return;
+        if (completionFiredRef.current)     return;
 
-        const dur = status.duration ?? 0;
+        const dur = status.duration    ?? 0;
         const pos = status.currentTime ?? 0;
         if (dur <= 0) return;
 
@@ -189,38 +243,23 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         const song = currentSongRef.current;
         if (!song) return;
 
-        // Tích lũy đoạn cuối nếu còn
         let totalMs = accumulatedMsRef.current;
         if (playSegmentStartRef.current !== null) {
             totalMs += Date.now() - playSegmentStartRef.current;
         }
 
         completionFiredRef.current = true;
-        console.log('[PlayerContext] completion →', song.title, { totalMs });
 
-        // Nếu bài ngắn hơn 30s và chưa fire listen → fire luôn với completed: true
-        if (!listenFiredRef.current) {
-            listenFiredRef.current = true;
-            if (listenTimerRef.current) {
-                clearTimeout(listenTimerRef.current);
-                listenTimerRef.current = null;
-            }
-            recordListen(song.id, {
-                durationSeconds: Math.round(totalMs / 1000),
-                completed: true,
-                artistId:  song.primaryArtist?.artistId,
-                genreIds:  song.genres?.map(g => g.id).join(',') ?? '',
-            }).catch(() => {});
-        } else {
-            // 30s đã fire rồi — gửi event riêng cho completion
-            recordListen(song.id, {
-                durationSeconds: Math.round(totalMs / 1000),
-                completed: true,
-                artistId:  song.primaryArtist?.artistId,
-                genreIds:  song.genres?.map(g => g.id).join(',') ?? '',
-            }).catch(() => {});
-        }
-    }, [status.playing]);
+        recordListen(song.id, {
+            durationSeconds: Math.round(totalMs / 1000),
+            completed: true,
+            artistId:  song.primaryArtist?.artistId,
+            genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
+        }).catch(() => {});
+
+        // Check ad sau khi bài kết thúc tự nhiên
+        void checkForAd();
+    }, [status.playing, checkForAd]);
 
     // ── Reset tracking khi đổi bài ─────────────────────────────────────────────
     const resetListenTracking = useCallback(() => {
@@ -233,32 +272,46 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         prevPlayingRef.current      = false;
     }, []);
 
-    // ── Actions ───────────────────────────────────────────────────────────────
+    // ── Actions ────────────────────────────────────────────────────────────────
+
     const playSong = useCallback(
-        (song: Song, newQueue?: Song[]) => {
+        async (song: Song, newQueue?: Song[]) => {
+            // Không phát nhạc khi đang phát quảng cáo
+            if (isPlayingAd) return;
+
             const quality = selectedQualityRef.current;
-            const url     = buildHlsUrl(song, quality);
-            console.log('[PlayerContext] playSong —', { title: song.title, url, quality });
+
+            // Ưu tiên file offline nếu có
+            let uri: string;
+            try {
+                const localUri = await isSongDownloaded(song.id);
+                uri = localUri ?? buildHlsUrl(song, quality);
+                if (localUri) {
+                    console.log('[Player] Offline playback:', song.title);
+                }
+            } catch {
+                uri = buildHlsUrl(song, quality);
+            }
 
             resetListenTracking();
             shouldAutoPlayRef.current = true;
-            player.replace({ uri: url });
+            player.replace({ uri });
             setCurrentSong(song);
 
             if (newQueue) {
                 setQueue(newQueue);
-                setQueueIndex(newQueue.findIndex(s => s.id === song.id));
+                setQueueIndex(newQueue.findIndex((s) => s.id === song.id));
             }
 
             recordPlay(song.id).catch(() => {});
         },
-        [player, resetListenTracking],
+        [player, isPlayingAd, resetListenTracking],
     );
 
     const togglePlay = useCallback(() => {
-        if (!currentSong) return;
+        if (!currentSong || isPlayingAd) return;
         if (status.playing) { player.pause(); } else { player.play(); }
-    }, [player, status.playing, currentSong]);
+    }, [player, status.playing, currentSong, isPlayingAd]);
 
     const seekTo = useCallback((seconds: number) => {
         player.seekTo(seconds);
@@ -271,45 +324,47 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         setQueue([]);
         setQueueIndex(0);
         setFullScreen(false);
+        setPendingAd(null);
+        setIsPlayingAd(false);
     }, [player, resetListenTracking]);
 
     const playNext = useCallback(() => {
-        if (!queue.length) return;
+        if (!queue.length || isPlayingAd) return;
         const next = (queueIndex + 1) % queue.length;
         setQueueIndex(next);
-        playSong(queue[next], queue);
-    }, [queue, queueIndex, playSong]);
+        void playSong(queue[next], queue);
+    }, [queue, queueIndex, isPlayingAd, playSong]);
 
     const playPrev = useCallback(() => {
-        if (!queue.length) return;
+        if (!queue.length || isPlayingAd) return;
         if (status.currentTime > 3) { seekTo(0); return; }
         const prev = (queueIndex - 1 + queue.length) % queue.length;
         setQueueIndex(prev);
-        playSong(queue[prev], queue);
-    }, [queue, queueIndex, status.currentTime, seekTo, playSong]);
+        void playSong(queue[prev], queue);
+    }, [queue, queueIndex, status.currentTime, isPlayingAd, seekTo, playSong]);
 
     const setQuality = useCallback((q: AudioQuality) => {
-        if (q > maxQuality) return;
+        if (q > maxQuality || isPlayingAd) return;
         setSelectedQuality(q);
         selectedQualityRef.current = q;
         if (currentSong) {
             const wasPlaying = status.playing;
             shouldAutoPlayRef.current = wasPlaying;
             player.replace({ uri: buildHlsUrl(currentSong, q) });
-            console.log('[PlayerContext] Quality →', q, 'kbps');
         }
-    }, [maxQuality, currentSong, player, status.playing]);
+    }, [maxQuality, currentSong, player, status.playing, isPlayingAd]);
 
     // ─────────────────────────────────────────────────────────────────────────
+
     const value: PlayerContextValue = {
         currentSong,
         queue,
         isFullScreen,
         setFullScreen,
-        isPlaying:       status.playing     ?? false,
-        isLoaded:        status.isLoaded    ?? false,
-        currentTime:     status.currentTime ?? 0,
-        duration:        status.duration    ?? 0,
+        isPlaying:   status.playing     ?? false,
+        isLoaded:    status.isLoaded    ?? false,
+        currentTime: status.currentTime ?? 0,
+        duration:    status.duration    ?? 0,
         playSong,
         togglePlay,
         seekTo,
@@ -319,13 +374,20 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         selectedQuality,
         maxQuality,
         setQuality,
+        pendingAd,
+        isPlayingAd,
+        dismissAd,
     };
 
-    return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
+    return (
+        <PlayerContext.Provider value={value}>
+            {children}
+        </PlayerContext.Provider>
+    );
 };
 
 export const usePlayer = (): PlayerContextValue => {
     const ctx = useContext(PlayerContext);
-    if (!ctx) throw new Error('usePlayer must be used inside PlayerProvider');
+    if (!ctx) throw new Error('usePlayer must be inside PlayerProvider');
     return ctx;
 };
