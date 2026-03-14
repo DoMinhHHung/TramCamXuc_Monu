@@ -117,7 +117,7 @@ export const LibraryScreen = () => {
 
           <Text style={styles.sectionTitle}>Playlist ({playlists.length})</Text>
           {playlists.map((p) => (
-            <Pressable key={p.id} style={styles.itemCard} onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug })}>
+            <Pressable key={p.id} style={styles.itemCard} onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug, name: p.name })}>
               <Text style={styles.itemTitle}>{p.name}</Text>
               <Text style={styles.itemSub}>{p.totalSongs ?? p.songs?.length ?? 0} bài hát</Text>
               {renderShareActions('playlist', p.id, p.name)}

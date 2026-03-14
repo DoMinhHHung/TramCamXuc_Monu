@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
     Animated, Image, Modal, PanResponder,
-    Pressable, StyleSheet, Text, View, Share, TextInput, Alert,
+    Pressable, StyleSheet, Text, View, TextInput, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import { COLORS } from '../config/colors';
 import { AudioQuality, usePlayer } from '../context/PlayerContext';
 import { addSongToPlaylist, createPlaylist, getMyPlaylists, Playlist, reportSong } from '../services/music';
 import { getSongShareQr } from '../services/social';
+import { SongActionSheet } from './SongActionSheet';
 
 const formatTime = (seconds: number): string => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -19,8 +20,6 @@ const formatTime = (seconds: number): string => {
 };
 
 const THUMB_RADIUS = 9;
-
-const PUBLIC_LINK_BASE = 'https://phazelsound.oopsgolden.id.vn';
 
 const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
     { value: 64,  label: '64k'  },
@@ -108,19 +107,23 @@ export const FullPlayerModal = () => {
     const progress  = duration > 0 ? currentTime / duration : 0;
     const thumbLeft = Math.max(0, progress * barWidthRef.current - THUMB_RADIUS);
 
-    if (!currentSong) return null;
+    React.useEffect(() => {
+        if (!isFullScreen) return;
+        void (async () => {
+            try {
+                const data = await getMyPlaylists({ page: 1, size: 50 });
+                setPlaylists(data.content ?? []);
+            } catch {
+                setPlaylists([]);
+            }
+        })();
+    }, [isFullScreen, currentSong?.id]);
 
-    const openPlaylistPicker = async () => {
-        try {
-            const data = await getMyPlaylists({ page: 1, size: 50 });
-            setPlaylists(data.content ?? []);
-            setPlaylistPickerOpen(true);
-        } catch {
-            setPlaylists([]);
-            setPlaylistPickerOpen(true);
-        }
+    const openPlaylistPicker = () => {
+        setPlaylistPickerOpen(true);
     };
 
+    if (!currentSong) return null;
 
     return (
         <Modal
@@ -242,19 +245,26 @@ export const FullPlayerModal = () => {
                     </View>
 
 
-                    <Modal visible={menuOpen} transparent animationType="slide" onRequestClose={() => setMenuOpen(false)}>
-                        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
-                            <View style={styles.menuSheet}>
-                                <Text style={styles.menuTitle}>{currentSong.title}</Text>
-                                <Pressable onPress={async () => { const qr = await getSongShareQr(currentSong.id); setShareQr(qr.qrCodeBase64 || null); setMenuOpen(false); }}><Text style={styles.menuItem}>Chia sẻ QR</Text></Pressable>
-                                <Pressable onPress={() => { setMenuOpen(false); void openPlaylistPicker(); }}><Text style={styles.menuItem}>Thêm vào playlist</Text></Pressable>
-                                <Pressable onPress={async () => { await reportSong(currentSong.id, { reason: 'SPAM', description: 'Reported from full player' }); setMenuOpen(false); }}><Text style={styles.menuItem}>Report song</Text></Pressable>
-                                <Pressable onPress={() => setMenuOpen(false)}><Text style={styles.menuItem}>Dislike: Không quan tâm</Text></Pressable>
-                                <Pressable onPress={() => setMenuOpen(false)}><Text style={styles.menuItem}>Tải xuống</Text></Pressable>
-                            </View>
-                        </Pressable>
-                    </Modal>
-
+                    <SongActionSheet
+                        visible={menuOpen}
+                        title={currentSong.title}
+                        onClose={() => setMenuOpen(false)}
+                        onShareQr={async () => {
+                            const qr = await getSongShareQr(currentSong.id);
+                            setShareQr(qr.qrCodeBase64 || null);
+                            setMenuOpen(false);
+                        }}
+                        onAddToPlaylist={() => {
+                            setMenuOpen(false);
+                            openPlaylistPicker();
+                        }}
+                        onReportSong={async () => {
+                            await reportSong(currentSong.id, { reason: 'SPAM', description: 'Reported from full player' });
+                            setMenuOpen(false);
+                        }}
+                        onDislike={() => setMenuOpen(false)}
+                        onDownload={() => setMenuOpen(false)}
+                    />
 
                     <Modal visible={playlistPickerOpen} transparent animationType="slide" onRequestClose={() => setPlaylistPickerOpen(false)}>
                         <Pressable style={styles.menuBackdrop} onPress={() => setPlaylistPickerOpen(false)}>

@@ -17,6 +17,7 @@ import { addSongToPlaylist, createPlaylist, getMyPlaylists, getTrendingSongs, ge
 import { getPopularGenres } from '../services/favorites';
 import { Genre } from '../types/favorites';
 import { SongSection } from '../components/SongSection';
+import { SongActionSheet } from '../components/SongActionSheet';
 import { getSongShareQr } from '../services/social';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
@@ -38,6 +39,7 @@ export const HomeScreen = () => {
   const [newestSongs, setNewestSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [songToAdd, setSongToAdd] = useState<Song | null>(null);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [genreSongs, setGenreSongs] = useState<Record<string, Song[]>>({});
   const [expandedGenreIds, setExpandedGenreIds] = useState<string[]>([]);
@@ -172,39 +174,43 @@ export const HomeScreen = () => {
         )}
       </ScrollView>
 
-      <Modal visible={!!selectedSong} transparent animationType="slide" onRequestClose={() => setSelectedSong(null)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => setSelectedSong(null)}>
-          <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>{selectedSong?.title}</Text>
-            <Pressable onPress={async () => {
-              if (!selectedSong) return;
-              const qr = await getSongShareQr(selectedSong.id);
-              setQrModal({ songTitle: selectedSong.title, qr: qr.qrCodeBase64 });
-            }}><Text style={styles.sheetItem}>Chia sẻ bằng QR</Text></Pressable>
-            <Pressable onPress={() => setPlaylistPickerOpen(true)}><Text style={styles.sheetItem}>Thêm vào playlist</Text></Pressable>
-            <Pressable onPress={async () => {
-              if (!selectedSong) return;
-              await reportSong(selectedSong.id, { reason: 'SPAM', description: 'User reported from action sheet' });
-              Alert.alert('Đã báo cáo', 'Cảm ơn bạn, chúng tôi sẽ xem xét bài hát này.');
-            }}><Text style={styles.sheetItem}>Report song</Text></Pressable>
-            <Text style={styles.sheetItem}>Dislike: Không quan tâm</Text>
-            <Text style={styles.sheetItem}>Tải xuống</Text>
-          </View>
-        </Pressable>
-      </Modal>
+      <SongActionSheet
+        visible={!!selectedSong}
+        title={selectedSong?.title}
+        onClose={() => setSelectedSong(null)}
+        onShareQr={async () => {
+          if (!selectedSong) return;
+          const qr = await getSongShareQr(selectedSong.id);
+          setQrModal({ songTitle: selectedSong.title, qr: qr.qrCodeBase64 });
+          setSelectedSong(null);
+        }}
+        onAddToPlaylist={() => {
+          if (!selectedSong) return;
+          setSongToAdd(selectedSong);
+          setSelectedSong(null);
+          setPlaylistPickerOpen(true);
+        }}
+        onReportSong={async () => {
+          if (!selectedSong) return;
+          await reportSong(selectedSong.id, { reason: 'SPAM', description: 'User reported from action sheet' });
+          Alert.alert('Đã báo cáo', 'Cảm ơn bạn, chúng tôi sẽ xem xét bài hát này.');
+          setSelectedSong(null);
+        }}
+      />
 
-      <Modal visible={playlistPickerOpen} transparent animationType="fade" onRequestClose={() => setPlaylistPickerOpen(false)}>
+      <Modal visible={playlistPickerOpen} transparent animationType="fade" onRequestClose={() => { setPlaylistPickerOpen(false); setSongToAdd(null); }}>
         <View style={styles.centerBackdrop}>
           <View style={styles.centerCard}>
             <Text style={styles.sheetTitle}>Thêm vào playlist</Text>
             <ScrollView style={{ maxHeight: 240 }}>
               {playlists.map((p) => (
                 <Pressable key={p.id} onPress={async () => {
-                  if (!selectedSong) return;
+                  if (!songToAdd) return;
                   try {
-                    await addSongToPlaylist(p.id, selectedSong.id);
+                    await addSongToPlaylist(p.id, songToAdd.id);
                     Alert.alert('Thành công', `Đã thêm vào ${p.name}`);
                     setPlaylistPickerOpen(false);
+                    setSongToAdd(null);
                   } catch (error: any) {
                     Alert.alert('Lỗi', error?.message || 'Không thể thêm vào playlist');
                   }
@@ -213,12 +219,13 @@ export const HomeScreen = () => {
             </ScrollView>
             <TextInput style={styles.playlistInput} value={newPlaylistName} onChangeText={setNewPlaylistName} placeholder="Tạo playlist mới" placeholderTextColor={COLORS.glass45} />
             <Pressable onPress={async () => {
-              if (!selectedSong || !newPlaylistName.trim()) return;
+              if (!songToAdd || !newPlaylistName.trim()) return;
               try {
                 const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
-                await addSongToPlaylist(pl.id, selectedSong.id);
+                await addSongToPlaylist(pl.id, songToAdd.id);
                 setNewPlaylistName('');
                 setPlaylistPickerOpen(false);
+                setSongToAdd(null);
               } catch (error: any) {
                 Alert.alert('Lỗi', error?.message || 'Không thể tạo playlist mới');
               }

@@ -11,6 +11,8 @@ import { apiClient } from '../../services/api';
 import { confirmUploadSong, Genre, requestUploadSong } from '../../services/music';
 import { getPopularGenres } from '../../services/favorites';
 
+const ALLOWED_UPLOAD_EXTENSIONS = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'] as const;
+
 type ArtistProfile = {
   id: string;
   stageName: string;
@@ -90,13 +92,17 @@ export const CreateScreen = () => {
 
   const handleRequestUpload = async () => {
     if (!canCreateSongAlbum) return handleCreateSongAlbum();
+    const normalizedExt = uploadExt.trim().toLowerCase().replace(/^\./, '');
     if (!uploadTitle.trim() || selectedGenreIds.length === 0) {
       return Alert.alert('Thiếu dữ liệu', 'Nhập title và chọn ít nhất 1 genre.');
+    }
+    if (!ALLOWED_UPLOAD_EXTENSIONS.includes(normalizedExt as (typeof ALLOWED_UPLOAD_EXTENSIONS)[number])) {
+      return Alert.alert('Sai định dạng', `Backend chỉ hỗ trợ: ${ALLOWED_UPLOAD_EXTENSIONS.join(', ')}`);
     }
     try {
       const created = await requestUploadSong({
         title: uploadTitle.trim(),
-        fileExtension: uploadExt.trim().toLowerCase(),
+        fileExtension: normalizedExt,
         genreIds: selectedGenreIds,
       });
       setPendingSongId(created.id);
@@ -147,7 +153,17 @@ export const CreateScreen = () => {
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Upload bài hát cho mọi người cùng nghe</Text>
                 <TextInput style={styles.input} value={uploadTitle} onChangeText={setUploadTitle} placeholder="Tên bài hát" placeholderTextColor={COLORS.glass45} />
-                <TextInput style={styles.input} value={uploadExt} onChangeText={setUploadExt} placeholder="Định dạng (mp3,wav,...)" placeholderTextColor={COLORS.glass45} />
+                <Text style={styles.genreLabel}>Định dạng file</Text>
+                <View style={styles.genreWrap}>
+                  {ALLOWED_UPLOAD_EXTENSIONS.map((ext) => {
+                    const active = uploadExt === ext;
+                    return (
+                      <Pressable key={ext} style={[styles.genreChip, active && styles.genreChipActive]} onPress={() => setUploadExt(ext)}>
+                        <Text style={[styles.genreText, active && styles.genreTextActive]}>{ext.toUpperCase()}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
                 <Text style={styles.genreLabel}>Chọn thể loại</Text>
                 <View style={styles.genreWrap}>
                   {genres.map((g) => {
@@ -160,6 +176,7 @@ export const CreateScreen = () => {
                   })}
                 </View>
                 {!!uploadUrl && <Text style={styles.uploadUrl}>Upload URL: {uploadUrl}</Text>}
+                <Text style={styles.uploadGuide}>Sau khi tạo URL: dùng PUT upload file gốc lên URL này (không đổi Content-Type), rồi bấm Xác nhận upload để backend trigger transcode.</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <Pressable onPress={handleRequestUpload} style={[styles.primaryBtn, { flex: 1 }]}><Text style={styles.primaryBtnText}>Tạo upload URL</Text></Pressable>
                   <Pressable onPress={handleConfirmUpload} style={[styles.primaryBtn, { flex: 1 }, !pendingSongId && styles.disabledBtn]}><Text style={styles.primaryBtnText}>Xác nhận upload</Text></Pressable>
@@ -191,6 +208,7 @@ const styles = StyleSheet.create({
   genreText: { color: COLORS.glass70, fontSize: 12 },
   genreTextActive: { color: COLORS.accent, fontWeight: '700' },
   uploadUrl: { color: COLORS.glass60, fontSize: 12, marginBottom: 8 },
+  uploadGuide: { color: COLORS.glass50, fontSize: 12, marginBottom: 10, lineHeight: 17 },
   primaryBtn: { backgroundColor: COLORS.accentDim, borderRadius: 12, minHeight: 46, alignItems: 'center', justifyContent: 'center' },
   disabledBtn: { backgroundColor: COLORS.surfaceDim },
   primaryBtnText: { color: COLORS.white, fontWeight: '700' },
