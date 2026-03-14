@@ -7,6 +7,7 @@ import iuh.fit.se.musicservice.repository.PlaylistRepository;
 import iuh.fit.se.musicservice.repository.PlaylistSongRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +29,13 @@ public class LinkedListService {
 
     @Transactional
     public void append(UUID playlistId, PlaylistSong newNode) {
-        var tailOpt = playlistSongRepository.findTail(playlistId);
+        var tails = playlistSongRepository.findTails(playlistId, PageRequest.of(0, 5));
+        var tailOpt = tails.stream().findFirst();
+
+        if (tails.size() > 1) {
+            log.warn("[LL] playlist={} has {} tail nodes. Auto-selecting newest tail={} for append.",
+                    playlistId, tails.size(), tailOpt.map(PlaylistSong::getId).orElse(null));
+        }
 
         if (tailOpt.isEmpty()) {
             // List rỗng → node mới là cả HEAD lẫn TAIL

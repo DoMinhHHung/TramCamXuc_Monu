@@ -3,6 +3,7 @@ package iuh.fit.se.musicservice.repository;
 import iuh.fit.se.musicservice.entity.PlaylistSong;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -32,11 +33,16 @@ public interface PlaylistSongRepository extends JpaRepository<PlaylistSong, UUID
 
     long countByPlaylistId(UUID playlistId);
 
-    /** Tìm TAIL node (nextId = null) — dùng khi append */
+    /**
+     * Tìm các TAIL node (nextId = null).
+     * Dùng list thay vì Optional để tránh lỗi IncorrectResultSizeDataAccessException
+     * khi data cũ bị lệch và tồn tại >1 tail.
+     */
     @Query("""
             SELECT ps FROM PlaylistSong ps
             WHERE ps.playlist.id = :playlistId
             AND ps.nextId IS NULL
+            ORDER BY ps.addedAt DESC
             """)
-    Optional<PlaylistSong> findTail(@Param("playlistId") UUID playlistId);
+    List<PlaylistSong> findTails(@Param("playlistId") UUID playlistId, Pageable pageable);
 }

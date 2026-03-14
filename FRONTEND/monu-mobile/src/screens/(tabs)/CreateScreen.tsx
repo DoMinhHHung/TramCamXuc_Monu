@@ -1,59 +1,281 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import * as DocumentPicker from 'expo-document-picker';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/colors';
+import { useAuth } from '../../context/AuthContext';
+import { getMySubscription, UserSubscription } from '../../services/payment';
+import { apiClient } from '../../services/api';
+import { confirmUploadSong, Genre, requestUploadSong } from '../../services/music';
+import { getPopularGenres } from '../../services/favorites';
+
+const ALLOWED_UPLOAD_EXTENSIONS = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'] as const;
+
+type ArtistProfile = {
+  id: string;
+  stageName: string;
+  status: 'ACTIVE' | 'PENDING' | 'BANNED' | 'REJECTED';
+};
 
 export const CreateScreen = () => {
-    const insets = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
+  const { authSession } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [uploadTitle, setUploadTitle] = useState('');
+  const [uploadExt, setUploadExt] = useState('mp3');
+  const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [pendingSongId, setPendingSongId] = useState<string | null>(null);
+  const [uploadUrl, setUploadUrl] = useState<string | null>(null);
+  const [pickedFile, setPickedFile] = useState<{ uri: string; name: string; mimeType?: string | null } | null>(null);
+  const [uploadedToStorage, setUploadedToStorage] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
-    return (
-        <View style={styles.root}>
-            <StatusBar style="light" />
-            <LinearGradient
-                colors={[COLORS.gradNavy, COLORS.bg]}
-                style={[styles.hero, { paddingTop: insets.top + 20 }]}
-            >
-                <Text style={styles.emoji}>🎼</Text>
-                <Text style={styles.title}>Tạo</Text>
-                <Text style={styles.sub}>Tính năng tạo playlist & upload sẽ xuất hiện tại đây.</Text>
-            </LinearGradient>
+  React.useEffect(() => {
+    void loadCreatorState();
+  }, [authSession?.tokens.accessToken]);
 
-            <View style={styles.comingSoon}>
-                <View style={styles.badge}>
-                    <Text style={styles.badgeText}>✦  SẮP RA MẮT</Text>
+  const loadCreatorState = async () => {
+    if (!authSession) return;
+    setLoading(true);
+    try {
+      const [artistRes, subRes, genreRes] = await Promise.allSettled([
+        apiClient.get<ArtistProfile>('/artists/me'),
+        getMySubscription(),
+        getPopularGenres(20),
+      ]);
+
+      if (artistRes.status === 'fulfilled') {
+        setArtistProfile(artistRes.value.data);
+      } else if (authSession.profile?.role === 'ARTIST') {
+        setArtistProfile({
+          id: authSession.profile.id,
+          stageName: authSession.profile.fullName || authSession.profile.email,
+          status: 'ACTIVE',
+        });
+      } else {
+        setArtistProfile(null);
+      }
+
+      if (subRes.status === 'fulfilled') setSubscription(subRes.value);
+      else setSubscription(null);
+
+      if (genreRes.status === 'fulfilled') setGenres(genreRes.value as unknown as Genre[]);
+      else setGenres([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isBanned = authSession?.profile?.status === 'BANNED' || artistProfile?.status === 'BANNED';
+  const isArtist = Boolean(artistProfile?.id) || authSession?.profile?.role === 'ARTIST';
+  const hasActiveSubscription = subscription?.status === 'ACTIVE' && new Date(subscription.expiresAt).getTime() > Date.now();
+
+  const creatorStatusText = useMemo(() => {
+    if (!authSession) return 'Bạn cần đăng nhập để tạo nội dung.';
+    if (isBanned) return 'Tài khoản đang bị khóa, không thể tạo nội dung.';
+    if (!isArtist) return 'Bạn chưa đăng ký artist profile.';
+    if (!hasActiveSubscription) return 'Gói cước đã hết hạn, hãy gia hạn để upload.';
+    return `Sẵn sàng sáng tạo với nghệ danh ${artistProfile?.stageName || authSession.profile?.fullName}.`;
+  }, [authSession, isBanned, isArtist, hasActiveSubscription, artistProfile?.stageName]);
+
+  const canCreateSongAlbum = !!authSession && !isBanned && isArtist && hasActiveSubscription;
+
+  const handleCreateSongAlbum = () => {
+    if (!authSession) return Alert.alert('Cần đăng nhập', 'Vui lòng đăng nhập để dùng tính năng này.');
+    if (isBanned) return Alert.alert('Tài khoản bị giới hạn', 'Bạn đang bị ban nên không thể thêm bài hát/album.');
+    if (!isArtist) return Alert.alert('Chưa phải nghệ sĩ', 'Bạn cần đăng ký hồ sơ artist trước khi upload bài hát/album.');
+    if (!hasActiveSubscription) return Alert.alert('Hết hạn gói cước', 'Gói cước không còn hiệu lực. Vui lòng nâng cấp/gia hạn để tiếp tục.');
+    Alert.alert('Sẵn sàng', 'Bạn đã đủ điều kiện artist + gói cước để upload.');
+  };
+
+  const handleRequestUpload = async () => {
+    if (!canCreateSongAlbum) return handleCreateSongAlbum();
+    const normalizedExt = uploadExt.trim().toLowerCase().replace(/^\./, '');
+    if (!uploadTitle.trim() || selectedGenreIds.length === 0) {
+      return Alert.alert('Thiếu dữ liệu', 'Nhập title và chọn ít nhất 1 genre.');
+    }
+    if (!ALLOWED_UPLOAD_EXTENSIONS.includes(normalizedExt as (typeof ALLOWED_UPLOAD_EXTENSIONS)[number])) {
+      return Alert.alert('Sai định dạng', `Backend chỉ hỗ trợ: ${ALLOWED_UPLOAD_EXTENSIONS.join(', ')}`);
+    }
+    try {
+      const created = await requestUploadSong({
+        title: uploadTitle.trim(),
+        fileExtension: normalizedExt,
+        genreIds: selectedGenreIds,
+      });
+      setPendingSongId(created.id);
+      setUploadUrl(created.uploadUrl || null);
+      setPickedFile(null);
+      setUploadedToStorage(false);
+      Alert.alert('Bước 1 thành công', 'Đã tạo upload URL. Upload file lên URL và bấm Xác nhận upload.');
+    } catch (error: any) {
+      Alert.alert('Lỗi upload', error?.message || 'Không thể tạo request upload. Kiểm tra genre hoặc định dạng file.');
+    }
+  };
+
+
+  const handlePickMusicFile = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['audio/*'],
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    const fileName = asset.name || 'audio-file';
+    const ext = fileName.split('.').pop()?.toLowerCase() || '';
+    if (!ALLOWED_UPLOAD_EXTENSIONS.includes(ext as (typeof ALLOWED_UPLOAD_EXTENSIONS)[number])) {
+      Alert.alert('Sai định dạng', `File phải là: ${ALLOWED_UPLOAD_EXTENSIONS.join(', ')}`);
+      return;
+    }
+
+    if (uploadExt !== ext) setUploadExt(ext);
+    setPickedFile({ uri: asset.uri, name: fileName, mimeType: asset.mimeType });
+    setUploadedToStorage(false);
+  };
+
+  const handleUploadPickedFile = async () => {
+    if (!uploadUrl || !pickedFile) return;
+    try {
+      setUploadingFile(true);
+      const fileResponse = await fetch(pickedFile.uri);
+      const fileBlob = await fileResponse.blob();
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': pickedFile.mimeType || 'application/octet-stream',
+        },
+        body: fileBlob,
+      });
+      if (!putRes.ok) {
+        throw new Error(`Upload thất bại (${putRes.status})`);
+      }
+      setUploadedToStorage(true);
+      Alert.alert('Upload file thành công', 'Đã upload file lên storage. Bây giờ bạn có thể bấm Xác nhận upload.');
+    } catch (error: any) {
+      Alert.alert('Lỗi upload file', error?.message || 'Không thể upload file đã chọn.');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleConfirmUpload = async () => {
+    if (!pendingSongId || !uploadedToStorage) {
+      return Alert.alert('Chưa sẵn sàng', 'Bạn cần chọn file nhạc và upload file thành công trước khi xác nhận.');
+    }
+    try {
+      await confirmUploadSong(pendingSongId);
+      Alert.alert('Đã xác nhận', 'Upload confirmed, hệ thống đang transcode.');
+      setPendingSongId(null);
+      setUploadUrl(null);
+      setPickedFile(null);
+      setUploadedToStorage(false);
+    } catch (error: any) {
+      Alert.alert('Lỗi', error?.message || 'Không thể xác nhận upload');
+    }
+  };
+
+  const toggleGenre = (id: string) => {
+    setSelectedGenreIds(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
+  };
+
+  return (
+    <View style={styles.root}>
+      <StatusBar style="light" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 36 }}>
+        <LinearGradient colors={[COLORS.gradNavy, COLORS.bg]} style={[styles.hero, { paddingTop: insets.top + 20 }]}>
+          <Text style={styles.emoji}>🎼</Text>
+          <Text style={styles.title}>Creator Studio</Text>
+          <Text style={styles.sub}>{creatorStatusText}</Text>
+        </LinearGradient>
+
+        <View style={styles.body}>
+          {loading ? <ActivityIndicator color={COLORS.accent} /> : (
+            <>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Thêm bài hát / Album</Text>
+                <Text style={styles.cardDesc}>Kiểm tra artist, gói cước và trạng thái ban trước khi tạo.</Text>
+                <Pressable onPress={handleCreateSongAlbum} style={[styles.primaryBtn, !canCreateSongAlbum && styles.disabledBtn]}>
+                  <Text style={styles.primaryBtnText}>{canCreateSongAlbum ? 'Tiếp tục tạo nội dung' : 'Chưa đủ điều kiện'}</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Upload bài hát cho mọi người cùng nghe</Text>
+                <TextInput style={styles.input} value={uploadTitle} onChangeText={setUploadTitle} placeholder="Tên bài hát" placeholderTextColor={COLORS.glass45} />
+                <Text style={styles.genreLabel}>Định dạng file</Text>
+                <View style={styles.genreWrap}>
+                  {ALLOWED_UPLOAD_EXTENSIONS.map((ext) => {
+                    const active = uploadExt === ext;
+                    return (
+                      <Pressable key={ext} style={[styles.genreChip, active && styles.genreChipActive]} onPress={() => setUploadExt(ext)}>
+                        <Text style={[styles.genreText, active && styles.genreTextActive]}>{ext.toUpperCase()}</Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
-                <Text style={styles.desc}>Chúng tôi đang xây dựng công cụ sáng tác dành riêng cho bạn.</Text>
-            </View>
+                <Text style={styles.genreLabel}>Chọn thể loại</Text>
+                <View style={styles.genreWrap}>
+                  {genres.map((g) => {
+                    const active = selectedGenreIds.includes(g.id);
+                    return (
+                      <Pressable key={g.id} style={[styles.genreChip, active && styles.genreChipActive]} onPress={() => toggleGenre(g.id)}>
+                        <Text style={[styles.genreText, active && styles.genreTextActive]}>{g.name}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {!!uploadUrl && <Text style={styles.uploadUrl}>Upload URL: {uploadUrl}</Text>}
+                <Text style={styles.uploadGuide}>Sau khi tạo URL: dùng PUT upload file gốc lên URL này (không đổi Content-Type), rồi bấm Xác nhận upload để backend trigger transcode.</Text>
+                <Pressable onPress={handlePickMusicFile} style={[styles.secondaryBtn, !pendingSongId && styles.disabledBtn]}>
+                  <Text style={styles.secondaryBtnText}>{pickedFile ? `Đã chọn: ${pickedFile.name}` : 'Chọn file nhạc'}</Text>
+                </Pressable>
+                <Pressable onPress={handleUploadPickedFile} style={[styles.secondaryBtn, (!pickedFile || !uploadUrl || uploadingFile) && styles.disabledBtn]}>
+                  <Text style={styles.secondaryBtnText}>{uploadingFile ? 'Đang upload file...' : uploadedToStorage ? 'Đã upload file ✔' : 'Upload file đã chọn'}</Text>
+                </Pressable>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Pressable onPress={handleRequestUpload} style={[styles.primaryBtn, { flex: 1 }]}><Text style={styles.primaryBtnText}>Tạo upload URL</Text></Pressable>
+                  <Pressable onPress={handleConfirmUpload} style={[styles.primaryBtn, { flex: 1 }, (!pendingSongId || !uploadedToStorage) && styles.disabledBtn]}><Text style={styles.primaryBtnText}>Xác nhận upload</Text></Pressable>
+                </View>
+              </View>
+            </>
+          )}
         </View>
-    );
+      </ScrollView>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: COLORS.bg },
-    hero: {
-        paddingHorizontal: 24,
-        paddingBottom: 60,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 320,
-    },
-    emoji: { fontSize: 56, marginBottom: 16 },
-    title: { color: COLORS.white, fontSize: 32, fontWeight: '800', marginBottom: 10 },
-    sub: { color: 'COLORS.glass45', fontSize: 15, textAlign: 'center', lineHeight: 22 },
-
-    comingSoon: { padding: 24, alignItems: 'center' },
-    badge: {
-        backgroundColor: 'COLORS.accentFill25',
-        borderRadius: 999,
-        paddingHorizontal: 18,
-        paddingVertical: 8,
-        borderWidth: 1,
-        borderColor: 'COLORS.accentBorder35',
-        marginBottom: 16,
-    },
-    badgeText: { color: COLORS.accent, fontWeight: '700', fontSize: 12, letterSpacing: 1.5 },
-    desc: { color: 'COLORS.glass35', textAlign: 'center', lineHeight: 22 },
+  root: { flex: 1, backgroundColor: COLORS.bg },
+  hero: { paddingHorizontal: 24, paddingBottom: 28, alignItems: 'center', justifyContent: 'center', minHeight: 230 },
+  emoji: { fontSize: 56, marginBottom: 16 },
+  title: { color: COLORS.white, fontSize: 32, fontWeight: '800', marginBottom: 10 },
+  sub: { color: COLORS.glass50, fontSize: 15, textAlign: 'center', lineHeight: 22 },
+  body: { paddingHorizontal: 20, gap: 16 },
+  card: { backgroundColor: COLORS.surface, borderRadius: 16, borderWidth: 1, borderColor: COLORS.glass10, padding: 16 },
+  cardTitle: { color: COLORS.white, fontWeight: '700', fontSize: 18, marginBottom: 6 },
+  cardDesc: { color: COLORS.glass60, marginBottom: 12 },
+  input: { borderWidth: 1, borderColor: COLORS.glass15, backgroundColor: COLORS.surfaceLow, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, color: COLORS.white, marginBottom: 8 },
+  genreLabel: { color: COLORS.glass60, marginBottom: 6 },
+  genreWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  genreChip: { borderRadius: 999, borderWidth: 1, borderColor: COLORS.glass20, paddingHorizontal: 10, paddingVertical: 6, backgroundColor: COLORS.surfaceLow },
+  genreChipActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
+  genreText: { color: COLORS.glass70, fontSize: 12 },
+  genreTextActive: { color: COLORS.accent, fontWeight: '700' },
+  uploadUrl: { color: COLORS.glass60, fontSize: 12, marginBottom: 8 },
+  uploadGuide: { color: COLORS.glass50, fontSize: 12, marginBottom: 10, lineHeight: 17 },
+  primaryBtn: { backgroundColor: COLORS.accentDim, borderRadius: 12, minHeight: 46, alignItems: 'center', justifyContent: 'center' },
+  secondaryBtn: { backgroundColor: COLORS.surfaceLow, borderRadius: 12, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.glass15, marginBottom: 8 },
+  disabledBtn: { backgroundColor: COLORS.surfaceDim },
+  primaryBtnText: { color: COLORS.white, fontWeight: '700' },
+  secondaryBtnText: { color: COLORS.white, fontWeight: '600', fontSize: 13 },
 });

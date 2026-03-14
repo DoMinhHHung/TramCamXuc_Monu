@@ -1,13 +1,16 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
     Animated, Image, Modal, PanResponder,
-    Pressable, StyleSheet, Text, View,
+    Pressable, StyleSheet, Text, View, TextInput, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config/colors';
 import { AudioQuality, usePlayer } from '../context/PlayerContext';
+import { addSongToPlaylist, createPlaylist, getMyPlaylists, Playlist, reportSong } from '../services/music';
+import { getSongShareQr } from '../services/social';
+import { SongActionSheet } from './SongActionSheet';
 
 const formatTime = (seconds: number): string => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -27,6 +30,12 @@ const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
 
 export const FullPlayerModal = () => {
     const insets = useSafeAreaInsets();
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+    const [playlists, setPlaylists] = useState<Playlist[]>([]);
+    const [newPlaylistName, setNewPlaylistName] = useState('');
+    const [shareQr, setShareQr] = useState<string | null>(null);
+
     const {
         currentSong, isFullScreen, setFullScreen,
         isPlaying, isLoaded, currentTime, duration,
@@ -98,6 +107,22 @@ export const FullPlayerModal = () => {
     const progress  = duration > 0 ? currentTime / duration : 0;
     const thumbLeft = Math.max(0, progress * barWidthRef.current - THUMB_RADIUS);
 
+    React.useEffect(() => {
+        if (!isFullScreen) return;
+        void (async () => {
+            try {
+                const data = await getMyPlaylists({ page: 1, size: 50 });
+                setPlaylists(data.content ?? []);
+            } catch {
+                setPlaylists([]);
+            }
+        })();
+    }, [isFullScreen, currentSong?.id]);
+
+    const openPlaylistPicker = () => {
+        setPlaylistPickerOpen(true);
+    };
+
     if (!currentSong) return null;
 
     return (
@@ -122,7 +147,7 @@ export const FullPlayerModal = () => {
                             <Text style={styles.chevron}>⌄</Text>
                         </Pressable>
                         <Text style={styles.headerTitle}>Đang phát</Text>
-                        <View style={{ width: 32 }} />
+                        <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}><Text style={styles.moreBtn}>⋯</Text></Pressable>
                     </View>
 
                     {/* Artwork */}
@@ -219,6 +244,75 @@ export const FullPlayerModal = () => {
                         </Text>
                     </View>
 
+
+                    <SongActionSheet
+                        visible={menuOpen}
+                        title={currentSong.title}
+                        onClose={() => setMenuOpen(false)}
+                        onShareQr={async () => {
+                            const qr = await getSongShareQr(currentSong.id);
+                            setShareQr(qr.qrCodeBase64 || null);
+                            setMenuOpen(false);
+                        }}
+                        onAddToPlaylist={() => {
+                            setMenuOpen(false);
+                            openPlaylistPicker();
+                        }}
+                        onReportSong={async () => {
+                            await reportSong(currentSong.id, { reason: 'SPAM', description: 'Reported from full player' });
+                            setMenuOpen(false);
+                        }}
+                        onDislike={() => setMenuOpen(false)}
+                        onDownload={() => setMenuOpen(false)}
+                    />
+
+                    <Modal visible={playlistPickerOpen} transparent animationType="slide" onRequestClose={() => setPlaylistPickerOpen(false)}>
+                        <Pressable style={styles.menuBackdrop} onPress={() => setPlaylistPickerOpen(false)}>
+                            <View style={styles.menuSheet}>
+                                <Text style={styles.menuTitle}>Thêm vào playlist</Text>
+                                {playlists.map((p) => (
+                                    <Pressable key={p.id} onPress={async () => {
+                                        try {
+                                            await addSongToPlaylist(p.id, currentSong.id);
+                                            Alert.alert('Thành công', `Đã thêm vào ${p.name}`);
+                                            setPlaylistPickerOpen(false);
+                                        } catch (error: any) {
+                                            Alert.alert('Lỗi', error?.message || 'Không thể thêm vào playlist');
+                                        }
+                                    }}><Text style={styles.menuItem}>{p.name}</Text></Pressable>
+                                ))}
+                                <TextInput
+                                    style={styles.playlistInput}
+                                    value={newPlaylistName}
+                                    onChangeText={setNewPlaylistName}
+                                    placeholder="Tạo playlist mới"
+                                    placeholderTextColor={COLORS.glass45}
+                                />
+                                <Pressable onPress={async () => {
+                                    if (!newPlaylistName.trim()) return;
+                                    try {
+                                        const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
+                                        await addSongToPlaylist(pl.id, currentSong.id);
+                                        setNewPlaylistName('');
+                                        setPlaylistPickerOpen(false);
+                                    } catch (error: any) {
+                                        Alert.alert('Lỗi', error?.message || 'Không thể tạo playlist mới');
+                                    }
+                                }}><Text style={styles.menuItemAccent}>+ Tạo mới và thêm</Text></Pressable>
+                            </View>
+                        </Pressable>
+                    </Modal>
+
+
+                    <Modal visible={!!shareQr} transparent animationType="fade" onRequestClose={() => setShareQr(null)}>
+                        <Pressable style={styles.menuBackdrop} onPress={() => setShareQr(null)}>
+                            <View style={styles.menuSheet}>
+                                <Text style={styles.menuTitle}>QR Share</Text>
+                                {shareQr ? <Image source={{ uri: shareQr }} style={{ width: 220, height: 220, borderRadius: 10, alignSelf: 'center' }} /> : <Text style={styles.menuItem}>Không tạo được QR</Text>}
+                            </View>
+                        </Pressable>
+                    </Modal>
+
                     {/* Stats */}
                     <View style={styles.stats}>
                         <Text style={styles.statsText}>
@@ -238,6 +332,7 @@ const styles = StyleSheet.create({
     header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16 },
     chevron:            { color: COLORS.white, fontSize: 32, lineHeight: 32, fontWeight: '700' },
     headerTitle:        { color: COLORS.glass60, fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+    moreBtn:            { color: COLORS.white, fontSize: 30, lineHeight: 30 },
     artworkSection:     { alignItems: 'center', marginTop: 8, marginBottom: 20 },
     artwork:            { width: 240, height: 240, borderRadius: 20, backgroundColor: COLORS.surface },
     artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.accentBorder25, backgroundColor: COLORS.accentFill20 },
@@ -271,6 +366,12 @@ const styles = StyleSheet.create({
     qualityBtnTextActive:   { color: COLORS.accent },
     qualityBtnTextLocked:   { color: COLORS.glass25 },
     qualityHint:            { color: COLORS.glass30, fontSize: 11, lineHeight: 16 },
+    menuBackdrop:       { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
+    menuSheet:          { backgroundColor: COLORS.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, gap: 10 },
+    menuTitle:          { color: COLORS.white, fontSize: 16, fontWeight: '800', marginBottom: 6 },
+    menuItem:           { color: COLORS.glass90, fontSize: 14, marginBottom: 8 },
+    menuItemAccent:     { color: COLORS.accent, fontSize: 14, fontWeight: '700' },
+    playlistInput:      { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
     stats:              { alignItems: 'center' },
     statsText:          { color: COLORS.glass30, fontSize: 13 },
 });
