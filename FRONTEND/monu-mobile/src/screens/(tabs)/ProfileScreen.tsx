@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
     ActivityIndicator, Alert, Image, Pressable,
@@ -12,6 +12,8 @@ import { ConfirmModal } from '../../components/ConfirmModal';
 import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { deleteMyProfile, updateMyProfile, uploadAvatar } from '../../services/auth';
+import { getMySubscription } from '../../services/payment';
+import { apiClient } from '../../services/api';
 import { BackButton } from '../../components/BackButton';
 import { useNavigation } from '@react-navigation/native';
 
@@ -25,6 +27,8 @@ export const ProfileScreen = () => {
     const [logoutOpen, setLogoutOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [fullName, setFullName] = useState(authSession?.profile?.fullName ?? '');
+    const [canBecomeArtist, setCanBecomeArtist] = useState(false);
+    const [artistProfile, setArtistProfile] = useState<{ stageName?: string; bio?: string; status?: string } | null>(null);
 
     const pickAvatar = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -40,6 +44,53 @@ export const ProfileScreen = () => {
         try { setSaving(true); await updateMyProfile({ fullName: fullName.trim() }); await refreshProfile(); setEditOpen(false); }
         catch (error: any) { Alert.alert('Lỗi', error?.message || 'Không thể cập nhật hồ sơ.'); }
         finally { setSaving(false); }
+    };
+
+
+    useEffect(() => {
+        const loadSubscriptionFeature = async () => {
+            try {
+                const sub = await getMySubscription();
+                setCanBecomeArtist(Boolean(sub?.plan?.features?.can_become_artist));
+            } catch {
+                setCanBecomeArtist(false);
+            }
+        };
+        void loadSubscriptionFeature();
+
+        const loadArtistProfile = async () => {
+            try {
+                const artist = await apiClient.get('/artists/me');
+                setArtistProfile(artist.data as any);
+            } catch {
+                setArtistProfile(null);
+            }
+        };
+        void loadArtistProfile();
+    }, []);
+
+    const registerArtist = async () => {
+        try {
+            await apiClient.post('/artists/register', {
+                stageName: authSession?.profile?.fullName || authSession?.profile?.email?.split('@')[0] || 'My Artist',
+                bio: 'Artist from Monu',
+            });
+            Alert.alert('Thành công', 'Đã gửi đăng ký artist.');
+        } catch (error: any) {
+            Alert.alert('Lỗi', error?.message || 'Không thể đăng ký artist');
+        }
+    };
+
+    const updateArtist = async () => {
+        try {
+            await apiClient.put('/artists/me', {
+                stageName: authSession?.profile?.fullName || 'My Artist',
+                bio: 'Updated from profile',
+            });
+            Alert.alert('Thành công', 'Đã cập nhật artist profile.');
+        } catch (error: any) {
+            Alert.alert('Lỗi', error?.message || 'Không thể cập nhật artist profile');
+        }
     };
 
     const onDeleteAccount = async () => {
@@ -88,6 +139,20 @@ export const ProfileScreen = () => {
                         <Text style={styles.editBtnText}>Chỉnh sửa hồ sơ</Text>
                     </Pressable>
                 </LinearGradient>
+
+
+                {(canBecomeArtist || artistProfile) && (
+                    <View style={styles.artistCard}>
+                        <Text style={styles.artistTitle}>Your Artist Profile</Text>
+                        {!!artistProfile && <Text style={styles.artistMeta}>{artistProfile.stageName} • {artistProfile.status}</Text>}
+                        {!!artistProfile?.bio && <Text style={styles.artistMeta}>{artistProfile.bio}</Text>}
+                        <View style={styles.artistActions}>
+                            <Pressable style={styles.artistBtn} onPress={registerArtist}><Text style={styles.artistBtnText}>Tạo artist profile</Text></Pressable>
+                            <Pressable style={styles.artistBtn} onPress={updateArtist}><Text style={styles.artistBtnText}>Sửa artist profile</Text></Pressable>
+                            <Pressable style={styles.artistBtn} onPress={() => Alert.alert('Thông báo', 'Hiện backend chưa có endpoint delete artist profile trực tiếp.') }><Text style={styles.artistBtnText}>Xóa artist profile</Text></Pressable>
+                        </View>
+                    </View>
+                )}
 
                 {/* Stats row */}
                 <View style={styles.statsRow}>
@@ -213,6 +278,13 @@ const styles = StyleSheet.create({
     },
     editBtnText: { color: COLORS.white, fontWeight: '600', fontSize: 14 },
 
+    artistCard: { marginHorizontal: 20, marginTop: 16, backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.glass10, padding: 12 },
+    artistTitle: { color: COLORS.white, fontWeight: '800', marginBottom: 8 },
+    artistMeta: { color: COLORS.glass70, marginBottom: 6 },
+    artistActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    artistBtn: { backgroundColor: COLORS.accentFill20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.accentBorder25 },
+    artistBtnText: { color: COLORS.accent, fontWeight: '700', fontSize: 12 },
+
     statsRow: {
         flexDirection: 'row',
         marginHorizontal: 20,
@@ -255,7 +327,7 @@ const styles = StyleSheet.create({
         right: 20,
         backgroundColor: COLORS.surface,
         borderWidth: 1,
-        borderColor: 'COLORS.glass10',
+        borderColor: COLORS.glass10,
         borderRadius: 12,
         zIndex: 50,
         overflow: 'hidden',
@@ -278,7 +350,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 20,
         borderWidth: 1,
-        borderColor: 'COLORS.glass10',
+        borderColor: COLORS.glass10,
     },
     modalTitle: { color: COLORS.white, fontSize: 18, fontWeight: '800', marginBottom: 16 },
     modalFieldLabel: {

@@ -1,186 +1,238 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FavoriteArtistRow } from '../../components/FavoriteArtistRow';
 import { COLORS } from '../../config/colors';
-import { getMyFavorites, getPopularArtists, getPopularGenres } from '../../services/favorites';
-import { Artist, Genre } from '../../types/favorites';
+import { useAuth } from '../../context/AuthContext';
+import { addSongToPlaylist, Album, createPlaylist, getMyAlbums, getMyPlaylists, getMySongs, Playlist, Song } from '../../services/music';
+import { createFeedPost, getPlaylistShareLink, getPlaylistShareQr } from '../../services/social';
+import { usePlayer } from '../../context/PlayerContext';
+
+const PUBLIC_LINK_BASE = 'https://phazelsound.oopsgolden.id.vn';
 
 export const LibraryScreen = () => {
-  const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { authSession } = useAuth();
+  const navigation = useNavigation<any>();
+  const { playSong, currentSong, isPlaying } = usePlayer();
   const [loading, setLoading] = useState(true);
-  const [artists, setArtists] = useState<Artist[]>([]);
-  const [genres, setGenres] = useState<Genre[]>([]);
-  const [favoriteArtistIds, setFavoriteArtistIds] = useState<string[]>([]);
-  const [favoriteGenreIds, setFavoriteGenreIds] = useState<string[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [qrData, setQrData] = useState<{ link: string; image?: string } | null>(null);
+  const [feedSharePayload, setFeedSharePayload] = useState<{id: string; type: 'PLAYLIST' | 'SONG' | 'ALBUM'; defaultTitle: string} | null>(null);
+  const [feedTitleInput, setFeedTitleInput] = useState('');
+  const [addSongTarget, setAddSongTarget] = useState<Song | null>(null);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
 
-  useEffect(() => { void loadData(); }, []);
+  useFocusEffect(
+    useCallback(() => {
+      void loadLibrary(false);
+      const id = setInterval(() => void loadLibrary(true), 12000);
+      return () => clearInterval(id);
+    }, [authSession?.tokens.accessToken]),
+  );
 
-  const loadData = async () => {
+  const loadLibrary = async (silent = false) => {
     try {
-      setLoading(true);
-      const [favorites, artistData, genreData] = await Promise.all([
-        getMyFavorites(),
-        getPopularArtists(50),
-        getPopularGenres(50),
+      if (!silent) setLoading(true);
+      const [playlistRes, songRes, albumRes] = await Promise.allSettled([
+        getMyPlaylists({ page: 1, size: 50 }),
+        getMySongs({ page: 1, size: 50 }),
+        getMyAlbums({ page: 1, size: 50 }),
       ]);
-      setFavoriteArtistIds(favorites.favoriteArtistIds ?? []);
-      setFavoriteGenreIds(favorites.favoriteGenreIds ?? []);
-      setArtists(artistData);
-      setGenres(genreData);
-    } finally { setLoading(false); }
+
+      setPlaylists(playlistRes.status === 'fulfilled' ? playlistRes.value.content ?? [] : []);
+      setSongs(songRes.status === 'fulfilled' ? songRes.value.content ?? [] : []);
+      setAlbums(albumRes.status === 'fulfilled' ? albumRes.value.content ?? [] : []);
+    } finally {
+      if (!silent) setLoading(false);
+    }
   };
 
-  const favoriteArtists = useMemo(
-      () => artists.filter(a => favoriteArtistIds.includes(a.id)),
-      [artists, favoriteArtistIds],
-  );
-  const favoriteGenres = useMemo(
-      () => genres.filter(g => favoriteGenreIds.includes(g.id)),
-      [genres, favoriteGenreIds],
-  );
+  const handleShare = async (
+    type: 'playlist' | 'song' | 'album',
+    id: string,
+    defaultTitle: string,
+    method: 'qr' | 'link' | 'feed',
+  ) => {
+    const link = `${PUBLIC_LINK_BASE}/${type}/${id}`;
 
-  if (loading) {
-    return (
-        <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
-          <ActivityIndicator color={COLORS.accent} size="large" />
-        </View>
-    );
-  }
+    if (method === 'qr') {
+      if (type === 'playlist') {
+        const qr = await getPlaylistShareQr(id);
+        setQrData({ link: qr.shareUrl, image: qr.qrCodeBase64 });
+      } else {
+        setQrData({ link });
+      }
+      return;
+    }
+
+    if (method === 'link') {
+      const shareUrl = type === 'playlist' ? (await getPlaylistShareLink(id)).shareUrl : link;
+      await Share.share({ message: `Nghe ngay: ${defaultTitle}\n${shareUrl}` });
+      return;
+    }
+
+    setFeedSharePayload({ id, type: type.toUpperCase() as 'PLAYLIST' | 'SONG' | 'ALBUM', defaultTitle });
+    setFeedTitleInput(defaultTitle);
+  };
+
+  const handleAddSongToPlaylist = async (playlistId: string, songId: string) => {
+    try {
+      await addSongToPlaylist(playlistId, songId);
+      Alert.alert('Thành công', 'Đã thêm bài hát vào playlist.');
+      setAddSongTarget(null);
+      await loadLibrary(true);
+    } catch (error: any) {
+      Alert.alert('Lỗi', error?.message || 'Không thể thêm bài hát vào playlist');
+    }
+  };
+
+  const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
+
+  const renderShareActions = (type: 'playlist' | 'song' | 'album', id: string, title: string) => (
+    <View style={styles.shareRow}>
+      <Text style={styles.shareLabel}>Share:</Text>
+      <Pressable onPress={() => void handleShare(type, id, title, 'qr')}><Text style={styles.shareAction}>QR</Text></Pressable>
+      <Pressable onPress={() => void handleShare(type, id, title, 'link')}><Text style={styles.shareAction}>Link</Text></Pressable>
+      <Pressable onPress={() => void handleShare(type, id, title, 'feed')}><Text style={styles.shareAction}>Feed</Text></Pressable>
+    </View>
+  );
 
   return (
-      <View style={styles.root}>
-        <StatusBar style="light" />
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-          {/* Edge-to-edge header */}
-          <LinearGradient
-              colors={[COLORS.gradSlate, COLORS.bg]}
-              style={[styles.header, { paddingTop: insets.top + 16 }]}
-          >
-            <Text style={styles.headerTitle}>Thư viện của bạn</Text>
-            <Text style={styles.headerSub}>Nghệ sĩ & thể loại yêu thích</Text>
-          </LinearGradient>
+    <View style={styles.root}>
+      <StatusBar style="light" />
+      <ScrollView contentContainerStyle={{ paddingBottom: 36 }}>
+        <LinearGradient colors={[COLORS.gradSlate, COLORS.bg]} style={[styles.header, { paddingTop: insets.top + 18 }]}>
+          <Text style={styles.headerTitle}>Thư viện</Text>
+          <Text style={styles.headerSub}>Playlist / Songs / Album của user hoặc nghệ sĩ</Text>
+        </LinearGradient>
 
-          <View style={styles.body}>
-            {/* Artists section */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Nghệ sĩ yêu thích</Text>
-              <Text style={styles.sectionCount}>{favoriteArtists.length} nghệ sĩ</Text>
+        <View style={styles.body}>
+          {loading ? <ActivityIndicator color={COLORS.accent} /> : null}
+
+          <Text style={styles.sectionTitle}>Playlist ({playlists.length})</Text>
+          {playlists.map((p) => (
+            <Pressable key={p.id} style={styles.itemCard} onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug, name: p.name })}>
+              <Text style={styles.itemTitle}>{p.name}</Text>
+              <Text style={styles.itemSub}>{p.totalSongs ?? p.songs?.length ?? 0} bài hát</Text>
+              {renderShareActions('playlist', p.id, p.name)}
+            </Pressable>
+          ))}
+
+          <Text style={styles.sectionTitle}>Songs ({songs.length})</Text>
+          {songs.map((s) => (
+            <View key={s.id} style={styles.itemCard}>
+              <Text style={styles.itemTitle}>{s.title}</Text>
+              <View style={styles.songActionRow}>
+                <Pressable onPress={() => playSong(s, songs)}><Text style={styles.shareAction}>{currentSong?.id === s.id && isPlaying ? '⏸ Đang phát' : '▶ Phát'}</Text></Pressable>
+                <Pressable onPress={() => setAddSongTarget(s)}><Text style={styles.shareAction}>+ Thêm vào playlist</Text></Pressable>
+              </View>
+              {renderShareActions('song', s.id, s.title)}
             </View>
+          ))}
 
-            {favoriteArtists.length ? (
-                <View style={styles.artistsCard}>
-                  <LinearGradient colors={[COLORS.surface, COLORS.surfaceLow]} style={styles.artistsCardGradient}>
-                    {favoriteArtists.map((artist, i) => (
-                        <View key={artist.id}>
-                          <FavoriteArtistRow name={artist.stageName} avatarUrl={artist.avatarUrl} />
-                          {i < favoriteArtists.length - 1 && <View style={styles.divider} />}
-                        </View>
-                    ))}
-                  </LinearGradient>
-                </View>
-            ) : (
-                <View style={styles.emptyCard}>
-                  <Text style={styles.emptyEmoji}>🎤</Text>
-                  <Text style={styles.emptyText}>Chưa có nghệ sĩ yêu thích</Text>
-                </View>
-            )}
-
-            {/* Genres section */}
-            <View style={[styles.sectionHeader, { marginTop: 28 }]}>
-              <Text style={styles.sectionTitle}>Thể loại yêu thích</Text>
-              <Text style={styles.sectionCount}>{favoriteGenres.length} thể loại</Text>
+          <Text style={styles.sectionTitle}>Album ({albums.length})</Text>
+          {albums.map((a) => (
+            <View key={a.id} style={styles.itemCard}>
+              <Text style={styles.itemTitle}>{a.title}</Text>
+              {renderShareActions('album', a.id, a.title)}
             </View>
+          ))}
+        </View>
+      </ScrollView>
 
-            {favoriteGenres.length ? (
-                <View style={styles.genreWrap}>
-                  {favoriteGenres.map(genre => (
-                      <LinearGradient
-                          key={genre.id}
-                          colors={[COLORS.surface, COLORS.surfaceLow]}
-                          style={styles.genreChip}
-                      >
-                        <Text style={styles.genreText}>{genre.name}</Text>
-                      </LinearGradient>
-                  ))}
-                </View>
-            ) : (
-                <View style={styles.emptyCard}>
-                  <Text style={styles.emptyEmoji}>🎵</Text>
-                  <Text style={styles.emptyText}>Chưa có thể loại yêu thích</Text>
-                </View>
-            )}
-
-            {/* Edit button */}
-            <Pressable
-                style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.8 }]}
-                onPress={() => navigation.navigate('EditFavorites')}
-            >
-              <LinearGradient
-                  colors={[COLORS.accent, COLORS.accentAlt]}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={styles.editBtnGradient}
-              >
-                <Text style={styles.editBtnText}>✎  Chỉnh sửa sở thích</Text>
-              </LinearGradient>
+      <Modal visible={!!addSongTarget} transparent animationType="slide" onRequestClose={() => setAddSongTarget(null)}>
+        <Pressable style={styles.qrBackdrop} onPress={() => setAddSongTarget(null)}>
+          <View style={styles.sheetCard}>
+            <Text style={styles.qrTitle}>Thêm vào playlist</Text>
+            {playlists.map(p => (
+              <Pressable key={p.id} style={styles.addPlaylistItem} onPress={() => addSongTarget && void handleAddSongToPlaylist(p.id, addSongTarget.id)}>
+                <Text style={styles.itemTitle}>{p.name}</Text>
+                <Text style={styles.itemSub}>{p.totalSongs ?? p.songs?.length ?? 0} bài hát</Text>
+              </Pressable>
+            ))}
+            <TextInput value={newPlaylistName} onChangeText={setNewPlaylistName} placeholder="Tên playlist mới" placeholderTextColor={COLORS.glass45} style={styles.input} />
+            <Pressable style={styles.newBtn} onPress={async () => {
+              if (!newPlaylistName.trim()) return;
+              try {
+                const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
+                if (addSongTarget) await addSongToPlaylist(pl.id, addSongTarget.id);
+                setNewPlaylistName('');
+                setAddSongTarget(null);
+                await loadLibrary(true);
+              } catch (e: any) {
+                Alert.alert('Lỗi', e?.message || 'Không thể tạo playlist mới');
+              }
+            }}>
+              <Text style={styles.newBtnText}>+ Tạo playlist mới</Text>
             </Pressable>
           </View>
-        </ScrollView>
-      </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={!!feedSharePayload} transparent animationType="slide" onRequestClose={() => setFeedSharePayload(null)}>
+        <Pressable style={styles.qrBackdrop} onPress={() => setFeedSharePayload(null)}>
+          <View style={styles.sheetCard}>
+            <Text style={styles.qrTitle}>Đăng lên Feed</Text>
+            <TextInput style={styles.input} value={feedTitleInput} onChangeText={setFeedTitleInput} placeholder="Title" placeholderTextColor={COLORS.glass45} />
+            <Pressable style={styles.newBtn} onPress={async () => {
+              if (!feedSharePayload) return;
+              try {
+                await createFeedPost({ visibility: 'PUBLIC', title: feedTitleInput.trim() || feedSharePayload.defaultTitle, caption: `Mình vừa chia sẻ ${feedSharePayload.defaultTitle} 🎧`, contentId: feedSharePayload.id, contentType: feedSharePayload.type });
+                setFeedSharePayload(null);
+                Alert.alert('Đã chia sẻ', 'Nội dung đã được đăng lên feed.');
+              } catch (error: any) {
+                Alert.alert('Không thể chia sẻ feed', error?.message || 'Vui lòng thử lại.');
+              }
+            }}><Text style={styles.newBtnText}>Đăng</Text></Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={!!qrData} transparent animationType="slide" onRequestClose={() => setQrData(null)}>
+        <Pressable style={styles.qrBackdrop} onPress={() => setQrData(null)}>
+          <View style={styles.sheetCard}>
+            <Text style={styles.qrTitle}>QR Chia sẻ</Text>
+            {qrData?.image ? <Image source={{ uri: qrData.image }} style={styles.qrImage} /> : <View style={styles.qrPlaceholder}><Text style={styles.qrPlaceholderText}>▦ QR ▦</Text></View>}
+            <Text style={styles.qrLink}>{qrData?.link}</Text>
+          </View>
+        </Pressable>
+      </Modal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
-
-  header: { paddingHorizontal: 20, paddingBottom: 24 },
-  headerTitle: { color: COLORS.white, fontSize: 28, fontWeight: '800', marginBottom: 4 },
-  headerSub: { color: 'COLORS.glass40', fontSize: 14 },
-
-  body: { paddingHorizontal: 20, paddingTop: 24 },
-
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  sectionTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
-  sectionCount: { color: 'COLORS.glass35', fontSize: 13 },
-
-  artistsCard: { borderRadius: 16, overflow: 'hidden' },
-  artistsCardGradient: {
-    borderWidth: 1,
-    borderColor: 'COLORS.glass07',
-    borderRadius: 16,
-    paddingVertical: 4,
-  },
-  divider: { height: 1, backgroundColor: 'COLORS.glass06', marginHorizontal: 16 },
-
-  emptyCard: {
-    backgroundColor: 'COLORS.glass03',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'COLORS.glass07',
-    paddingVertical: 24,
-    alignItems: 'center',
-    borderStyle: 'dashed',
-  },
-  emptyEmoji: { fontSize: 28, marginBottom: 8, opacity: 0.4 },
-  emptyText: { color: 'COLORS.glass30', fontSize: 14 },
-
-  genreWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  genreChip: {
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: 'COLORS.accentBorder25',
-    overflow: 'hidden',
-  },
-  genreText: { color: 'COLORS.glass85', fontSize: 13, fontWeight: '600' },
-
-  editBtn: { borderRadius: 999, overflow: 'hidden', marginTop: 36 },
-  editBtnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
-  editBtnText: { color: COLORS.white, fontWeight: '800', fontSize: 15 },
+  header: { paddingHorizontal: 20, paddingBottom: 22 },
+  headerTitle: { color: COLORS.white, fontSize: 28, fontWeight: '800' },
+  headerSub: { color: COLORS.glass50, marginTop: 6 },
+  body: { paddingHorizontal: 20 },
+  sectionTitle: { color: COLORS.white, fontWeight: '700', marginTop: 18, marginBottom: 10, fontSize: 17 },
+  itemCard: { backgroundColor: COLORS.surface, borderRadius: 12, borderColor: COLORS.glass10, borderWidth: 1, padding: 12, marginBottom: 10 },
+  itemTitle: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
+  itemSub: { color: COLORS.glass50, fontSize: 12, marginTop: 4 },
+  songActionRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  shareRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 },
+  shareLabel: { color: COLORS.glass45, fontSize: 12 },
+  shareAction: { color: COLORS.accent, fontSize: 13, fontWeight: '700' },
+  qrBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
+  sheetCard: { backgroundColor: COLORS.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 18 },
+  qrTitle: { color: COLORS.white, fontWeight: '800', fontSize: 18, marginBottom: 10 },
+  qrPlaceholder: { width: 180, height: 180, borderRadius: 12, borderWidth: 2, borderColor: COLORS.white, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 10 },
+  qrPlaceholderText: { color: COLORS.white, fontSize: 28, fontWeight: '900' },
+  qrLink: { color: COLORS.glass70, textAlign: 'center' },
+  qrImage: { width: 180, height: 180, borderRadius: 12, marginBottom: 10 },
+  input: { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
+  newBtn: { minHeight: 40, borderRadius: 8, backgroundColor: COLORS.accentDim, alignItems: 'center', justifyContent: 'center' },
+  newBtnText: { color: COLORS.white, fontWeight: '700' },
+  playlistSongRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.glass10 },
+  playlistSongTitle: { color: COLORS.white, fontWeight: '600' },
+  playlistSongMeta: { color: COLORS.glass50, fontSize: 12 },
+  addPlaylistItem: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.glass10 },
 });
