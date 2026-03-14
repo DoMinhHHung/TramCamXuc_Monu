@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, Text
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as DocumentPicker from 'expo-document-picker';
 
 import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
@@ -31,6 +32,9 @@ export const CreateScreen = () => {
   const [genres, setGenres] = useState<Genre[]>([]);
   const [pendingSongId, setPendingSongId] = useState<string | null>(null);
   const [uploadUrl, setUploadUrl] = useState<string | null>(null);
+  const [selectedAudioFile, setSelectedAudioFile] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [isFileUploaded, setIsFileUploaded] = useState(false);
 
   React.useEffect(() => {
     void loadCreatorState();
@@ -107,6 +111,7 @@ export const CreateScreen = () => {
       });
       setPendingSongId(created.id);
       setUploadUrl(created.uploadUrl || null);
+      setIsFileUploaded(false);
       Alert.alert('Bước 1 thành công', 'Đã tạo upload URL. Upload file lên URL và bấm Xác nhận upload.');
     } catch (error: any) {
       Alert.alert('Lỗi upload', error?.message || 'Không thể tạo request upload. Kiểm tra genre hoặc định dạng file.');
@@ -115,6 +120,9 @@ export const CreateScreen = () => {
 
   const handleConfirmUpload = async () => {
     if (!pendingSongId) return;
+    if (!selectedAudioFile || !isFileUploaded) {
+      return Alert.alert('Thiếu file nhạc', 'Bạn cần chọn và upload file nhạc thành công trước khi xác nhận upload.');
+    }
     try {
       await confirmUploadSong(pendingSongId);
       Alert.alert('Đã xác nhận', 'Upload confirmed, hệ thống đang transcode.');
@@ -127,6 +135,59 @@ export const CreateScreen = () => {
 
   const toggleGenre = (id: string) => {
     setSelectedGenreIds(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]);
+  };
+
+  const uploadSongFile = async (url: string, file: DocumentPicker.DocumentPickerAsset) => {
+    const response = await fetch(file.uri);
+    const blob = await response.blob();
+    const putRes = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.mimeType || 'application/octet-stream',
+      },
+      body: blob,
+    });
+    if (!putRes.ok) {
+      throw new Error(`Upload thất bại (HTTP ${putRes.status})`);
+    }
+  };
+
+  const handlePickAudioFile = async () => {
+    const picked = await DocumentPicker.getDocumentAsync({
+      type: ['audio/*'],
+      multiple: false,
+      copyToCacheDirectory: true,
+    });
+    if (picked.canceled) return;
+
+    const file = picked.assets[0];
+    const nameOrExt = (file.name || '').toLowerCase();
+    const fileExt = nameOrExt.includes('.') ? nameOrExt.split('.').pop() || '' : '';
+    if (!ALLOWED_UPLOAD_EXTENSIONS.includes(fileExt as (typeof ALLOWED_UPLOAD_EXTENSIONS)[number])) {
+      Alert.alert('Sai định dạng', `File không hợp lệ. Chỉ chấp nhận: ${ALLOWED_UPLOAD_EXTENSIONS.join(', ')}`);
+      return;
+    }
+
+    setUploadExt(fileExt);
+    setSelectedAudioFile(file);
+    setIsFileUploaded(false);
+  };
+
+  const handleUploadPickedFile = async () => {
+    if (!uploadUrl) return Alert.alert('Thiếu upload URL', 'Hãy bấm "Tạo upload URL" trước.');
+    if (!selectedAudioFile) return Alert.alert('Thiếu file nhạc', 'Hãy chọn file nhạc trước khi upload.');
+
+    try {
+      setIsUploadingFile(true);
+      await uploadSongFile(uploadUrl, selectedAudioFile);
+      setIsFileUploaded(true);
+      Alert.alert('Upload thành công', 'File nhạc đã được upload. Bạn có thể bấm Xác nhận upload.');
+    } catch (error: any) {
+      setIsFileUploaded(false);
+      Alert.alert('Lỗi upload file', error?.message || 'Không thể upload file nhạc lên URL đã cấp.');
+    } finally {
+      setIsUploadingFile(false);
+    }
   };
 
   return (
@@ -164,6 +225,17 @@ export const CreateScreen = () => {
                     );
                   })}
                 </View>
+                <Text style={styles.genreLabel}>Chọn file nhạc</Text>
+                <View style={styles.fileRow}>
+                  <Pressable onPress={handlePickAudioFile} style={[styles.primaryBtn, { flex: 1 }]}>
+                    <Text style={styles.primaryBtnText}>Chọn file</Text>
+                  </Pressable>
+                  <Pressable onPress={handleUploadPickedFile} style={[styles.primaryBtn, { flex: 1 }, (!uploadUrl || !selectedAudioFile || isUploadingFile) && styles.disabledBtn]} disabled={!uploadUrl || !selectedAudioFile || isUploadingFile}>
+                    <Text style={styles.primaryBtnText}>{isUploadingFile ? 'Đang upload...' : 'Upload file'}</Text>
+                  </Pressable>
+                </View>
+                {!!selectedAudioFile && <Text style={styles.fileName}>Đã chọn: {selectedAudioFile.name}</Text>}
+                {isFileUploaded && <Text style={styles.fileOk}>✓ File đã upload thành công.</Text>}
                 <Text style={styles.genreLabel}>Chọn thể loại</Text>
                 <View style={styles.genreWrap}>
                   {genres.map((g) => {
@@ -179,7 +251,11 @@ export const CreateScreen = () => {
                 <Text style={styles.uploadGuide}>Sau khi tạo URL: dùng PUT upload file gốc lên URL này (không đổi Content-Type), rồi bấm Xác nhận upload để backend trigger transcode.</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   <Pressable onPress={handleRequestUpload} style={[styles.primaryBtn, { flex: 1 }]}><Text style={styles.primaryBtnText}>Tạo upload URL</Text></Pressable>
-                  <Pressable onPress={handleConfirmUpload} style={[styles.primaryBtn, { flex: 1 }, !pendingSongId && styles.disabledBtn]}><Text style={styles.primaryBtnText}>Xác nhận upload</Text></Pressable>
+                  <Pressable
+                    onPress={handleConfirmUpload}
+                    style={[styles.primaryBtn, { flex: 1 }, (!pendingSongId || !selectedAudioFile || !isFileUploaded) && styles.disabledBtn]}
+                    disabled={!pendingSongId || !selectedAudioFile || !isFileUploaded}
+                  ><Text style={styles.primaryBtnText}>Xác nhận upload</Text></Pressable>
                 </View>
               </View>
             </>
@@ -207,6 +283,9 @@ const styles = StyleSheet.create({
   genreChipActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
   genreText: { color: COLORS.glass70, fontSize: 12 },
   genreTextActive: { color: COLORS.accent, fontWeight: '700' },
+  fileRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  fileName: { color: COLORS.glass60, fontSize: 12, marginBottom: 4 },
+  fileOk: { color: COLORS.accent, fontSize: 12, marginBottom: 8 },
   uploadUrl: { color: COLORS.glass60, fontSize: 12, marginBottom: 8 },
   uploadGuide: { color: COLORS.glass50, fontSize: 12, marginBottom: 10, lineHeight: 17 },
   primaryBtn: { backgroundColor: COLORS.accentDim, borderRadius: 12, minHeight: 46, alignItems: 'center', justifyContent: 'center' },

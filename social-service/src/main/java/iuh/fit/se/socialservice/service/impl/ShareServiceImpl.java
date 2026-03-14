@@ -109,6 +109,36 @@ public class ShareServiceImpl implements ShareService {
         }
     }
 
+    @Override
+    public ShareResponse getAlbumShareLink(UUID albumId, String platform) {
+        String url = frontendUrl + "/album/" + albumId;
+        String platformUrl = buildPlatformUrl(platform, url);
+        return ShareResponse.builder()
+                .shareUrl(platformUrl)
+                .platform(platform)
+                .build();
+    }
+
+    @Override
+    public ShareResponse getAlbumQrCode(UUID albumId) {
+        String url = frontendUrl + "/album/" + albumId;
+        try {
+            QRCodeWriter writer = new QRCodeWriter();
+            BitMatrix matrix = writer.encode(url, BarcodeFormat.QR_CODE, 300, 300);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(matrix, "PNG", baos);
+            String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
+            return ShareResponse.builder()
+                    .shareUrl(url)
+                    .qrCodeBase64("data:image/png;base64," + base64)
+                    .platform("qr")
+                    .build();
+        } catch (Exception e) {
+            log.error("Album QR generation failed for albumId={}", albumId, e);
+            return ShareResponse.builder().shareUrl(url).platform("qr").build();
+        }
+    }
+
     private void recordShare(UUID songId, UUID artistId, UUID userId, String platform) {
         songShareRepository.save(SongShare.builder()
                 .songId(songId)

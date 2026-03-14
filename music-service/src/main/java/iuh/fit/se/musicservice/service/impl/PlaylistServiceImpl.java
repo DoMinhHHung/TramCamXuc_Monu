@@ -313,12 +313,12 @@ public class PlaylistServiceImpl implements PlaylistService {
         }
 
         PlaylistSong newNode = PlaylistSong.builder()
+                .id(UUID.randomUUID())
                 .playlist(playlist)
                 .song(song)
                 .addedAt(LocalDateTime.now())
                 .build();
 
-        newNode = playlistSongRepository.save(newNode);
         linkedListService.append(playlistId, newNode);
 
         log.info("Song {} added to playlist {} by user {}", songId, playlistId, userId);
