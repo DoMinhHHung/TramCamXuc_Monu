@@ -1,5 +1,21 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from '@react-navigation/native';
@@ -24,38 +40,644 @@ import {
   updateFeedPost,
 } from '../../services/social';
 
-const PUBLIC_LINK_BASE = 'https://phazelsound.oopsgolden.id.vn';
-const socials = ['Facebook', 'Instagram', 'TikTok', 'YouTube', 'Discord'];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const timeAgo = (iso: string): string => {
   const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.max(1, Math.floor(diffMs / 60000));
-  if (mins < 60) return `${mins} phút trước`;
+  const mins = Math.max(1, Math.floor(diffMs / 60_000));
+  if (mins < 60) return `${mins} phút`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  const days = Math.floor(hours / 24);
-  return `${days} ngày trước`;
+  if (hours < 24) return `${hours} giờ`;
+  return `${Math.floor(hours / 24)} ngày`;
 };
+
+const getAvatarColors = (id: string): [string, string] => {
+  const palette: [string, string][] = [
+    [COLORS.gradPurple, COLORS.accent],
+    [COLORS.cardTrendingFrom, COLORS.cardTrendingTo],
+    [COLORS.cardAcousticFrom, COLORS.cardAcousticTo],
+    [COLORS.gradIndigo, COLORS.accentAlt],
+    [COLORS.cardLofiFrom, COLORS.catRnbTo],
+  ];
+  const idx = id.charCodeAt(0) % palette.length;
+  return palette[idx];
+};
+
+const getInitials = (id: string) =>
+    id.slice(0, 2).toUpperCase();
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+/** Avatar nhỏ — dùng gradient + initials vì không có URL */
+const Avatar = ({
+                  id,
+                  size = 40,
+                }: {
+  id: string;
+  size?: number;
+}) => {
+  const colors = getAvatarColors(id);
+  return (
+      <LinearGradient
+          colors={colors}
+          style={[
+            styles.avatar,
+            { width: size, height: size, borderRadius: size / 2 },
+          ]}
+      >
+        <Text style={[styles.avatarText, { fontSize: size * 0.34 }]}>
+          {getInitials(id)}
+        </Text>
+      </LinearGradient>
+  );
+};
+
+/** Nút action (like / comment / share) */
+const ActionBtn = ({
+                     icon,
+                     label,
+                     active,
+                     onPress,
+                   }: {
+  icon: string;
+  label: string | number;
+  active?: boolean;
+  onPress: () => void;
+}) => (
+    <Pressable style={styles.actionBtn} onPress={onPress} hitSlop={8}>
+      <Text style={[styles.actionIcon, active && { color: COLORS.accent }]}>
+        {icon}
+      </Text>
+      {Number(label) > 0 && (
+          <Text style={[styles.actionLabel, active && { color: COLORS.accent }]}>
+            {label}
+          </Text>
+      )}
+    </Pressable>
+);
+
+// ─── Compose Modal ─────────────────────────────────────────────────────────────
+
+interface ComposeModalProps {
+  visible: boolean;
+  userId: string;
+  onClose: () => void;
+  onPost: (title: string, caption: string) => Promise<void>;
+  posting: boolean;
+}
+
+const ComposeModal = ({
+                        visible,
+                        userId,
+                        onClose,
+                        onPost,
+                        posting,
+                      }: ComposeModalProps) => {
+  const insets = useSafeAreaInsets();
+  const [title, setTitle]   = useState('');
+  const [caption, setCaption] = useState('');
+  const inputRef = useRef<TextInput>(null);
+
+  // Focus input khi mở
+  useEffect(() => {
+    if (visible) {
+      const t = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(t);
+    } else {
+      setTitle('');
+      setCaption('');
+    }
+  }, [visible]);
+
+  const canPost = title.trim().length > 0;
+
+  const handlePost = async () => {
+    if (!canPost || posting) return;
+    await onPost(title.trim(), caption.trim());
+    setTitle('');
+    setCaption('');
+  };
+
+  return (
+      <Modal
+          visible={visible}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={onClose}
+      >
+        <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.composeRoot, { paddingTop: insets.top + 4 }]}>
+            {/* Header */}
+            <View style={styles.composeHeader}>
+              <Pressable onPress={onClose} style={styles.composeCancelBtn}>
+                <Text style={styles.composeCancelText}>Huỷ</Text>
+              </Pressable>
+              <Text style={styles.composeHeaderTitle}>Tạo bài viết</Text>
+              <Pressable
+                  style={[
+                    styles.composePostBtn,
+                    !canPost && styles.composePostBtnDisabled,
+                  ]}
+                  onPress={handlePost}
+                  disabled={!canPost || posting}
+              >
+                {posting ? (
+                    <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                    <Text style={styles.composePostBtnText}>Đăng</Text>
+                )}
+              </Pressable>
+            </View>
+
+            <View style={styles.composeDivider} />
+
+            {/* User row */}
+            <View style={styles.composeUserRow}>
+              <Avatar id={userId} size={44} />
+              <View style={styles.composeUserInfo}>
+                <Text style={styles.composeUserName}>
+                  {userId.slice(0, 8)}...
+                </Text>
+                <View style={styles.composeAudienceTag}>
+                  <Text style={styles.composeAudienceIcon}>🌐</Text>
+                  <Text style={styles.composeAudienceText}>Công khai</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Inputs */}
+            <ScrollView
+                style={styles.composeBody}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+              <TextInput
+                  ref={inputRef}
+                  style={styles.composeTitleInput}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="Tiêu đề bài viết..."
+                  placeholderTextColor={COLORS.glass25}
+                  multiline
+              />
+              <TextInput
+                  style={styles.composeCaptionInput}
+                  value={caption}
+                  onChangeText={setCaption}
+                  placeholder="Chia sẻ cảm xúc âm nhạc của bạn..."
+                  placeholderTextColor={COLORS.glass20}
+                  multiline
+              />
+            </ScrollView>
+
+            {/* Bottom toolbar */}
+            <View style={[styles.composeToolbar, { paddingBottom: insets.bottom + 8 }]}>
+              <Text style={styles.composeToolbarLabel}>Thêm vào bài viết</Text>
+              <View style={styles.composeToolbarIcons}>
+                {['🎵', '🎧', '🎸', '💿'].map((e) => (
+                    <Pressable key={e} style={styles.composeToolbarIcon}>
+                      <Text style={{ fontSize: 20 }}>{e}</Text>
+                    </Pressable>
+                ))}
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+  );
+};
+
+// ─── Comment Sheet ─────────────────────────────────────────────────────────────
+
+interface CommentSheetProps {
+  visible: boolean;
+  post: FeedPost | null;
+  comments: Comment[];
+  currentUserId: string | null;
+  onClose: () => void;
+  onSendComment: (content: string) => Promise<void>;
+  onLikeComment: (c: Comment) => Promise<void>;
+  onDeleteComment: (id: string) => Promise<void>;
+  onEditComment: (id: string, content: string) => Promise<void>;
+}
+
+const CommentSheet = ({
+                        visible,
+                        post,
+                        comments,
+                        currentUserId,
+                        onClose,
+                        onSendComment,
+                        onLikeComment,
+                        onDeleteComment,
+                        onEditComment,
+                      }: CommentSheetProps) => {
+  const insets = useSafeAreaInsets();
+  const [text, setText]   = useState('');
+  const [sending, setSending] = useState(false);
+  const [editingId, setEditingId]     = useState<string | null>(null);
+  const [editingText, setEditingText] = useState('');
+  const inputRef = useRef<TextInput>(null);
+
+  const handleSend = async () => {
+    if (!text.trim() || sending) return;
+    setSending(true);
+    try {
+      await onSendComment(text.trim());
+      setText('');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleEdit = async (id: string) => {
+    if (!editingText.trim()) return;
+    await onEditComment(id, editingText.trim());
+    setEditingId(null);
+  };
+
+  if (!post) return null;
+
+  return (
+      <Modal
+          visible={visible}
+          animationType="slide"
+          transparent
+          onRequestClose={onClose}
+      >
+        <Pressable style={styles.sheetOverlay} onPress={onClose} />
+        <KeyboardAvoidingView
+            style={styles.sheetKbWrapper}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={[styles.sheetContainer, { paddingBottom: insets.bottom }]}>
+            {/* Handle */}
+            <View style={styles.sheetHandle} />
+
+            {/* Header */}
+            <View style={styles.sheetHeader}>
+              <Text style={styles.sheetTitle}>
+                Bình luận
+              </Text>
+              <Pressable onPress={onClose} hitSlop={10}>
+                <Text style={styles.sheetClose}>✕</Text>
+              </Pressable>
+            </View>
+
+            {/* Comments list */}
+            <ScrollView
+                style={styles.sheetList}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+            >
+              {comments.length === 0 && (
+                  <Text style={styles.noComments}>
+                    Chưa có bình luận nào. Hãy là người đầu tiên!
+                  </Text>
+              )}
+              {comments.map((c) => (
+                  <View key={c.id} style={styles.commentRow}>
+                    <Avatar id={c.userId} size={34} />
+                    <View style={styles.commentContent}>
+                      {editingId === c.id ? (
+                          <View style={styles.commentEditRow}>
+                            <TextInput
+                                style={styles.commentEditInput}
+                                value={editingText}
+                                onChangeText={setEditingText}
+                                autoFocus
+                                multiline
+                            />
+                            <View style={styles.commentEditActions}>
+                              <Pressable onPress={() => setEditingId(null)}>
+                                <Text style={styles.commentEditCancel}>Huỷ</Text>
+                              </Pressable>
+                              <Pressable onPress={() => handleEdit(c.id)}>
+                                <Text style={styles.commentEditSave}>Lưu</Text>
+                              </Pressable>
+                            </View>
+                          </View>
+                      ) : (
+                          <>
+                            <View style={styles.commentBubble}>
+                              <Text style={styles.commentUser}>
+                                {c.userId.slice(0, 8)}
+                              </Text>
+                              <Text style={styles.commentText}>
+                                {c.content}
+                              </Text>
+                            </View>
+                            <View style={styles.commentMeta}>
+                              <Text style={styles.commentTime}>
+                                {timeAgo(c.createdAt)}
+                              </Text>
+                              <Pressable
+                                  onPress={() => onLikeComment(c)}
+                                  hitSlop={8}
+                              >
+                                <Text style={[
+                                  styles.commentLike,
+                                  c.likedByCurrentUser && { color: COLORS.accent },
+                                ]}>
+                                  {c.likedByCurrentUser ? '♥' : '♡'}
+                                  {c.likeCount > 0 ? ` ${c.likeCount}` : ''}
+                                </Text>
+                              </Pressable>
+                              {c.userId === currentUserId && (
+                                  <>
+                                    <Pressable
+                                        onPress={() => {
+                                          setEditingId(c.id);
+                                          setEditingText(c.content);
+                                        }}
+                                        hitSlop={8}
+                                    >
+                                      <Text style={styles.commentAction}>Sửa</Text>
+                                    </Pressable>
+                                    <Pressable
+                                        onPress={() => onDeleteComment(c.id)}
+                                        hitSlop={8}
+                                    >
+                                      <Text style={[styles.commentAction, { color: COLORS.error }]}>Xoá</Text>
+                                    </Pressable>
+                                  </>
+                              )}
+                            </View>
+                          </>
+                      )}
+                    </View>
+                  </View>
+              ))}
+              <View style={{ height: 16 }} />
+            </ScrollView>
+
+            {/* Input bar */}
+            <View style={styles.commentInputBar}>
+              <Avatar id={currentUserId ?? 'anon'} size={32} />
+              <View style={styles.commentInputWrap}>
+                <TextInput
+                    ref={inputRef}
+                    style={styles.commentInput}
+                    value={text}
+                    onChangeText={setText}
+                    placeholder="Viết bình luận..."
+                    placeholderTextColor={COLORS.glass30}
+                    multiline
+                    maxLength={500}
+                />
+              </View>
+              <Pressable
+                  style={[
+                    styles.commentSendBtn,
+                    (!text.trim() || sending) && { opacity: 0.35 },
+                  ]}
+                  onPress={handleSend}
+                  disabled={!text.trim() || sending}
+              >
+                <Text style={styles.commentSendIcon}>➤</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+  );
+};
+
+// ─── Post Card ────────────────────────────────────────────────────────────────
+
+interface PostCardProps {
+  post: FeedPost;
+  currentUserId: string | null;
+  onLike: (post: FeedPost) => void;
+  onComment: (post: FeedPost) => void;
+  onShare: (post: FeedPost) => void;
+  onDelete: (post: FeedPost) => void;
+  onEdit: (post: FeedPost) => void;
+}
+
+const PostCard = ({
+                    post,
+                    currentUserId,
+                    onLike,
+                    onComment,
+                    onShare,
+                    onDelete,
+                    onEdit,
+                  }: PostCardProps) => {
+  const isOwner = currentUserId === post.ownerId;
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+      <View style={styles.postCard}>
+        {/* Header */}
+        <View style={styles.postHeader}>
+          <Avatar id={post.ownerId} size={42} />
+          <View style={styles.postMeta}>
+            <Text style={styles.postOwnerName}>
+              {post.ownerId.slice(0, 10)}...
+            </Text>
+            <View style={styles.postMetaRow}>
+              <Text style={styles.postTime}>{timeAgo(post.createdAt)} trước</Text>
+              <Text style={styles.postMetaDot}>·</Text>
+              <Text style={styles.postType}>
+                {post.contentType === 'SONG' ? '🎵' :
+                    post.contentType === 'ALBUM' ? '💿' :
+                        post.contentType === 'PLAYLIST' ? '📋' : '📝'}
+              </Text>
+              <Text style={styles.postMetaDot}>·</Text>
+              <Text style={styles.postVisibility}>🌐</Text>
+            </View>
+          </View>
+          {isOwner && (
+              <Pressable
+                  style={styles.postMenuBtn}
+                  onPress={() => setMenuOpen(v => !v)}
+                  hitSlop={10}
+              >
+                <Text style={styles.postMenuIcon}>•••</Text>
+              </Pressable>
+          )}
+        </View>
+
+        {/* Owner menu */}
+        {menuOpen && isOwner && (
+            <View style={styles.postMenu}>
+              <Pressable
+                  style={styles.postMenuItem}
+                  onPress={() => { setMenuOpen(false); onEdit(post); }}
+              >
+                <Text style={styles.postMenuItemIcon}>✏️</Text>
+                <Text style={styles.postMenuItemText}>Chỉnh sửa bài viết</Text>
+              </Pressable>
+              <View style={styles.postMenuDivider} />
+              <Pressable
+                  style={styles.postMenuItem}
+                  onPress={() => { setMenuOpen(false); onDelete(post); }}
+              >
+                <Text style={styles.postMenuItemIcon}>🗑️</Text>
+                <Text style={[styles.postMenuItemText, { color: COLORS.error }]}>
+                  Xoá bài viết
+                </Text>
+              </Pressable>
+            </View>
+        )}
+
+        {/* Content */}
+        <View style={styles.postContent}>
+          {post.title && (
+              <Text style={styles.postTitle}>{post.title}</Text>
+          )}
+          {post.caption && (
+              <Text style={styles.postCaption}>{post.caption}</Text>
+          )}
+        </View>
+
+        {/* Stats row */}
+        {(post.likeCount > 0 || post.commentCount > 0) && (
+            <View style={styles.postStats}>
+              {post.likeCount > 0 && (
+                  <View style={styles.postStatItem}>
+                    <View style={styles.postLikeIcon}>
+                      <Text style={{ fontSize: 10 }}>♥</Text>
+                    </View>
+                    <Text style={styles.postStatText}>{post.likeCount}</Text>
+                  </View>
+              )}
+              {post.commentCount > 0 && (
+                  <Text style={styles.postStatText}>
+                    {post.commentCount} bình luận
+                  </Text>
+              )}
+            </View>
+        )}
+
+        {/* Divider */}
+        <View style={styles.postDivider} />
+
+        {/* Action bar */}
+        <View style={styles.postActions}>
+          <ActionBtn
+              icon={post.likedByCurrentUser ? '♥' : '♡'}
+              label={post.likeCount}
+              active={post.likedByCurrentUser}
+              onPress={() => onLike(post)}
+          />
+          <ActionBtn
+              icon="💬"
+              label={post.commentCount}
+              onPress={() => onComment(post)}
+          />
+          <ActionBtn
+              icon="↗"
+              label={post.shareCount}
+              onPress={() => onShare(post)}
+          />
+        </View>
+      </View>
+  );
+};
+
+// ─── Edit Post Modal ──────────────────────────────────────────────────────────
+
+interface EditPostModalProps {
+  visible: boolean;
+  post: FeedPost | null;
+  onClose: () => void;
+  onSave: (title: string, caption: string) => Promise<void>;
+}
+
+const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) => {
+  const insets = useSafeAreaInsets();
+  const [title, setTitle]   = useState('');
+  const [caption, setCaption] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (post) {
+      setTitle(post.title ?? '');
+      setCaption(post.caption ?? '');
+    }
+  }, [post]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try { await onSave(title, caption); }
+    finally { setSaving(false); }
+  };
+
+  return (
+      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[styles.composeRoot, { paddingTop: insets.top + 4 }]}>
+            <View style={styles.composeHeader}>
+              <Pressable onPress={onClose} style={styles.composeCancelBtn}>
+                <Text style={styles.composeCancelText}>Huỷ</Text>
+              </Pressable>
+              <Text style={styles.composeHeaderTitle}>Chỉnh sửa bài viết</Text>
+              <Pressable
+                  style={[styles.composePostBtn, saving && styles.composePostBtnDisabled]}
+                  onPress={handleSave}
+                  disabled={saving}
+              >
+                {saving
+                    ? <ActivityIndicator size="small" color={COLORS.white} />
+                    : <Text style={styles.composePostBtnText}>Lưu</Text>
+                }
+              </Pressable>
+            </View>
+            <View style={styles.composeDivider} />
+            <ScrollView style={styles.composeBody} keyboardShouldPersistTaps="handled">
+              <TextInput
+                  style={styles.composeTitleInput}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="Tiêu đề..."
+                  placeholderTextColor={COLORS.glass25}
+                  multiline
+                  autoFocus
+              />
+              <TextInput
+                  style={styles.composeCaptionInput}
+                  value={caption}
+                  onChangeText={setCaption}
+                  placeholder="Caption..."
+                  placeholderTextColor={COLORS.glass20}
+                  multiline
+              />
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+  );
+};
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export const DiscoverScreen = () => {
   const insets = useSafeAreaInsets();
   const { authSession } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const currentUserId = authSession?.profile?.id ?? null;
+
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [posting, setPosting] = useState(false);
-  const [title, setTitle] = useState('');
-  const [caption, setCaption] = useState('');
-  const [posts, setPosts] = useState<FeedPost[]>([]);
+  const [posting, setPosting]       = useState(false);
+  const [posts, setPosts]           = useState<FeedPost[]>([]);
+
+  // Compose
+  const [composeOpen, setComposeOpen] = useState(false);
+
+  // Edit
   const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
-  const [editingTitle, setEditingTitle] = useState('');
-  const [editingCaption, setEditingCaption] = useState('');
 
-  const [commentPost, setCommentPost] = useState<FeedPost | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [newComment, setNewComment] = useState('');
-  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-  const [editingCommentContent, setEditingCommentContent] = useState('');
+  // Comments
+  const [commentPost, setCommentPost]   = useState<FeedPost | null>(null);
+  const [comments, setComments]         = useState<Comment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
 
+  // ── Feed ──────────────────────────────────────────────────────────────────
   const loadFeed = async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
     try {
       if (mode === 'initial') setLoading(true);
@@ -70,194 +692,676 @@ export const DiscoverScreen = () => {
     }
   };
 
-  const loadComments = async (postId: string) => {
-    try {
-      const data = await getPostComments(postId, { page: 0, size: 50 });
-      setComments(data.content ?? []);
-    } catch {
-      setComments([]);
-    }
-  };
-
   useEffect(() => {
     void loadFeed('initial');
-    const id = setInterval(() => void loadFeed('silent'), 10000);
+    const id = setInterval(() => void loadFeed('silent'), 15_000);
     return () => clearInterval(id);
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadFeed('silent');
-    }, []),
-  );
+  useFocusEffect(useCallback(() => { void loadFeed('silent'); }, []));
 
-  const handleCreatePost = async () => {
-    if (!title.trim()) return Alert.alert('Thiếu tiêu đề', 'Vui lòng nhập title cho feed post.');
+  // ── Create post ───────────────────────────────────────────────────────────
+  const handleCreatePost = async (title: string, caption: string) => {
+    setPosting(true);
     try {
-      setPosting(true);
-      await createFeedPost({ visibility: 'PUBLIC', title: title.trim(), caption: caption.trim() || undefined });
-      setTitle('');
-      setCaption('');
+      await createFeedPost({
+        visibility: 'PUBLIC',
+        title,
+        caption: caption || undefined,
+      });
+      setComposeOpen(false);
       await loadFeed('silent');
-    } catch (error: any) {
-      Alert.alert('Không thể đăng feed', error?.message || 'Vui lòng thử lại');
+    } catch (err: any) {
+      Alert.alert('Không thể đăng bài', err?.message ?? 'Vui lòng thử lại.');
     } finally {
       setPosting(false);
     }
   };
 
-  const toggleFeedLike = async (post: FeedPost) => {
+  // ── Like ──────────────────────────────────────────────────────────────────
+  const handleLike = async (post: FeedPost) => {
     try {
       if (post.likedByCurrentUser) await unlikeFeedPost(post.id);
       else await likeFeedPost(post.id);
       await loadFeed('silent');
-    } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể thao tác like');
+    } catch (err: any) {
+      Alert.alert('Lỗi', err?.message);
     }
   };
 
-  const heroSubtitle = useMemo(() => 'Newfeed xã hội âm nhạc realtime.', []);
+  // ── Share ─────────────────────────────────────────────────────────────────
+  const handleShare = (post: FeedPost) => {
+    Share.share({
+      message: `${post.title ?? 'Bài viết âm nhạc'}\nhttps://phazelsound.oopsgolden.id.vn/feed/${post.id}`,
+    });
+  };
 
+  // ── Delete ────────────────────────────────────────────────────────────────
+  const handleDelete = (post: FeedPost) => {
+    Alert.alert('Xoá bài viết?', 'Hành động này không thể hoàn tác.', [
+      { text: 'Huỷ', style: 'cancel' },
+      {
+        text: 'Xoá',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteFeedPost(post.id);
+          await loadFeed('silent');
+        },
+      },
+    ]);
+  };
+
+  // ── Edit ──────────────────────────────────────────────────────────────────
+  const handleSaveEdit = async (title: string, caption: string) => {
+    if (!editingPost) return;
+    await updateFeedPost(editingPost.id, {
+      visibility: editingPost.visibility,
+      title: title.trim(),
+      caption: caption.trim() || undefined,
+    });
+    setEditingPost(null);
+    await loadFeed('silent');
+  };
+
+  // ── Comments ──────────────────────────────────────────────────────────────
+  const openComments = async (post: FeedPost) => {
+    setCommentPost(post);
+    setCommentsLoading(true);
+    try {
+      const data = await getPostComments(post.id, { page: 0, size: 50 });
+      setComments(data.content ?? []);
+    } catch { setComments([]); }
+    finally { setCommentsLoading(false); }
+  };
+
+  const reloadComments = async () => {
+    if (!commentPost) return;
+    const data = await getPostComments(commentPost.id, { page: 0, size: 50 });
+    setComments(data.content ?? []);
+    await loadFeed('silent');
+  };
+
+  const handleSendComment = async (content: string) => {
+    if (!commentPost) return;
+    await createPostComment({ postId: commentPost.id, content });
+    await reloadComments();
+  };
+
+  const handleLikeComment = async (c: Comment) => {
+    if (c.likedByCurrentUser) await unlikeComment(c.id);
+    else await likeComment(c.id);
+    await reloadComments();
+  };
+
+  const handleDeleteComment = async (id: string) => {
+    await deleteComment(id);
+    await reloadComments();
+  };
+
+  const handleEditComment = async (id: string, content: string) => {
+    await updateComment(id, content);
+    await reloadComments();
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.root}>
-      <StatusBar style="light" />
-      <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadFeed('refresh')} tintColor={COLORS.accent} />} contentContainerStyle={{ paddingBottom: 36 }}>
-        <LinearGradient colors={[COLORS.gradNavy, COLORS.bg]} style={[styles.hero, { paddingTop: insets.top + 20 }]}>
-          <Text style={styles.title}>Discovery Feed</Text>
-          <Text style={styles.sub}>{heroSubtitle}</Text>
-          <View style={styles.socialRow}>{socials.map((item) => <View key={item} style={styles.socialChip}><Text style={styles.socialChipText}>{item}</Text></View>)}</View>
+      <View style={styles.root}>
+        <StatusBar style="light" />
 
-          <View style={styles.createCard}>
-            <TextInput value={title} onChangeText={setTitle} placeholder="Title bài đăng" placeholderTextColor={COLORS.glass45} style={styles.input} />
-            <TextInput value={caption} onChangeText={setCaption} placeholder="Caption..." placeholderTextColor={COLORS.glass45} style={[styles.input, styles.inputArea]} multiline />
-            <Pressable onPress={handleCreatePost} disabled={posting} style={styles.postBtn}><Text style={styles.postBtnText}>{posting ? 'Đang đăng...' : 'Đăng Feed'}</Text></Pressable>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.body}>
-          {editingPost && (
-            <View style={styles.editCard}>
-              <Text style={styles.editTitle}>Sửa bài đăng</Text>
-              <TextInput value={editingTitle} onChangeText={setEditingTitle} placeholder="Title" placeholderTextColor={COLORS.glass45} style={styles.input} />
-              <TextInput value={editingCaption} onChangeText={setEditingCaption} placeholder="Caption" placeholderTextColor={COLORS.glass45} style={[styles.input, styles.inputArea]} multiline />
-              <View style={styles.actionRow}>
-                <Pressable onPress={() => setEditingPost(null)}><Text style={styles.actionDanger}>Hủy</Text></Pressable>
-                <Pressable onPress={async () => {
-                  try {
-                    await updateFeedPost(editingPost.id, { visibility: editingPost.visibility, title: editingTitle.trim(), caption: editingCaption.trim() });
-                    setEditingPost(null);
-                    await loadFeed('silent');
-                  } catch (error: any) {
-                    Alert.alert('Lỗi', error?.message || 'Không thể sửa bài viết');
-                  }
-                }}><Text style={styles.action}>Lưu</Text></Pressable>
+        <ScrollView
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => void loadFeed('refresh')}
+                  tintColor={COLORS.accent}
+              />
+            }
+            contentContainerStyle={{ paddingBottom: 100 }}
+        >
+          {/* ── Header ─────────────────────────────────────────────── */}
+          <LinearGradient
+              colors={[COLORS.gradNavy, COLORS.bg]}
+              style={[styles.header, { paddingTop: insets.top + 16 }]}
+          >
+            <View style={styles.headerRow}>
+              <Text style={styles.headerTitle}>Khám phá</Text>
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>LIVE</Text>
               </View>
             </View>
+            <Text style={styles.headerSub}>
+              Cộng đồng âm nhạc · {posts.length} bài đăng
+            </Text>
+          </LinearGradient>
+
+          {/* ── Composer bar ────────────────────────────────────────── */}
+          <View style={styles.composerBar}>
+            <Avatar id={currentUserId ?? 'guest'} size={40} />
+            <Pressable
+                style={styles.composerInput}
+                onPress={() => setComposeOpen(true)}
+            >
+              <Text style={styles.composerPlaceholder}>
+                Bạn đang nghĩ gì về âm nhạc?
+              </Text>
+            </Pressable>
+            <Pressable
+                style={styles.composerIconBtn}
+                onPress={() => setComposeOpen(true)}
+            >
+              <Text style={styles.composerIconBtnText}>🎵</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.feedDivider} />
+
+          {/* ── Feed ────────────────────────────────────────────────── */}
+          {loading ? (
+              <View style={styles.loadingWrap}>
+                <ActivityIndicator color={COLORS.accent} />
+              </View>
+          ) : posts.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyEmoji}>🎵</Text>
+                <Text style={styles.emptyTitle}>Chưa có bài đăng nào</Text>
+                <Text style={styles.emptySub}>
+                  Hãy là người đầu tiên chia sẻ!
+                </Text>
+                <Pressable
+                    style={styles.emptyBtn}
+                    onPress={() => setComposeOpen(true)}
+                >
+                  <Text style={styles.emptyBtnText}>Tạo bài viết</Text>
+                </Pressable>
+              </View>
+          ) : (
+              posts.map(post => (
+                  <PostCard
+                      key={post.id}
+                      post={post}
+                      currentUserId={currentUserId}
+                      onLike={handleLike}
+                      onComment={openComments}
+                      onShare={handleShare}
+                      onDelete={handleDelete}
+                      onEdit={setEditingPost}
+                  />
+              ))
           )}
+        </ScrollView>
 
-          {loading ? <ActivityIndicator color={COLORS.accent} /> : null}
-          {!loading && posts.length === 0 ? <View style={styles.emptyCard}><Text style={styles.emptyText}>Chưa có bài đăng trong feed.</Text></View> : null}
+        {/* ── Modals ─────────────────────────────────────────────────── */}
+        <ComposeModal
+            visible={composeOpen}
+            userId={currentUserId ?? 'guest'}
+            onClose={() => setComposeOpen(false)}
+            onPost={handleCreatePost}
+            posting={posting}
+        />
 
-          {posts.map((post) => (
-            <View key={post.id} style={styles.postCard}>
-              <Text style={styles.postTitle}>{post.title || 'Bài chia sẻ âm nhạc'}</Text>
-              <Text style={styles.postOwner}>Đăng bởi: {post.ownerType} • {post.ownerId}</Text>
-              {!!post.caption && <Text style={styles.postCaption}>{post.caption}</Text>}
-              <Text style={styles.postMeta}>{post.contentType} • {timeAgo(post.createdAt)}</Text>
-              <View style={styles.statRow}><Text style={styles.stat}>❤️ {post.likeCount}</Text><Text style={styles.stat}>💬 {post.commentCount}</Text><Text style={styles.stat}>↗ {post.shareCount}</Text></View>
-              <View style={styles.actionRow}>
-                <Pressable onPress={() => void toggleFeedLike(post)}><Text style={styles.action}>{post.likedByCurrentUser ? '💜 Bỏ tim' : '🤍 Tim'}</Text></Pressable>
-                <Pressable onPress={async () => { setCommentPost(post); await loadComments(post.id); }}><Text style={styles.action}>💬 Comment</Text></Pressable>
-                <Pressable onPress={() => void Share.share({ message: `${post.title ?? 'Feed post'}\n${PUBLIC_LINK_BASE}/feed/${post.id}` })}><Text style={styles.action}>↗ Share</Text></Pressable>
-                {(authSession?.profile?.id === post.ownerId || authSession?.profile?.role === 'ADMIN') && (<>
-                  <Pressable onPress={async () => { await deleteFeedPost(post.id); await loadFeed('silent'); }}><Text style={styles.actionDanger}>🗑 Xóa</Text></Pressable>
-                  <Pressable onPress={() => { setEditingPost(post); setEditingTitle(post.title ?? ''); setEditingCaption(post.caption ?? ''); }}><Text style={styles.action}>✏ Sửa</Text></Pressable>
-                </>)}
-              </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
+        <EditPostModal
+            visible={!!editingPost}
+            post={editingPost}
+            onClose={() => setEditingPost(null)}
+            onSave={handleSaveEdit}
+        />
 
-      <Modal visible={!!commentPost} transparent animationType="slide" onRequestClose={() => setCommentPost(null)}>
-        <Pressable style={styles.commentBackdrop} onPress={() => setCommentPost(null)}>
-          <View style={styles.commentSheet}>
-            <Text style={styles.editTitle}>Comment ({commentPost?.title})</Text>
-            <TextInput value={newComment} onChangeText={setNewComment} placeholder="Nhập comment" placeholderTextColor={COLORS.glass45} style={styles.input} />
-            <Pressable style={styles.postBtn} onPress={async () => {
-              if (!commentPost || !newComment.trim()) return;
-              await createPostComment({ postId: commentPost.id, content: newComment.trim() });
-              setNewComment('');
-              await loadComments(commentPost.id);
-              await loadFeed('silent');
-            }}><Text style={styles.postBtnText}>Gửi</Text></Pressable>
-
-            <ScrollView style={{ maxHeight: 260, marginTop: 10 }}>
-              {comments.map((c) => (
-                <View key={c.id} style={styles.commentItem}>
-                  {editingCommentId === c.id ? (
-                    <>
-                      <TextInput value={editingCommentContent} onChangeText={setEditingCommentContent} style={styles.input} placeholder="Sửa comment" placeholderTextColor={COLORS.glass45} />
-                      <View style={styles.actionRow}>
-                        <Pressable onPress={() => setEditingCommentId(null)}><Text style={styles.actionDanger}>Hủy</Text></Pressable>
-                        <Pressable onPress={async () => {
-                          await updateComment(c.id, editingCommentContent.trim());
-                          setEditingCommentId(null);
-                          if (commentPost) await loadComments(commentPost.id);
-                        }}><Text style={styles.action}>Lưu</Text></Pressable>
-                      </View>
-                    </>
-                  ) : (
-                    <>
-                      <Text style={styles.commentText}>{c.content}</Text>
-                      <Text style={styles.postMeta}>{timeAgo(c.createdAt)} • ❤️ {c.likeCount}</Text>
-                      <View style={styles.actionRow}>
-                        <Pressable onPress={async () => { c.likedByCurrentUser ? await unlikeComment(c.id) : await likeComment(c.id); if (commentPost) await loadComments(commentPost.id); }}><Text style={styles.action}>{c.likedByCurrentUser ? 'Bỏ like' : 'Like'}</Text></Pressable>
-                        <Pressable onPress={() => { setEditingCommentId(c.id); setEditingCommentContent(c.content); }}><Text style={styles.action}>Sửa</Text></Pressable>
-                        <Pressable onPress={async () => { await deleteComment(c.id); if (commentPost) await loadComments(commentPost.id); }}><Text style={styles.actionDanger}>Xóa</Text></Pressable>
-                      </View>
-                    </>
-                  )}
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
-    </View>
+        <CommentSheet
+            visible={!!commentPost}
+            post={commentPost}
+            comments={comments}
+            currentUserId={currentUserId}
+            onClose={() => setCommentPost(null)}
+            onSendComment={handleSendComment}
+            onLikeComment={handleLikeComment}
+            onDeleteComment={handleDeleteComment}
+            onEditComment={handleEditComment}
+        />
+      </View>
   );
 };
 
+// ─── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
-  hero: { paddingHorizontal: 20, paddingBottom: 20 },
-  title: { color: COLORS.white, fontSize: 28, fontWeight: '800' },
-  sub: { color: COLORS.glass50, marginTop: 8 },
-  socialRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  socialChip: { backgroundColor: COLORS.glass10, borderColor: COLORS.glass20, borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  socialChipText: { color: COLORS.glass90, fontSize: 12 },
-  createCard: { marginTop: 14, backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.glass07, padding: 12 },
-  input: { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass12, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
-  inputArea: { minHeight: 70, textAlignVertical: 'top' },
-  postBtn: { backgroundColor: COLORS.accentDim, borderRadius: 8, minHeight: 38, alignItems: 'center', justifyContent: 'center' },
-  postBtnText: { color: COLORS.white, fontWeight: '700' },
-  body: { paddingHorizontal: 20, gap: 12 },
-  postCard: { backgroundColor: COLORS.surface, borderRadius: 14, borderWidth: 1, borderColor: COLORS.glass07, padding: 14 },
-  postTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  postOwner: { color: COLORS.glass50, marginTop: 4, fontSize: 12 },
-  postCaption: { color: COLORS.glass70, marginTop: 8, lineHeight: 20 },
-  postMeta: { color: COLORS.glass45, marginTop: 10, fontSize: 12 },
-  statRow: { flexDirection: 'row', gap: 14, marginTop: 10 },
-  stat: { color: COLORS.glass80, fontSize: 12 },
-  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 10 },
-  action: { color: COLORS.accent, fontSize: 12, fontWeight: '700' },
-  actionDanger: { color: COLORS.error, fontSize: 12, fontWeight: '700' },
-  emptyCard: { backgroundColor: COLORS.glass05, borderRadius: 12, padding: 16 },
-  emptyText: { color: COLORS.glass50 },
-  editCard: { backgroundColor: COLORS.surfaceLow, borderRadius: 10, borderWidth: 1, borderColor: COLORS.glass10, padding: 10, marginBottom: 10 },
-  editTitle: { color: COLORS.white, fontWeight: '700', marginBottom: 8 },
-  commentBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
-  commentSheet: { backgroundColor: COLORS.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 16 },
-  commentItem: { borderBottomWidth: 1, borderBottomColor: COLORS.glass10, paddingVertical: 8 },
-  commentText: { color: COLORS.white },
+
+  // ── Header ───────────────────────────────────────────────────────────────
+  header: { paddingHorizontal: 20, paddingBottom: 20 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerTitle: { color: COLORS.white, fontSize: 26, fontWeight: '800' },
+  headerBadge: {
+    backgroundColor: COLORS.error,
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  headerBadgeText: {
+    color: COLORS.white,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  headerSub: { color: COLORS.glass40, fontSize: 13, marginTop: 4 },
+
+  // ── Composer bar ──────────────────────────────────────────────────────────
+  composerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
+    backgroundColor: COLORS.bg,
+  },
+  composerInput: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: COLORS.glass10,
+  },
+  composerPlaceholder: {
+    color: COLORS.glass35,
+    fontSize: 14,
+  },
+  composerIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.glass10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composerIconBtnText: { fontSize: 18 },
+
+  feedDivider: {
+    height: 6,
+    backgroundColor: COLORS.surface,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: COLORS.glass06,
+  },
+
+  // ── Avatar ────────────────────────────────────────────────────────────────
+  avatar: { alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: COLORS.white, fontWeight: '700' },
+
+  // ── Post card ─────────────────────────────────────────────────────────────
+  postCard: {
+    backgroundColor: COLORS.bg,
+    borderBottomWidth: 6,
+    borderBottomColor: COLORS.surface,
+    paddingVertical: 12,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    gap: 10,
+  },
+  postMeta: { flex: 1 },
+  postOwnerName: {
+    color: COLORS.white,
+    fontWeight: '700',
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  postMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  postTime: { color: COLORS.glass40, fontSize: 12 },
+  postMetaDot: { color: COLORS.glass25, fontSize: 12 },
+  postType: { fontSize: 12 },
+  postVisibility: { fontSize: 11 },
+  postMenuBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+  },
+  postMenuIcon: {
+    color: COLORS.glass50,
+    fontSize: 13,
+    letterSpacing: 1,
+    fontWeight: '700',
+  },
+
+  // Post menu dropdown
+  postMenu: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.glass10,
+    overflow: 'hidden',
+  },
+  postMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  postMenuItemIcon: { fontSize: 16 },
+  postMenuItemText: { color: COLORS.white, fontSize: 14, fontWeight: '500' },
+  postMenuDivider: { height: 1, backgroundColor: COLORS.glass06 },
+
+  // Post content
+  postContent: { paddingHorizontal: 16, marginBottom: 10 },
+  postTitle: {
+    color: COLORS.white,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 21,
+    marginBottom: 4,
+  },
+  postCaption: {
+    color: COLORS.glass80,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+
+  // Post stats
+  postStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  postStatItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  postLikeIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postStatText: { color: COLORS.glass45, fontSize: 12 },
+
+  postDivider: {
+    height: 1,
+    backgroundColor: COLORS.glass06,
+    marginHorizontal: 16,
+    marginBottom: 4,
+  },
+
+  // Action bar
+  postActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 5,
+    borderRadius: 8,
+  },
+  actionIcon: { color: COLORS.glass50, fontSize: 18 },
+  actionLabel: { color: COLORS.glass50, fontSize: 13, fontWeight: '500' },
+
+  // ── Loading / empty ───────────────────────────────────────────────────────
+  loadingWrap: { paddingVertical: 48, alignItems: 'center' },
+  emptyWrap: { paddingVertical: 64, alignItems: 'center', paddingHorizontal: 32 },
+  emptyEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyTitle: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  emptySub: {
+    color: COLORS.glass40,
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  emptyBtn: {
+    backgroundColor: COLORS.accentDim,
+    borderRadius: 999,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  emptyBtnText: { color: COLORS.white, fontWeight: '700' },
+
+  // ── Compose modal ─────────────────────────────────────────────────────────
+  composeRoot: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
+  composeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  composeCancelBtn: { minWidth: 48 },
+  composeCancelText: { color: COLORS.glass60, fontSize: 15 },
+  composeHeaderTitle: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  composePostBtn: {
+    backgroundColor: COLORS.accentDim,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  composePostBtnDisabled: { opacity: 0.35 },
+  composePostBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+  composeDivider: { height: 1, backgroundColor: COLORS.glass08 },
+  composeUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  composeUserInfo: { flex: 1 },
+  composeUserName: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
+  composeAudienceTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    backgroundColor: COLORS.glass08,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: COLORS.glass12,
+  },
+  composeAudienceIcon: { fontSize: 11 },
+  composeAudienceText: { color: COLORS.glass60, fontSize: 12, fontWeight: '600' },
+  composeBody: { flex: 1, paddingHorizontal: 16 },
+  composeTitleInput: {
+    color: COLORS.white,
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 28,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  composeCaptionInput: {
+    color: COLORS.glass70,
+    fontSize: 16,
+    lineHeight: 24,
+    minHeight: 120,
+    textAlignVertical: 'top',
+    marginTop: 4,
+  },
+  composeToolbar: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.glass08,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  composeToolbarLabel: {
+    color: COLORS.glass40,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  composeToolbarIcons: { flexDirection: 'row', gap: 8 },
+  composeToolbarIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.glass10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── Comment sheet ─────────────────────────────────────────────────────────
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: COLORS.scrim,
+  },
+  sheetKbWrapper: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '85%',
+  },
+  sheetContainer: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '100%',
+    minHeight: 400,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.glass20,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.glass08,
+  },
+  sheetTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  sheetClose: { color: COLORS.glass40, fontSize: 16 },
+  sheetList: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
+
+  // No comments
+  noComments: {
+    color: COLORS.glass35,
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 32,
+  },
+
+  // Comment rows
+  commentRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  commentContent: { flex: 1 },
+  commentBubble: {
+    backgroundColor: COLORS.surfaceLow,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  commentUser: {
+    color: COLORS.white,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  commentText: { color: COLORS.glass85, fontSize: 14, lineHeight: 19 },
+  commentMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 4,
+    paddingLeft: 4,
+  },
+  commentTime: { color: COLORS.glass35, fontSize: 11 },
+  commentLike: { color: COLORS.glass45, fontSize: 12, fontWeight: '600' },
+  commentAction: { color: COLORS.glass45, fontSize: 12, fontWeight: '600' },
+
+  // Comment edit inline
+  commentEditRow: { gap: 8 },
+  commentEditInput: {
+    backgroundColor: COLORS.surfaceLow,
+    borderRadius: 12,
+    padding: 10,
+    color: COLORS.white,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder25,
+  },
+  commentEditActions: { flexDirection: 'row', gap: 16, paddingLeft: 4 },
+  commentEditCancel: { color: COLORS.glass45, fontSize: 12, fontWeight: '600' },
+  commentEditSave: { color: COLORS.accent, fontSize: 12, fontWeight: '700' },
+
+  // Input bar
+  commentInputBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.glass08,
+    gap: 10,
+  },
+  commentInputWrap: {
+    flex: 1,
+    backgroundColor: COLORS.surfaceLow,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: COLORS.glass10,
+    minHeight: 38,
+    justifyContent: 'center',
+  },
+  commentInput: {
+    color: COLORS.white,
+    fontSize: 14,
+    maxHeight: 100,
+    lineHeight: 19,
+  },
+  commentSendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.accentDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  commentSendIcon: { color: COLORS.white, fontSize: 14 },
 });
