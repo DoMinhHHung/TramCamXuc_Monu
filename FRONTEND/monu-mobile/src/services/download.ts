@@ -1,56 +1,15 @@
-const FS = require('expo-file-system') as ExpoFileSystem;
+// src/services/download.ts
+//
+// FIX: Import from 'expo-file-system/legacy' to suppress the deprecation warning
+// introduced in Expo SDK 54.  The legacy module is API-identical to the old
+// default import, so no other changes are required.
+
+import * as FS from 'expo-file-system/legacy';
 import { apiClient } from './api';
 import { Song } from './music';
 
-
-interface DownloadProgressData {
-    totalBytesWritten: number;
-    totalBytesExpectedToWrite: number;
-}
-
-interface DownloadResult {
-    uri: string;
-    status: number;
-    headers: Record<string, string>;
-    md5?: string;
-}
-
-interface FileInfo {
-    exists: boolean;
-    uri: string;
-    size?: number;
-    isDirectory?: boolean;
-    modificationTime?: number;
-    md5?: string;
-}
-
-interface DownloadResumable {
-    downloadAsync(): Promise<DownloadResult | null>;
-    pauseAsync(): Promise<void>;
-    resumeAsync(): Promise<DownloadResult | null>;
-}
-
-interface ExpoFileSystem {
-    documentDirectory: string | null;
-    cacheDirectory: string | null;
-    getInfoAsync(uri: string, options?: { md5?: boolean; size?: boolean }): Promise<FileInfo>;
-    makeDirectoryAsync(uri: string, options?: { intermediates?: boolean }): Promise<void>;
-    writeAsStringAsync(uri: string, contents: string, options?: { encoding?: string }): Promise<void>;
-    readAsStringAsync(uri: string, options?: { encoding?: string; position?: number; length?: number }): Promise<string>;
-    deleteAsync(uri: string, options?: { idempotent?: boolean }): Promise<void>;
-    copyAsync(options: { from: string; to: string }): Promise<void>;
-    createDownloadResumable(
-        uri: string,
-        fileUri: string,
-        options?: object,
-        callback?: (data: DownloadProgressData) => void,
-        resumeData?: string,
-    ): DownloadResumable;
-}
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-// documentDirectory có thể null trên web — dùng fallback rỗng
 const DOC_DIR       = FS.documentDirectory ?? '';
 const DOWNLOADS_DIR = `${DOC_DIR}monu_downloads/`;
 const META_FILE     = `${DOC_DIR}monu_downloads_meta.json`;
@@ -72,8 +31,9 @@ export type DownloadStatus =
     | { state: 'done' }
     | { state: 'error'; message: string };
 
-// ─── In-memory map của active DownloadResumable ───────────────────────────────
-const activeDownloads = new Map<string, DownloadResumable>();
+// ─── In-memory map of active DownloadResumable ─────────────────────────────
+
+const activeDownloads = new Map<string, FS.DownloadResumable>();
 
 // ─── Helpers: metadata ────────────────────────────────────────────────────────
 
@@ -99,11 +59,11 @@ const writeMeta = async (list: DownloadedSong[]): Promise<void> => {
     await FS.writeAsStringAsync(META_FILE, JSON.stringify(list));
 };
 
-// ─── Public: đọc danh sách đã download ───────────────────────────────────────
+// ─── Public: read downloaded list ─────────────────────────────────────────────
 
 /**
- * Lấy danh sách bài đã download.
- * Tự xoá metadata của bài mà file không còn tồn tại trên disk.
+ * Returns the list of already-downloaded songs, pruning entries whose file
+ * no longer exists on disk.
  */
 export const getDownloadedSongs = async (): Promise<DownloadedSong[]> => {
     const list = await readMeta();
@@ -119,7 +79,6 @@ export const getDownloadedSongs = async (): Promise<DownloadedSong[]> => {
         }
     }
 
-    // Clean up stale metadata
     if (staleIds.length > 0) {
         await writeMeta(verified);
     }
@@ -128,11 +87,10 @@ export const getDownloadedSongs = async (): Promise<DownloadedSong[]> => {
 };
 
 /**
- * Kiểm tra bài có đang offline không.
- * Trả về localUri nếu có, null nếu không.
+ * Returns the local URI if the song is on disk, otherwise null.
  */
 export const isSongDownloaded = async (songId: string): Promise<string | null> => {
-    const list = await readMeta();
+    const list  = await readMeta();
     const found = list.find((d) => d.song.id === songId);
     if (!found) return null;
     const info = await FS.getInfoAsync(found.localUri);
@@ -140,7 +98,7 @@ export const isSongDownloaded = async (songId: string): Promise<string | null> =
 };
 
 /**
- * Tổng dung lượng bài đã download (bytes).
+ * Total bytes used by all downloaded songs.
  */
 export const getDownloadStorageUsed = async (): Promise<number> => {
     const list = await getDownloadedSongs();
@@ -149,21 +107,6 @@ export const getDownloadStorageUsed = async (): Promise<number> => {
 
 // ─── Public: download ─────────────────────────────────────────────────────────
 
-/**
- * Download một bài hát từ backend.
- *
- * Flow:
- *   1. Kiểm tra đã download chưa → return ngay nếu có
- *   2. Xoá file dang dở từ lần trước (nếu có)
- *   3. Lấy presigned URL từ GET /songs/{id}/download
- *   4. Tạo DownloadResumable, track progress
- *   5. Lưu metadata sau khi xong
- *
- * Nếu mạng bị ngắt giữa chừng:
- *   - File dang dở bị xoá
- *   - onStatusChange báo { state: 'paused' }
- *   - DownloadContext sẽ tự retry khi mạng có lại
- */
 export const downloadSong = async (
     song: Song,
     onProgress?: (pct: number) => void,
@@ -171,7 +114,6 @@ export const downloadSong = async (
 ): Promise<string> => {
     await ensureDir();
 
-    // Đã download rồi → return luôn
     const existing = await isSongDownloaded(song.id);
     if (existing) {
         onStatusChange?.({ state: 'done' });
@@ -181,12 +123,12 @@ export const downloadSong = async (
 
     const localUri = `${DOWNLOADS_DIR}${song.id}.mp3`;
 
-    // Xoá file cũ dang dở (nếu có)
+    // Remove any partial file from a previous attempt
     await FS.deleteAsync(localUri, { idempotent: true });
 
     onStatusChange?.({ state: 'downloading', progress: 0 });
 
-    // Lấy presigned URL (5 phút TTL)
+    // Fetch a presigned download URL from the backend
     let downloadUrl: string;
     try {
         const res = await apiClient.get<string>(`/songs/${song.id}/download`);
@@ -195,19 +137,13 @@ export const downloadSong = async (
             throw new Error('Backend trả về URL không hợp lệ.');
         }
     } catch (urlError: any) {
-        onStatusChange?.({
-            state: 'error',
-            message: urlError?.message ?? 'Không lấy được URL tải xuống.',
-        });
+        onStatusChange?.({ state: 'error', message: urlError?.message ?? 'Không lấy được URL tải xuống.' });
         throw urlError;
     }
 
-    // Progress callback
-    const progressCallback = (event: DownloadProgressData): void => {
+    const progressCallback = (event: FS.DownloadProgressData): void => {
         if (event.totalBytesExpectedToWrite <= 0) return;
-        const pct = Math.round(
-            (event.totalBytesWritten / event.totalBytesExpectedToWrite) * 100,
-        );
+        const pct = Math.round((event.totalBytesWritten / event.totalBytesExpectedToWrite) * 100);
         onProgress?.(pct);
         onStatusChange?.({ state: 'downloading', progress: pct });
     };
@@ -228,7 +164,6 @@ export const downloadSong = async (
             throw new Error('Download thất bại — không có file URI.');
         }
 
-        // Lưu metadata
         const list     = await readMeta();
         const filtered = list.filter((d) => d.song.id !== song.id);
         const fileInfo = await FS.getInfoAsync(result.uri);
@@ -248,12 +183,10 @@ export const downloadSong = async (
         return result.uri;
 
     } catch (error: any) {
-        // Xoá file dang dở
         await FS.deleteAsync(localUri, { idempotent: true }).catch(() => {});
         activeDownloads.delete(song.id);
 
-        // Phân biệt lỗi mạng vs lỗi khác
-        const msg: string = error?.message ?? '';
+        const msg: string  = error?.message ?? '';
         const isNetworkError =
             msg.toLowerCase().includes('network') ||
             msg.toLowerCase().includes('connection') ||
@@ -261,7 +194,6 @@ export const downloadSong = async (
             error?.code === 'ERR_NETWORK';
 
         if (isNetworkError) {
-            // Đánh dấu paused để DownloadContext retry sau
             onStatusChange?.({ state: 'paused' });
         } else {
             onStatusChange?.({ state: 'error', message: msg || 'Lỗi không xác định.' });
@@ -271,11 +203,6 @@ export const downloadSong = async (
     }
 };
 
-/**
- * Pause download đang chạy (nếu có).
- * Vì presigned URL có TTL ngắn, không lưu snapshot.
- * Chỉ dừng và đánh dấu để retry sau.
- */
 export const pauseActiveDownload = async (songId: string): Promise<void> => {
     const resumable = activeDownloads.get(songId);
     if (!resumable) return;
@@ -288,29 +215,19 @@ export const pauseActiveDownload = async (songId: string): Promise<void> => {
     }
 };
 
-/**
- * Retry download (lấy URL mới + bắt đầu từ đầu).
- * Presigned URL có TTL ngắn nên không hỗ trợ HTTP Range resume.
- */
 export const retryDownload = async (
     song: Song,
     onProgress?: (pct: number) => void,
     onStatusChange?: (status: DownloadStatus) => void,
 ): Promise<string> => {
-    // downloadSong tự xoá file cũ và lấy URL mới
     return downloadSong(song, onProgress, onStatusChange);
 };
 
-// ─── Public: xoá ─────────────────────────────────────────────────────────────
+// ─── Public: delete ───────────────────────────────────────────────────────────
 
-/**
- * Xoá bài đã download khỏi disk và metadata.
- */
 export const deleteSongDownload = async (songId: string): Promise<void> => {
-    // Dừng nếu đang download
     await pauseActiveDownload(songId);
-
-    const list = await readMeta();
+    const list  = await readMeta();
     const found = list.find((d) => d.song.id === songId);
     if (found) {
         await FS.deleteAsync(found.localUri, { idempotent: true });
@@ -318,15 +235,10 @@ export const deleteSongDownload = async (songId: string): Promise<void> => {
     await writeMeta(list.filter((d) => d.song.id !== songId));
 };
 
-/**
- * Xoá toàn bộ bài đã download.
- */
 export const deleteAllDownloads = async (): Promise<void> => {
-    // Dừng tất cả active downloads
     for (const songId of activeDownloads.keys()) {
         await pauseActiveDownload(songId);
     }
-    // Xoá thư mục và meta
     await FS.deleteAsync(DOWNLOADS_DIR, { idempotent: true });
-    await FS.deleteAsync(META_FILE, { idempotent: true });
+    await FS.deleteAsync(META_FILE,     { idempotent: true });
 };

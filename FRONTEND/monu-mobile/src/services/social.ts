@@ -140,3 +140,81 @@ export const getAlbumShareQr = async (albumId: string): Promise<ShareResponse> =
   const response = await apiClient.get<ShareResponse>('/social/share/album/qr', { params: { albumId } });
   return response.data;
 };
+
+export interface HeartResponse {
+  id: string;
+  userId: string;
+  songId: string;
+  totalHearts: number;
+  createdAt: string;
+}
+
+export const heartSong = async (songId: string): Promise<HeartResponse> => {
+  const response = await apiClient.post<HeartResponse>('/social/hearts', { songId });
+  return response.data;
+};
+
+export const unheartSong = async (songId: string): Promise<void> => {
+  await apiClient.delete(`/social/hearts/${songId}`);
+};
+
+export const checkHearted = async (songId: string): Promise<boolean> => {
+  const response = await apiClient.get<boolean>(`/social/hearts/check/${songId}`);
+  return response.data;
+};
+
+export const getMyHearts = async (params?: { page?: number; size?: number }): Promise<PageResponse<HeartResponse>> => {
+  const response = await apiClient.get<PageResponse<HeartResponse>>('/social/hearts/my', { params });
+  return response.data;
+};
+
+export const getHeartCount = async (songId: string): Promise<number> => {
+  const response = await apiClient.get<number>(`/social/hearts/count/${songId}`);
+  return response.data;
+};
+
+// ─── FOLLOW ───────────────────────────────────────────────────────────────────
+
+export interface FollowResponse {
+  id: string;
+  followerId: string;
+  artistId: string;
+  createdAt: string;
+}
+
+export interface ArtistStatsResponse {
+  artistId: string;
+  followerCount: number;
+  totalListens: number;
+  totalLikes: number;
+  totalShares: number;
+}
+
+export const followArtist = async (artistId: string): Promise<FollowResponse> => {
+  const response = await apiClient.post<FollowResponse>('/social/follows', { artistId });
+  return response.data;
+};
+
+export const unfollowArtist = async (artistId: string): Promise<void> => {
+  await apiClient.delete(`/social/follows/${artistId}`);
+};
+
+export const checkFollowing = async (artistId: string): Promise<boolean> => {
+  const response = await apiClient.get<boolean>(`/social/follows/check/${artistId}`);
+  return response.data;
+};
+
+export const getMyFollowedArtists = async (params?: { page?: number; size?: number }): Promise<PageResponse<FollowResponse>> => {
+  const response = await apiClient.get<PageResponse<FollowResponse>>('/social/follows/my-artists', { params });
+  return response.data;
+};
+
+export const getArtistFollowers = async (artistId: string, params?: { page?: number; size?: number }): Promise<PageResponse<FollowResponse>> => {
+  const response = await apiClient.get<PageResponse<FollowResponse>>(`/social/artists/${artistId}/followers`, { params });
+  return response.data;
+};
+
+export const getArtistStats = async (artistId: string): Promise<ArtistStatsResponse> => {
+  const response = await apiClient.get<ArtistStatsResponse>(`/social/artists/${artistId}/stats`);
+  return response.data;
+};

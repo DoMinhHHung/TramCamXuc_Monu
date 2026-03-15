@@ -36,7 +36,13 @@ import { EditFavoritesScreen }    from '../screens/(settings)/EditFavoritesScree
 import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
 import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
 
-// ─── Navigation types ──────────────────────────────────────────────────────────
+// ─── Artist screens ───────────────────────────────────────────────────────────
+import { ArtistProfileScreen }    from '../screens/(artist)/ArtistProfileScreen';
+import { RegisterArtistScreen }   from '../screens/(artist)/RegisterArtistScreen';
+import { ArtistTermsScreen }      from '../screens/(artist)/ArtistTermsScreen';
+import { FavoriteSongsScreen }    from '../screens/(artist)/FavoriteSongsScreen';
+import { FollowedArtistsScreen }  from '../screens/(artist)/FollowedArtistsScreen';
+import { AlbumAddSongScreen }     from '../screens/(artist)/AlbumAddSongScreen';
 
 export type RootStackParamList = {
     Welcome:         undefined;
@@ -55,6 +61,13 @@ export type RootStackParamList = {
     Search:          undefined;
     PlaylistDetail:  { slug: string };
     AlbumDetail:     { albumId: string };
+    // Artist
+    ArtistProfile:   { artistId: string };
+    RegisterArtist:  undefined;
+    ArtistTerms:     undefined;
+    FavoriteSongs:   undefined;
+    FollowedArtists: undefined;
+    AlbumAddSong:    { albumId: string };
 };
 
 export type MainTabParamList = {
@@ -64,8 +77,6 @@ export type MainTabParamList = {
     Library:  undefined;
     Premium:  undefined;
 };
-
-// ─── Navigators ────────────────────────────────────────────────────────────────
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab   = createBottomTabNavigator<MainTabParamList>();
@@ -82,8 +93,6 @@ const linking: LinkingOptions<RootStackParamList> = {
     prefixes: ['monumobile://'],
     config: { screens: { MainTabs: 'home' } },
 };
-
-// ─── Tab navigator ────────────────────────────────────────────────────────────
 
 const MainTabNavigator = () => (
     <Tab.Navigator
@@ -122,27 +131,17 @@ const MainTabNavigator = () => (
     </Tab.Navigator>
 );
 
-// ─── Global overlays (ads + mini player + etc.) ───────────────────────────────
-// Tách ra component riêng để dùng usePlayer hook (hook phải trong PlayerProvider)
-
 const GlobalOverlays = () => {
     const { pendingAd, dismissAd } = usePlayer();
-
     return (
         <>
             <MiniPlayer />
             <UploadProgressBanner />
             <FullPlayerModal />
-            {/* Ads modal — chỉ render khi có ad pending */}
-            <AdPlayerModal
-                ad={pendingAd}
-                onFinished={dismissAd}
-            />
+            <AdPlayerModal ad={pendingAd} onFinished={dismissAd} />
         </>
     );
 };
-
-// ─── App navigator ────────────────────────────────────────────────────────────
 
 export const AppNavigator = () => {
     const { authSession, isInitializing } = useAuth();
@@ -170,12 +169,18 @@ export const AppNavigator = () => {
                             </>
                         ) : (
                             <>
-                                <Stack.Screen name="MainTabs"      component={MainTabNavigator}    />
-                                <Stack.Screen name="Search"        component={SearchScreen}        />
-                                <Stack.Screen name="EditFavorites" component={EditFavoritesScreen} />
-                                <Stack.Screen name="Profile"       component={ProfileScreen}       />
-                                <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen} />
-                                <Stack.Screen name="AlbumDetail"   component={AlbumDetailScreen}   />
+                                <Stack.Screen name="MainTabs"       component={MainTabNavigator}    />
+                                <Stack.Screen name="Search"         component={SearchScreen}        />
+                                <Stack.Screen name="EditFavorites"  component={EditFavoritesScreen} />
+                                <Stack.Screen name="Profile"        component={ProfileScreen}       />
+                                <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen}/>
+                                <Stack.Screen name="AlbumDetail"    component={AlbumDetailScreen}   />
+                                <Stack.Screen name="ArtistProfile"   component={ArtistProfileScreen}   />
+                                <Stack.Screen name="RegisterArtist"  component={RegisterArtistScreen}  />
+                                <Stack.Screen name="ArtistTerms"     component={ArtistTermsScreen}     />
+                                <Stack.Screen name="FavoriteSongs"   component={FavoriteSongsScreen}   />
+                                <Stack.Screen name="FollowedArtists" component={FollowedArtistsScreen} />
+                                <Stack.Screen name="AlbumAddSong"    component={AlbumAddSongScreen}    />
                             </>
                         )
                     ) : (
@@ -191,30 +196,21 @@ export const AppNavigator = () => {
                         </>
                     )}
                 </Stack.Navigator>
-
-                {/* Global overlays — chỉ khi đã đăng nhập và qua onboarding */}
                 {authSession && !needsOnboarding && <GlobalOverlays />}
             </NavigationContainer>
         </UploadProvider>
     );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
     splashContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
+        flex: 1, alignItems: 'center', justifyContent: 'center',
         backgroundColor: COLORS.bg,
     },
     tabIconWrap:    { alignItems: 'center', justifyContent: 'center' },
     createIconWrap: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
+        width: 34, height: 34, borderRadius: 17,
         backgroundColor: COLORS.accentDim,
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'center', justifyContent: 'center',
     },
 });
