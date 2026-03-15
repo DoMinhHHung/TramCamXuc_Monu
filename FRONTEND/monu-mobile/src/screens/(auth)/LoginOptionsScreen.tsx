@@ -13,9 +13,9 @@ import { SocialButton } from '../../components/SocialButton';
 import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { buildOAuthUrl } from '../../components/LinkComponent';
 
 WebBrowser.maybeCompleteAuthSession();
-const GATEWAY_URL = 'https://phazelsound.oopsgolden.id.vn';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'LoginOptions'>;
 
@@ -29,7 +29,7 @@ export const LoginOptionsScreen = () => {
     setLoading(true);
     try {
       const result = await WebBrowser.openAuthSessionAsync(
-          `${GATEWAY_URL}/auth/oauth/${provider.toLowerCase()}`,
+          buildOAuthUrl(provider.toLowerCase() as 'google' | 'facebook'),
           'monumobile://oauth'
       );
 

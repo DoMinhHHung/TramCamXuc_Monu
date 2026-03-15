@@ -8,7 +8,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { AppIcon } from '../../components/IconComponent';
 
 import { BackButton } from '../../components/BackButton';
 import { COLORS } from '../../config/colors';
@@ -85,7 +85,7 @@ export const LoginScreen = () => {
                   onChangeText={setPassword}
               />
               <Pressable onPress={() => setShowPw(!showPw)}>
-                <MaterialIcons
+                <AppIcon
                     name={showPw ? 'visibility-off' : 'visibility'}
                     size={20}
                     color="#999"

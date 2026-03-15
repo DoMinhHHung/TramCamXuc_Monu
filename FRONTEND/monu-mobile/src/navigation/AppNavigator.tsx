@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { MaterialIcons } from '@expo/vector-icons';
+import { AppIcon, APP_ICONS } from '../components/IconComponent';
 
 import { COLORS }                 from '../config/colors';
 import { useAuth }                from '../context/AuthContext';
@@ -81,12 +81,12 @@ export type MainTabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab   = createBottomTabNavigator<MainTabParamList>();
 
-const tabMeta: Record<keyof MainTabParamList, { label: string; icon: string }> = {
-    Home:     { label: 'Trang chủ', icon: 'home'          },
-    Discover: { label: 'Khám phá',  icon: 'explore'       },
-    Create:   { label: 'Tạo',       icon: 'add'           },
-    Library:  { label: 'Thư viện',  icon: 'library-music' },
-    Premium:  { label: 'Premium',   icon: 'redeem'        },
+const tabMeta: Record<keyof MainTabParamList, { label: string; icon: keyof typeof APP_ICONS.tab }> = {
+    Home:     { label: 'Trang chủ', icon: 'home' },
+    Discover: { label: 'Khám phá',  icon: 'discover' },
+    Create:   { label: 'Tạo',       icon: 'create' },
+    Library:  { label: 'Thư viện',  icon: 'library' },
+    Premium:  { label: 'Premium',   icon: 'premium' },
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
@@ -113,8 +113,8 @@ const MainTabNavigator = () => (
                 tabBarInactiveTintColor: COLORS.muted,
                 tabBarIcon: ({ color }: { color: string }) => (
                     <View style={[styles.tabIconWrap, isCreate && styles.createIconWrap]}>
-                        <MaterialIcons
-                            name={meta.icon as any}
+                        <AppIcon
+                            name={APP_ICONS.tab[meta.icon]}
                             size={isCreate ? 20 : 18}
                             color={isCreate ? COLORS.white : color}
                         />

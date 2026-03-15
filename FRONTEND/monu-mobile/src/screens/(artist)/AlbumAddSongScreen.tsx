@@ -29,12 +29,9 @@ export const AlbumAddSongScreen = () => {
                 setLoading(true);
                 try {
                     const res = await getMySongs({ page: 1, size: 100 });
-                    // Hiện TẤT CẢ bài đã transcode xong (PUBLIC hoặc PRIVATE đều được add vào album)
-                    const available = (res.content ?? []).filter(
-                        s => s.transcodeStatus === 'COMPLETED' &&
-                            (s.status === 'PUBLIC' || s.status === 'PRIVATE')
-                    );
-                    setSongs(available);
+                    // Hiện tất cả bài artist đã upload (trừ DELETED) để dễ quản lý trong album
+                    const uploadedSongs = (res.content ?? []).filter((song) => song.status !== 'DELETED');
+                    setSongs(uploadedSongs);
                 } catch (e) {
                     console.warn('AlbumAddSong load:', e);
                 } finally {
@@ -88,8 +85,7 @@ export const AlbumAddSongScreen = () => {
                     <Text style={{ fontSize: 48, marginBottom: 12 }}>🎵</Text>
                     <Text style={styles.emptyTitle}>Chưa có bài hát sẵn sàng</Text>
                     <Text style={styles.emptyHint}>
-                        Bài hát cần hoàn thành upload và transcode (COMPLETED){'\n'}
-                        và ở trạng thái PUBLIC hoặc PRIVATE
+                        Chưa có bài upload nào khả dụng. Hãy upload bài ở tab Tạo trước.
                     </Text>
                 </View>
             ) : (
@@ -113,7 +109,7 @@ export const AlbumAddSongScreen = () => {
                             <View style={styles.info}>
                                 <Text style={styles.songTitle} numberOfLines={1}>{item.title}</Text>
                                 <Text style={styles.songMeta}>
-                                    {item.status === 'PUBLIC' ? '🌐 Công khai' : '🔒 Riêng tư'}
+                                    {item.transcodeStatus === 'COMPLETED' ? '✅ Sẵn sàng' : `⏳ ${item.transcodeStatus}`}
                                     {item.durationSeconds ? `  ·  ${formatDuration(item.durationSeconds)}` : ''}
                                 </Text>
                             </View>

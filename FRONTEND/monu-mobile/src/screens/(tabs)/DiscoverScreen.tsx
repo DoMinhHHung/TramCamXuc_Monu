@@ -40,6 +40,7 @@ import {
   updateFeedPost,
   getArtistByUserId,
 } from '../../services/social';
+import { buildFeedPostUrl } from '../../components/LinkComponent';
 
 
 
@@ -687,6 +688,7 @@ export const DiscoverScreen = () => {
   const navigation = useNavigation<any>();
   const { authSession } = useAuth();
   const currentUserId = authSession?.profile?.id ?? null;
+  const myDisplayName = authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
 
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -698,6 +700,13 @@ export const DiscoverScreen = () => {
 
   const [composeOpen, setComposeOpen] = useState(false);
 
+  useEffect(() => {
+    if (!currentUserId || !myDisplayName) return;
+    const mine: OwnerInfo = { displayName: myDisplayName, artistId: null };
+    ownerCacheRef.current = { ...ownerCacheRef.current, [currentUserId]: mine };
+    setOwnerCache(prev => ({ ...prev, [currentUserId]: mine }));
+  }, [currentUserId, myDisplayName]);
+
   const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
 
   const [commentPost, setCommentPost]   = useState<FeedPost | null>(null);
@@ -705,9 +714,7 @@ export const DiscoverScreen = () => {
 
   const fetchOwnerInfos = useCallback(async (newPosts: FeedPost[]) => {
     // Chỉ fetch những owner chưa có trong cache
-    const toFetch = newPosts.filter(
-        p => p.ownerType === 'ARTIST' && !ownerCacheRef.current[p.ownerId]
-    );
+    const toFetch = newPosts.filter(p => !ownerCacheRef.current[p.ownerId]);
     const uniqueIds = [...new Set(toFetch.map(p => p.ownerId))];
     if (uniqueIds.length === 0) return;
 
@@ -724,29 +731,32 @@ export const DiscoverScreen = () => {
           artistId:    res.value.id,
         };
       } else {
-        // Không tìm thấy artist — hiện tên ngắn gọn
+        const ownerPost = newPosts.find(p => p.ownerId === id);
+        const isCurrentUser = id === currentUserId;
         updates[id] = {
-          displayName: `User ${id.slice(0, 6)}`,
-          artistId:    null,
+          displayName: isCurrentUser
+              ? (myDisplayName ?? `User ${id.slice(0, 6)}`)
+              : `User ${id.slice(0, 6)}`,
+          artistId: ownerPost?.ownerType === 'ARTIST' ? null : null,
         };
       }
     });
 
     ownerCacheRef.current = { ...ownerCacheRef.current, ...updates };
     setOwnerCache(prev => ({ ...prev, ...updates }));
-  }, []);
+  }, [currentUserId, myDisplayName]);
 
   /** Lấy OwnerInfo cho một post — fallback về displayName ngắn nếu chưa có */
   const getOwnerInfo = useCallback((post: FeedPost): OwnerInfo => {
     if (ownerCache[post.ownerId]) return ownerCache[post.ownerId];
     // Placeholder trong lúc chờ fetch
     return {
-      displayName: post.ownerType === 'ARTIST'
-          ? `Nghệ sĩ`
-          : `User ${post.ownerId.slice(0, 6)}`,
+      displayName: post.ownerId === currentUserId
+          ? (myDisplayName ?? `User ${post.ownerId.slice(0, 6)}`)
+          : (post.ownerType === 'ARTIST' ? `Nghệ sĩ` : `User ${post.ownerId.slice(0, 6)}`),
       artistId: null,
     };
-  }, [ownerCache]);
+  }, [ownerCache, currentUserId, myDisplayName]);
 
   // ── Feed ──────────────────────────────────────────────────────────────────
   const loadFeed = async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
@@ -770,7 +780,7 @@ export const DiscoverScreen = () => {
     void loadFeed('initial');
     const id = setInterval(() => void loadFeed('silent'), 15_000);
     return () => clearInterval(id);
-  }, []);
+  }, [currentUserId, myDisplayName]);
 
   useFocusEffect(useCallback(() => { void loadFeed('silent'); }, []));
 
@@ -806,7 +816,7 @@ export const DiscoverScreen = () => {
   // ── Share ─────────────────────────────────────────────────────────────────
   const handleShare = (post: FeedPost) => {
     Share.share({
-      message: `${post.title ?? 'Bài viết âm nhạc'}\nhttps://phazelsound.oopsgolden.id.vn/feed/${post.id}`,
+      message: `${post.title ?? 'Bài viết âm nhạc'}\n${buildFeedPostUrl(post.id)}`,
     });
   };
 

@@ -13,6 +13,7 @@ import { recordPlay, recordListen, Song } from '../services/music';
 import { getMySubscription } from '../services/payment';
 import { getNextAd, AdDelivery } from '../services/ads';
 import { isSongDownloaded } from '../services/download';
+import { EXTERNAL_LINKS } from '../components/LinkComponent';
 
 // ─── Quality ──────────────────────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ const QUALITY_STREAM: Record<AudioQuality, string> = {
     320: 'stream_320k.m3u8',
 };
 
-const MINIO_PUBLIC = 'https://minio.oopsgolden.id.vn/public-songs';
+const MINIO_PUBLIC = EXTERNAL_LINKS.minioPublicSongs;
 
 function buildHlsUrl(song: Song, quality: AudioQuality): string {
     if (song.streamUrl) return song.streamUrl;

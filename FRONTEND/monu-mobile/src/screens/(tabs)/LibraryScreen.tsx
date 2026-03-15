@@ -963,11 +963,11 @@ export const LibraryScreen = () => {
       else setRefreshing(false);
       const [plRes, soRes, alRes] = await Promise.allSettled([
         getMyPlaylists({ page: 1, size: 50 }),
-        getMySongs({ page: 1, size: 50 }),
+        getMySongs({ page: 1, size: 200 }),
         getMyAlbums({ page: 1, size: 50 }),
       ]);
       setPlaylists(plRes.status === 'fulfilled' ? plRes.value.content ?? [] : []);
-      setSongs(soRes.status === 'fulfilled' ? soRes.value.content ?? [] : []);
+      setSongs(soRes.status === 'fulfilled' ? (soRes.value.content ?? []).filter(song => song.status !== 'DELETED') : []);
       setAlbums(alRes.status === 'fulfilled' ? alRes.value.content ?? [] : []);
     } finally {
       setLoading(false);

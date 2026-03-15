@@ -18,6 +18,8 @@ import { getMyHearts } from '../../services/social';
 import { apiClient } from '../../services/api';
 import { BackButton } from '../../components/BackButton';
 import { useNavigation } from '@react-navigation/native';
+import { APP_ICONS } from '../../components/IconComponent';
+import { getMyFollowedArtists } from '../../services/social';
 
 type ArtistProfile = {
     id: string;
@@ -47,6 +49,7 @@ export const ProfileScreen = () => {
     // Stats từ API
     const [playlistCount, setPlaylistCount] = useState<number | null>(null);
     const [favoriteCount, setFavoriteCount] = useState<number | null>(null);
+    const [followingCount, setFollowingCount] = useState<number | null>(null);
 
     useEffect(() => {
         void loadArtistProfile();
@@ -67,12 +70,14 @@ export const ProfileScreen = () => {
 
     const loadStats = async () => {
         try {
-            const [plRes, hvRes] = await Promise.allSettled([
+            const [plRes, hvRes, flRes] = await Promise.allSettled([
                 getMyPlaylists({ page: 1, size: 1 }),
                 getMyHearts({ page: 1, size: 1 }),
+                getMyFollowedArtists({ page: 1, size: 1 }),
             ]);
             if (plRes.status === 'fulfilled') setPlaylistCount(plRes.value.totalElements ?? 0);
             if (hvRes.status === 'fulfilled') setFavoriteCount(hvRes.value.totalElements ?? 0);
+            if (flRes.status === 'fulfilled') setFollowingCount(flRes.value.totalElements ?? 0);
         } catch { /* silent */ }
     };
 
@@ -162,13 +167,13 @@ export const ProfileScreen = () => {
             onPress: () => navigation.navigate('MainTabs', { screen: 'Library' }),
         },
         {
-            icon: '❤️',
+            icon: APP_ICONS.emoji.favorite,
             label: 'Bài hát yêu thích',
             sub: favoriteCount !== null ? `${favoriteCount} bài` : undefined,
             onPress: () => navigation.navigate('FavoriteSongs'),
         },
         {
-            icon: '⬇️',
+            icon: APP_ICONS.emoji.download,
             label: 'Đã tải xuống',
             sub: downloadedSongs.length > 0
                 ? `${downloadedSongs.length} bài · ${formatStorage(storageUsed)}`
@@ -176,9 +181,9 @@ export const ProfileScreen = () => {
             onPress: () => setDownloadsOpen(true),
         },
         {
-            icon: '🎤',
+            icon: APP_ICONS.emoji.follow,
             label: 'Đang theo dõi',
-            sub: undefined,
+            sub: followingCount !== null ? `${followingCount} nghệ sĩ` : undefined,
             onPress: () => navigation.navigate('FollowedArtists'),
         },
     ];
