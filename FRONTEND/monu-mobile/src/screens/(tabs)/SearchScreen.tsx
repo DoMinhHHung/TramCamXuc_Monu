@@ -6,6 +6,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { AntDesign } from '@expo/vector-icons';
 
 import { BackButton } from '../../components/BackButton';
 import { COLORS } from '../../config/colors';
@@ -152,7 +153,7 @@ export const SearchScreen = () => {
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.resultSub}   numberOfLines={1}>{item.primaryArtist.stageName}</Text>
             </View>
-            <Text style={styles.playIcon}>▶</Text>
+            <AntDesign name="play-circle" size={26} color="#fff" />
         </Pressable>
     );
 
@@ -224,7 +225,6 @@ export const SearchScreen = () => {
                 </View>
             )}
 
-            {/* ── Lịch sử tìm kiếm (hiện khi query rỗng) ── */}
             {!loading && showHistory && (
                 <View style={{ flex: 1 }}>
                     {history.length > 0 ? (

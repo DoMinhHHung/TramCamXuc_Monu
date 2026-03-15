@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { COLORS } from '../config/colors';
 import { usePlayer } from '../context/PlayerContext';
+import { Fold } from 'react-native-animated-spinkit';
+import { AntDesign } from '@expo/vector-icons';
 
 const TAB_BAR_HEIGHT  = 78;
 const MINI_HEIGHT     = 64;
@@ -85,11 +87,24 @@ export const MiniPlayer = () => {
                 </View>
 
                 <View style={styles.controls}>
-                    <Pressable style={styles.iconBtn} hitSlop={12} onPress={e => { e.stopPropagation(); togglePlay(); }}>
-                        <Text style={styles.iconText}>{!isLoaded ? '⏳' : isPlaying ? '⏸' : '▶'}</Text>
+                    <Pressable
+                        style={styles.iconBtn}
+                        hitSlop={12}
+                        onPress={e => {
+                            e.stopPropagation();
+                            togglePlay();
+                        }}
+                    >
+                        {!isLoaded ? (
+                            <Fold size={20} color="#fff" />
+                        ) : isPlaying ? (
+                            <AntDesign name="pause-circle" size={26} color="#fff" />
+                        ) : (
+                            <AntDesign name="play-circle" size={26} color="#fff" />
+                        )}
                     </Pressable>
                     <Pressable style={styles.iconBtn} hitSlop={12} onPress={e => { e.stopPropagation(); playNext(); }}>
-                        <Text style={styles.iconText}>⏭</Text>
+                        <AntDesign name="step-forward" size={24} color="#fff" />
                     </Pressable>
                 </View>
             </Pressable>

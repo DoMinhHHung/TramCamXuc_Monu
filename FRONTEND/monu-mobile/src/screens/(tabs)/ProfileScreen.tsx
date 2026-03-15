@@ -18,6 +18,7 @@ import { getMyHearts } from '../../services/social';
 import { apiClient } from '../../services/api';
 import { BackButton } from '../../components/BackButton';
 import { useNavigation } from '@react-navigation/native';
+import {AntDesign, FontAwesome, Fontisto, SimpleLineIcons, Feather  } from "@expo/vector-icons";
 
 type ArtistProfile = {
     id: string;
@@ -156,19 +157,19 @@ export const ProfileScreen = () => {
     // ── Menu items config ─────────────────────────────────────────────────
     const menuItems = [
         {
-            icon: '🎵',
+            icon: <Fontisto name="play-list" color="#22C55E" size={18} />,
             label: 'Playlist của tôi',
             sub: playlistCount !== null ? `${playlistCount} playlist` : undefined,
             onPress: () => navigation.navigate('MainTabs', { screen: 'Library' }),
         },
         {
-            icon: '❤️',
+            icon: <FontAwesome name="heartbeat" color="#E11D48" size={18} />,
             label: 'Bài hát yêu thích',
             sub: favoriteCount !== null ? `${favoriteCount} bài` : undefined,
             onPress: () => navigation.navigate('FavoriteSongs'),
         },
         {
-            icon: '⬇️',
+            icon: <AntDesign name="download" color="#fff" size={18} />,
             label: 'Đã tải xuống',
             sub: downloadedSongs.length > 0
                 ? `${downloadedSongs.length} bài · ${formatStorage(storageUsed)}`
@@ -176,7 +177,7 @@ export const ProfileScreen = () => {
             onPress: () => setDownloadsOpen(true),
         },
         {
-            icon: '🎤',
+            icon: <SimpleLineIcons name="user-following" color="#22C55E" size={18} />,
             label: 'Đang theo dõi',
             sub: undefined,
             onPress: () => navigation.navigate('FollowedArtists'),
@@ -198,7 +199,7 @@ export const ProfileScreen = () => {
                         <BackButton onPress={() => navigation.goBack()} />
                         <Text style={styles.topBarTitle}>Hồ sơ</Text>
                         <Pressable onPress={() => setMenuOpen(p => !p)} style={styles.gearBtn}>
-                            <Text style={styles.gearIcon}>⚙️</Text>
+                            <Text style={styles.gearIcon}><Feather name="settings" color="#FFFFFF" size={24} /></Text>
                         </Pressable>
                     </View>
 
@@ -215,7 +216,7 @@ export const ProfileScreen = () => {
                             </View>
                         )}
                         <View style={styles.avatarEditBadge}>
-                            <Text style={{ fontSize: 12 }}>✏️</Text>
+                            <Text style={{ fontSize: 12 }}><FontAwesome name="edit" color="#FFFFFF" size={16} /></Text>
                         </View>
                     </Pressable>
 

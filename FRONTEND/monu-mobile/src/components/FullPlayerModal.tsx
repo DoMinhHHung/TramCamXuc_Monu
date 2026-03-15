@@ -248,22 +248,35 @@ export const FullPlayerModal = () => {
                     <SongActionSheet
                         visible={menuOpen}
                         title={currentSong.title}
+                        subtitle={currentSong.primaryArtist?.stageName}
+                        thumbnailUrl={currentSong.thumbnailUrl}
                         onClose={() => setMenuOpen(false)}
-                        onShareQr={async () => {
-                            const qr = await getSongShareQr(currentSong.id);
-                            setShareQr(qr.qrCodeBase64 || null);
-                            setMenuOpen(false);
-                        }}
-                        onAddToPlaylist={() => {
-                            setMenuOpen(false);
-                            openPlaylistPicker();
-                        }}
-                        onReportSong={async () => {
-                            await reportSong(currentSong.id, { reason: 'SPAM', description: 'Reported from full player' });
-                            setMenuOpen(false);
-                        }}
-                        onDislike={() => setMenuOpen(false)}
-                        onDownload={() => setMenuOpen(false)}
+                        actions={[
+                            {
+                                icon: '↗',
+                                label: 'Chia sẻ qua QR',
+                                onPress: async () => {
+                                    const qr = await getSongShareQr(currentSong.id);
+                                    setShareQr(qr.qrCodeBase64 || null);
+                                },
+                            },
+                            {
+                                icon: '➕',
+                                label: 'Thêm vào playlist',
+                                onPress: () => {
+                                    openPlaylistPicker();
+                                },
+                            },
+                            {
+                                icon: '🚩',
+                                label: 'Báo cáo bài hát',
+                                destructive: true,
+                                separator: true,
+                                onPress: async () => {
+                                    await reportSong(currentSong.id, { reason: 'SPAM', description: 'Reported from full player' });
+                                },
+                            },
+                        ]}
                     />
 
                     <Modal visible={playlistPickerOpen} transparent animationType="slide" onRequestClose={() => setPlaylistPickerOpen(false)}>

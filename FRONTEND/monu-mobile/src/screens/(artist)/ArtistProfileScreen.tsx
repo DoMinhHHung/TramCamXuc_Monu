@@ -28,6 +28,7 @@ import { FeedPost, getTimeline } from '../../services/social';
 import { apiClient } from '../../services/api';
 import { FollowButton } from '../../components/FollowButton';
 import { updateFeedPost, deleteFeedPost } from '../../services/social';
+import {FontAwesome} from "@expo/vector-icons";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ArtistDetail {
@@ -124,7 +125,7 @@ const FeedPostCard = ({ post, isOwnProfile, onDeleted, onUpdated }: FeedPostCard
             {!!post.caption && <Text style={styles.postCaption}>{post.caption}</Text>}
             <View style={styles.postStats}>
                 <Text style={styles.postStat}>♥ {post.likeCount}</Text>
-                <Text style={styles.postStat}>💬 {post.commentCount}</Text>
+                <Text style={styles.postStat}><FontAwesome name="commenting-o" color={COLORS.glass50} size={14} /> {post.commentCount}</Text>
             </View>
             <Modal visible={editVisible} transparent animationType="slide">
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
@@ -322,7 +323,7 @@ export const ArtistProfileScreen = () => {
                         <BackButton onPress={() => navigation.goBack()} />
                         {isOwnProfile && (
                             <Pressable style={styles.editBtn} onPress={openEdit}>
-                                <Text style={styles.editBtnText}>✏️ Chỉnh sửa</Text>
+                                <Text style={styles.editBtnText}><FontAwesome name="edit" color="#ff7e5f" size={18} /> Chỉnh sửa</Text>
                             </Pressable>
                         )}
                     </View>

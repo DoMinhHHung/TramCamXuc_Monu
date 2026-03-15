@@ -1,9 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Animated,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { FontAwesome, Ionicons, AntDesign, Fontisto } from '@expo/vector-icons';
 
 import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
@@ -40,8 +39,6 @@ import {
   updateFeedPost,
   getArtistByUserId,
 } from '../../services/social';
-
-
 
 interface OwnerInfo {
   displayName: string;
@@ -71,12 +68,10 @@ const getAvatarColors = (id: string): [string, string] => {
   return palette[idx];
 };
 
-const getInitials = (name: string) =>
-    name.slice(0, 2).toUpperCase();
+const getInitials = (name: string) => name.slice(0, 2).toUpperCase();
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-/** Avatar nhỏ — dùng gradient + initials */
 const Avatar = ({
                   id,
                   displayName,
@@ -90,10 +85,7 @@ const Avatar = ({
   return (
       <LinearGradient
           colors={colors}
-          style={[
-            styles.avatar,
-            { width: size, height: size, borderRadius: size / 2 },
-          ]}
+          style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}
       >
         <Text style={[styles.avatarText, { fontSize: size * 0.34 }]}>
           {getInitials(displayName ?? id)}
@@ -102,14 +94,13 @@ const Avatar = ({
   );
 };
 
-/** Nút action (like / comment / share) */
 const ActionBtn = ({
                      icon,
                      label,
                      active,
                      onPress,
                    }: {
-  icon: string;
+  icon: string | React.ReactNode;
   label: string | number;
   active?: boolean;
   onPress: () => void;
@@ -131,6 +122,7 @@ const ActionBtn = ({
 interface ComposeModalProps {
   visible: boolean;
   userId: string;
+  displayName: string | null;
   onClose: () => void;
   onPost: (title: string, caption: string) => Promise<void>;
   posting: boolean;
@@ -139,12 +131,13 @@ interface ComposeModalProps {
 const ComposeModal = ({
                         visible,
                         userId,
+                        displayName,
                         onClose,
                         onPost,
                         posting,
                       }: ComposeModalProps) => {
   const insets = useSafeAreaInsets();
-  const [title, setTitle]   = useState('');
+  const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const inputRef = useRef<TextInput>(null);
 
@@ -167,6 +160,8 @@ const ComposeModal = ({
     setCaption('');
   };
 
+  const shownName = displayName || userId?.slice(0, 8) + '...';
+
   return (
       <Modal
           visible={visible}
@@ -179,17 +174,13 @@ const ComposeModal = ({
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={[styles.composeRoot, { paddingTop: insets.top + 4 }]}>
-            {/* Header */}
             <View style={styles.composeHeader}>
               <Pressable onPress={onClose} style={styles.composeCancelBtn}>
                 <Text style={styles.composeCancelText}>Huỷ</Text>
               </Pressable>
               <Text style={styles.composeHeaderTitle}>Tạo bài viết</Text>
               <Pressable
-                  style={[
-                    styles.composePostBtn,
-                    !canPost && styles.composePostBtnDisabled,
-                  ]}
+                  style={[styles.composePostBtn, !canPost && styles.composePostBtnDisabled]}
                   onPress={handlePost}
                   disabled={!canPost || posting}
               >
@@ -203,21 +194,19 @@ const ComposeModal = ({
 
             <View style={styles.composeDivider} />
 
-            {/* User row */}
             <View style={styles.composeUserRow}>
-              <Avatar id={userId} size={44} />
+              <Avatar id={userId} displayName={displayName ?? userId} size={44} />
               <View style={styles.composeUserInfo}>
-                <Text style={styles.composeUserName}>
-                  {userId.slice(0, 8)}...
-                </Text>
+                <Text style={styles.composeUserName}>{shownName}</Text>
                 <View style={styles.composeAudienceTag}>
-                  <Text style={styles.composeAudienceIcon}>🌐</Text>
+                  <Text style={styles.composeAudienceIcon}>
+                    <Fontisto name="world-o" size={16} color="#2F80ED" />
+                  </Text>
                   <Text style={styles.composeAudienceText}>Công khai</Text>
                 </View>
               </View>
             </View>
 
-            {/* Inputs */}
             <ScrollView
                 style={styles.composeBody}
                 keyboardShouldPersistTaps="handled"
@@ -242,7 +231,6 @@ const ComposeModal = ({
               />
             </ScrollView>
 
-            {/* Bottom toolbar */}
             <View style={[styles.composeToolbar, { paddingBottom: insets.bottom + 8 }]}>
               <Text style={styles.composeToolbarLabel}>Thêm vào bài viết</Text>
               <View style={styles.composeToolbarIcons}>
@@ -266,6 +254,7 @@ interface CommentSheetProps {
   post: FeedPost | null;
   comments: Comment[];
   currentUserId: string | null;
+  myDisplayName: string | null;
   onClose: () => void;
   onSendComment: (content: string) => Promise<void>;
   onLikeComment: (c: Comment) => Promise<void>;
@@ -278,6 +267,7 @@ const CommentSheet = ({
                         post,
                         comments,
                         currentUserId,
+                        myDisplayName,
                         onClose,
                         onSendComment,
                         onLikeComment,
@@ -285,11 +275,52 @@ const CommentSheet = ({
                         onEditComment,
                       }: CommentSheetProps) => {
   const insets = useSafeAreaInsets();
-  const [text, setText]   = useState('');
+  const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
-  const [editingId, setEditingId]     = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState('');
   const inputRef = useRef<TextInput>(null);
+
+  const [commentAuthorCache, setCommentAuthorCache] = useState<Record<string, string>>({});
+
+  const loadCommentAuthors = useCallback(async () => {
+    if (!comments.length || !currentUserId) return;
+
+    const missingIds = comments
+        .filter((c) => c.userId && !commentAuthorCache[c.userId] && c.userId !== currentUserId)
+        .map((c) => c.userId);
+
+    if (!missingIds.length) return;
+
+    const uniqueMissing = [...new Set(missingIds)];
+
+    try {
+      const results = await Promise.allSettled(
+          uniqueMissing.map(async (userId) => {
+            const artist = await getArtistByUserId(userId);
+            return {
+              userId,
+              name: artist?.stageName  || userId.slice(0, 8),
+            };
+          })
+      );
+
+      const updates: Record<string, string> = {};
+      results.forEach((res) => {
+        if (res.status === 'fulfilled' && res.value) {
+          updates[res.value.userId] = res.value.name;
+        }
+      });
+
+      setCommentAuthorCache((prev) => ({ ...prev, ...updates }));
+    } catch (err) {
+      console.warn('Lỗi load tên người comment:', err);
+    }
+  }, [comments, currentUserId, commentAuthorCache]);
+
+  useEffect(() => {
+    loadCommentAuthors();
+  }, [loadCommentAuthors]);
 
   const handleSend = async () => {
     if (!text.trim() || sending) return;
@@ -311,22 +342,15 @@ const CommentSheet = ({
   if (!post) return null;
 
   return (
-      <Modal
-          visible={visible}
-          animationType="slide"
-          transparent
-          onRequestClose={onClose}
-      >
+      <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
         <Pressable style={styles.sheetOverlay} onPress={onClose} />
         <KeyboardAvoidingView
             style={styles.sheetKbWrapper}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={[styles.sheetContainer, { paddingBottom: insets.bottom }]}>
-            {/* Handle */}
             <View style={styles.sheetHandle} />
 
-            {/* Header */}
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Bình luận</Text>
               <Pressable onPress={onClose} hitSlop={10}>
@@ -334,7 +358,6 @@ const CommentSheet = ({
               </Pressable>
             </View>
 
-            {/* Comments list */}
             <ScrollView
                 style={styles.sheetList}
                 showsVerticalScrollIndicator={false}
@@ -345,85 +368,96 @@ const CommentSheet = ({
                     Chưa có bình luận nào. Hãy là người đầu tiên!
                   </Text>
               )}
-              {comments.map((c) => (
-                  <View key={c.id} style={styles.commentRow}>
-                    <Avatar id={c.userId} size={34} />
-                    <View style={styles.commentContent}>
-                      {editingId === c.id ? (
-                          <View style={styles.commentEditRow}>
-                            <TextInput
-                                style={styles.commentEditInput}
-                                value={editingText}
-                                onChangeText={setEditingText}
-                                autoFocus
-                                multiline
-                            />
-                            <View style={styles.commentEditActions}>
-                              <Pressable onPress={() => setEditingId(null)}>
-                                <Text style={styles.commentEditCancel}>Huỷ</Text>
-                              </Pressable>
-                              <Pressable onPress={() => handleEdit(c.id)}>
-                                <Text style={styles.commentEditSave}>Lưu</Text>
-                              </Pressable>
+
+              {comments.map((c) => {
+                const isOwn = c.userId === currentUserId;
+                const displayName = isOwn
+                    ? myDisplayName || 'Bạn'
+                    : commentAuthorCache[c.userId] || c.userId.slice(0, 8);
+
+                return (
+                    <View key={c.id} style={styles.commentRow}>
+                      <Avatar id={c.userId} displayName={displayName} size={34} />
+
+                      <View style={styles.commentContent}>
+                        {editingId === c.id ? (
+                            <View style={styles.commentEditRow}>
+                              <TextInput
+                                  style={styles.commentEditInput}
+                                  value={editingText}
+                                  onChangeText={setEditingText}
+                                  autoFocus
+                                  multiline
+                              />
+                              <View style={styles.commentEditActions}>
+                                <Pressable onPress={() => setEditingId(null)}>
+                                  <Text style={styles.commentEditCancel}>Huỷ</Text>
+                                </Pressable>
+                                <Pressable onPress={() => handleEdit(c.id)}>
+                                  <Text style={styles.commentEditSave}>Lưu</Text>
+                                </Pressable>
+                              </View>
                             </View>
-                          </View>
-                      ) : (
-                          <>
-                            <View style={styles.commentBubble}>
-                              <Text style={styles.commentUser}>
-                                {c.userId.slice(0, 8)}
-                              </Text>
-                              <Text style={styles.commentText}>
-                                {c.content}
-                              </Text>
-                            </View>
-                            <View style={styles.commentMeta}>
-                              <Text style={styles.commentTime}>
-                                {timeAgo(c.createdAt)}
-                              </Text>
-                              <Pressable
-                                  onPress={() => onLikeComment(c)}
-                                  hitSlop={8}
-                              >
-                                <Text style={[
-                                  styles.commentLike,
-                                  c.likedByCurrentUser && { color: COLORS.accent },
-                                ]}>
-                                  {c.likedByCurrentUser ? '♥' : '♡'}
-                                  {c.likeCount > 0 ? ` ${c.likeCount}` : ''}
-                                </Text>
-                              </Pressable>
-                              {c.userId === currentUserId && (
-                                  <>
-                                    <Pressable
-                                        onPress={() => {
-                                          setEditingId(c.id);
-                                          setEditingText(c.content);
-                                        }}
-                                        hitSlop={8}
-                                    >
-                                      <Text style={styles.commentAction}>Sửa</Text>
-                                    </Pressable>
-                                    <Pressable
-                                        onPress={() => onDeleteComment(c.id)}
-                                        hitSlop={8}
-                                    >
-                                      <Text style={[styles.commentAction, { color: COLORS.error }]}>Xoá</Text>
-                                    </Pressable>
-                                  </>
-                              )}
-                            </View>
-                          </>
-                      )}
+                        ) : (
+                            <>
+                              <View style={styles.commentBubble}>
+                                <Text style={styles.commentUser}>{displayName}</Text>
+                                <Text style={styles.commentText}>{c.content}</Text>
+                              </View>
+
+                              <View style={styles.commentMeta}>
+                                <Text style={styles.commentTime}>{timeAgo(c.createdAt)}</Text>
+
+                                <Pressable onPress={() => onLikeComment(c)} hitSlop={8}>
+                                  <Text
+                                      style={[
+                                        styles.commentLike,
+                                        c.likedByCurrentUser && { color: COLORS.accent },
+                                      ]}
+                                  >
+                                    {c.likedByCurrentUser ? '♥' : '♡'}
+                                    {c.likeCount > 0 ? ` ${c.likeCount}` : ''}
+                                  </Text>
+                                </Pressable>
+
+                                {isOwn && (
+                                    <>
+                                      <Pressable
+                                          onPress={() => {
+                                            setEditingId(c.id);
+                                            setEditingText(c.content);
+                                          }}
+                                          hitSlop={8}
+                                      >
+                                        <Text style={styles.commentAction}>Sửa</Text>
+                                      </Pressable>
+                                      <Pressable
+                                          onPress={() => onDeleteComment(c.id)}
+                                          hitSlop={8}
+                                      >
+                                        <Text style={[styles.commentAction, { color: COLORS.error }]}>
+                                          Xoá
+                                        </Text>
+                                      </Pressable>
+                                    </>
+                                )}
+                              </View>
+                            </>
+                        )}
+                      </View>
                     </View>
-                  </View>
-              ))}
+                );
+              })}
+
               <View style={{ height: 16 }} />
             </ScrollView>
 
-            {/* Input bar */}
             <View style={styles.commentInputBar}>
-              <Avatar id={currentUserId ?? 'anon'} size={32} />
+              <Avatar
+                  id={currentUserId ?? 'anon'}
+                  displayName={myDisplayName ?? 'Bạn'}
+                  size={32}
+              />
               <View style={styles.commentInputWrap}>
                 <TextInput
                     ref={inputRef}
@@ -444,7 +478,7 @@ const CommentSheet = ({
                   onPress={handleSend}
                   disabled={!text.trim() || sending}
               >
-                <Text style={styles.commentSendIcon}>➤</Text>
+                <Ionicons name="send-sharp" color="#000" size={24} />
               </Pressable>
             </View>
           </View>
@@ -482,25 +516,23 @@ const PostCard = ({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleNamePress = () => {
-    if (ownerInfo.artistId) {
-      onViewProfile(ownerInfo.artistId);
-    }
+    if (ownerInfo.artistId) onViewProfile(ownerInfo.artistId);
   };
 
   return (
       <View style={styles.postCard}>
-        {/* Header */}
         <View style={styles.postHeader}>
           <Pressable onPress={handleNamePress} disabled={!ownerInfo.artistId}>
             <Avatar id={post.ownerId} displayName={ownerInfo.displayName} size={42} />
           </Pressable>
           <View style={styles.postMeta}>
-            {/* Tên owner — bấm để xem profile nếu là artist */}
             <Pressable onPress={handleNamePress} disabled={!ownerInfo.artistId}>
-              <Text style={[
-                styles.postOwnerName,
-                ownerInfo.artistId ? { color: COLORS.accent } : {},
-              ]}>
+              <Text
+                  style={[
+                    styles.postOwnerName,
+                    ownerInfo.artistId ? { color: COLORS.accent } : {},
+                  ]}
+              >
                 {ownerInfo.displayName}
                 {ownerInfo.artistId ? ' 🎤' : ''}
               </Text>
@@ -509,18 +541,24 @@ const PostCard = ({
               <Text style={styles.postTime}>{timeAgo(post.createdAt)} trước</Text>
               <Text style={styles.postMetaDot}>·</Text>
               <Text style={styles.postType}>
-                {post.contentType === 'SONG' ? '🎵' :
-                    post.contentType === 'ALBUM' ? '💿' :
-                        post.contentType === 'PLAYLIST' ? '📋' : '📝'}
+                {post.contentType === 'SONG'
+                    ? '🎵'
+                    : post.contentType === 'ALBUM'
+                        ? '💿'
+                        : post.contentType === 'PLAYLIST'
+                            ? '📋'
+                            : '📝'}
               </Text>
               <Text style={styles.postMetaDot}>·</Text>
-              <Text style={styles.postVisibility}>🌐</Text>
+              <Text style={styles.postVisibility}>
+                <Fontisto name="world-o" size={16} color="#2F80ED" />
+              </Text>
             </View>
           </View>
           {isOwner && (
               <Pressable
                   style={styles.postMenuBtn}
-                  onPress={() => setMenuOpen(v => !v)}
+                  onPress={() => setMenuOpen((v) => !v)}
                   hitSlop={10}
               >
                 <Text style={styles.postMenuIcon}>•••</Text>
@@ -528,22 +566,31 @@ const PostCard = ({
           )}
         </View>
 
-        {/* Owner menu */}
         {menuOpen && isOwner && (
             <View style={styles.postMenu}>
               <Pressable
                   style={styles.postMenuItem}
-                  onPress={() => { setMenuOpen(false); onEdit(post); }}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    onEdit(post);
+                  }}
               >
-                <Text style={styles.postMenuItemIcon}>✏️</Text>
+                <Text style={styles.postMenuItemIcon}>
+                  <FontAwesome name="edit" color="#ff7e5f" size={18} />
+                </Text>
                 <Text style={styles.postMenuItemText}>Chỉnh sửa bài viết</Text>
               </Pressable>
               <View style={styles.postMenuDivider} />
               <Pressable
                   style={styles.postMenuItem}
-                  onPress={() => { setMenuOpen(false); onDelete(post); }}
+                  onPress={() => {
+                    setMenuOpen(false);
+                    onDelete(post);
+                  }}
               >
-                <Text style={styles.postMenuItemIcon}>🗑️</Text>
+                <Text style={styles.postMenuItemIcon}>
+                  <AntDesign name="delete" color="#fff" size={18} />
+                </Text>
                 <Text style={[styles.postMenuItemText, { color: COLORS.error }]}>
                   Xoá bài viết
                 </Text>
@@ -551,17 +598,11 @@ const PostCard = ({
             </View>
         )}
 
-        {/* Content */}
         <View style={styles.postContent}>
-          {post.title && (
-              <Text style={styles.postTitle}>{post.title}</Text>
-          )}
-          {post.caption && (
-              <Text style={styles.postCaption}>{post.caption}</Text>
-          )}
+          {post.title && <Text style={styles.postTitle}>{post.title}</Text>}
+          {post.caption && <Text style={styles.postCaption}>{post.caption}</Text>}
         </View>
 
-        {/* Stats row */}
         {(post.likeCount > 0 || post.commentCount > 0) && (
             <View style={styles.postStats}>
               {post.likeCount > 0 && (
@@ -573,17 +614,13 @@ const PostCard = ({
                   </View>
               )}
               {post.commentCount > 0 && (
-                  <Text style={styles.postStatText}>
-                    {post.commentCount} bình luận
-                  </Text>
+                  <Text style={styles.postStatText}>{post.commentCount} bình luận</Text>
               )}
             </View>
         )}
 
-        {/* Divider */}
         <View style={styles.postDivider} />
 
-        {/* Action bar */}
         <View style={styles.postActions}>
           <ActionBtn
               icon={post.likedByCurrentUser ? '♥' : '♡'}
@@ -592,15 +629,11 @@ const PostCard = ({
               onPress={() => onLike(post)}
           />
           <ActionBtn
-              icon="💬"
+              icon={<FontAwesome name="commenting-o" color={COLORS.glass50} size={18} />}
               label={post.commentCount}
               onPress={() => onComment(post)}
           />
-          <ActionBtn
-              icon="↗"
-              label={post.shareCount}
-              onPress={() => onShare(post)}
-          />
+          <ActionBtn icon="↗" label={post.shareCount} onPress={() => onShare(post)} />
         </View>
       </View>
   );
@@ -617,7 +650,7 @@ interface EditPostModalProps {
 
 const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) => {
   const insets = useSafeAreaInsets();
-  const [title, setTitle]   = useState('');
+  const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -630,12 +663,20 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
 
   const handleSave = async () => {
     setSaving(true);
-    try { await onSave(title, caption); }
-    finally { setSaving(false); }
+    try {
+      await onSave(title, caption);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <Modal
+          visible={visible}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={onClose}
+      >
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={[styles.composeRoot, { paddingTop: insets.top + 4 }]}>
             <View style={styles.composeHeader}>
@@ -648,10 +689,11 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
                   onPress={handleSave}
                   disabled={saving}
               >
-                {saving
-                    ? <ActivityIndicator size="small" color={COLORS.white} />
-                    : <Text style={styles.composePostBtnText}>Lưu</Text>
-                }
+                {saving ? (
+                    <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                    <Text style={styles.composePostBtnText}>Lưu</Text>
+                )}
               </Pressable>
             </View>
             <View style={styles.composeDivider} />
@@ -687,76 +729,86 @@ export const DiscoverScreen = () => {
   const navigation = useNavigation<any>();
   const { authSession } = useAuth();
   const currentUserId = authSession?.profile?.id ?? null;
+  const myDisplayName = authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
 
-  const [loading, setLoading]       = useState(true);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [posting, setPosting]       = useState(false);
-  const [posts, setPosts]           = useState<FeedPost[]>([]);
+  const [posting, setPosting] = useState(false);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
 
   const [ownerCache, setOwnerCache] = useState<Record<string, OwnerInfo>>({});
-  const ownerCacheRef               = useRef<Record<string, OwnerInfo>>({});
+  const ownerCacheRef = useRef<Record<string, OwnerInfo>>({});
 
   const [composeOpen, setComposeOpen] = useState(false);
-
   const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
 
-  const [commentPost, setCommentPost]   = useState<FeedPost | null>(null);
-  const [comments, setComments]         = useState<Comment[]>([]);
+  const [commentPost, setCommentPost] = useState<FeedPost | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
 
-  const fetchOwnerInfos = useCallback(async (newPosts: FeedPost[]) => {
-    // Chỉ fetch những owner chưa có trong cache
-    const toFetch = newPosts.filter(
-        p => p.ownerType === 'ARTIST' && !ownerCacheRef.current[p.ownerId]
-    );
-    const uniqueIds = [...new Set(toFetch.map(p => p.ownerId))];
-    if (uniqueIds.length === 0) return;
+  useEffect(() => {
+    if (!currentUserId || !myDisplayName) return;
+    const mine: OwnerInfo = { displayName: myDisplayName, artistId: null };
+    ownerCacheRef.current[currentUserId] = mine;
+    setOwnerCache((prev) => ({ ...prev, [currentUserId]: mine }));
+  }, [currentUserId, myDisplayName]);
 
-    const results = await Promise.allSettled(
-        uniqueIds.map(id => getArtistByUserId(id))
-    );
+  const fetchOwnerInfos = useCallback(
+      async (newPosts: FeedPost[]) => {
+        const toFetch = newPosts.filter((p) => !ownerCacheRef.current[p.ownerId]);
+        const uniqueIds = [...new Set(toFetch.map((p) => p.ownerId))];
+        if (!uniqueIds.length) return;
 
-    const updates: Record<string, OwnerInfo> = {};
-    uniqueIds.forEach((id, i) => {
-      const res = results[i];
-      if (res.status === 'fulfilled' && res.value) {
-        updates[id] = {
-          displayName: res.value.stageName,
-          artistId:    res.value.id,
+        const results = await Promise.allSettled(uniqueIds.map((id) => getArtistByUserId(id)));
+
+        const updates: Record<string, OwnerInfo> = {};
+        uniqueIds.forEach((id, i) => {
+          const res = results[i];
+          if (res.status === 'fulfilled' && res.value) {
+            updates[id] = {
+              displayName: res.value.stageName || res.value.id,
+              artistId: res.value.id,
+            };
+          } else {
+            updates[id] = {
+              displayName:
+                  id === currentUserId
+                      ? myDisplayName ?? `User ${id.slice(0, 6)}`
+                      : `User ${id.slice(0, 6)}`,
+              artistId: null,
+            };
+          }
+        });
+
+        ownerCacheRef.current = { ...ownerCacheRef.current, ...updates };
+        setOwnerCache((prev) => ({ ...prev, ...updates }));
+      },
+      [currentUserId, myDisplayName]
+  );
+
+  const getOwnerInfo = useCallback(
+      (post: FeedPost): OwnerInfo => {
+        if (ownerCache[post.ownerId]) return ownerCache[post.ownerId];
+        return {
+          displayName:
+              post.ownerId === currentUserId
+                  ? myDisplayName ?? `User ${post.ownerId.slice(0, 6)}`
+                  : post.ownerType === 'ARTIST'
+                      ? 'Nghệ sĩ'
+                      : `User ${post.ownerId.slice(0, 6)}`,
+          artistId: null,
         };
-      } else {
-        // Không tìm thấy artist — hiện tên ngắn gọn
-        updates[id] = {
-          displayName: `User ${id.slice(0, 6)}`,
-          artistId:    null,
-        };
-      }
-    });
+      },
+      [ownerCache, currentUserId, myDisplayName]
+  );
 
-    ownerCacheRef.current = { ...ownerCacheRef.current, ...updates };
-    setOwnerCache(prev => ({ ...prev, ...updates }));
-  }, []);
-
-  /** Lấy OwnerInfo cho một post — fallback về displayName ngắn nếu chưa có */
-  const getOwnerInfo = useCallback((post: FeedPost): OwnerInfo => {
-    if (ownerCache[post.ownerId]) return ownerCache[post.ownerId];
-    // Placeholder trong lúc chờ fetch
-    return {
-      displayName: post.ownerType === 'ARTIST'
-          ? `Nghệ sĩ`
-          : `User ${post.ownerId.slice(0, 6)}`,
-      artistId: null,
-    };
-  }, [ownerCache]);
-
-  // ── Feed ──────────────────────────────────────────────────────────────────
   const loadFeed = async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
     try {
       if (mode === 'initial') setLoading(true);
       if (mode === 'refresh') setRefreshing(true);
+
       const data = await getTimeline({ page: 0, size: 30 });
       const newPosts = data.content ?? [];
       setPosts(newPosts);
-      // Fetch artist display names sau khi load post (không block render)
       void fetchOwnerInfos(newPosts);
     } catch {
       if (mode !== 'silent') setPosts([]);
@@ -767,14 +819,20 @@ export const DiscoverScreen = () => {
   };
 
   useEffect(() => {
-    void loadFeed('initial');
-    const id = setInterval(() => void loadFeed('silent'), 15_000);
+    loadFeed('initial');
+    const id = setInterval(() => loadFeed('silent'), 15000);
     return () => clearInterval(id);
-  }, []);
+  }, [currentUserId, myDisplayName]);
 
-  useFocusEffect(useCallback(() => { void loadFeed('silent'); }, []));
+    useFocusEffect(
+        useCallback(() => {
+            const fetchData = async () => {
+                await loadFeed('silent');
+            };
+            fetchData();
+        }, [])
+    );
 
-  // ── Create post ───────────────────────────────────────────────────────────
   const handleCreatePost = async (title: string, caption: string) => {
     setPosting(true);
     try {
@@ -792,7 +850,6 @@ export const DiscoverScreen = () => {
     }
   };
 
-  // ── Like ──────────────────────────────────────────────────────────────────
   const handleLike = async (post: FeedPost) => {
     try {
       if (post.likedByCurrentUser) await unlikeFeedPost(post.id);
@@ -803,14 +860,12 @@ export const DiscoverScreen = () => {
     }
   };
 
-  // ── Share ─────────────────────────────────────────────────────────────────
   const handleShare = (post: FeedPost) => {
     Share.share({
       message: `${post.title ?? 'Bài viết âm nhạc'}\nhttps://phazelsound.oopsgolden.id.vn/feed/${post.id}`,
     });
   };
 
-  // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = (post: FeedPost) => {
     Alert.alert('Xoá bài viết?', 'Hành động này không thể hoàn tác.', [
       { text: 'Huỷ', style: 'cancel' },
@@ -825,7 +880,6 @@ export const DiscoverScreen = () => {
     ]);
   };
 
-  // ── Edit ──────────────────────────────────────────────────────────────────
   const handleSaveEdit = async (title: string, caption: string) => {
     if (!editingPost) return;
     await updateFeedPost(editingPost.id, {
@@ -837,20 +891,23 @@ export const DiscoverScreen = () => {
     await loadFeed('silent');
   };
 
-  // ── Comments ──────────────────────────────────────────────────────────────
   const openComments = async (post: FeedPost) => {
     setCommentPost(post);
     try {
       const data = await getPostComments(post.id, { page: 0, size: 50 });
       setComments(data.content ?? []);
-    } catch { setComments([]); }
+    } catch {
+      setComments([]);
+    }
   };
 
   const reloadComments = async () => {
     if (!commentPost) return;
-    const data = await getPostComments(commentPost.id, { page: 0, size: 50 });
-    setComments(data.content ?? []);
-    await loadFeed('silent');
+    try {
+      const data = await getPostComments(commentPost.id, { page: 0, size: 50 });
+      setComments(data.content ?? []);
+      await loadFeed('silent');
+    } catch {}
   };
 
   const handleSendComment = async (content: string) => {
@@ -875,7 +932,6 @@ export const DiscoverScreen = () => {
     await reloadComments();
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
       <View style={styles.root}>
         <StatusBar style="light" />
@@ -885,13 +941,12 @@ export const DiscoverScreen = () => {
             refreshControl={
               <RefreshControl
                   refreshing={refreshing}
-                  onRefresh={() => void loadFeed('refresh')}
+                  onRefresh={() => loadFeed('refresh')}
                   tintColor={COLORS.accent}
               />
             }
             contentContainerStyle={{ paddingBottom: 100 }}
         >
-          {/* ── Header ─────────────────────────────────────────────── */}
           <LinearGradient
               colors={[COLORS.gradNavy, COLORS.bg]}
               style={[styles.header, { paddingTop: insets.top + 16 }]}
@@ -902,33 +957,21 @@ export const DiscoverScreen = () => {
                 <Text style={styles.headerBadgeText}>LIVE</Text>
               </View>
             </View>
-            <Text style={styles.headerSub}>
-              Cộng đồng âm nhạc · {posts.length} bài đăng
-            </Text>
+            <Text style={styles.headerSub}>Cộng đồng âm nhạc · {posts.length} bài đăng</Text>
           </LinearGradient>
 
-          {/* ── Composer bar ────────────────────────────────────────── */}
           <View style={styles.composerBar}>
-            <Avatar id={currentUserId ?? 'guest'} size={40} />
-            <Pressable
-                style={styles.composerInput}
-                onPress={() => setComposeOpen(true)}
-            >
-              <Text style={styles.composerPlaceholder}>
-                Bạn đang nghĩ gì về âm nhạc?
-              </Text>
+            <Avatar id={myDisplayName ?? 'guest'} displayName={myDisplayName ?? 'guest'} size={40} />
+            <Pressable style={styles.composerInput} onPress={() => setComposeOpen(true)}>
+              <Text style={styles.composerPlaceholder}>Bạn đang nghĩ gì về âm nhạc?</Text>
             </Pressable>
-            <Pressable
-                style={styles.composerIconBtn}
-                onPress={() => setComposeOpen(true)}
-            >
+            <Pressable style={styles.composerIconBtn} onPress={() => setComposeOpen(true)}>
               <Text style={styles.composerIconBtnText}>🎵</Text>
             </Pressable>
           </View>
 
           <View style={styles.feedDivider} />
 
-          {/* ── Feed ────────────────────────────────────────────────── */}
           {loading ? (
               <View style={styles.loadingWrap}>
                 <ActivityIndicator color={COLORS.accent} />
@@ -937,18 +980,13 @@ export const DiscoverScreen = () => {
               <View style={styles.emptyWrap}>
                 <Text style={styles.emptyEmoji}>🎵</Text>
                 <Text style={styles.emptyTitle}>Chưa có bài đăng nào</Text>
-                <Text style={styles.emptySub}>
-                  Hãy là người đầu tiên chia sẻ!
-                </Text>
-                <Pressable
-                    style={styles.emptyBtn}
-                    onPress={() => setComposeOpen(true)}
-                >
+                <Text style={styles.emptySub}>Hãy là người đầu tiên chia sẻ!</Text>
+                <Pressable style={styles.emptyBtn} onPress={() => setComposeOpen(true)}>
                   <Text style={styles.emptyBtnText}>Tạo bài viết</Text>
                 </Pressable>
               </View>
           ) : (
-              posts.map(post => (
+              posts.map((post) => (
                   <PostCard
                       key={post.id}
                       post={post}
@@ -959,18 +997,16 @@ export const DiscoverScreen = () => {
                       onShare={handleShare}
                       onDelete={handleDelete}
                       onEdit={setEditingPost}
-                      onViewProfile={(artistId) =>
-                          navigation.navigate('ArtistProfile', { artistId })
-                      }
+                      onViewProfile={(artistId) => navigation.navigate('ArtistProfile', { artistId })}
                   />
               ))
           )}
         </ScrollView>
 
-        {/* ── Modals ─────────────────────────────────────────────────── */}
         <ComposeModal
             visible={composeOpen}
             userId={currentUserId ?? 'guest'}
+            displayName={myDisplayName}
             onClose={() => setComposeOpen(false)}
             onPost={handleCreatePost}
             posting={posting}
@@ -988,6 +1024,7 @@ export const DiscoverScreen = () => {
             post={commentPost}
             comments={comments}
             currentUserId={currentUserId}
+            myDisplayName={myDisplayName}
             onClose={() => setCommentPost(null)}
             onSendComment={handleSendComment}
             onLikeComment={handleLikeComment}
@@ -1003,7 +1040,6 @@ export const DiscoverScreen = () => {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
 
-  // ── Header ───────────────────────────────────────────────────────────────
   header: { paddingHorizontal: 20, paddingBottom: 20 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerTitle: { color: COLORS.white, fontSize: 26, fontWeight: '800' },
@@ -1021,7 +1057,6 @@ const styles = StyleSheet.create({
   },
   headerSub: { color: COLORS.glass40, fontSize: 13, marginTop: 4 },
 
-  // ── Composer bar ──────────────────────────────────────────────────────────
   composerBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1039,10 +1074,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.glass10,
   },
-  composerPlaceholder: {
-    color: COLORS.glass35,
-    fontSize: 14,
-  },
+  composerPlaceholder: { color: COLORS.glass35, fontSize: 14 },
   composerIconBtn: {
     width: 40,
     height: 40,
@@ -1063,11 +1095,9 @@ const styles = StyleSheet.create({
     borderColor: COLORS.glass06,
   },
 
-  // ── Avatar ────────────────────────────────────────────────────────────────
   avatar: { alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: COLORS.white, fontWeight: '700' },
 
-  // ── Post card ─────────────────────────────────────────────────────────────
   postCard: {
     backgroundColor: COLORS.bg,
     borderBottomWidth: 6,
@@ -1098,10 +1128,7 @@ const styles = StyleSheet.create({
   postMetaDot: { color: COLORS.glass25, fontSize: 12 },
   postType: { fontSize: 12 },
   postVisibility: { fontSize: 11 },
-  postMenuBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
+  postMenuBtn: { paddingHorizontal: 6, paddingVertical: 4 },
   postMenuIcon: {
     color: COLORS.glass50,
     fontSize: 13,
@@ -1109,7 +1136,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Post menu dropdown
   postMenu: {
     marginHorizontal: 16,
     marginBottom: 8,
@@ -1130,7 +1156,6 @@ const styles = StyleSheet.create({
   postMenuItemText: { color: COLORS.white, fontSize: 14, fontWeight: '500' },
   postMenuDivider: { height: 1, backgroundColor: COLORS.glass06 },
 
-  // Post content
   postContent: { paddingHorizontal: 16, marginBottom: 10 },
   postTitle: {
     color: COLORS.white,
@@ -1145,7 +1170,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Post stats
   postStats: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1170,11 +1194,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 
-  // Action bar
-  postActions: {
-    flexDirection: 'row',
-    paddingHorizontal: 8,
-  },
+  postActions: { flexDirection: 'row', paddingHorizontal: 8 },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -1187,7 +1207,6 @@ const styles = StyleSheet.create({
   actionIcon: { color: COLORS.glass50, fontSize: 18 },
   actionLabel: { color: COLORS.glass50, fontSize: 13, fontWeight: '500' },
 
-  // ── Loading / empty ───────────────────────────────────────────────────────
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
   emptyWrap: { paddingVertical: 64, alignItems: 'center', paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
@@ -1211,11 +1230,7 @@ const styles = StyleSheet.create({
   },
   emptyBtnText: { color: COLORS.white, fontWeight: '700' },
 
-  // ── Compose modal ─────────────────────────────────────────────────────────
-  composeRoot: {
-    flex: 1,
-    backgroundColor: COLORS.bg,
-  },
+  composeRoot: { flex: 1, backgroundColor: COLORS.bg },
   composeHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1309,18 +1324,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // ── Comment sheet ─────────────────────────────────────────────────────────
-  sheetOverlay: {
-    flex: 1,
-    backgroundColor: COLORS.scrim,
-  },
-  sheetKbWrapper: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    maxHeight: '85%',
-  },
+  sheetOverlay: { flex: 1, backgroundColor: COLORS.scrim },
+  sheetKbWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '85%' },
   sheetContainer: {
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: 20,
@@ -1350,7 +1355,6 @@ const styles = StyleSheet.create({
   sheetClose: { color: COLORS.glass40, fontSize: 16 },
   sheetList: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
 
-  // No comments
   noComments: {
     color: COLORS.glass35,
     fontSize: 14,
@@ -1358,12 +1362,7 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
   },
 
-  // Comment rows
-  commentRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 14,
-  },
+  commentRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   commentContent: { flex: 1 },
   commentBubble: {
     backgroundColor: COLORS.surfaceLow,
@@ -1389,7 +1388,6 @@ const styles = StyleSheet.create({
   commentLike: { color: COLORS.glass45, fontSize: 12, fontWeight: '600' },
   commentAction: { color: COLORS.glass45, fontSize: 12, fontWeight: '600' },
 
-  // Comment edit inline
   commentEditRow: { gap: 8 },
   commentEditInput: {
     backgroundColor: COLORS.surfaceLow,
@@ -1404,7 +1402,6 @@ const styles = StyleSheet.create({
   commentEditCancel: { color: COLORS.glass45, fontSize: 12, fontWeight: '600' },
   commentEditSave: { color: COLORS.accent, fontSize: 12, fontWeight: '700' },
 
-  // Input bar
   commentInputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -1439,5 +1436,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  commentSendIcon: { color: COLORS.white, fontSize: 14 },
 });

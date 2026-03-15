@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { AntDesign, MaterialIcons, Fontisto   } from '@expo/vector-icons';
 import { useDownload } from '../context/DownloadContext';
 
 import { COLORS } from '../config/colors';
@@ -138,11 +139,13 @@ export const HomeScreen = () => {
               <Text style={styles.greeting}>{getGreeting()},</Text>
               <Text style={styles.name}>{displayName} 👋</Text>
             </View>
-            <View style={styles.avatarCircle}><Text style={{ fontSize: 20 }}>👤</Text></View>
+            <View style={styles.avatarCircle}>
+              <Fontisto name="person" color="#3B82F6" size={24} />
+            </View>
           </Pressable>
 
           <Pressable onPress={() => navigation.navigate('Search')} style={({ pressed }) => [styles.searchBar, { opacity: pressed ? 0.8 : 1 }]}>
-            <Text style={styles.searchIcon}>🔍</Text>
+            <MaterialIcons name="saved-search" color="#2563EB" size={26} />
             <Text style={styles.searchPlaceholder}>Tìm bài hát, nghệ sĩ...</Text>
           </Pressable>
         </LinearGradient>
@@ -202,6 +205,7 @@ export const HomeScreen = () => {
           subtitle={selectedSong?.primaryArtist?.stageName}
           thumbnailUrl={selectedSong?.thumbnailUrl}
           onClose={() => setSelectedSong(null)}
+
           actions={[
             {
               icon: '↗',
@@ -213,7 +217,7 @@ export const HomeScreen = () => {
               },
             },
             {
-              icon: '➕',
+              icon: <AntDesign name="appstore-add" size={20} color="#fff" />,
               label: 'Thêm vào playlist',
               onPress: () => {
                 if (!selectedSong) return;
@@ -223,30 +227,30 @@ export const HomeScreen = () => {
             },
             {
               icon: isDownloaded(selectedSong?.id ?? '')
-                  ? '✓'
+                  ? <AntDesign name="check-circle" size={20} color="#4ade80" />
                   : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                      ? '⬇'
-                      : '⬇️',
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <AntDesign name="download" size={20} color="#fff" />,
+
               label: isDownloaded(selectedSong?.id ?? '')
                   ? 'Đã tải xuống'
                   : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                      ? `Đang tải... ${
-                          getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                              ? (getJobStatus(selectedSong?.id ?? '') as any).progress + '%'
-                              : ''
-                      }`
+                      ? `Đang tải... ${(getJobStatus(selectedSong?.id ?? '') as any).progress}%`
                       : 'Tải xuống (Offline)',
+
               sublabel: isDownloaded(selectedSong?.id ?? '')
                   ? 'Có thể nghe offline'
                   : 'Cần gói Premium',
+
               onPress: () => {
                 if (!selectedSong) return;
                 void handleDownloadSong(selectedSong);
               },
+
               disabled: isDownloaded(selectedSong?.id ?? ''),
             },
             {
-              icon: '🚩',
+              icon: <AntDesign name="flag" size={20} color={COLORS.error} />,
               label: 'Báo cáo bài hát',
               separator: true,
               destructive: true,

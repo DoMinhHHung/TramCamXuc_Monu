@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { AntDesign } from '@expo/vector-icons';
 
 import { Song } from '../services/music';
 import { COLORS } from '../config/colors';
@@ -54,7 +55,12 @@ export const SongCard = ({
         <Pressable style={styles.listMeta} onPress={onMetaPress}>
           <Text style={styles.listDuration}>{formatDuration(song.durationSeconds)}</Text>
           <Text style={[styles.listArrow, isActive && styles.listArrowActive]}>
-            {isPlaying ? '⏸' : '▶'}
+            {
+              isPlaying ? (
+                <AntDesign name="pause-circle" size={26} color="#fff" />
+            ) : (
+                <AntDesign name="play-circle" size={26} color="#fff" />
+            )}
           </Text>
         </Pressable>
       </LinearGradient>

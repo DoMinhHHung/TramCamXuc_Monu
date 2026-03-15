@@ -21,7 +21,7 @@ import { COLORS } from '../config/colors';
 
 export interface SheetAction {
   /** Emoji hoặc ký tự icon */
-  icon: string;
+  icon: string | React.ReactNode;
   label: string;
   sublabel?: string;
   onPress: () => void | Promise<void>;
@@ -58,6 +58,7 @@ export const SongActionSheet = ({
                                   onClose,
                                   actions,
                                 }: SongActionSheetProps) => {
+  const safeActions = Array.isArray(actions) ? actions : [];
   const insets    = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(500)).current;
   const fadeAnim  = useRef(new Animated.Value(0)).current;
@@ -196,7 +197,7 @@ export const SongActionSheet = ({
               contentContainerStyle={styles.actionsContainer}
               showsVerticalScrollIndicator={false}
           >
-            {actions.map((action, index) => (
+            {safeActions.map((action, index) => (
                 <React.Fragment key={index}>
                   {action.separator && <View style={styles.separator} />}
 
@@ -217,7 +218,11 @@ export const SongActionSheet = ({
                           action.disabled && styles.iconWrapDisabled,
                         ]}
                     >
-                      <Text style={styles.iconText}>{action.icon}</Text>
+                      {typeof action.icon === "string" ? (
+                          <Text style={styles.iconText}>{action.icon}</Text>
+                      ) : (
+                          action.icon
+                      )}
                     </View>
 
                     {/* Labels */}
@@ -433,3 +438,4 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 });
+

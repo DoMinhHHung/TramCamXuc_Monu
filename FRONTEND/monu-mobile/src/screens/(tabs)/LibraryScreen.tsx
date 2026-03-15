@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {Fontisto, AntDesign, FontAwesome} from '@expo/vector-icons';
 
 import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
@@ -81,8 +82,8 @@ const TabBar = ({
   onChange: (t: Tab) => void;
   counts: Record<Tab, number>;
 }) => {
-  const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'playlists', label: 'Playlist', icon: '📋' },
+  const tabs: { key: Tab; label: string; icon: string| React.ReactNode }[] = [
+    { key: 'playlists', label: 'Playlist', icon: <Fontisto name="play-list" color="#A855F7" size={14} /> },
     { key: 'songs',     label: 'Bài hát',  icon: '🎵' },
     { key: 'albums',    label: 'Album',    icon: '💿' },
   ];
@@ -362,7 +363,7 @@ const AlbumCard = ({
               </Pressable>
               <View style={albumCardStyles.menuDivider} />
               <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onDelete(); }}>
-                <Text style={[albumCardStyles.menuItemText, { color: COLORS.error }]}>🗑  Xoá album</Text>
+                <Text style={[albumCardStyles.menuItemText, { color: COLORS.error }]}><AntDesign name="delete" colors={['#ff4d4f', '#ff7875']} size={15} />  Xoá album</Text>
               </Pressable>
             </View>
         )}
@@ -540,7 +541,7 @@ const AddToPlaylistModal = ({
           <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
             {playlists.map(p => (
                 <Pressable key={p.id} style={sheetStyles.item} onPress={() => onAdd(p.id)}>
-                  <Text style={sheetStyles.itemIcon}>📋</Text>
+                  <Text style={sheetStyles.itemIcon}><Fontisto name="play-list" color="#A855F7" size={14} /></Text>
                   <Text style={sheetStyles.itemText}>{p.name}</Text>
                   <Text style={sheetStyles.itemCount}>{p.totalSongs ?? 0} bài</Text>
                 </Pressable>
@@ -1103,7 +1104,7 @@ export const LibraryScreen = () => {
 
         {playlists.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>📋</Text>
+              <Text style={styles.emptyEmoji}><Fontisto name="play-list" color="#A855F7" size={14} /></Text>
               <Text style={styles.emptyTitle}>Chưa có playlist nào</Text>
               <Text style={styles.emptySub}>Tạo playlist để sắp xếp bài hát yêu thích</Text>
             </View>
@@ -1114,7 +1115,7 @@ export const LibraryScreen = () => {
                 onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug })}
             >
               <View style={styles.listItemThumb}>
-                <Text style={{ fontSize: 22 }}>📋</Text>
+                <Text style={{ fontSize: 22 }}><Fontisto name="play-list" color="#A855F7" size={14} /></Text>
               </View>
               <View style={styles.listItemInfo}>
                 <Text style={styles.listItemTitle} numberOfLines={1}>{p.name}</Text>
@@ -1126,13 +1127,15 @@ export const LibraryScreen = () => {
                     onPress={() => { setEditPlaylist(p); setEditPlaylistName(p.name); }}
                     style={styles.iconBtn}
                 >
-                  <Text style={styles.iconBtnText}>✏</Text>
+                  <Text style={styles.iconBtnText}>
+                    <FontAwesome name="edit" color="#ff7e5f" size={18} />
+                      </Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => void handleShare('playlist', p.id, p.name, 'qr')} style={styles.iconBtn}>
                   <Text style={styles.iconBtnText}>↗</Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => handleDeletePlaylist(p)} style={styles.iconBtn}>
-                  <Text style={[styles.iconBtnText, { color: COLORS.error }]}>🗑</Text>
+                  <Text style={[styles.iconBtnText, { color: COLORS.error }]}><AntDesign name="delete" colors={['#ff4d4f', '#ff7875']} size={15} /></Text>
                 </Pressable>
               </View>
             </Pressable>
