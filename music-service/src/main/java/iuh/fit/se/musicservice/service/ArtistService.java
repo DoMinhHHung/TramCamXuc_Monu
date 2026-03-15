@@ -26,6 +26,8 @@ public interface ArtistService {
 
     ArtistResponse getArtistById(UUID artistId);
 
+    ArtistResponse getArtistByUserId(UUID userId);
+
     Page<ArtistResponse> searchArtists(String stageName, ArtistStatus status, Pageable pageable);
 
     /** Admin: đình chỉ / phục hồi artist */

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
-    ActivityIndicator, Alert, Image, Pressable,
-    ScrollView, StyleSheet, Text, TextInput, View,
+    ActivityIndicator, Alert, Image, Modal, Pressable,
+    ScrollView, StyleSheet, Text, TextInput, View, FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -11,7 +11,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { COLORS } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
+import { useDownload } from '../../context/DownloadContext';
 import { deleteMyProfile, updateMyProfile, uploadAvatar } from '../../services/auth';
+import { getMyPlaylists } from '../../services/music';
+import { getMyHearts } from '../../services/social';
 import { apiClient } from '../../services/api';
 import { BackButton } from '../../components/BackButton';
 import { useNavigation } from '@react-navigation/native';
@@ -27,6 +30,7 @@ export const ProfileScreen = () => {
     const { authSession, refreshProfile, logout } = useAuth();
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
+    const { downloadedSongs, storageUsed } = useDownload();
 
     const [menuOpen,    setMenuOpen]    = useState(false);
     const [editOpen,    setEditOpen]    = useState(false);
@@ -37,8 +41,16 @@ export const ProfileScreen = () => {
     const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
     const [loadingArtist, setLoadingArtist] = useState(true);
 
+    // Downloads modal
+    const [downloadsOpen, setDownloadsOpen] = useState(false);
+
+    // Stats từ API
+    const [playlistCount, setPlaylistCount] = useState<number | null>(null);
+    const [favoriteCount, setFavoriteCount] = useState<number | null>(null);
+
     useEffect(() => {
         void loadArtistProfile();
+        void loadStats();
     }, [authSession?.tokens.accessToken]);
 
     const loadArtistProfile = async () => {
@@ -51,6 +63,17 @@ export const ProfileScreen = () => {
         } finally {
             setLoadingArtist(false);
         }
+    };
+
+    const loadStats = async () => {
+        try {
+            const [plRes, hvRes] = await Promise.allSettled([
+                getMyPlaylists({ page: 1, size: 1 }),
+                getMyHearts({ page: 1, size: 1 }),
+            ]);
+            if (plRes.status === 'fulfilled') setPlaylistCount(plRes.value.totalElements ?? 0);
+            if (hvRes.status === 'fulfilled') setFavoriteCount(hvRes.value.totalElements ?? 0);
+        } catch { /* silent */ }
     };
 
     const pickAvatar = async () => {
@@ -124,6 +147,41 @@ export const ProfileScreen = () => {
             default:         return '';
         }
     };
+
+    const formatStorage = (bytes: number): string => {
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    // ── Menu items config ─────────────────────────────────────────────────
+    const menuItems = [
+        {
+            icon: '🎵',
+            label: 'Playlist của tôi',
+            sub: playlistCount !== null ? `${playlistCount} playlist` : undefined,
+            onPress: () => navigation.navigate('MainTabs', { screen: 'Library' }),
+        },
+        {
+            icon: '❤️',
+            label: 'Bài hát yêu thích',
+            sub: favoriteCount !== null ? `${favoriteCount} bài` : undefined,
+            onPress: () => navigation.navigate('FavoriteSongs'),
+        },
+        {
+            icon: '⬇️',
+            label: 'Đã tải xuống',
+            sub: downloadedSongs.length > 0
+                ? `${downloadedSongs.length} bài · ${formatStorage(storageUsed)}`
+                : 'Chưa có bài nào',
+            onPress: () => setDownloadsOpen(true),
+        },
+        {
+            icon: '🎤',
+            label: 'Đang theo dõi',
+            sub: undefined,
+            onPress: () => navigation.navigate('FollowedArtists'),
+        },
+    ];
 
     return (
         <View style={styles.root}>
@@ -234,34 +292,49 @@ export const ProfileScreen = () => {
 
                 {/* ── Stats ───────────────────────────────────────── */}
                 <View style={styles.statsRow}>
-                    {[
-                        { label: 'Playlist',     val: '12' },
-                        { label: 'Nghe gần đây', val: '48' },
-                        { label: 'Yêu thích',    val: '203' },
-                    ].map((s, i) => (
-                        <View key={i} style={styles.statItem}>
-                            <Text style={styles.statVal}>{s.val}</Text>
-                            <Text style={styles.statLabel}>{s.label}</Text>
-                        </View>
-                    ))}
+                    <View style={styles.statItem}>
+                        <Text style={styles.statVal}>
+                            {playlistCount !== null ? playlistCount : '—'}
+                        </Text>
+                        <Text style={styles.statLabel}>Playlist</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statVal}>
+                            {downloadedSongs.length}
+                        </Text>
+                        <Text style={styles.statLabel}>Đã tải</Text>
+                    </View>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statVal}>
+                            {favoriteCount !== null ? favoriteCount : '—'}
+                        </Text>
+                        <Text style={styles.statLabel}>Yêu thích</Text>
+                    </View>
                 </View>
 
                 {/* ── Menu items ───────────────────────────────────── */}
                 <View style={styles.menuCard}>
-                    {[
-                        { icon: '🎵', label: 'Playlist của tôi' },
-                        { icon: '❤️', label: 'Bài hát yêu thích' },
-                        { icon: '⬇️', label: 'Đã tải xuống' },
-                        { icon: '📊', label: 'Thống kê nghe nhạc' },
-                    ].map((item, i) => (
-                        <Pressable key={i} style={styles.menuRow}>
+                    {menuItems.map((item, i) => (
+                        <Pressable
+                            key={i}
+                            style={({ pressed }) => [
+                                styles.menuRow,
+                                pressed && { backgroundColor: COLORS.glass04 },
+                            ]}
+                            onPress={item.onPress}
+                        >
                             <LinearGradient
                                 colors={[COLORS.surface, COLORS.surfaceLow]}
                                 style={styles.menuIconWrap}
                             >
                                 <Text>{item.icon}</Text>
                             </LinearGradient>
-                            <Text style={styles.menuLabel}>{item.label}</Text>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.menuLabel}>{item.label}</Text>
+                                {item.sub ? (
+                                    <Text style={styles.menuSub}>{item.sub}</Text>
+                                ) : null}
+                            </View>
                             <Text style={styles.menuArrow}>›</Text>
                         </Pressable>
                     ))}
@@ -316,6 +389,69 @@ export const ProfileScreen = () => {
                     </View>
                 </View>
             )}
+
+            {/* Downloads modal */}
+            <Modal
+                visible={downloadsOpen}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setDownloadsOpen(false)}
+            >
+                <Pressable
+                    style={{ flex: 1, backgroundColor: COLORS.scrim }}
+                    onPress={() => setDownloadsOpen(false)}
+                />
+                <View style={styles.dlSheet}>
+                    <View style={styles.dlHandle} />
+                    <Text style={styles.dlTitle}>
+                        Đã tải xuống · {downloadedSongs.length} bài
+                    </Text>
+                    {downloadedSongs.length === 0 ? (
+                        <View style={styles.dlEmpty}>
+                            <Text style={{ fontSize: 40, marginBottom: 10 }}>⬇️</Text>
+                            <Text style={styles.dlEmptyText}>Chưa có bài hát nào được tải</Text>
+                            <Text style={styles.dlEmptyHint}>
+                                Bấm ⬇️ trên bài hát để tải về nghe offline
+                            </Text>
+                        </View>
+                    ) : (
+                        <>
+                            <Text style={styles.dlStorage}>
+                                Dung lượng đã dùng: {formatStorage(storageUsed)}
+                            </Text>
+                            <FlatList
+                                data={downloadedSongs}
+                                keyExtractor={i => i.song.id}
+                                style={{ maxHeight: 320 }}
+                                renderItem={({ item }) => (
+                                    <View style={styles.dlRow}>
+                                        <View style={styles.dlThumb}>
+                                            <Text style={{ fontSize: 20 }}>🎵</Text>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.dlSongTitle} numberOfLines={1}>
+                                                {item.song.title}
+                                            </Text>
+                                            <Text style={styles.dlSongArtist} numberOfLines={1}>
+                                                {item.song.primaryArtist?.stageName}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.dlSize}>
+                                            {formatStorage(item.size)}
+                                        </Text>
+                                    </View>
+                                )}
+                            />
+                        </>
+                    )}
+                    <Pressable
+                        style={styles.dlCloseBtn}
+                        onPress={() => setDownloadsOpen(false)}
+                    >
+                        <Text style={styles.dlCloseBtnText}>Đóng</Text>
+                    </Pressable>
+                </View>
+            </Modal>
 
             <ConfirmModal
                 visible={deleteOpen}
@@ -445,13 +581,14 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.glass03,
         borderWidth: 1, borderColor: COLORS.glass07,
     },
-    menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
+    menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
     menuIconWrap: {
         width: 36, height: 36, borderRadius: 10,
         alignItems: 'center', justifyContent: 'center',
         marginRight: 14, overflow: 'hidden',
     },
-    menuLabel: { flex: 1, color: COLORS.white, fontSize: 15, fontWeight: '500' },
+    menuLabel: { color: COLORS.white, fontSize: 15, fontWeight: '500' },
+    menuSub:   { color: COLORS.glass35, fontSize: 11, marginTop: 1 },
     menuArrow: { color: COLORS.glass20, fontSize: 22 },
 
     // Dropdown
@@ -501,4 +638,47 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.accent,
     },
     saveBtnText: { color: COLORS.white, fontWeight: '700' },
+
+    // Downloads sheet
+    dlSheet: {
+        backgroundColor: COLORS.surface,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+        paddingBottom: 36,
+        borderWidth: 1,
+        borderBottomWidth: 0,
+        borderColor: COLORS.glass12,
+    },
+    dlHandle: {
+        width: 40, height: 4, borderRadius: 2,
+        backgroundColor: COLORS.glass20,
+        alignSelf: 'center', marginBottom: 16,
+    },
+    dlTitle: { color: COLORS.white, fontSize: 18, fontWeight: '800', marginBottom: 4 },
+    dlStorage: { color: COLORS.glass35, fontSize: 12, marginBottom: 12 },
+    dlEmpty: { alignItems: 'center', paddingVertical: 32 },
+    dlEmptyText: { color: COLORS.glass60, fontSize: 16, fontWeight: '600', marginBottom: 6 },
+    dlEmptyHint: { color: COLORS.glass35, fontSize: 13, textAlign: 'center' },
+    dlRow: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingVertical: 10, gap: 12,
+        borderBottomWidth: 1, borderBottomColor: COLORS.glass06,
+    },
+    dlThumb: {
+        width: 44, height: 44, borderRadius: 8,
+        backgroundColor: COLORS.surfaceLow,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    dlSongTitle:  { color: COLORS.white, fontSize: 14, fontWeight: '600' },
+    dlSongArtist: { color: COLORS.glass45, fontSize: 12, marginTop: 2 },
+    dlSize:       { color: COLORS.glass35, fontSize: 11 },
+    dlCloseBtn: {
+        backgroundColor: COLORS.accentDim,
+        borderRadius: 999,
+        paddingVertical: 14,
+        alignItems: 'center',
+        marginTop: 16,
+    },
+    dlCloseBtnText: { color: COLORS.white, fontWeight: '700' },
 });

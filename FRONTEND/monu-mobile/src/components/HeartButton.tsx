@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 
 import { useAuth } from '../context/AuthContext';
 import { checkHearted, heartSong, unheartSong } from '../services/social';
@@ -12,8 +12,7 @@ interface HeartButtonProps {
 
 export const HeartButton = ({ songId, size = 22, onToggle }: HeartButtonProps) => {
     const { authSession } = useAuth();
-    const [hearted,  setHearted]  = useState(false);
-    const [loading,  setLoading]  = useState(false);
+    const [hearted, setHearted] = useState(false);
 
     useEffect(() => {
         if (!authSession) return;
@@ -25,28 +24,24 @@ export const HeartButton = ({ songId, size = 22, onToggle }: HeartButtonProps) =
     }, [songId, authSession?.tokens.accessToken]);
 
     const handlePress = async () => {
-        if (!authSession || loading) return;
-        setLoading(true);
+        if (!authSession) return;
+
+        const newHearted = !hearted;
+        setHearted(newHearted);
+        onToggle?.(newHearted);
+
         try {
-            if (hearted) {
-                await unheartSong(songId);
-                setHearted(false);
-                onToggle?.(false);
-            } else {
+            if (newHearted) {
                 await heartSong(songId);
-                setHearted(true);
-                onToggle?.(true);
+            } else {
+                await unheartSong(songId);
             }
         } catch (e) {
+            setHearted(!newHearted);
+            onToggle?.(!newHearted);
             console.warn('HeartButton error:', e);
-        } finally {
-            setLoading(false);
         }
     };
-
-    if (loading) {
-        return <ActivityIndicator size="small" color="#ff4081" />;
-    }
 
     return (
         <Pressable

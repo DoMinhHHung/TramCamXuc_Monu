@@ -746,7 +746,7 @@ const AlbumDetailModal = ({
 
   const availableSongs = mySongs.filter(s =>
       (s.transcodeStatus as string) === 'COMPLETED' &&
-      s.status === 'PUBLIC' &&
+      (s.status === 'PUBLIC' || s.status === 'PRIVATE') &&
       !album?.songs?.some(as => as.id === s.id)
   );
 
@@ -845,16 +845,16 @@ const AlbumDetailModal = ({
               </ScrollView>
           )}
 
-          {/* Add song picker */}
           <Modal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
             <Pressable style={sheetStyles.overlay} onPress={() => setAddOpen(false)} />
             <View style={sheetStyles.sheet}>
               <View style={sheetStyles.handle} />
               <Text style={sheetStyles.title}>Thêm bài hát vào album</Text>
-              <Text style={sheetStyles.subtitle}>Chỉ bài đã phát hành mới có thể thêm vào album</Text>
+              <Text style={sheetStyles.subtitle}>Bài hát của bạn (PUBLIC hoặc PRIVATE, đã transcode xong)</Text>
               {availableSongs.length === 0 ? (
                   <Text style={{ color: COLORS.glass40, padding: 16, textAlign: 'center' }}>
-                    Không có bài hát nào khả dụng.
+                    Không có bài hát nào khả dụng.{'\n'}
+                    Bài hát cần hoàn thành transcode (COMPLETED).
                   </Text>
               ) : (
                   <ScrollView style={{ maxHeight: 300 }}>
@@ -865,7 +865,12 @@ const AlbumDetailModal = ({
                             onPress={() => { setAddOpen(false); void handleAddSong(s.id); }}
                         >
                           <Text style={sheetStyles.itemIcon}>🎵</Text>
-                          <Text style={sheetStyles.itemText} numberOfLines={1}>{s.title}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={sheetStyles.itemText} numberOfLines={1}>{s.title}</Text>
+                            <Text style={{ color: COLORS.glass40, fontSize: 11 }}>
+                              {s.status === 'PUBLIC' ? '🌐 Công khai' : '🔒 Riêng tư'}
+                            </Text>
+                          </View>
                         </Pressable>
                     ))}
                   </ScrollView>

@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/colors';
@@ -38,7 +38,15 @@ import {
   unlikeFeedPost,
   updateComment,
   updateFeedPost,
+  getArtistByUserId,
 } from '../../services/social';
+
+
+
+interface OwnerInfo {
+  displayName: string;
+  artistId: string | null;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -63,17 +71,19 @@ const getAvatarColors = (id: string): [string, string] => {
   return palette[idx];
 };
 
-const getInitials = (id: string) =>
-    id.slice(0, 2).toUpperCase();
+const getInitials = (name: string) =>
+    name.slice(0, 2).toUpperCase();
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-/** Avatar nhỏ — dùng gradient + initials vì không có URL */
+/** Avatar nhỏ — dùng gradient + initials */
 const Avatar = ({
                   id,
+                  displayName,
                   size = 40,
                 }: {
   id: string;
+  displayName?: string;
   size?: number;
 }) => {
   const colors = getAvatarColors(id);
@@ -86,7 +96,7 @@ const Avatar = ({
           ]}
       >
         <Text style={[styles.avatarText, { fontSize: size * 0.34 }]}>
-          {getInitials(id)}
+          {getInitials(displayName ?? id)}
         </Text>
       </LinearGradient>
   );
@@ -138,7 +148,6 @@ const ComposeModal = ({
   const [caption, setCaption] = useState('');
   const inputRef = useRef<TextInput>(null);
 
-  // Focus input khi mở
   useEffect(() => {
     if (visible) {
       const t = setTimeout(() => inputRef.current?.focus(), 150);
@@ -319,9 +328,7 @@ const CommentSheet = ({
 
             {/* Header */}
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>
-                Bình luận
-              </Text>
+              <Text style={styles.sheetTitle}>Bình luận</Text>
               <Pressable onPress={onClose} hitSlop={10}>
                 <Text style={styles.sheetClose}>✕</Text>
               </Pressable>
@@ -451,34 +458,53 @@ const CommentSheet = ({
 interface PostCardProps {
   post: FeedPost;
   currentUserId: string | null;
+  ownerInfo: OwnerInfo;
   onLike: (post: FeedPost) => void;
   onComment: (post: FeedPost) => void;
   onShare: (post: FeedPost) => void;
   onDelete: (post: FeedPost) => void;
   onEdit: (post: FeedPost) => void;
+  onViewProfile: (artistId: string) => void;
 }
 
 const PostCard = ({
                     post,
                     currentUserId,
+                    ownerInfo,
                     onLike,
                     onComment,
                     onShare,
                     onDelete,
                     onEdit,
+                    onViewProfile,
                   }: PostCardProps) => {
   const isOwner = currentUserId === post.ownerId;
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleNamePress = () => {
+    if (ownerInfo.artistId) {
+      onViewProfile(ownerInfo.artistId);
+    }
+  };
 
   return (
       <View style={styles.postCard}>
         {/* Header */}
         <View style={styles.postHeader}>
-          <Avatar id={post.ownerId} size={42} />
+          <Pressable onPress={handleNamePress} disabled={!ownerInfo.artistId}>
+            <Avatar id={post.ownerId} displayName={ownerInfo.displayName} size={42} />
+          </Pressable>
           <View style={styles.postMeta}>
-            <Text style={styles.postOwnerName}>
-              {post.ownerId.slice(0, 10)}...
-            </Text>
+            {/* Tên owner — bấm để xem profile nếu là artist */}
+            <Pressable onPress={handleNamePress} disabled={!ownerInfo.artistId}>
+              <Text style={[
+                styles.postOwnerName,
+                ownerInfo.artistId ? { color: COLORS.accent } : {},
+              ]}>
+                {ownerInfo.displayName}
+                {ownerInfo.artistId ? ' 🎤' : ''}
+              </Text>
+            </Pressable>
             <View style={styles.postMetaRow}>
               <Text style={styles.postTime}>{timeAgo(post.createdAt)} trước</Text>
               <Text style={styles.postMetaDot}>·</Text>
@@ -658,6 +684,7 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
 
 export const DiscoverScreen = () => {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const { authSession } = useAuth();
   const currentUserId = authSession?.profile?.id ?? null;
 
@@ -666,16 +693,60 @@ export const DiscoverScreen = () => {
   const [posting, setPosting]       = useState(false);
   const [posts, setPosts]           = useState<FeedPost[]>([]);
 
-  // Compose
+  const [ownerCache, setOwnerCache] = useState<Record<string, OwnerInfo>>({});
+  const ownerCacheRef               = useRef<Record<string, OwnerInfo>>({});
+
   const [composeOpen, setComposeOpen] = useState(false);
 
-  // Edit
   const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
 
-  // Comments
   const [commentPost, setCommentPost]   = useState<FeedPost | null>(null);
   const [comments, setComments]         = useState<Comment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
+
+  const fetchOwnerInfos = useCallback(async (newPosts: FeedPost[]) => {
+    // Chỉ fetch những owner chưa có trong cache
+    const toFetch = newPosts.filter(
+        p => p.ownerType === 'ARTIST' && !ownerCacheRef.current[p.ownerId]
+    );
+    const uniqueIds = [...new Set(toFetch.map(p => p.ownerId))];
+    if (uniqueIds.length === 0) return;
+
+    const results = await Promise.allSettled(
+        uniqueIds.map(id => getArtistByUserId(id))
+    );
+
+    const updates: Record<string, OwnerInfo> = {};
+    uniqueIds.forEach((id, i) => {
+      const res = results[i];
+      if (res.status === 'fulfilled' && res.value) {
+        updates[id] = {
+          displayName: res.value.stageName,
+          artistId:    res.value.id,
+        };
+      } else {
+        // Không tìm thấy artist — hiện tên ngắn gọn
+        updates[id] = {
+          displayName: `User ${id.slice(0, 6)}`,
+          artistId:    null,
+        };
+      }
+    });
+
+    ownerCacheRef.current = { ...ownerCacheRef.current, ...updates };
+    setOwnerCache(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  /** Lấy OwnerInfo cho một post — fallback về displayName ngắn nếu chưa có */
+  const getOwnerInfo = useCallback((post: FeedPost): OwnerInfo => {
+    if (ownerCache[post.ownerId]) return ownerCache[post.ownerId];
+    // Placeholder trong lúc chờ fetch
+    return {
+      displayName: post.ownerType === 'ARTIST'
+          ? `Nghệ sĩ`
+          : `User ${post.ownerId.slice(0, 6)}`,
+      artistId: null,
+    };
+  }, [ownerCache]);
 
   // ── Feed ──────────────────────────────────────────────────────────────────
   const loadFeed = async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
@@ -683,7 +754,10 @@ export const DiscoverScreen = () => {
       if (mode === 'initial') setLoading(true);
       if (mode === 'refresh') setRefreshing(true);
       const data = await getTimeline({ page: 0, size: 30 });
-      setPosts(data.content ?? []);
+      const newPosts = data.content ?? [];
+      setPosts(newPosts);
+      // Fetch artist display names sau khi load post (không block render)
+      void fetchOwnerInfos(newPosts);
     } catch {
       if (mode !== 'silent') setPosts([]);
     } finally {
@@ -766,12 +840,10 @@ export const DiscoverScreen = () => {
   // ── Comments ──────────────────────────────────────────────────────────────
   const openComments = async (post: FeedPost) => {
     setCommentPost(post);
-    setCommentsLoading(true);
     try {
       const data = await getPostComments(post.id, { page: 0, size: 50 });
       setComments(data.content ?? []);
     } catch { setComments([]); }
-    finally { setCommentsLoading(false); }
   };
 
   const reloadComments = async () => {
@@ -881,11 +953,15 @@ export const DiscoverScreen = () => {
                       key={post.id}
                       post={post}
                       currentUserId={currentUserId}
+                      ownerInfo={getOwnerInfo(post)}
                       onLike={handleLike}
                       onComment={openComments}
                       onShare={handleShare}
                       onDelete={handleDelete}
                       onEdit={setEditingPost}
+                      onViewProfile={(artistId) =>
+                          navigation.navigate('ArtistProfile', { artistId })
+                      }
                   />
               ))
           )}

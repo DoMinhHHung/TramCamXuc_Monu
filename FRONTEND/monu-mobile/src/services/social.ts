@@ -218,3 +218,16 @@ export const getArtistStats = async (artistId: string): Promise<ArtistStatsRespo
   const response = await apiClient.get<ArtistStatsResponse>(`/social/artists/${artistId}/stats`);
   return response.data;
 };
+
+export const getArtistByUserId = async (
+    userId: string,
+): Promise<{ id: string; stageName: string; avatarUrl?: string } | null> => {
+  try {
+    const res = await apiClient.get<any>(`/artists/by-user/${userId}`);
+    const d = res.data?.result;
+    if (d?.id) return { id: d.id, stageName: d.stageName, avatarUrl: d.avatarUrl };
+    return null;
+  } catch {
+    return null;
+  }
+};

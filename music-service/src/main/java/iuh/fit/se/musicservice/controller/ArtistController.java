@@ -113,4 +113,11 @@ public class ArtistController {
                 .result(artistService.updateStatus(artistId, status))
                 .build();
     }
+
+    @GetMapping("/by-user/{userId}")
+    public ApiResponse<ArtistResponse> getArtistByUserId(@PathVariable UUID userId) {
+        return ApiResponse.<ArtistResponse>builder()
+                .result(artistService.getArtistByUserId(userId))
+                .build();
+    }
 }
