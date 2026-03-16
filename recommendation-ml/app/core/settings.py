@@ -37,8 +37,8 @@ class Settings(BaseSettings):
 
     # ── MinIO ────────────────────────────────────────────────────────────────
     minio_endpoint: str = "localhost:9000"
-    minio_access_key: str = "minioadmin"
-    minio_secret_key: str = "minioadmin"
+    minio_access_key: str = "admin"
+    minio_secret_key: str = "password123"
     minio_secure: bool = False
     minio_bucket: str = "ml-models"
 

@@ -66,7 +66,6 @@ class CFTrainer:
             iterations=settings.cf_iterations,
             regularization=settings.cf_regularization,
             alpha=settings.cf_alpha,
-            # Dùng GPU nếu có CUDA, tự động fallback CPU
             use_gpu=False,
             calculate_training_loss=True,
         )

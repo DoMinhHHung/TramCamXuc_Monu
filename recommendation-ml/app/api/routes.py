@@ -1,23 +1,3 @@
-"""
-app/api/routes.py
-
-FastAPI routes cho recommendation endpoints.
-
-── Endpoint map ──────────────────────────────────────────────────────────────
-  GET  /recommend/cf/{userId}?limit=50        → CF top-N
-  GET  /recommend/cb/{userId}?limit=50        → CB top-N
-  GET  /recommend/similar/{songId}?limit=20   → Similar songs
-  POST /train                                 → Full pipeline trigger
-  POST /train/cf                              → CF only trigger
-  POST /train/cb                              → CB only trigger
-  GET  /health                                → Health + model freshness
-
-── Notes ────────────────────────────────────────────────────────────────────
-  - Không có authentication — service này chỉ gọi từ Spring recommendation-service
-    trong internal Docker network, không expose ra ngoài
-  - Không cần Eureka — Spring service gọi qua direct URL (ml.service.url)
-  - Tất cả endpoints async để không block event loop
-"""
 from fastapi import APIRouter, Query, BackgroundTasks, HTTPException
 from app.api.schemas import (
     RecommendResponse, SongScore,

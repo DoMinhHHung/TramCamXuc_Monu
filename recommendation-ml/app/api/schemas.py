@@ -1,8 +1,3 @@
-"""
-app/api/schemas.py
-
-Pydantic models cho request/response của FastAPI endpoints.
-"""
 from pydantic import BaseModel, Field
 from typing import Any
 

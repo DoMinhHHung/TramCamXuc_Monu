@@ -143,6 +143,9 @@ class CBTrainer:
 
             # cosine_similarity(A, B) trả về (len(A), len(B)) matrix
             similarities = cosine_similarity(batch_matrix, feature_matrix)
+            if n_songs > 50000:
+                log.warning("large_catalog", n_songs=n_songs,
+                note="Consider reducing batch_size or using approximate search (FAISS)")
 
             for local_idx in range(len(batch_matrix)):
                 global_idx = batch_start + local_idx

@@ -159,35 +159,21 @@ async def run_cb_only() -> dict:
 
 
 async def _get_active_user_ids(puller: DataPuller) -> list[str]:
-    """
-    Lấy danh sách userId có hoạt động gần đây.
-
-    Chiến lược:
-    1. Đọc từ Redis listen history (Spring TrendingEventConsumer lưu userId
-       trong ZSET khi nhận sự kiện) — nhưng chúng ta không có key này.
-    2. Fallback: Gọi một endpoint trả về active users.
-
-    Hiện tại: Spring service không expose endpoint user list (vì sensitive).
-    → Dùng approach khác: đọc từ Redis scan các key ml:cf:user:* đã có,
-      tức là users từ lần train trước. Với lần đầu tiên → cần seed manually.
-
-    TODO: Thêm một Redis SET "ml:active-users" trong Spring service
-          khi nhận SongListenEvent → TrendingEventConsumer push userId vào SET.
-    """
     redis = get_sync_redis()
 
-    # Đọc active users từ Redis SET (Spring push vào đây)
+    # 1. Redis SET từ Spring (primary)
     active_users = redis.smembers("ml:active-users")
     if active_users:
-        return list(active_users)
+        return list(active_users)[:5000]  # cap để tránh quá lớn
 
-    # Fallback: users từ model cũ
+    # 2. Fallback: users từ model cũ
     existing_keys = list(redis.scan_iter("ml:cf:user:*", count=10000))
     if existing_keys:
         return [k.replace("ml:cf:user:", "") for k in existing_keys]
 
-    log.warning("no_user_source_found",
-                hint="Add 'ml:active-users' Redis SET in Spring TrendingEventConsumer")
+    # 3. NEW: Gọi social-service để lấy user list có lịch sử nghe
+    # social-service cần expose endpoint này
+    log.warning("no_user_source_found - consider adding /internal/users/active endpoint")
     return []
 
 
