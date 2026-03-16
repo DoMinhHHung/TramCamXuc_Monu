@@ -309,31 +309,47 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
-    public void recordListen(UUID songId, UUID playlistId, UUID albumId, int durationSeconds) {
-        Song song = songRepository.findById(songId)
+    public void recordListen(UUID songId, UUID playlistId, UUID albumId,
+                             int durationSeconds, boolean completed) {
+        Song song = songRepository.findByIdWithGenres(songId)
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
 
-        Map<String, Object> event = new HashMap<>();
         UUID currentUser = tryGetCurrentUserId();
-        event.put("songId", songId.toString());
-        event.put("artistId", song.getPrimaryArtistId() != null
-                ? song.getPrimaryArtistId().toString() : null);
-        event.put("userId", currentUser != null ? currentUser.toString() : null);
-        event.put("playlistId", playlistId != null ? playlistId.toString() : null);
-        event.put("albumId",    albumId    != null ? albumId.toString()    : null);
-        event.put("durationSeconds", durationSeconds);
-        event.put("listenedAt", Instant.now().toString());
 
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.MUSIC_EVENT_EXCHANGE,
-                RabbitMQConfig.SONG_LISTEN_ROUTING_KEY,
-                event
-        );
+        List<String> genreIds   = Collections.emptyList();
+        List<String> genreNames = Collections.emptyList();
+        if (song.getGenres() != null && !song.getGenres().isEmpty()) {
+            genreIds   = song.getGenres().stream()
+                    .map(g -> g.getId().toString())
+                    .collect(Collectors.toList());
+            genreNames = song.getGenres().stream()
+                    .map(iuh.fit.se.musicservice.entity.Genre::getName)
+                    .collect(Collectors.toList());
+        }
+
+        Map<String, Object> event = new HashMap<>();
+        event.put("songId",          songId.toString());
+        event.put("songTitle",        song.getTitle());
+        event.put("artistId",         song.getPrimaryArtistId() != null
+                ? song.getPrimaryArtistId().toString() : null);
+        event.put("artistStageName",  song.getPrimaryArtistStageName());
+        event.put("userId",           currentUser != null ? currentUser.toString() : null);
+        event.put("playlistId",       playlistId  != null ? playlistId.toString()  : null);
+        event.put("albumId",          albumId     != null ? albumId.toString()      : null);
+        event.put("durationSeconds",  durationSeconds);
+        event.put("completed",        completed);
+        event.put("genreIds",         genreIds);
+        event.put("genreNames",       genreNames);
+        event.put("listenedAt",       Instant.now().toString());
+
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.SONG_LISTEN_FANOUT_EXCHANGE,
                 "",
                 event
         );
+
+        log.debug("[Listen] songId={} userId={} duration={}s completed={} genres={}",
+                songId, currentUser, durationSeconds, completed, genreNames);
     }
 
     @Override

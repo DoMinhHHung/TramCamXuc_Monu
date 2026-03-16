@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/songs")
+@RequestMapping("/songs")
 @RequiredArgsConstructor
 public class SongController {
 
@@ -28,7 +28,7 @@ public class SongController {
 
     /**
      * Tìm kiếm bài hát PUBLIC.
-     * GET /api/v1/songs?keyword=&genreId=&artistId=&page=1&size=20
+     * GET /songs?keyword=&genreId=&artistId=&page=1&size=20
      */
     @GetMapping
     public ApiResponse<Page<SongResponse>> searchSongs(
@@ -46,7 +46,7 @@ public class SongController {
 
     /**
      * Danh sách bài hát thịnh hành (sắp xếp theo playCount).
-     * GET /api/v1/songs/trending
+     * GET /songs/trending
      */
     @GetMapping("/trending")
     public ApiResponse<Page<SongResponse>> getTrending(
@@ -60,7 +60,7 @@ public class SongController {
 
     /**
      * Batch fetch nhiều bài hát theo danh sách IDs — dùng cho recommendation-service.
-     * GET /api/v1/songs/batch?ids=id1,id2,...
+     * GET /songs/batch?ids=id1,id2,...
      */
     @GetMapping("/batch")
     public ApiResponse<List<SongResponse>> getSongsByIds(
@@ -72,7 +72,7 @@ public class SongController {
 
     /**
      * Danh sách bài hát mới nhất.
-     * GET /api/v1/songs/newest
+     * GET /songs/newest
      */
     @GetMapping("/newest")
     public ApiResponse<Page<SongResponse>> getNewest(
@@ -86,7 +86,7 @@ public class SongController {
 
     /**
      * Lấy thông tin bài hát PUBLIC theo ID.
-     * GET /api/v1/songs/{songId}
+     * GET /songs/{songId}
      */
     @GetMapping("/{songId}")
     public ApiResponse<SongResponse> getSongById(@PathVariable UUID songId) {
@@ -97,7 +97,7 @@ public class SongController {
 
     /**
      * Danh sách bài hát PUBLIC của một nghệ sĩ.
-     * GET /api/v1/songs/by-artist/{artistId}
+     * GET /songs/by-artist/{artistId}
      */
     @GetMapping("/by-artist/{artistId}")
     public ApiResponse<Page<SongResponse>> getSongsByArtist(
@@ -113,7 +113,7 @@ public class SongController {
 
     /**
      * Ghi nhận lượt play (chỉ tăng playCount, không cần login).
-     * POST /api/v1/songs/{songId}/play
+     * POST /songs/{songId}/play
      */
     @PostMapping("/{songId}/play")
     public ApiResponse<Void> recordPlay(@PathVariable UUID songId) {
@@ -123,24 +123,39 @@ public class SongController {
 
     /**
      * Ghi nhận lượt nghe đầy đủ — dùng cho trending analytics.
-     * POST /api/v1/songs/{songId}/listen
+     * POST /songs/{songId}/listen
      */
     @PostMapping("/{songId}/listen")
     public ApiResponse<Void> recordListen(
             @PathVariable UUID songId,
             @RequestParam(required = false) UUID playlistId,
             @RequestParam(required = false) UUID albumId,
-            @RequestParam(defaultValue = "30") int durationSeconds) {
+            @RequestParam(defaultValue = "30")    int durationSeconds,
+            @RequestParam(defaultValue = "false") boolean completed) {
 
-        songService.recordListen(songId, playlistId, albumId, durationSeconds);
+        songService.recordListen(songId, playlistId, albumId, durationSeconds, completed);
         return ApiResponse.<Void>builder().message("Listen recorded.").build();
     }
 
     // ===================== AUTHENTICATED =====================
 
     /**
-     * Lấy URL stream HLS theo chất lượng subscription.
-     * GET /api/v1/songs/{songId}/stream
+     * Lấy URL stream HLS cho bài hát với quality dựa trên subscription tier.
+     * 
+     * AUTHENTICATION: Required for ALL songs (including PUBLIC)
+     * 
+     * QUALITY TIERS:
+     * - Free/No subscription: 64kbps
+     * - Basic tier: 128kbps
+     * - Premium tier: 256kbps
+     * - Lossless tier: 320kbps
+     * - Owner/Admin: Full quality (master.m3u8 adaptive streaming)
+     * 
+     * PRIVATE/DRAFT songs: Only owner or admin can access (full quality)
+     * 
+     * Returns: MinIO presigned URL (15 min expiry) for direct streaming from MinIO
+     * 
+     * GET /songs/{songId}/stream
      */
     @GetMapping("/{songId}/stream")
     @PreAuthorize("isAuthenticated()")
@@ -152,7 +167,7 @@ public class SongController {
 
     /**
      * Lấy presigned URL để tải bài hát (yêu cầu subscription có feature download).
-     * GET /api/v1/songs/{songId}/download
+     * GET /songs/{songId}/download
      */
     @GetMapping("/{songId}/download")
     @PreAuthorize("isAuthenticated()")
@@ -167,7 +182,7 @@ public class SongController {
 
     /**
      * Lấy danh sách bài hát của artist đang đăng nhập (kể cả DRAFT, PRIVATE).
-     * GET /api/v1/songs/my-songs
+     * GET /songs/my-songs
      */
     @GetMapping("/my-songs")
     @PreAuthorize("hasRole('ARTIST')")
@@ -183,7 +198,7 @@ public class SongController {
 
     /**
      * Bước 1 — Tạo record bài hát + nhận presigned URL để upload file lên MinIO.
-     * POST /api/v1/songs/request-upload
+     * POST /songs/request-upload
      */
     @PostMapping("/request-upload")
     @PreAuthorize("hasRole('ARTIST')")
@@ -197,7 +212,7 @@ public class SongController {
 
     /**
      * Bước 2 — Artist xác nhận đã PUT file lên MinIO xong → trigger transcode.
-     * POST /api/v1/songs/{songId}/confirm
+     * POST /songs/{songId}/confirm
      */
     @PostMapping("/{songId}/confirm")
     @PreAuthorize("hasRole('ARTIST')")
@@ -210,7 +225,7 @@ public class SongController {
 
     /**
      * Cập nhật thông tin bài hát (title, genres, status PUBLIC↔PRIVATE).
-     * PUT /api/v1/songs/{songId}
+     * PUT /songs/{songId}
      */
     @PutMapping("/{songId}")
     @PreAuthorize("hasRole('ARTIST')")
@@ -225,7 +240,7 @@ public class SongController {
 
     /**
      * Artist tự xóa mềm bài hát của mình.
-     * DELETE /api/v1/songs/{songId}
+     * DELETE /songs/{songId}
      */
     @DeleteMapping("/{songId}")
     @PreAuthorize("hasRole('ARTIST')")

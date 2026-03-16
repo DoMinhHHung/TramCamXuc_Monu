@@ -22,7 +22,7 @@ import java.util.UUID;
  * Không còn approve/reject bài hát nữa — bài hát tự PUBLIC sau khi transcode xong.
  */
 @RestController
-@RequestMapping("/api/v1/admin/songs")
+@RequestMapping("/admin/songs")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminSongController {
@@ -32,7 +32,7 @@ public class AdminSongController {
     /**
      * Lấy danh sách bài hát với filter linh hoạt.
      *
-     * GET /api/v1/admin/songs?keyword=&status=PUBLIC&showDeleted=false&page=1&size=20
+     * GET /admin/songs?keyword=&status=PUBLIC&showDeleted=false&page=1&size=20
      */
     @GetMapping
     public ApiResponse<Page<SongResponse>> getSongs(
@@ -53,7 +53,7 @@ public class AdminSongController {
      * Admin soft-delete bài hát vi phạm (thường gọi từ confirmReport,
      * nhưng admin có thể chủ động xóa mà không cần qua report flow).
      *
-     * PATCH /api/v1/admin/songs/{songId}/delete
+     * PATCH /admin/songs/{songId}/delete
      * Body: { "reason": "Nội dung vi phạm bản quyền" }
      */
     @PatchMapping("/{songId}/delete")
@@ -70,7 +70,7 @@ public class AdminSongController {
     /**
      * Admin khôi phục bài hát bị xóa nhầm (chuyển về PRIVATE).
      *
-     * PATCH /api/v1/admin/songs/{songId}/restore
+     * PATCH /admin/songs/{songId}/restore
      */
     @PatchMapping("/{songId}/restore")
     public ApiResponse<SongResponse> restoreSong(@PathVariable UUID songId) {

@@ -4,11 +4,17 @@ server:
 spring:
   application:
     name: recommendation-service
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
 eureka:
   client:
@@ -20,20 +26,40 @@ eureka:
 jwt:
   signerKey: ${JWT_SECRET}
 
+# URL của Python ML service — không qua Eureka vì là non-JVM
 ml:
   service:
-    url: ${ML_SERVICE_URL:http://localhost:8088}
-    timeout-ms: 5000
+    url: ${ML_SERVICE_URL:http://localhost:8771}
 
-feign:
-  client:
-    config:
-      default:
-        connect-timeout: 3000
-        read-timeout: 5000
+# Cấu hình blending weights — tách ra yml để dễ tune không cần redeploy
+recommendation:
+  blend:
+    cf-weight: 0.35
+    cb-weight: 0.25
+    social-weight: 0.20
+    trending-weight: 0.15
+    freshness-weight: 0.05
+  trending:
+    decay-factor: 0.85           # nhân mỗi giờ → bài 8h trước còn ~27% score
+    global-top-size: 200         # giữ 200 bài trong ZSET global (đủ để phân trang)
+    genre-top-size: 100
+  cache:
+    home-ttl-minutes: 15
+    trending-ttl-minutes: 5
+    social-ttl-minutes: 10
+    similar-ttl-minutes: 30
+  page:
+    default-size: 20
+    max-songs-per-artist: 2      # không trả quá 2 bài cùng artist trong top-20
+    exclusion-window-days: 7     # loại bài user nghe trong 7 ngày qua
+
+open:
+  api:
+    server-url: ${GATEWAY_URL:http://localhost:8080}/service-recommendation
+    server-description: API Gateway
 
 springdoc:
   api-docs:
-    path: /api-docs
+    path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html

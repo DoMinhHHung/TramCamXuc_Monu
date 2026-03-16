@@ -3,6 +3,7 @@ package iuh.fit.se.socialservice.controller;
 import iuh.fit.se.socialservice.dto.ApiResponse;
 import iuh.fit.se.socialservice.dto.request.CommentRequest;
 import iuh.fit.se.socialservice.dto.request.CommentUpdateRequest;
+import iuh.fit.se.socialservice.dto.request.PostCommentRequest;
 import iuh.fit.se.socialservice.dto.response.CommentResponse;
 import iuh.fit.se.socialservice.service.CommentService;
 import jakarta.validation.Valid;
@@ -100,6 +101,36 @@ public class CommentController {
         UUID userId = extractUserId(auth);
         commentService.unlikeComment(userId, commentId);
         return ResponseEntity.ok(ApiResponse.<Void>builder().code(1000).message("Unliked").build());
+    }
+
+    /** GET /social/comments/post?postId=... — comments của 1 feed post */
+    @GetMapping("/post")
+    public ResponseEntity<ApiResponse<Page<CommentResponse>>> getPostComments(
+            @RequestParam String postId,
+            Authentication auth,
+            @PageableDefault(size = 20) Pageable pageable) {
+        UUID userId = auth != null ? tryExtract(auth) : null;
+        return ResponseEntity.ok(ApiResponse.success(
+                commentService.getPostComments(postId, userId, pageable)));
+    }
+
+    /** GET /social/comments/post/count?postId=... */
+    @GetMapping("/post/count")
+    public ResponseEntity<ApiResponse<Long>> getPostCommentCount(
+            @RequestParam String postId) {
+        return ResponseEntity.ok(ApiResponse.success(
+                commentService.getPostCommentCount(postId)));
+    }
+
+    /** POST /social/comments/post — thêm comment vào feed post */
+    @PostMapping("/post")
+    public ResponseEntity<ApiResponse<CommentResponse>> addPostComment(
+            @Valid @RequestBody PostCommentRequest req,
+            Authentication auth) {
+        UUID userId = extractUserId(auth);
+        return ResponseEntity.ok(ApiResponse.success(
+                commentService.addPostComment(userId,
+                        req.getPostId(), req.getParentId(), req.getContent())));
     }
 
     private UUID extractUserId(Authentication auth) {

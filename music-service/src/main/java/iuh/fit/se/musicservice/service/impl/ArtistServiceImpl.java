@@ -174,6 +174,13 @@ public class ArtistServiceImpl implements ArtistService {
     }
 
     @Override
+    public ArtistResponse getArtistByUserId(UUID userId) {
+        Artist artist = artistRepository.findByUserId(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.ARTIST_NOT_FOUND));
+        return artistMapper.toResponse(artist);
+    }
+
+    @Override
     public Page<ArtistResponse> searchArtists(String stageName, ArtistStatus status, Pageable pageable) {
         return artistRepository.searchArtists(stageName, status, pageable)
                 .map(artistMapper::toResponse);

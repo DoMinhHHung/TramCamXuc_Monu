@@ -39,8 +39,8 @@ public enum ErrorCode {
     FILE_NOT_NULL(1023, "File must not be null", HttpStatus.BAD_REQUEST),
     STORAGE_SERVICE_ERROR(1024, "Storage service error", HttpStatus.INTERNAL_SERVER_ERROR),
     CANNOT_ACCESS_ADMIN(1025, "Cannot access or ban Admin account", HttpStatus.FORBIDDEN),
-    ACCESS_DENIED(1026, "Access denied", HttpStatus.FORBIDDEN);
-
+    ACCESS_DENIED(1026, "Access denied", HttpStatus.FORBIDDEN),
+    CANNOT_CHANGE_PASSWORD_SOCIAL_USER(1027, "Cannot change password for social login user", HttpStatus.BAD_REQUEST);
     private final int code;
     private final String message;
     private final HttpStatusCode statusCode;

@@ -23,27 +23,27 @@ import java.util.UUID;
  *
  * Routes:
  *   Public:
- *     GET  /api/v1/albums                              – danh sách album PUBLIC
- *     GET  /api/v1/albums/{albumId}                    – chi tiết album PUBLIC (kèm songs)
+ *     GET  /albums                              – danh sách album PUBLIC
+ *     GET  /albums/{albumId}                    – chi tiết album PUBLIC (kèm songs)
  *
  *   Artist (ROLE_ARTIST):
- *     POST /api/v1/albums                              – tạo album
- *     GET  /api/v1/albums/my                           – album của tôi
- *     GET  /api/v1/albums/my/{albumId}                 – chi tiết (draft/private/public)
- *     PUT  /api/v1/albums/{albumId}                    – cập nhật metadata
- *     DELETE /api/v1/albums/{albumId}                  – xóa album
+ *     POST /albums                              – tạo album
+ *     GET  /albums/my                           – album của tôi
+ *     GET  /albums/my/{albumId}                 – chi tiết (draft/private/public)
+ *     PUT  /albums/{albumId}                    – cập nhật metadata
+ *     DELETE /albums/{albumId}                  – xóa album
  *
- *     POST /api/v1/albums/{albumId}/songs/{songId}     – thêm bài hát
- *     DELETE /api/v1/albums/{albumId}/songs/{songId}   – xóa bài hát
- *     PUT  /api/v1/albums/{albumId}/songs/reorder      – drag-and-drop reorder
+ *     POST /albums/{albumId}/songs/{songId}     – thêm bài hát
+ *     DELETE /albums/{albumId}/songs/{songId}   – xóa bài hát
+ *     PUT  /albums/{albumId}/songs/reorder      – drag-and-drop reorder
  *
- *     POST /api/v1/albums/{albumId}/publish            – publish ngay
- *     POST /api/v1/albums/{albumId}/unpublish          – đưa về PRIVATE
- *     POST /api/v1/albums/{albumId}/schedule           – lên lịch publish
- *     DELETE /api/v1/albums/{albumId}/schedule         – huỷ lịch
+ *     POST /albums/{albumId}/publish            – publish ngay
+ *     POST /albums/{albumId}/unpublish          – đưa về PRIVATE
+ *     POST /albums/{albumId}/schedule           – lên lịch publish
+ *     DELETE /albums/{albumId}/schedule         – huỷ lịch
  */
 @RestController
-@RequestMapping("/api/v1/albums")
+@RequestMapping("/albums")
 @RequiredArgsConstructor
 public class AlbumController {
 
@@ -144,7 +144,7 @@ public class AlbumController {
      * Body: { "draggedId": "...", "prevId": "..." (nullable), "nextId": "..." (nullable) }
      * draggedId = AlbumSong.id (KHÔNG phải songId)
      *
-     * PUT /api/v1/albums/{albumId}/songs/reorder
+     * PUT /albums/{albumId}/songs/reorder
      */
     @PutMapping("/{albumId}/songs/reorder")
     @PreAuthorize("hasRole('ARTIST')")
@@ -177,7 +177,7 @@ public class AlbumController {
     /**
      * Lên lịch publish.
      *
-     * POST /api/v1/albums/{albumId}/schedule?at=2025-12-31T20:00:00+07:00
+     * POST /albums/{albumId}/schedule?at=2025-12-31T20:00:00+07:00
      */
     @PostMapping("/{albumId}/schedule")
     @PreAuthorize("hasRole('ARTIST')")

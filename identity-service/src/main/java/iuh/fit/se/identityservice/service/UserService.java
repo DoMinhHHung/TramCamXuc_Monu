@@ -29,14 +29,7 @@ public interface UserService {
 
     // ── Favorites for onboarding ──────────────────────────────────────────────
 
-    /**
-     * Lấy thông tin favorites của user hiện tại.
-     */
     FavoritesResponse getMyFavorites();
 
-    /**
-     * Cập nhật favorites (lần đầu hoặc chọn lại).
-     * Tự động set pickFavorite = true.
-     */
     FavoritesResponse updateMyFavorites(UpdateFavoritesRequest request);
 }

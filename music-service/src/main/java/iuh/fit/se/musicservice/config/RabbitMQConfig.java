@@ -78,6 +78,13 @@ public class RabbitMQConfig {
     /** Routing key for Jamendo DLQ binding on jamendo.exchange. */
     public static final String JAMENDO_DLQ_ROUTING_KEY       = "jamendo.download.dead";
 
+    public static final String FEED_FANOUT_EXCHANGE = "feed.content.fanout.exchange";
+
+    @Bean
+    public FanoutExchange feedFanoutExchange() {
+        return new FanoutExchange(FEED_FANOUT_EXCHANGE, true, false);
+    }
+
     // ── Message Converter ──────────────────────────────────────────────────────
     @Bean
     public MessageConverter jsonMessageConverter() {

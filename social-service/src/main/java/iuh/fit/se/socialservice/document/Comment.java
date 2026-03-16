@@ -27,9 +27,10 @@ public class Comment {
 
     private UUID userId;
     private UUID songId;
+    private String postId;
 
     @Indexed
-    private String parentId;   // null = top-level comment, non-null = reply
+    private String parentId;
 
     private String content;
     private int likeCount;

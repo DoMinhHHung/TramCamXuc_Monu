@@ -1,5 +1,7 @@
 package iuh.fit.se.musicservice.service.impl;
 
+import iuh.fit.se.musicservice.config.RabbitMQConfig;
+import iuh.fit.se.musicservice.dto.message.FeedContentEvent;
 import iuh.fit.se.musicservice.dto.request.AlbumCreateRequest;
 import iuh.fit.se.musicservice.dto.request.AlbumReorderRequest;
 import iuh.fit.se.musicservice.dto.request.AlbumUpdateRequest;
@@ -24,6 +26,7 @@ import iuh.fit.se.musicservice.service.AlbumService;
 import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -33,6 +36,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -49,6 +53,7 @@ public class AlbumServiceImpl implements AlbumService {
     private final SongRepository     songRepository;
     private final AlbumMapper        albumMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final RabbitTemplate rabbitTemplate;
 
     private static final String LOCK_AUTO_PUBLISH = "lock:album:auto-publish";
 
@@ -498,7 +503,7 @@ public class AlbumServiceImpl implements AlbumService {
     @Scheduled(fixedDelay = 60_000)
     public void autoPublishScheduledAlbums() {
         Boolean acquired = stringRedisTemplate.opsForValue()
-                .setIfAbsent(LOCK_AUTO_PUBLISH, "1", Duration.ofSeconds(55));
+                .setIfAbsent(LOCK_AUTO_PUBLISH, "1", Duration.ofSeconds(65));
         if (!Boolean.TRUE.equals(acquired)) {
             log.debug("autoPublishScheduledAlbums skipped — lock held by another instance");
             return;
@@ -518,9 +523,30 @@ public class AlbumServiceImpl implements AlbumService {
                 album.setScheduledPublishAt(null);
                 albumRepository.save(album);
                 log.info("Album {} auto-published", album.getId());
+                publishToFeed(album);
             } catch (Exception e) {
                 log.error("Failed to auto-publish album {}: {}", album.getId(), e.getMessage());
             }
+        }
+    }
+
+    private void publishToFeed(Album album) {
+        try {
+            FeedContentEvent event = FeedContentEvent.builder()
+                    .contentId(album.getId())
+                    .contentType(FeedContentEvent.ContentType.ALBUM)
+                    .artistId(album.getOwnerArtistId())
+                    .title(album.getTitle())
+                    .coverImageUrl(album.getCoverUrl())
+                    .visibility(FeedContentEvent.Visibility.PUBLIC)
+                    .publishedAt(Instant.now())
+                    .build();
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.FEED_FANOUT_EXCHANGE, "", event);
+            log.info("Feed event published for albumId={}", album.getId());
+        } catch (Exception e) {
+            log.warn("Failed to publish feed event for albumId={}: {}",
+                    album.getId(), e.getMessage());
         }
     }
 }

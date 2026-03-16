@@ -50,7 +50,8 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
     );
 
     @Query("""
-            SELECT s FROM Song s
+            SELECT DISTINCT s FROM Song s
+            LEFT JOIN FETCH s.genres
             WHERE s.status = 'PUBLIC'
             AND s.transcodeStatus = 'COMPLETED'
             AND s.deletedAt IS NULL
@@ -59,7 +60,8 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
     Page<Song> findTrending(Pageable pageable);
 
     @Query("""
-            SELECT s FROM Song s
+            SELECT DISTINCT s FROM Song s
+            LEFT JOIN FETCH s.genres
             WHERE s.status = 'PUBLIC'
             AND s.transcodeStatus = 'COMPLETED'
             AND s.deletedAt IS NULL
@@ -157,4 +159,12 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
             ORDER BY s.playCount DESC
             """)
     List<Song> findTopByArtistId(@Param("artistId") UUID artistId, Pageable pageable);
+
+    @Query("""
+        SELECT s FROM Song s
+        LEFT JOIN FETCH s.genres
+        WHERE s.id = :id
+        AND s.deletedAt IS NULL
+        """)
+    Optional<Song> findByIdWithGenres(@Param("id") UUID id);
 }

@@ -22,19 +22,19 @@ import java.util.UUID;
  *
  * Routes:
  *   Public:
- *     GET  /api/v1/artists                  – tìm kiếm nghệ sĩ
- *     GET  /api/v1/artists/{id}             – chi tiết nghệ sĩ
+ *     GET  /artists                  – tìm kiếm nghệ sĩ
+ *     GET  /artists/{id}             – chi tiết nghệ sĩ
  *
  *   Authenticated:
- *     POST /api/v1/artists/register         – đăng ký làm nghệ sĩ
- *     GET  /api/v1/artists/me               – profile của mình
- *     PUT  /api/v1/artists/me               – cập nhật profile
+ *     POST /artists/register         – đăng ký làm nghệ sĩ
+ *     GET  /artists/me               – profile của mình
+ *     PUT  /artists/me               – cập nhật profile
  *
  *   Admin:
- *     PUT  /api/v1/artists/{id}/status      – thay đổi trạng thái
+ *     PUT  /artists/{id}/status      – thay đổi trạng thái
  */
 @RestController
-@RequestMapping("/api/v1/artists")
+@RequestMapping("/artists")
 @RequiredArgsConstructor
 public class ArtistController {
 
@@ -65,7 +65,7 @@ public class ArtistController {
     /**
      * Lấy danh sách artists phổ biến (dựa vào số lượng bài hát).
      * Dùng cho onboarding screen.
-     * GET /api/v1/artists/popular?limit=10
+     * GET /artists/popular?limit=10
      */
     @GetMapping("/popular")
     public ApiResponse<List<ArtistResponse>> getPopularArtists(
@@ -111,6 +111,13 @@ public class ArtistController {
             @RequestParam ArtistStatus status) {
         return ApiResponse.<ArtistResponse>builder()
                 .result(artistService.updateStatus(artistId, status))
+                .build();
+    }
+
+    @GetMapping("/by-user/{userId}")
+    public ApiResponse<ArtistResponse> getArtistByUserId(@PathVariable UUID userId) {
+        return ApiResponse.<ArtistResponse>builder()
+                .result(artistService.getArtistByUserId(userId))
                 .build();
     }
 }

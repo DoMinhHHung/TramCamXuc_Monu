@@ -15,4 +15,8 @@ public interface CommentService {
     long getCommentCount(UUID songId);
     void likeComment(UUID userId, String commentId);
     void unlikeComment(UUID userId, String commentId);
+
+    CommentResponse addPostComment(UUID userId, String postId, String parentId, String content);
+    Page<CommentResponse> getPostComments(String postId, UUID currentUserId, Pageable pageable);
+    long getPostCommentCount(String postId);
 }

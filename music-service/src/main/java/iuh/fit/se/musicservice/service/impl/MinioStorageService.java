@@ -2,8 +2,8 @@ package iuh.fit.se.musicservice.service.impl;
 
 import io.minio.*;
 import io.minio.http.Method;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,11 +15,17 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class MinioStorageService {
 
+    // Client dùng INTERNAL URL (localhost:9000)
+    // → dùng cho mọi backend operation: put, get, exists
     private final MinioClient minioClient;
+
+    // Client dùng PUBLIC URL (https://minio.oopsgolden.id.vn)
+    // → CHỈ dùng để sinh presigned URL trả về mobile/client
+    // → Signature được ký với Host đúng → mobile PUT thành công
+    private final MinioClient presignedMinioClient;
 
     @Value("${minio.bucket.raw-songs}")
     private String rawBucket;
@@ -30,13 +36,24 @@ public class MinioStorageService {
     @Value("${minio.public-url}")
     private String publicUrl;
 
+    public MinioStorageService(
+            MinioClient minioClient,
+            @Qualifier("presignedMinioClient") MinioClient presignedMinioClient) {
+        this.minioClient          = minioClient;
+        this.presignedMinioClient = presignedMinioClient;
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
-    // PRESIGNED URLS
+    // PRESIGNED URLS — dùng presignedMinioClient (public URL)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /**
+     * PUT presigned URL để artist upload file raw lên MinIO.
+     * Ký bằng public client → URL có Host: minio.oopsgolden.id.vn → signature hợp lệ.
+     */
     public String generatePresignedUploadUrl(String objectKey) {
         try {
-            return minioClient.getPresignedObjectUrl(
+            return presignedMinioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.PUT)
                             .bucket(rawBucket)
@@ -49,13 +66,16 @@ public class MinioStorageService {
         }
     }
 
+    /**
+     * GET presigned URL để download file (Premium feature).
+     */
     public String generatePresignedDownloadUrl(String objectKey, String fileName) {
         try {
             Map<String, String> extraHeaders = new HashMap<>();
             extraHeaders.put("response-content-disposition",
                     "attachment; filename=\"" + fileName + "\"");
 
-            return minioClient.getPresignedObjectUrl(
+            return presignedMinioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(rawBucket)
@@ -69,14 +89,17 @@ public class MinioStorageService {
         }
     }
 
+    /**
+     * GET presigned URL để stream HLS (trả về mobile).
+     */
     public String generatePresignedStreamUrl(String objectKey) {
         try {
-            return minioClient.getPresignedObjectUrl(
+            return presignedMinioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(publicBucket)
                             .object(objectKey)
-                            .expiry(1, TimeUnit.MINUTES)
+                            .expiry(15, TimeUnit.MINUTES)
                             .build());
         } catch (Exception e) {
             log.error("Cannot generate presigned stream URL for key: {}", objectKey, e);
@@ -85,7 +108,7 @@ public class MinioStorageService {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // PUBLIC URL (HLS / CDN)
+    // PUBLIC URL (HLS direct link)
     // ──────────────────────────────────────────────────────────────────────────
 
     public String getPublicUrl(String objectKey) {
@@ -93,7 +116,7 @@ public class MinioStorageService {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // UPLOAD — MultipartFile (playlist covers, thumbnails, etc.)
+    // BACKEND OPERATIONS — dùng minioClient (internal URL, nhanh hơn)
     // ──────────────────────────────────────────────────────────────────────────
 
     public String uploadPublicFile(String objectKey, MultipartFile file) {
@@ -112,42 +135,27 @@ public class MinioStorageService {
         }
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // UPLOAD — Raw bytes (Jamendo import worker, no local disk I/O)
-    // ──────────────────────────────────────────────────────────────────────────
-
     public void uploadRawBytes(String objectKey, byte[] data, String contentType) {
         if (data == null || data.length == 0) {
             throw new IllegalArgumentException(
                     "uploadRawBytes: data must not be null or empty for key=" + objectKey);
         }
-
         log.info("Uploading {} bytes to raw-songs bucket, key={}", data.length, objectKey);
-
         try (InputStream is = new ByteArrayInputStream(data)) {
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(rawBucket)
                             .object(objectKey)
-                            .stream(is, data.length, -1)   // size known → no multipart chunking
+                            .stream(is, data.length, -1)
                             .contentType(contentType)
                             .build());
         } catch (Exception e) {
-            log.error("Failed to upload raw bytes to MinIO. key={}, size={}", objectKey, data.length, e);
+            log.error("Failed to upload raw bytes. key={}, size={}", objectKey, data.length, e);
             throw new RuntimeException("MinIO uploadRawBytes failed: " + objectKey, e);
         }
-
-        log.info("Successfully uploaded raw bytes to MinIO. key={}", objectKey);
+        log.info("Successfully uploaded raw bytes. key={}", objectKey);
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // BUCKET EXISTENCE CHECK (utility / health-check)
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Returns {@code true} if the raw-songs bucket exists and is accessible.
-     * Useful for actuator health checks or startup validation.
-     */
     public boolean rawBucketExists() {
         try {
             return minioClient.bucketExists(

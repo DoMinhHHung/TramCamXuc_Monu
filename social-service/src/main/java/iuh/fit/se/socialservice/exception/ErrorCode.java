@@ -26,7 +26,11 @@ public enum ErrorCode {
     COMMENT_LIKE_CONFLICT  (4032, "Already liked this comment", HttpStatus.CONFLICT),
 
     // Listen History
-    LISTEN_HISTORY_NOT_FOUND(4041, "Listen history not found",  HttpStatus.NOT_FOUND);
+    LISTEN_HISTORY_NOT_FOUND(4041, "Listen history not found",  HttpStatus.NOT_FOUND),
+
+    FEED_POST_DUPLICATE(4051, "Duplicate feed post",        HttpStatus.CONFLICT),
+    FEED_POST_NOT_FOUND(4052, "Feed post not found",       HttpStatus.NOT_FOUND),
+    ALREADY_LIKED_POST(4053, "Already liked this post",    HttpStatus.CONFLICT);
 
     private final int code;
     private final String message;

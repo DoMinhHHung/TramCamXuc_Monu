@@ -28,22 +28,48 @@ public class LinkedListService {
 
     @Transactional
     public void append(UUID playlistId, PlaylistSong newNode) {
-        var tailOpt = playlistSongRepository.findTail(playlistId);
 
-        if (tailOpt.isEmpty()) {
-            // List rỗng → node mới là cả HEAD lẫn TAIL
+        List<PlaylistSong> tailCandidates = playlistSongRepository.findTailCandidates(playlistId);
+
+        if (tailCandidates.size() > 1) {
+            log.warn("[LL-HEAL] playlist={} detected {} tail nodes. Healing...", playlistId, tailCandidates.size());
+
+            PlaylistSong correctTail = tailCandidates.get(0);
+
+            for (int i = 1; i < tailCandidates.size(); i++) {
+                PlaylistSong broken = tailCandidates.get(i);
+
+                broken.setNextId(null);
+                playlistSongRepository.save(broken);
+
+                log.warn("[LL-HEAL] fixed broken tail node={}", broken.getId());
+            }
+
+            tailCandidates = List.of(correctTail);
+        }
+
+        PlaylistSong tail = tailCandidates.isEmpty() ? null : tailCandidates.get(0);
+
+        if (tail == null) {
+
             newNode.setPrevId(null);
             newNode.setNextId(null);
+
             playlistSongRepository.save(newNode);
             playlistRepository.updateHead(playlistId, newNode.getId());
+
             log.debug("[LL] playlist={} empty → new HEAD={}", playlistId, newNode.getId());
+
         } else {
-            PlaylistSong tail = tailOpt.get();
+
             tail.setNextId(newNode.getId());
+
             newNode.setPrevId(tail.getId());
             newNode.setNextId(null);
+
             playlistSongRepository.save(tail);
             playlistSongRepository.save(newNode);
+
             log.debug("[LL] playlist={} appended={} after tail={}", playlistId, newNode.getId(), tail.getId());
         }
     }
@@ -150,7 +176,12 @@ public class LinkedListService {
 
     public List<PlaylistSong> toOrderedList(UUID headId, Map<UUID, PlaylistSong> nodeMap) {
         List<PlaylistSong> result = new ArrayList<>();
-        if (headId == null) return result;
+        Set<UUID> visited = new HashSet<>();
+        if (headId == null) {
+            return nodeMap.values().stream()
+                    .sorted(Comparator.comparing(PlaylistSong::getAddedAt))
+                    .toList();
+        }
 
         UUID cursor = headId;
         int limit = nodeMap.size() + 1; // safety: tránh cycle vô tận
@@ -162,10 +193,22 @@ public class LinkedListService {
                 break;
             }
             result.add(node);
+            visited.add(node.getId());
             cursor = node.getNextId();
             if (result.size() > limit) {
                 log.error("[LL] Cycle detected in playlist={} linked list!", headId);
                 break;
+            }
+        }
+
+        if (visited.size() < nodeMap.size()) {
+            List<PlaylistSong> detachedNodes = nodeMap.values().stream()
+                    .filter(node -> !visited.contains(node.getId()))
+                    .sorted(Comparator.comparing(PlaylistSong::getAddedAt))
+                    .toList();
+            if (!detachedNodes.isEmpty()) {
+                log.warn("[LL] Found {} detached nodes while reading playlist. Auto-append to response.", detachedNodes.size());
+                result.addAll(detachedNodes);
             }
         }
 

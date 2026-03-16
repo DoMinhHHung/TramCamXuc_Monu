@@ -1,7 +1,5 @@
-import { API_BASE_URL, FACEBOOK_CLIENT_ID, GOOGLE_CLIENT_ID } from '@env';
-
 export const env = {
-  apiBaseUrl: API_BASE_URL,
-  googleClientId: GOOGLE_CLIENT_ID,
-  facebookClientId: FACEBOOK_CLIENT_ID
+  apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
+  googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+  facebookClientId: process.env.EXPO_PUBLIC_FACEBOOK_CLIENT_ID,
 };

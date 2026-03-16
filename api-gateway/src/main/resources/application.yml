@@ -4,28 +4,53 @@ server:
 spring:
   application:
     name: api-gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 30s
       discovery:
         locator:
           enabled: true
           lower-case-service-id: true
+
+      filter:
+        request-rate-limiter:
+          deny-empty-key: false
+          empty-key-status-code: 200
+
       routes:
+
+        # ================= IDENTITY =================
 
         - id: identity-service-auth
           uri: lb://IDENTITY-SERVICE
           predicates:
             - Path=/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
 
         - id: identity-service-users
           uri: lb://IDENTITY-SERVICE
           predicates:
             - Path=/users/**
-
-        - id: identity-service-internal
-          uri: lb://IDENTITY-SERVICE
-          predicates:
-            - Path=/internal/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
 
         - id: identity-swagger
           uri: lb://IDENTITY-SERVICE
@@ -33,12 +58,26 @@ spring:
             - Path=/service-identity/**
           filters:
             - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
 
-        # ── Music Service (port 8083) ─────────────────────────────────
+        # ================= MUSIC =================
+
         - id: music-service-api
           uri: lb://MUSIC-SERVICE
           predicates:
-            - Path=/api/v1/songs/**, /api/v1/albums/**, /api/v1/genres/**, /api/v1/artists/**, /api/v1/playlists/**, /api/v1/admin/**
+            - Path=/songs/**, /albums/**, /genres/**, /artists/**, /playlists/**, /admin/songs/**, /admin/jamendo/**, /admin/reports/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
 
         - id: music-swagger
           uri: lb://MUSIC-SERVICE
@@ -46,27 +85,62 @@ spring:
             - Path=/service-music/**
           filters:
             - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
 
-        # ── Payment Service (port 8084) ───────────────────────────────
+        # ================= PAYMENT =================
+
         - id: payment-service-payments
           uri: lb://PAYMENT-SERVICE
           predicates:
             - Path=/payments/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: ads-service-api
+          uri: lb://ADS-SERVICE
+          predicates:
+            - Path=/ads/**, /admin/ads/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
 
         - id: payment-service-subscriptions
           uri: lb://PAYMENT-SERVICE
           predicates:
             - Path=/subscriptions/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
 
         - id: payment-service-admin
           uri: lb://PAYMENT-SERVICE
           predicates:
             - Path=/admin/subscriptions/**
-
-        - id: payment-service-internal
-          uri: lb://PAYMENT-SERVICE
-          predicates:
-            - Path=/api/internal/subscriptions/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
 
         - id: payment-swagger
           uri: lb://PAYMENT-SERVICE
@@ -74,12 +148,26 @@ spring:
             - Path=/service-payment/**
           filters:
             - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
 
-        # ── Social Service (port 8086) ────────────────────────────────
+        # ================= SOCIAL =================
+
         - id: social-service-api
           uri: lb://SOCIAL-SERVICE
           predicates:
             - Path=/social/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
 
         - id: social-swagger
           uri: lb://SOCIAL-SERVICE
@@ -87,12 +175,27 @@ spring:
             - Path=/service-social/**
           filters:
             - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
 
-        # ── Recommendation Service (port 8087) ────────────────────────
+        # ================= RECOMMENDATION =================
+
         - id: recommendation-service-api
           uri: lb://RECOMMENDATION-SERVICE
           predicates:
-            - Path=/api/v1/recommendations/**
+            - Path=/recommendations/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                # Rate limit thoải mái hơn — user refresh home feed thường xuyên
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
 
         - id: recommendation-swagger
           uri: lb://RECOMMENDATION-SERVICE
@@ -100,11 +203,20 @@ spring:
             - Path=/service-recommendation/**
           filters:
             - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
 
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+jwt:
+  signerKey: ${JWT_SECRET:}
 
 springdoc:
   swagger-ui:

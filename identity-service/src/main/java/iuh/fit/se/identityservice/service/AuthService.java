@@ -24,6 +24,8 @@ public interface AuthService {
 
     AuthenticationResponse outboundAuthentication(ExchangeTokenRequest request);
 
+    void logout(RefreshRequest request);
+
     String grantArtistRoleAndIssueToken(UUID userId);
 
 }

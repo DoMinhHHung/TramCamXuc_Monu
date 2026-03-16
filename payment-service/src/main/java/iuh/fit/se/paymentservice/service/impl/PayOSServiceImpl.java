@@ -286,9 +286,9 @@ public class PayOSServiceImpl implements PayOSService {
     private static final AtomicInteger counter = new AtomicInteger(0);
 
     private long generateOrderCode() {
-        long timestamp = Instant.now().toEpochMilli();
-        int count = counter.getAndIncrement() % 1000;
-        return timestamp * 1000 + count;
+        long timestamp = Instant.now().toEpochMilli() % 1_000_000_000L;
+        int random = ThreadLocalRandom.current().nextInt(100, 999);
+        return Long.parseLong(timestamp + "" + random);
     }
 
     private String generateReferenceCode() {

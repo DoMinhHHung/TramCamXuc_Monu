@@ -37,6 +37,7 @@ public interface PlaylistSongRepository extends JpaRepository<PlaylistSong, UUID
             SELECT ps FROM PlaylistSong ps
             WHERE ps.playlist.id = :playlistId
             AND ps.nextId IS NULL
+            ORDER BY ps.addedAt DESC
             """)
-    Optional<PlaylistSong> findTail(@Param("playlistId") UUID playlistId);
+    List<PlaylistSong> findTailCandidates(@Param("playlistId") UUID playlistId);
 }
