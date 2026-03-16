@@ -1,9 +1,39 @@
+# ── Web framework ─────────────────────────────────────────────────────────────
 fastapi==0.111.0
-uvicorn==0.29.0
+uvicorn[standard]==0.29.0
 pydantic==2.7.1
 pydantic-settings==2.2.1
+
+# ── ML core ───────────────────────────────────────────────────────────────────
+# implicit: ALS collaborative filtering trên implicit feedback data
+# Cần C++ compiler hoặc dùng conda. pip install implicit --pre nếu gặp lỗi build
+implicit==0.7.2
 numpy==1.26.4
-scikit-learn==1.4.2
-minio==7.2.7
+scipy==1.13.0
+scikit-learn==1.4.2      # cosine_similarity, TfidfVectorizer, MinMaxScaler
+
+# ── Data & serialization ──────────────────────────────────────────────────────
+pandas==2.2.2
+joblib==1.4.2             # model serialization (nhanh hơn pickle với numpy arrays)
+
+# ── Storage ───────────────────────────────────────────────────────────────────
+minio==7.2.7              # MinIO SDK để lưu/tải model artifacts
+redis==5.0.4              # Redis client để cache vectors và kết quả
+
+# ── HTTP client (gọi social-service, music-service) ───────────────────────────
+httpx==0.27.0             # async HTTP, phù hợp với FastAPI async endpoints
+tenacity==8.3.0           # retry logic cho HTTP calls
+
+# ── Scheduler ─────────────────────────────────────────────────────────────────
+apscheduler==3.10.4       # batch training mỗi 6h
+
+# ── Utilities ─────────────────────────────────────────────────────────────────
+python-dateutil==2.9.0
 python-dotenv==1.0.1
-httpx==0.27.0
+structlog==24.1.0         # structured logging (dễ parse hơn print)
+prometheus-fastapi-instrumentator==6.1.0  # metrics cho monitoring
+
+# ── Dev / Test ────────────────────────────────────────────────────────────────
+pytest==8.2.0
+pytest-asyncio==0.23.6
+httpx==0.27.0             # test client cho FastAPI

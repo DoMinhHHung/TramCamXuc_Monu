@@ -192,8 +192,9 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                redis-rate-limiter.replenishRate: 15
-                redis-rate-limiter.burstCapacity: 30
+                # Rate limit thoải mái hơn — user refresh home feed thường xuyên
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
                 redis-rate-limiter.requestedTokens: 1
 
         - id: recommendation-swagger
