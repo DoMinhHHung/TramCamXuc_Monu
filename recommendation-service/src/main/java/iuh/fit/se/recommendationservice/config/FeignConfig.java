@@ -1,22 +1,25 @@
 package iuh.fit.se.recommendationservice.config;
 
-import feign.Logger;
-import feign.Request;
+import feign.RequestInterceptor;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
-import java.util.concurrent.TimeUnit;
-
-@Configuration
 public class FeignConfig {
 
     @Bean
-    public Logger.Level feignLoggerLevel() {
-        return Logger.Level.BASIC;
-    }
-
-    @Bean
-    public Request.Options requestOptions() {
-        return new Request.Options(3, TimeUnit.SECONDS, 5, TimeUnit.SECONDS, true);
+    public RequestInterceptor jwtRequestInterceptor() {
+        return requestTemplate -> {
+            ServletRequestAttributes attrs =
+                    (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs != null) {
+                HttpServletRequest request = attrs.getRequest();
+                String authHeader = request.getHeader("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    requestTemplate.header("Authorization", authHeader);
+                }
+            }
+        };
     }
 }

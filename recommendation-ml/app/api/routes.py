@@ -1,169 +1,289 @@
-import time
-from typing import List
+from fastapi import APIRouter, Query, BackgroundTasks, HTTPException
+from app.api.schemas import (
+    RecommendResponse, SongScore,
+    TrainResponse, HealthResponse,
+)
+from app.training.pipeline import (
+    run_full_pipeline, run_cf_only, run_cb_only,
+    get_cf_trainer, get_cb_trainer,
+)
+from app.data.puller import DataPuller
+from app.core.clients import get_async_redis, get_minio, get_sync_redis, RedisKeys
+from app.core.settings import get_settings
+from app.core.logging import get_logger
+import json
 
-from fastapi import APIRouter
-
-from app.schemas.recommendation import (
-    RecommendRequest,
-    RecommendResponse,
-    SimilarRequest,
-    ScoredSong,
-)
-from app.services.collaborative import (
-    compute_user_song_scores,
-    collaborative_filter,
-)
-from app.services.content_based import (
-    content_based_filter,
-    hybrid_score,
-)
+log = get_logger(__name__)
+settings = get_settings()
 
 router = APIRouter()
 
 
-# ── POST /ml/recommend/for-you ────────────────────────────────────────────────
+# ── CF Recommendations ────────────────────────────────────────────────────────
 
-@router.post("/recommend/for-you", response_model=RecommendResponse)
-def recommend_for_you(request: RecommendRequest):
+@router.get("/recommend/cf/{user_id}", response_model=RecommendResponse)
+async def get_cf_recommendations(
+        user_id: str,
+        limit: int = Query(default=50, ge=1, le=200),
+):
     """
-    Personalized recommendation:
-    1. Tính user song scores từ listen history
-    2. Nếu cold-start (không có history), dùng favorites để recommend
-    3. Collaborative Filtering → scored candidates
-    4. Content-based từ top listened songs → more candidates
-    5. Hybrid merge CF + CB
-    6. Trả về top N
+    Collaborative Filtering recommendations cho một user.
+
+    Flow:
+    1. Check Redis cache ml:cf:topn:{userId}
+    2. Cache hit → return ngay
+    3. Cache miss → real-time inference từ user vector × item vectors
+    4. Vẫn miss (user chưa có vector) → return empty (Spring sẽ fallback cold-start)
     """
-    start = time.time()
+    redis = get_async_redis()
 
-    song_map = {s.song_id: s for s in request.candidate_song_features}
-
-    # Step 1: User implicit scores từ listen history
-    user_scores = compute_user_song_scores(request.listen_history)
-
-    # Step 2: Cold-start check - nếu không có history, dùng favorites
-    if not user_scores and (request.favorite_genre_ids or request.favorite_artist_ids):
-        favorite_results = []
-        for song in request.candidate_song_features:
-            score = 0.0
-            reasons = []
-
-            # Check artist match
-            if song.artist_id and song.artist_id in request.favorite_artist_ids:
-                score += 0.6
-                reasons.append("favorite_artist")
-
-            # Check genre match
-            matching_genres = set(song.genre_ids) & set(request.favorite_genre_ids)
-            if matching_genres:
-                score += 0.4 * (len(matching_genres) / max(len(request.favorite_genre_ids), 1))
-                reasons.append("favorite_genre")
-
-            if score > 0:
-                favorite_results.append(ScoredSong(
-                    song_id=song.song_id,
-                    score=score,
-                    reason="cold_start_" + "_".join(reasons)
-                ))
-
-        # Sort by score và lấy top N
-        favorite_results.sort(key=lambda x: x.score, reverse=True)
-        elapsed = (time.time() - start) * 1000
+    # Cache hit
+    cached = await redis.get(RedisKeys.cf_topn(user_id))
+    if cached:
+        results = json.loads(cached)[:limit]
         return RecommendResponse(
-            user_id=request.user_id,
-            songs=favorite_results[:request.limit],
-            strategy="cold_start_favorites",
-            compute_time_ms=round(elapsed, 2),
+            recommendations=[SongScore(**r) for r in results],
+            modelVersion=await redis.get(RedisKeys.CF_MODEL_VERSION) or "",
+            source="cache",
         )
 
-    # Step 3: Collaborative Filtering
-    cf_results = collaborative_filter(
-        user_scores=user_scores,
-        followed_artist_ids=request.followed_artist_ids,
-        candidate_song_features=request.candidate_song_features,
+    # Cache miss: real-time từ vectors
+    # Chuyển sang sync (CF trainer dùng sync Redis để SCAN)
+    cf_trainer = get_cf_trainer()
+    recommendations = cf_trainer.get_recommendations_for_user(user_id, limit)
+
+    if not recommendations:
+        return RecommendResponse(
+            recommendations=[],
+            source="no_model",
+        )
+
+    return RecommendResponse(
+        recommendations=[
+            SongScore(songId=r["songId"], score=min(r["score"], 1.0))
+            for r in recommendations[:limit]
+        ],
+        modelVersion=await redis.get(RedisKeys.CF_MODEL_VERSION) or "",
+        source="realtime",
     )
 
-    # Step 4: Content-based từ top 3 bài user nghe nhiều nhất
-    cb_results: List[ScoredSong] = []
-    top_listened = sorted(user_scores.items(), key=lambda x: x[1], reverse=True)[:3]
 
-    for song_id, _ in top_listened:
-        seed = song_map.get(song_id)
-        if seed is None:
-            continue
-        cb = content_based_filter(
-            seed_song=seed,
-            candidates=request.candidate_song_features,
-            limit=10,
-        )
-        cb_results.extend(cb)
+# ── CB Recommendations ────────────────────────────────────────────────────────
 
-    # Step 5: Hybrid merge
-    if cf_results and cb_results:
-        merged = hybrid_score(
-            cf_results=cf_results,
-            cb_results=cb_results,
-            cf_weight=0.6,
-            cb_weight=0.4,
+@router.get("/recommend/cb/{user_id}", response_model=RecommendResponse)
+async def get_cb_recommendations(
+        user_id: str,
+        limit: int = Query(default=50, ge=1, le=200),
+):
+    """
+    Content-Based recommendations cho user.
+
+    Cần pull listen history và liked songs từ social-service
+    để build user profile → cosine similarity với song features.
+
+    Async fetch từ social-service để không block.
+    """
+    # Check cached CB results
+    redis = get_async_redis()
+    cached = await redis.get(RedisKeys.cb_topn(user_id))
+    if cached:
+        results = json.loads(cached)[:limit]
+        return RecommendResponse(
+            recommendations=[SongScore(**r) for r in results],
+            modelVersion=await redis.get(RedisKeys.CB_MODEL_VERSION) or "",
+            source="cache",
         )
-        strategy = "hybrid"
-    elif cf_results:
-        merged = cf_results
-        strategy = "collaborative_filtering"
-    elif cb_results:
-        merged = cb_results
-        strategy = "content_based"
+
+    # Pull user data từ social-service
+    async with DataPuller() as puller:
+        import asyncio
+        listen_history, liked_songs = await asyncio.gather(
+            puller.get_listen_history(user_id, limit=100, days=30),
+            puller.get_liked_songs(user_id),
+        )
+
+    # Compute CB recommendations
+    cb_trainer = get_cb_trainer()
+    recommendations = cb_trainer.get_user_recommendations(
+        user_id=user_id,
+        listen_history=listen_history,
+        liked_song_ids=liked_songs,
+        limit=limit,
+    )
+
+    if not recommendations:
+        return RecommendResponse(recommendations=[], source="no_data")
+
+    # Cache result
+    await redis.setex(
+        RedisKeys.cb_topn(user_id),
+        settings.redis_result_ttl,
+        json.dumps(recommendations),
+    )
+
+    return RecommendResponse(
+        recommendations=[
+            SongScore(songId=r["songId"], score=min(r["score"], 1.0))
+            for r in recommendations[:limit]
+        ],
+        modelVersion=await redis.get(RedisKeys.CB_MODEL_VERSION) or "",
+        source="realtime",
+    )
+
+
+# ── Similar Songs ─────────────────────────────────────────────────────────────
+
+@router.get("/recommend/similar/{song_id}", response_model=RecommendResponse)
+async def get_similar_songs(
+        song_id: str,
+        limit: int = Query(default=20, ge=1, le=100),
+):
+    """
+    Content-based similar songs cho một bài cụ thể.
+    Kết quả pre-computed khi train CB model.
+    """
+    cb_trainer = get_cb_trainer()
+    results = cb_trainer.get_similar_songs(song_id, limit)
+
+    if not results:
+        # Nếu không có → trả về empty, Spring fallback sang trending
+        return RecommendResponse(recommendations=[], source="not_found")
+
+    redis = get_async_redis()
+    return RecommendResponse(
+        recommendations=[
+            SongScore(songId=r["songId"], score=min(r["score"], 1.0))
+            for r in results[:limit]
+        ],
+        modelVersion=await redis.get(RedisKeys.CB_MODEL_VERSION) or "",
+        source="cache",
+    )
+
+
+# ── Training Triggers ─────────────────────────────────────────────────────────
+
+@router.post("/train", response_model=TrainResponse)
+async def trigger_full_training(background_tasks: BackgroundTasks):
+    """
+    Trigger full CF + CB training pipeline.
+    Chạy async trong background — response trả về ngay.
+    """
+    background_tasks.add_task(_run_pipeline_bg)
+    return TrainResponse(
+        status="training_started",
+        metrics={"note": "Training runs in background. Check /health for completion."},
+    )
+
+
+@router.post("/train/cf", response_model=TrainResponse)
+async def trigger_cf_training(background_tasks: BackgroundTasks):
+    """Trigger CF-only training (nhanh hơn, ~2-5 phút)."""
+    background_tasks.add_task(_run_cf_bg)
+    return TrainResponse(status="cf_training_started")
+
+
+@router.post("/train/cb", response_model=TrainResponse)
+async def trigger_cb_training(background_tasks: BackgroundTasks):
+    """Trigger CB-only training."""
+    background_tasks.add_task(_run_cb_bg)
+    return TrainResponse(status="cb_training_started")
+
+
+# ── Health ────────────────────────────────────────────────────────────────────
+
+@router.get("/health", response_model=HealthResponse)
+async def health_check():
+    """
+    Kiểm tra sức khỏe của service và model freshness.
+    Spring service dùng endpoint này để quyết định có gọi Python hay không.
+    """
+    redis = get_async_redis()
+    details = {}
+
+    # Check Redis
+    redis_ok = False
+    try:
+        await redis.ping()
+        redis_ok = True
+    except Exception as e:
+        details["redis_error"] = str(e)
+
+    # Lấy model versions
+    cf_version = await redis.get(RedisKeys.CF_MODEL_VERSION) if redis_ok else None
+    cb_version = await redis.get(RedisKeys.CB_MODEL_VERSION) if redis_ok else None
+
+    # Đếm số vectors (sampling để không scan toàn bộ)
+    cf_count = 0
+    cb_count = 0
+    if redis_ok:
+        try:
+            # scan với count=1 chỉ để check xem có key không
+            cf_keys = list(await _async_scan(redis, "ml:cf:user:*", count=100))
+            cf_count = len(cf_keys)
+            cb_keys = list(await _async_scan(redis, "ml:cb:features:*", count=100))
+            cb_count = len(cb_keys)
+        except Exception as e:
+            details["scan_error"] = str(e)
+
+    # Check MinIO
+    minio_ok = False
+    try:
+        minio = get_minio()
+        minio.bucket_exists(settings.minio_bucket)
+        minio_ok = True
+    except Exception as e:
+        details["minio_error"] = str(e)
+
+    # Overall status
+    has_cf_model = cf_count > 0
+    has_cb_model = cb_count > 0
+    if redis_ok and has_cf_model and has_cb_model:
+        status = "healthy"
+    elif redis_ok:
+        status = "degraded"  # Redis OK nhưng chưa có model
     else:
-        merged = []
-        strategy = "empty"
+        status = "unhealthy"
 
-    # Step 6: Deduplicate + lấy top N
-    seen = set()
-    final: List[ScoredSong] = []
-    for item in merged:
-        if item.song_id not in seen:
-            seen.add(item.song_id)
-            final.append(item)
-        if len(final) >= request.limit:
+    return HealthResponse(
+        status=status,
+        cfModelVersion=cf_version,
+        cbModelVersion=cb_version,
+        cfVectorsCount=cf_count,
+        cbFeaturesCount=cb_count,
+        redisConnected=redis_ok,
+        minioConnected=minio_ok,
+        details=details,
+    )
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+async def _run_pipeline_bg():
+    try:
+        await run_full_pipeline()
+    except Exception as e:
+        log.error("background_pipeline_failed", error=str(e))
+
+
+async def _run_cf_bg():
+    try:
+        await run_cf_only()
+    except Exception as e:
+        log.error("background_cf_failed", error=str(e))
+
+
+async def _run_cb_bg():
+    try:
+        await run_cb_only()
+    except Exception as e:
+        log.error("background_cb_failed", error=str(e))
+
+
+async def _async_scan(redis, pattern: str, count: int = 100) -> list[str]:
+    """Async scan Redis keys."""
+    keys = []
+    async for key in redis.scan_iter(pattern, count=count):
+        keys.append(key)
+        if len(keys) >= count:
             break
-
-    elapsed = (time.time() - start) * 1000
-
-    return RecommendResponse(
-        user_id=request.user_id,
-        songs=final,
-        strategy=strategy,
-        compute_time_ms=round(elapsed, 2),
-    )
-
-
-# ── POST /ml/recommend/similar ────────────────────────────────────────────────
-
-@router.post("/recommend/similar", response_model=RecommendResponse)
-def recommend_similar(request: SimilarRequest):
-    """
-    Content-based: tìm songs tương tự seed_song.
-    """
-    start = time.time()
-
-    results = content_based_filter(
-        seed_song=request.seed_song,
-        candidates=request.candidates,
-        limit=request.limit,
-    )
-
-    elapsed = (time.time() - start) * 1000
-
-    return RecommendResponse(
-        user_id="anonymous",
-        songs=results,
-        strategy="content_based",
-        compute_time_ms=round(elapsed, 2),
-    )
-
-
-# ── GET /ml/health ────────────────────────────────────────────────────────────
-
-@router.get("/health")
-def health():
-    return {"status": "ok", "service": "recommendation-ml"}
+    return keys
