@@ -83,7 +83,15 @@ export const FollowedArtistsScreen = () => {
                 colors={[COLORS.gradNavy, COLORS.bg]}
                 style={[styles.header, { paddingTop: insets.top + 12 }]}
             >
-                <BackButton onPress={() => navigation.goBack()} />
+                <View style={styles.headerRow}>
+                    <BackButton onPress={() => navigation.goBack()} />
+                    <Pressable
+                        style={styles.discoverBtn}
+                        onPress={() => navigation.navigate('ArtistDiscovery')}
+                    >
+                        <Text style={styles.discoverBtnText}>Khám phá nghệ sĩ</Text>
+                    </Pressable>
+                </View>
                 <Text style={styles.title}>Đang theo dõi</Text>
                 <Text style={styles.sub}>{artists.length} nghệ sĩ</Text>
             </LinearGradient>
@@ -95,7 +103,7 @@ export const FollowedArtistsScreen = () => {
                     <Text style={{ fontSize: 52, marginBottom: 12 }}>🎤</Text>
                     <Text style={styles.emptyTitle}>Chưa theo dõi nghệ sĩ nào</Text>
                     <Text style={styles.emptyHint}>Khám phá và bấm Theo dõi để bắt đầu</Text>
-                    <Pressable style={styles.exploreBtn} onPress={() => navigation.goBack()}>
+                    <Pressable style={styles.exploreBtn} onPress={() => navigation.navigate('ArtistDiscovery')}>
                         <Text style={styles.exploreBtnText}>Khám phá nghệ sĩ</Text>
                     </Pressable>
                 </View>
@@ -143,6 +151,14 @@ export const FollowedArtistsScreen = () => {
 const styles = StyleSheet.create({
     root:   { flex: 1, backgroundColor: COLORS.bg },
     header: { paddingHorizontal: 20, paddingBottom: 20 },
+    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    discoverBtn: {
+        backgroundColor: COLORS.accentDim,
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        borderRadius: 20,
+    },
+    discoverBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
     title:  { color: COLORS.white, fontSize: 22, fontWeight: '800', marginTop: 16, marginBottom: 4 },
     sub:    { color: COLORS.glass50, fontSize: 13 },
     row: {

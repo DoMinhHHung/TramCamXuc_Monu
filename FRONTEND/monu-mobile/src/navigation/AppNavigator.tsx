@@ -42,6 +42,7 @@ import { RegisterArtistScreen }   from '../screens/(artist)/RegisterArtistScreen
 import { ArtistTermsScreen }      from '../screens/(artist)/ArtistTermsScreen';
 import { FavoriteSongsScreen }    from '../screens/(artist)/FavoriteSongsScreen';
 import { FollowedArtistsScreen }  from '../screens/(artist)/FollowedArtistsScreen';
+import { ArtistDiscoveryScreen }  from '../screens/(artist)/ArtistDiscoveryScreen';
 import { AlbumAddSongScreen }     from '../screens/(artist)/AlbumAddSongScreen';
 
 export type RootStackParamList = {
@@ -65,8 +66,9 @@ export type RootStackParamList = {
     ArtistProfile:   { artistId: string };
     RegisterArtist:  undefined;
     ArtistTerms:     undefined;
-    FavoriteSongs:   undefined;
-    FollowedArtists: undefined;
+    FavoriteSongs:    undefined;
+    FollowedArtists:  undefined;
+    ArtistDiscovery:  undefined;
     AlbumAddSong:    { albumId: string };
 };
 
@@ -178,9 +180,10 @@ export const AppNavigator = () => {
                                 <Stack.Screen name="ArtistProfile"   component={ArtistProfileScreen}   />
                                 <Stack.Screen name="RegisterArtist"  component={RegisterArtistScreen}  />
                                 <Stack.Screen name="ArtistTerms"     component={ArtistTermsScreen}     />
-                                <Stack.Screen name="FavoriteSongs"   component={FavoriteSongsScreen}   />
-                                <Stack.Screen name="FollowedArtists" component={FollowedArtistsScreen} />
-                                <Stack.Screen name="AlbumAddSong"    component={AlbumAddSongScreen}    />
+                                <Stack.Screen name="FavoriteSongs"    component={FavoriteSongsScreen}    />
+                                <Stack.Screen name="FollowedArtists"  component={FollowedArtistsScreen}  />
+                                <Stack.Screen name="ArtistDiscovery"  component={ArtistDiscoveryScreen}  />
+                                <Stack.Screen name="AlbumAddSong"     component={AlbumAddSongScreen}     />
                             </>
                         )
                     ) : (
