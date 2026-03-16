@@ -645,26 +645,34 @@ interface EditPostModalProps {
   visible: boolean;
   post: FeedPost | null;
   onClose: () => void;
-  onSave: (title: string, caption: string) => Promise<void>;
+  onSave: (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS') => Promise<void>;
 }
+
+const VISIBILITY_OPTIONS: { value: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS'; label: string; icon: string }[] = [
+  { value: 'PUBLIC',    label: 'Công khai',         icon: '🌐' },
+  { value: 'FOLLOWERS', label: 'Người theo dõi',    icon: '👥' },
+  { value: 'PRIVATE',   label: 'Riêng tư',          icon: '🔒' },
+];
 
 const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) => {
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS'>('PUBLIC');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (post) {
       setTitle(post.title ?? '');
       setCaption(post.caption ?? '');
+      setVisibility((post.visibility ?? 'PUBLIC') as 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS');
     }
   }, [post]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave(title, caption);
+      await onSave(title, caption, visibility);
     } finally {
       setSaving(false);
     }
@@ -715,6 +723,21 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
                   placeholderTextColor={COLORS.glass20}
                   multiline
               />
+              <View style={styles.visibilityRow}>
+                <Text style={styles.visibilityLabel}>Hiển thị:</Text>
+                {VISIBILITY_OPTIONS.map(opt => (
+                    <Pressable
+                        key={opt.value}
+                        style={[styles.visibilityChip, visibility === opt.value && styles.visibilityChipActive]}
+                        onPress={() => setVisibility(opt.value)}
+                    >
+                      <Text style={styles.visibilityChipIcon}>{opt.icon}</Text>
+                      <Text style={[styles.visibilityChipText, visibility === opt.value && styles.visibilityChipTextActive]}>
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                ))}
+              </View>
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -820,8 +843,8 @@ export const DiscoverScreen = () => {
 
   useEffect(() => {
     loadFeed('initial');
-    const id = setInterval(() => loadFeed('silent'), 15000);
-    return () => clearInterval(id);
+    const pollIntervalId = setInterval(() => loadFeed('silent'), 60_000);
+    return () => clearInterval(pollIntervalId);
   }, [currentUserId, myDisplayName]);
 
     useFocusEffect(
@@ -880,10 +903,10 @@ export const DiscoverScreen = () => {
     ]);
   };
 
-  const handleSaveEdit = async (title: string, caption: string) => {
+  const handleSaveEdit = async (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS') => {
     if (!editingPost) return;
     await updateFeedPost(editingPost.id, {
-      visibility: editingPost.visibility,
+      visibility,
       title: title.trim(),
       caption: caption.trim() || undefined,
     });
@@ -1436,4 +1459,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  visibilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.glass08,
+    marginTop: 12,
+  },
+  visibilityLabel: { color: COLORS.glass50, fontSize: 13, fontWeight: '600', marginRight: 4 },
+  visibilityChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: COLORS.glass08,
+    borderWidth: 1,
+    borderColor: COLORS.glass12,
+  },
+  visibilityChipActive: {
+    borderColor: COLORS.accent,
+    backgroundColor: COLORS.accentFill20,
+  },
+  visibilityChipIcon: { fontSize: 13 },
+  visibilityChipText: { color: COLORS.glass60, fontSize: 12, fontWeight: '600' },
+  visibilityChipTextActive: { color: COLORS.accent },
 });

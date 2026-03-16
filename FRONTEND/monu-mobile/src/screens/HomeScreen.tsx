@@ -26,12 +26,10 @@ import { useDownload } from '../context/DownloadContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { RecommendationSection } from '../components/RecommendationSection';
 import { SongActionSheet } from '../components/SongActionSheet';
-import { SongSection } from '../components/SongSection';
 import { addSongToPlaylist, createPlaylist, Song } from '../services/music';
 import { FeedbackType, RecommendedSong } from '../services/recommendation';
 import { getSongShareQr } from '../services/social';
 import { useHomeData } from '../hooks/useHomeData';
-import { searchSongs } from '../services/music';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
@@ -65,8 +63,6 @@ export const HomeScreen = () => {
 
   const {
     rec,
-    newestSongs,
-    genres,
     playlists,
     loading,
     refresh,
@@ -78,16 +74,6 @@ export const HomeScreen = () => {
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
-
-  const [expandedGenreIds, setExpandedGenreIds] = useState<string[]>([]);
-  const [genreSongs, setGenreSongs] = useState<Record<string, Song[]>>({});
-  const [loadingGenreId, setLoadingGenreId] = useState<string | null>(null);
-
-  const formatDuration = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
 
   const playRec = useCallback((r: RecommendedSong, queue: RecommendedSong[]) => {
     playSong(toSong(r), queue.map(toSong));
@@ -101,23 +87,6 @@ export const HomeScreen = () => {
   const handleFeedback = useCallback((songId: string, feedback: FeedbackType) => {
     void rec.sendFeedback(songId, feedback, 'home');
   }, [rec]);
-
-  const toggleGenre = useCallback(async (genreId: string) => {
-    if (expandedGenreIds.includes(genreId)) {
-      setExpandedGenreIds((prev) => prev.filter((id) => id !== genreId));
-      return;
-    }
-    try {
-      if (!genreSongs[genreId]) {
-        setLoadingGenreId(genreId);
-        const res = await searchSongs({ genreId, page: 1, size: 8 });
-        setGenreSongs((prev) => ({ ...prev, [genreId]: res.content ?? [] }));
-      }
-      setExpandedGenreIds((prev) => [...prev, genreId]);
-    } finally {
-      setLoadingGenreId(null);
-    }
-  }, [expandedGenreIds, genreSongs]);
 
   const handleDownloadSong = useCallback(async (song: Song) => {
     try {
@@ -296,51 +265,16 @@ export const HomeScreen = () => {
           hideIfEmpty={false}
         />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎶 Thể loại nhạc</Text>
-          <View style={styles.genreWrap}>
-            {genres.map((g) => (
-              <Pressable
-                key={g.id}
-                style={[styles.genreChip, expandedGenreIds.includes(g.id) && styles.genreChipActive]}
-                onPress={() => { void toggleGenre(g.id); }}
-              >
-                <Text style={[styles.genreText, expandedGenreIds.includes(g.id) && styles.genreTextActive]}>
-                  {expandedGenreIds.includes(g.id) ? '▼ ' : '▶ '}
-                  {g.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {loadingGenreId && <ActivityIndicator color={COLORS.accent} style={{ marginTop: 10 }} />}
-
-          {expandedGenreIds.map((id) => {
-            const genre = genres.find((g) => g.id === id);
-            const songs = genreSongs[id] ?? [];
-            return (
-              <SongSection
-                key={id}
-                title={`# ${genre?.name ?? 'Genre'}`}
-                songs={songs}
-                currentSong={currentSong}
-                isPlaying={isPlaying}
-                onPressSong={(song) => playSong(song, songs)}
-                onSongAction={setSelectedSong}
-                formatDuration={formatDuration}
-              />
-            );
-          })}
-        </View>
-
-        <SongSection
-          title="📅 Mới nhất"
-          songs={newestSongs}
-          currentSong={currentSong}
-          isPlaying={isPlaying}
-          onPressSong={(song) => playSong(song, newestSongs)}
-          onSongAction={setSelectedSong}
-          formatDuration={formatDuration}
+        <RecommendationSection
+          icon="🌐"
+          title="Đề xuất cho bạn"
+          subtitle="Dựa trên cộng đồng âm nhạc"
+          songs={rec.socialRecs}
+          activeSongId={currentSong?.id}
+          loading={rec.loading && !rec.socialRecs.length}
+          onPress={(s) => playRec(s, rec.socialRecs)}
+          onLongPress={openRecActionSheet}
+          onFeedback={handleFeedback}
         />
       </ScrollView>
 
@@ -385,7 +319,7 @@ export const HomeScreen = () => {
                 : 'Tải xuống (Offline)',
             sublabel: isDownloaded(selectedSong?.id ?? '') ? 'Có thể nghe offline' : 'Cần gói Premium',
             disabled: isDownloaded(selectedSong?.id ?? ''),
-            onPress: () => selectedSong && void handleDownloadSong(selectedSong),
+            onPress: () => { if (selectedSong) void handleDownloadSong(selectedSong); },
           },
           ...(selectedRecSong
             ? [
@@ -518,17 +452,6 @@ const styles = StyleSheet.create({
   cardEmoji: { fontSize: 26 },
   cardTitle: { color: COLORS.white, fontWeight: '700' },
   genreWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  genreChip: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: COLORS.glass15,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  genreChipActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
-  genreText: { color: COLORS.glass85, fontSize: 12 },
-  genreTextActive: { color: COLORS.accent, fontWeight: '700' },
   loadingWrap: { alignItems: 'center', paddingVertical: 32 },
   loadingText: { color: COLORS.glass35, fontSize: 13, marginTop: 10 },
   backdrop: {

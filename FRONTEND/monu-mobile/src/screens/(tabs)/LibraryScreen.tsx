@@ -4,7 +4,9 @@ import {
   Alert,
   Animated,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -680,7 +682,283 @@ const qrStyles = StyleSheet.create({
   closeBtnText: { color: COLORS.white, fontWeight: '700' },
 });
 
-// ─── Album Detail Modal ───────────────────────────────────────────────────────
+// ─── Share Options Bottom Sheet ───────────────────────────────────────────────
+
+type ShareItemType = 'playlist' | 'song' | 'album';
+
+interface ShareOptionsSheetProps {
+  visible: boolean;
+  item: { type: ShareItemType; id: string; title: string } | null;
+  onClose: () => void;
+  onQr: () => void;
+  onExternal: () => void;
+  onDiscovery: () => void;
+}
+
+const ShareOptionsSheet = ({ visible, item, onClose, onQr, onExternal, onDiscovery }: ShareOptionsSheetProps) => (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={sheetStyles.overlay} onPress={onClose} />
+      <View style={sheetStyles.sheet}>
+        <View style={sheetStyles.handle} />
+        <Text style={sheetStyles.title}>Chia sẻ</Text>
+        <Text style={sheetStyles.subtitle} numberOfLines={1}>{item?.title}</Text>
+
+        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onDiscovery(); }}>
+          <View style={[shareOptionStyles.iconWrap, { backgroundColor: '#4f46e5' }]}>
+            <Text style={{ fontSize: 20 }}>🌟</Text>
+          </View>
+          <View style={shareOptionStyles.info}>
+            <Text style={shareOptionStyles.label}>Chia sẻ lên Discovery</Text>
+            <Text style={shareOptionStyles.desc}>Đăng bài viết lên cộng đồng</Text>
+          </View>
+        </Pressable>
+
+        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onExternal(); }}>
+          <View style={[shareOptionStyles.iconWrap, { backgroundColor: '#0891b2' }]}>
+            <Text style={{ fontSize: 20 }}>↗</Text>
+          </View>
+          <View style={shareOptionStyles.info}>
+            <Text style={shareOptionStyles.label}>Chia sẻ ra ngoài app</Text>
+            <Text style={shareOptionStyles.desc}>Gửi link qua tin nhắn, mạng xã hội...</Text>
+          </View>
+        </Pressable>
+
+        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onQr(); }}>
+          <View style={[shareOptionStyles.iconWrap, { backgroundColor: '#059669' }]}>
+            <Text style={{ fontSize: 20 }}>⬛</Text>
+          </View>
+          <View style={shareOptionStyles.info}>
+            <Text style={shareOptionStyles.label}>Chia sẻ bằng QR</Text>
+            <Text style={shareOptionStyles.desc}>Tạo mã QR để quét</Text>
+          </View>
+        </Pressable>
+
+        <Pressable style={shareOptionStyles.cancelBtn} onPress={onClose}>
+          <Text style={shareOptionStyles.cancelText}>Huỷ</Text>
+        </Pressable>
+      </View>
+    </Modal>
+);
+
+const shareOptionStyles = StyleSheet.create({
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 13,
+    gap: 14,
+  },
+  iconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  info: { flex: 1 },
+  label: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
+  desc: { color: COLORS.glass45, fontSize: 12, marginTop: 2 },
+  cancelBtn: {
+    marginTop: 8,
+    paddingVertical: 13,
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: COLORS.glass08,
+  },
+  cancelText: { color: COLORS.glass60, fontSize: 15 },
+});
+
+// ─── Share to Discovery Modal ─────────────────────────────────────────────────
+
+interface ShareToDiscoveryModalProps {
+  visible: boolean;
+  item: { type: ShareItemType; id: string; title: string } | null;
+  onClose: () => void;
+  onPost: (title: string, caption: string, visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE') => Promise<void>;
+}
+
+const DISCOVERY_VISIBILITY_OPTIONS: { value: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE'; label: string }[] = [
+  { value: 'PUBLIC',    label: '🌐 Công khai' },
+  { value: 'FOLLOWERS', label: '👥 Người theo dõi' },
+  { value: 'PRIVATE',   label: '🔒 Riêng tư' },
+];
+
+const ShareToDiscoveryModal = ({ visible, item, onClose, onPost }: ShareToDiscoveryModalProps) => {
+  const insets = useSafeAreaInsets();
+  const [title, setTitle] = useState('');
+  const [caption, setCaption] = useState('');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'FOLLOWERS' | 'PRIVATE'>('PUBLIC');
+  const [posting, setPosting] = useState(false);
+
+  React.useEffect(() => {
+    if (item && visible) {
+      const typeLabel = item.type === 'playlist' ? 'Playlist' : item.type === 'album' ? 'Album' : 'Bài hát';
+      setTitle(`Chia sẻ ${typeLabel}: ${item.title}`);
+      setCaption('');
+      setVisibility('PUBLIC');
+    }
+  }, [item, visible]);
+
+  const handlePost = async () => {
+    if (!title.trim()) return;
+    setPosting(true);
+    try {
+      await onPost(title.trim(), caption.trim(), visibility);
+      setTitle('');
+      setCaption('');
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const contentType = item?.type === 'playlist' ? 'PLAYLIST' : item?.type === 'album' ? 'ALBUM' : 'SONG';
+
+  return (
+      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[discoveryShareStyles.root, { paddingTop: insets.top + 4 }]}>
+            <View style={discoveryShareStyles.header}>
+              <Pressable onPress={onClose} style={discoveryShareStyles.cancelBtn}>
+                <Text style={discoveryShareStyles.cancelText}>Huỷ</Text>
+              </Pressable>
+              <Text style={discoveryShareStyles.headerTitle}>Chia sẻ lên Discovery</Text>
+              <Pressable
+                  style={[discoveryShareStyles.postBtn, (!title.trim() || posting) && discoveryShareStyles.postBtnDisabled]}
+                  onPress={handlePost}
+                  disabled={!title.trim() || posting}
+              >
+                {posting
+                    ? <ActivityIndicator size="small" color={COLORS.white} />
+                    : <Text style={discoveryShareStyles.postBtnText}>Đăng</Text>
+                }
+              </Pressable>
+            </View>
+            <View style={discoveryShareStyles.divider} />
+
+            <ScrollView style={discoveryShareStyles.body} keyboardShouldPersistTaps="handled">
+              <View style={discoveryShareStyles.contentBadge}>
+                <Text style={discoveryShareStyles.contentBadgeText}>
+                  {contentType === 'PLAYLIST' ? '📋 Playlist' : contentType === 'ALBUM' ? '💿 Album' : '🎵 Bài hát'}
+                  {' · '}
+                  <Text style={discoveryShareStyles.contentBadgeName}>{item?.title}</Text>
+                </Text>
+              </View>
+
+              <TextInput
+                  style={discoveryShareStyles.titleInput}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="Tiêu đề bài viết..."
+                  placeholderTextColor={COLORS.glass25}
+                  multiline
+                  autoFocus
+              />
+              <TextInput
+                  style={discoveryShareStyles.captionInput}
+                  value={caption}
+                  onChangeText={setCaption}
+                  placeholder="Mô tả thêm cho mọi người..."
+                  placeholderTextColor={COLORS.glass20}
+                  multiline
+              />
+
+              <View style={discoveryShareStyles.visibilityRow}>
+                <Text style={discoveryShareStyles.visibilityLabel}>Hiển thị:</Text>
+                {DISCOVERY_VISIBILITY_OPTIONS.map(opt => (
+                    <Pressable
+                        key={opt.value}
+                        style={[discoveryShareStyles.visChip, visibility === opt.value && discoveryShareStyles.visChipActive]}
+                        onPress={() => setVisibility(opt.value)}
+                    >
+                      <Text style={[discoveryShareStyles.visChipText, visibility === opt.value && discoveryShareStyles.visChipTextActive]}>
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+  );
+};
+
+const discoveryShareStyles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: COLORS.bg },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  cancelBtn: { minWidth: 48 },
+  cancelText: { color: COLORS.glass60, fontSize: 15 },
+  headerTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  postBtn: {
+    backgroundColor: COLORS.accentDim,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postBtnDisabled: { opacity: 0.35 },
+  postBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+  divider: { height: 1, backgroundColor: COLORS.glass08 },
+  body: { flex: 1, paddingHorizontal: 16 },
+  contentBadge: {
+    marginTop: 16,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+    backgroundColor: COLORS.surface,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: COLORS.glass12,
+  },
+  contentBadgeText: { color: COLORS.glass60, fontSize: 13 },
+  contentBadgeName: { color: COLORS.white, fontWeight: '600' },
+  titleInput: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: '700',
+    lineHeight: 26,
+    minHeight: 56,
+    textAlignVertical: 'top',
+  },
+  captionInput: {
+    color: COLORS.glass70,
+    fontSize: 15,
+    lineHeight: 22,
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginTop: 4,
+  },
+  visibilityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.glass08,
+    marginTop: 12,
+  },
+  visibilityLabel: { color: COLORS.glass50, fontSize: 13, fontWeight: '600', marginRight: 4 },
+  visChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: COLORS.glass08,
+    borderWidth: 1,
+    borderColor: COLORS.glass12,
+  },
+  visChipActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
+  visChipText: { color: COLORS.glass60, fontSize: 12, fontWeight: '600' },
+  visChipTextActive: { color: COLORS.accent },
+});
 
 const AlbumDetailModal = ({
                             visible,
@@ -951,11 +1229,15 @@ export const LibraryScreen = () => {
   const [editPlaylist, setEditPlaylist]        = useState<Playlist | null>(null);
   const [editPlaylistName, setEditPlaylistName] = useState('');
 
+  // Share flow
+  const [shareOptionsItem, setShareOptionsItem] = useState<{ type: ShareItemType; id: string; title: string } | null>(null);
+  const [discoveryShareItem, setDiscoveryShareItem] = useState<{ type: ShareItemType; id: string; title: string } | null>(null);
+
   // ── Load ──────────────────────────────────────────────────────────────────
   useFocusEffect(useCallback(() => {
     void load(false);
-    const id = setInterval(() => void load(true), 10_000);
-    return () => clearInterval(id);
+    const pollIntervalId = setInterval(() => void load(true), 60_000);
+    return () => clearInterval(pollIntervalId);
   }, [authSession?.tokens.accessToken]));
 
   const load = async (silent = false) => {
@@ -977,21 +1259,52 @@ export const LibraryScreen = () => {
   };
 
   // ── Share helper ──────────────────────────────────────────────────────────
-  const handleShare = async (type: 'playlist' | 'song' | 'album', id: string, title: string, method: 'qr' | 'link') => {
+  const openShareOptions = (type: ShareItemType, id: string, title: string) => {
+    setShareOptionsItem({ type, id, title });
+  };
+
+  const handleShareQr = async () => {
+    if (!shareOptionsItem) return;
+    const { type, id, title } = shareOptionsItem;
     try {
-      if (method === 'qr') {
-        const qr = type === 'playlist' ? await getPlaylistShareQr(id) :
-            type === 'song'     ? await getSongShareQr(id) :
-                await getAlbumShareQr(id);
-        setQrData({ link: qr.shareUrl, image: qr.qrCodeBase64 });
-      } else {
-        const res = type === 'playlist' ? await getPlaylistShareLink(id) :
-            type === 'song'     ? await getSongShareLink(id) :
-                await getAlbumShareLink(id);
-        await Share.share({ message: `${title}\n${res.shareUrl}` });
-      }
+      const qr = type === 'playlist' ? await getPlaylistShareQr(id) :
+          type === 'song'     ? await getSongShareQr(id) :
+              await getAlbumShareQr(id);
+      setQrData({ link: qr.shareUrl, image: qr.qrCodeBase64 });
+    } catch (e: any) {
+      Alert.alert('Lỗi', e?.message ?? 'Không thể tạo QR.');
+    }
+  };
+
+  const handleShareExternal = async () => {
+    if (!shareOptionsItem) return;
+    const { type, id, title } = shareOptionsItem;
+    try {
+      const res = type === 'playlist' ? await getPlaylistShareLink(id) :
+          type === 'song'     ? await getSongShareLink(id) :
+              await getAlbumShareLink(id);
+      await Share.share({ message: `${title}\n${res.shareUrl}` });
     } catch (e: any) {
       Alert.alert('Lỗi', e?.message ?? 'Không thể chia sẻ.');
+    }
+  };
+
+  const handleDiscoveryPost = async (title: string, caption: string, visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE') => {
+    if (!discoveryShareItem) return;
+    try {
+      const contentType = discoveryShareItem.type === 'playlist' ? 'PLAYLIST' :
+          discoveryShareItem.type === 'album'    ? 'ALBUM' : 'SONG';
+      await createFeedPost({
+        visibility,
+        title,
+        caption: caption || undefined,
+        contentId: discoveryShareItem.id,
+        contentType,
+      });
+      setDiscoveryShareItem(null);
+      Alert.alert('Đã đăng!', 'Bài viết của bạn đã được chia sẻ lên Discovery.');
+    } catch (e: any) {
+      Alert.alert('Lỗi', e?.message ?? 'Không thể đăng bài viết.');
     }
   };
 
@@ -1131,7 +1444,7 @@ export const LibraryScreen = () => {
                     <FontAwesome name="edit" color="#ff7e5f" size={18} />
                       </Text>
                 </Pressable>
-                <Pressable hitSlop={8} onPress={() => void handleShare('playlist', p.id, p.name, 'qr')} style={styles.iconBtn}>
+                <Pressable hitSlop={8} onPress={() => openShareOptions('playlist', p.id, p.name)} style={styles.iconBtn}>
                   <Text style={styles.iconBtnText}>↗</Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => handleDeletePlaylist(p)} style={styles.iconBtn}>
@@ -1159,7 +1472,7 @@ export const LibraryScreen = () => {
                 isPlaying={currentSong?.id === s.id && isPlaying}
                 onPlay={() => playSong(s, songs)}
                 onAddToPlaylist={() => setAddSongTo(s)}
-                onShare={() => void handleShare('song', s.id, s.title, 'qr')}
+                onShare={() => openShareOptions('song', s.id, s.title)}
             />
         ))}
       </>
@@ -1188,7 +1501,7 @@ export const LibraryScreen = () => {
                 onPublish={() => void handlePublishAlbum(a.id)}
                 onUnpublish={() => void handleUnpublishAlbum(a.id)}
                 onDelete={() => handleDeleteAlbum(a)}
-                onShare={() => void handleShare('album', a.id, a.title, 'qr')}
+                onShare={() => openShareOptions('album', a.id, a.title)}
             />
         ))}
       </>
@@ -1302,6 +1615,24 @@ export const LibraryScreen = () => {
                 onClose={() => setQrData(null)}
             />
         )}
+
+        {/* Share options sheet */}
+        <ShareOptionsSheet
+            visible={!!shareOptionsItem}
+            item={shareOptionsItem}
+            onClose={() => setShareOptionsItem(null)}
+            onQr={() => void handleShareQr()}
+            onExternal={() => void handleShareExternal()}
+            onDiscovery={() => setDiscoveryShareItem(shareOptionsItem)}
+        />
+
+        {/* Share to Discovery modal */}
+        <ShareToDiscoveryModal
+            visible={!!discoveryShareItem}
+            item={discoveryShareItem}
+            onClose={() => setDiscoveryShareItem(null)}
+            onPost={(title, caption, visibility) => handleDiscoveryPost(title, caption, visibility)}
+        />
       </View>
   );
 };

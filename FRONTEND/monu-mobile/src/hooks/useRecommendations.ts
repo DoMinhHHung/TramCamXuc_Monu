@@ -6,17 +6,19 @@ import {
   RecommendedSong,
   getHomeRecommendations,
   getNewReleases,
+  getSocialRecommendations,
   getTrendingRecommendations,
   submitRecommendationFeedback,
 } from '../services/recommendation';
 
-const RECOMMENDATION_POLL_MS = 60_000;
+const RECOMMENDATION_POLL_MS = 90_000;
 
 export function useRecommendations() {
   const { authSession } = useAuth();
   const [homeFeed, setHomeFeed] = useState<HomeRecommendation | null>(null);
   const [globalTrending, setGlobalTrending] = useState<RecommendedSong[]>([]);
   const [newReleases, setNewReleases] = useState<RecommendedSong[]>([]);
+  const [socialRecs, setSocialRecs] = useState<RecommendedSong[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
@@ -34,9 +36,10 @@ export function useRecommendations() {
 
       if (authSession) {
         tasks.push(getHomeRecommendations(false));
+        tasks.push(getSocialRecommendations(20));
       }
 
-      const [trendingResult, releasesResult, homeResult] = await Promise.allSettled(tasks);
+      const [trendingResult, releasesResult, homeResult, socialResult] = await Promise.allSettled(tasks);
 
       if (!isMountedRef.current) return;
 
@@ -52,6 +55,10 @@ export function useRecommendations() {
         setHomeFeed(homeResult.value as HomeRecommendation);
       } else if (!authSession) {
         setHomeFeed(null);
+      }
+
+      if (socialResult?.status === 'fulfilled') {
+        setSocialRecs((socialResult.value as RecommendedSong[]) ?? []);
       }
 
       setLastUpdatedAt(new Date());
@@ -100,6 +107,7 @@ export function useRecommendations() {
 
     setGlobalTrending((prev) => (feedback === 'DISLIKE' ? prev.filter((s) => s.songId !== songId) : prev));
     setNewReleases((prev) => (feedback === 'DISLIKE' ? prev.filter((s) => s.songId !== songId) : prev));
+    setSocialRecs((prev) => (feedback === 'DISLIKE' ? prev.filter((s) => s.songId !== songId) : prev));
 
     await submitRecommendationFeedback({ songId, feedback, contextSection });
   }, []);
@@ -108,10 +116,11 @@ export function useRecommendations() {
     homeFeed,
     globalTrending,
     newReleases,
+    socialRecs,
     loading,
     error,
     lastUpdatedAt,
     refresh,
     sendFeedback,
-  }), [homeFeed, globalTrending, newReleases, loading, error, lastUpdatedAt, refresh, sendFeedback]);
+  }), [homeFeed, globalTrending, newReleases, socialRecs, loading, error, lastUpdatedAt, refresh, sendFeedback]);
 }
