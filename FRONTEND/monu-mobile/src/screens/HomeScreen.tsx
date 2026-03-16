@@ -1,28 +1,53 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
-  Pressable, ScrollView, StyleSheet, Text, View,
-  ActivityIndicator, Alert, Modal, TextInput, Image,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AntDesign, MaterialIcons, Fontisto   } from '@expo/vector-icons';
-import { useDownload } from '../context/DownloadContext';
+import { AntDesign, Fontisto, MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
+import { useDownload } from '../context/DownloadContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { addSongToPlaylist, createPlaylist, getMyPlaylists, getTrendingSongs, getNewestSongs, Playlist, reportSong, searchSongs, Song } from '../services/music';
-import { getPopularGenres } from '../services/favorites';
-import { Genre } from '../types/favorites';
-import { SongSection } from '../components/SongSection';
+import { RecommendationSection } from '../components/RecommendationSection';
 import { SongActionSheet } from '../components/SongActionSheet';
+import { SongSection } from '../components/SongSection';
+import { addSongToPlaylist, createPlaylist, Song } from '../services/music';
+import { FeedbackType, RecommendedSong } from '../services/recommendation';
 import { getSongShareQr } from '../services/social';
+import { useHomeData } from '../hooks/useHomeData';
+import { searchSongs } from '../services/music';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
+
+const toSong = (r: RecommendedSong): Song => ({
+  id: r.songId,
+  title: r.title,
+  primaryArtist: r.primaryArtist,
+  genres: r.genres,
+  thumbnailUrl: r.thumbnailUrl,
+  durationSeconds: r.durationSeconds,
+  playCount: r.playCount,
+  status: 'PUBLIC',
+  transcodeStatus: 'COMPLETED',
+  createdAt: '',
+  updatedAt: '',
+});
 
 const quickActions = [
   { title: 'Nhạc chữa lành', emoji: '🌙', color: [COLORS.cardHealingFrom, COLORS.gradPurple] as const },
@@ -36,64 +61,27 @@ export const HomeScreen = () => {
   const { authSession } = useAuth();
   const { playSong, currentSong, isPlaying } = usePlayer();
   const insets = useSafeAreaInsets();
-
-  const [trendingSongs, setTrendingSongs] = useState<Song[]>([]);
-  const [newestSongs, setNewestSongs] = useState<Song[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
-  const [songToAdd, setSongToAdd] = useState<Song | null>(null);
-  const [genres, setGenres] = useState<Genre[]>([]);
-  const [genreSongs, setGenreSongs] = useState<Record<string, Song[]>>({});
-  const [expandedGenreIds, setExpandedGenreIds] = useState<string[]>([]);
-  const [loadingGenreId, setLoadingGenreId] = useState<string | null>(null);
-
-  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [newPlaylistName, setNewPlaylistName] = useState('');
-  const [qrModal, setQrModal] = useState<{ songTitle: string; qr?: string } | null>(null);
-
   const { startDownload, isDownloaded, getJobStatus } = useDownload();
 
-  const handleDownloadSong = async (song: Song) => {
-    try {
-      await startDownload(song);
-    } catch (e: any) {
-      Alert.alert(
-          'Cần nâng cấp',
-          'Tính năng tải nhạc cần gói Premium. Vào tab Premium để nâng cấp.',
-      );
-    }
-  };
+  const {
+    rec,
+    newestSongs,
+    genres,
+    playlists,
+    loading,
+    refresh,
+  } = useHomeData();
 
-  const fetchHomeData = async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const [trending, newest, popularGenres, myPlaylists] = await Promise.all([
-        getTrendingSongs({ page: 1, size: 10 }),
-        getNewestSongs({ page: 1, size: 10 }),
-        getPopularGenres(12),
-        getMyPlaylists({ page: 1, size: 50 }),
-      ]);
-      setTrendingSongs(trending.content);
-      setNewestSongs(newest.content);
-      setGenres(popularGenres);
-      setPlaylists(myPlaylists.content ?? []);
-    } catch {
-      if (!silent) Alert.alert('Lỗi', 'Không thể tải dữ liệu trang chủ');
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
+  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [selectedRecSong, setSelectedRecSong] = useState<RecommendedSong | null>(null);
+  const [songToAdd, setSongToAdd] = useState<Song | null>(null);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
 
-  useEffect(() => {
-    void fetchHomeData(false);
-    const id = setInterval(() => void fetchHomeData(true), 15000);
-    return () => clearInterval(id);
-  }, []);
-
-  const handlePressSong = useCallback((song: Song, queue: Song[]) => {
-    playSong(song, queue);
-  }, [playSong]);
+  const [expandedGenreIds, setExpandedGenreIds] = useState<string[]>([]);
+  const [genreSongs, setGenreSongs] = useState<Record<string, Song[]>>({});
+  const [loadingGenreId, setLoadingGenreId] = useState<string | null>(null);
 
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -101,50 +89,125 @@ export const HomeScreen = () => {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const displayName = authSession?.profile?.fullName || authSession?.profile?.email?.split('@')[0] || 'bạn';
-  const getGreeting = () => {
-    const h = new Date().getHours();
-    if (h >= 6 && h < 10) return 'Chào buổi sáng ☀';
-    if (h >= 10 && h < 13) return 'Buổi trưa vui vẻ 🌤';
-    if (h >= 13 && h < 17) return 'Good afternoon 🌤';
-    if (h >= 17 && h < 22) return 'Chào buổi tối 🌆';
-    return 'Chúc ngủ ngon 🌙';
-  };
+  const playRec = useCallback((r: RecommendedSong, queue: RecommendedSong[]) => {
+    playSong(toSong(r), queue.map(toSong));
+  }, [playSong]);
 
-  const toggleGenre = async (genreId: string) => {
+  const openRecActionSheet = useCallback((r: RecommendedSong) => {
+    setSelectedRecSong(r);
+    setSelectedSong(toSong(r));
+  }, []);
+
+  const handleFeedback = useCallback((songId: string, feedback: FeedbackType) => {
+    void rec.sendFeedback(songId, feedback, 'home');
+  }, [rec]);
+
+  const toggleGenre = useCallback(async (genreId: string) => {
     if (expandedGenreIds.includes(genreId)) {
-      setExpandedGenreIds(prev => prev.filter(id => id !== genreId));
+      setExpandedGenreIds((prev) => prev.filter((id) => id !== genreId));
       return;
     }
-
     try {
       if (!genreSongs[genreId]) {
         setLoadingGenreId(genreId);
         const res = await searchSongs({ genreId, page: 1, size: 8 });
-        setGenreSongs(prev => ({ ...prev, [genreId]: res.content ?? [] }));
+        setGenreSongs((prev) => ({ ...prev, [genreId]: res.content ?? [] }));
       }
-      setExpandedGenreIds(prev => [...prev, genreId]);
+      setExpandedGenreIds((prev) => [...prev, genreId]);
     } finally {
       setLoadingGenreId(null);
     }
+  }, [expandedGenreIds, genreSongs]);
+
+  const handleDownloadSong = useCallback(async (song: Song) => {
+    try {
+      await startDownload(song);
+    } catch {
+      Alert.alert('Cần nâng cấp', 'Tính năng tải nhạc cần gói Premium.');
+    }
+  }, [startDownload]);
+
+  const handleAddToPlaylist = useCallback(async (playlistId: string) => {
+    if (!songToAdd) return;
+    try {
+      await addSongToPlaylist(playlistId, songToAdd.id);
+      Alert.alert('Thành công', 'Đã thêm vào playlist.');
+      setPlaylistPickerOpen(false);
+      setSongToAdd(null);
+    } catch (e: unknown) {
+      Alert.alert('Lỗi', e instanceof Error ? e.message : 'Không thể thêm');
+    }
+  }, [songToAdd]);
+
+  const handleCreateAndAdd = useCallback(async () => {
+    if (!songToAdd || !newPlaylistName.trim()) return;
+    try {
+      const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
+      await addSongToPlaylist(pl.id, songToAdd.id);
+      setNewPlaylistName('');
+      setPlaylistPickerOpen(false);
+      setSongToAdd(null);
+    } catch (e: unknown) {
+      Alert.alert('Lỗi', e instanceof Error ? e.message : 'Không thể tạo playlist');
+    }
+  }, [songToAdd, newPlaylistName]);
+
+  const displayName = authSession?.profile?.fullName
+    || authSession?.profile?.email?.split('@')[0]
+    || 'bạn';
+
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 10) return 'Chào buổi sáng ☀';
+    if (h < 13) return 'Buổi trưa vui vẻ 🌤';
+    if (h < 17) return 'Good afternoon 🌤';
+    if (h < 22) return 'Chào buổi tối 🌆';
+    return 'Chúc ngủ ngon 🌙';
   };
 
+  const updatedLabel = rec.lastUpdatedAt
+    ? (() => {
+      const diff = Math.floor((Date.now() - rec.lastUpdatedAt.getTime()) / 60_000);
+      return diff < 1 ? 'Vừa cập nhật' : `Cập nhật ${diff} phút trước`;
+    })()
+    : undefined;
+
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <StatusBar style="light" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
-        <LinearGradient colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]} style={[styles.header, { paddingTop: insets.top + 16 }]}>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={(
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={refresh}
+            tintColor={COLORS.accent}
+          />
+        )}
+      >
+        <LinearGradient
+          colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]}
+          style={[styles.header, { paddingTop: insets.top + 16 }]}
+        >
           <Pressable style={styles.headerTop} onPress={() => navigation.navigate('Profile')}>
             <View>
               <Text style={styles.greeting}>{getGreeting()},</Text>
               <Text style={styles.name}>{displayName} 👋</Text>
+              {updatedLabel && (
+                <Text style={styles.updatedLabel}>{updatedLabel}</Text>
+              )}
             </View>
             <View style={styles.avatarCircle}>
               <Fontisto name="person" color="#3B82F6" size={24} />
             </View>
           </Pressable>
 
-          <Pressable onPress={() => navigation.navigate('Search')} style={({ pressed }) => [styles.searchBar, { opacity: pressed ? 0.8 : 1 }]}>
+          <Pressable
+            onPress={() => navigation.navigate('Search')}
+            style={styles.searchBar}
+          >
             <MaterialIcons name="saved-search" color="#2563EB" size={26} />
             <Text style={styles.searchPlaceholder}>Tìm bài hát, nghệ sĩ...</Text>
           </Pressable>
@@ -153,186 +216,261 @@ export const HomeScreen = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Phát nhanh</Text>
           <View style={styles.grid}>
-            {quickActions.map(item => (
-              <Pressable key={item.title} style={styles.quickCard}><LinearGradient colors={item.color} style={styles.quickCardGradient}><Text style={styles.cardEmoji}>{item.emoji}</Text><Text style={styles.cardTitle}>{item.title}</Text></LinearGradient></Pressable>
+            {quickActions.map((item) => (
+              <Pressable key={item.title} style={styles.quickCard}>
+                <LinearGradient colors={item.color} style={styles.quickGradient}>
+                  <Text style={styles.cardEmoji}>{item.emoji}</Text>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                </LinearGradient>
+              </Pressable>
             ))}
           </View>
         </View>
 
-        {loading && <ActivityIndicator size="large" color={COLORS.accent} style={{ marginTop: 30 }} />}
-
-        {!loading && (
-          <>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🎶 Thể loại nhạc</Text>
-              <View style={styles.genreWrap}>
-                {genres.map(g => (
-                  <Pressable key={g.id} style={[styles.genreChip, expandedGenreIds.includes(g.id) && styles.genreChipActive]} onPress={() => void toggleGenre(g.id)}>
-                    <Text style={[styles.genreText, expandedGenreIds.includes(g.id) && styles.genreTextActive]}>{expandedGenreIds.includes(g.id) ? '▼ ' : '▶ '} {g.name}</Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              {loadingGenreId && <ActivityIndicator color={COLORS.accent} style={{ marginTop: 10 }} />}
-
-              {expandedGenreIds.map((id) => {
-                const genre = genres.find(g => g.id === id);
-                const songs = genreSongs[id] ?? [];
-                return (
-                  <SongSection
-                    key={id}
-                    title={`# ${genre?.name ?? 'Genre'}`}
-                    songs={songs}
-                    currentSong={currentSong}
-                    isPlaying={isPlaying}
-                    onPressSong={(song) => handlePressSong(song, songs)}
-                    onSongAction={setSelectedSong}
-                    formatDuration={formatDuration}
-                  />
-                );
-              })}
-            </View>
-
-            <SongSection title="🔥 Trending" songs={trendingSongs} currentSong={currentSong} isPlaying={isPlaying} onPressSong={song => handlePressSong(song, trendingSongs)} onSongAction={setSelectedSong} formatDuration={formatDuration} />
-            <SongSection title="✨ Mới phát hành" songs={newestSongs} currentSong={currentSong} isPlaying={isPlaying} onPressSong={song => handlePressSong(song, newestSongs)} onSongAction={setSelectedSong} formatDuration={formatDuration} />
-          </>
+        {loading && !rec.homeFeed && !rec.globalTrending.length && (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={COLORS.accent} />
+            <Text style={styles.loadingText}>Đang tải gợi ý nhạc...</Text>
+          </View>
         )}
+
+        {authSession && (
+          <RecommendationSection
+            icon="✨"
+            title="Gợi ý cho bạn"
+            subtitle={updatedLabel}
+            songs={rec.homeFeed?.forYou ?? []}
+            activeSongId={currentSong?.id}
+            loading={rec.loading && !rec.homeFeed}
+            onPress={(s) => playRec(s, rec.homeFeed?.forYou ?? [])}
+            onLongPress={openRecActionSheet}
+            onFeedback={handleFeedback}
+            hasBadge={!!rec.homeFeed?.forYou?.length}
+          />
+        )}
+
+        <RecommendationSection
+          icon="🔥"
+          title="Đang hot"
+          songs={rec.globalTrending}
+          activeSongId={currentSong?.id}
+          loading={rec.loading && !rec.globalTrending.length}
+          onPress={(s) => playRec(s, rec.globalTrending)}
+          onLongPress={openRecActionSheet}
+          hideIfEmpty={false}
+        />
+
+        {authSession && (
+          <RecommendationSection
+            icon="👥"
+            title="Bạn bè đang nghe"
+            songs={rec.homeFeed?.friendsAreListening ?? []}
+            activeSongId={currentSong?.id}
+            loading={rec.loading && !rec.homeFeed}
+            onPress={(s) => playRec(s, rec.homeFeed?.friendsAreListening ?? [])}
+            onLongPress={openRecActionSheet}
+            onFeedback={handleFeedback}
+          />
+        )}
+
+        {authSession && (
+          <RecommendationSection
+            icon="🎤"
+            title="Từ nghệ sĩ bạn follow"
+            songs={rec.homeFeed?.fromArtists ?? []}
+            activeSongId={currentSong?.id}
+            loading={rec.loading && !rec.homeFeed}
+            onPress={(s) => playRec(s, rec.homeFeed?.fromArtists ?? [])}
+            onLongPress={openRecActionSheet}
+          />
+        )}
+
+        <RecommendationSection
+          icon="🆕"
+          title="Mới phát hành"
+          songs={(rec.homeFeed?.newReleases?.length ? rec.homeFeed.newReleases : rec.newReleases)}
+          activeSongId={currentSong?.id}
+          loading={rec.loading && !rec.newReleases.length}
+          onPress={(s) => playRec(s, rec.homeFeed?.newReleases?.length ? rec.homeFeed.newReleases : rec.newReleases)}
+          onLongPress={openRecActionSheet}
+          hideIfEmpty={false}
+        />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🎶 Thể loại nhạc</Text>
+          <View style={styles.genreWrap}>
+            {genres.map((g) => (
+              <Pressable
+                key={g.id}
+                style={[styles.genreChip, expandedGenreIds.includes(g.id) && styles.genreChipActive]}
+                onPress={() => { void toggleGenre(g.id); }}
+              >
+                <Text style={[styles.genreText, expandedGenreIds.includes(g.id) && styles.genreTextActive]}>
+                  {expandedGenreIds.includes(g.id) ? '▼ ' : '▶ '}
+                  {g.name}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {loadingGenreId && <ActivityIndicator color={COLORS.accent} style={{ marginTop: 10 }} />}
+
+          {expandedGenreIds.map((id) => {
+            const genre = genres.find((g) => g.id === id);
+            const songs = genreSongs[id] ?? [];
+            return (
+              <SongSection
+                key={id}
+                title={`# ${genre?.name ?? 'Genre'}`}
+                songs={songs}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPressSong={(song) => playSong(song, songs)}
+                onSongAction={setSelectedSong}
+                formatDuration={formatDuration}
+              />
+            );
+          })}
+        </View>
+
+        <SongSection
+          title="📅 Mới nhất"
+          songs={newestSongs}
+          currentSong={currentSong}
+          isPlaying={isPlaying}
+          onPressSong={(song) => playSong(song, newestSongs)}
+          onSongAction={setSelectedSong}
+          formatDuration={formatDuration}
+        />
       </ScrollView>
 
       <SongActionSheet
-          visible={!!selectedSong}
-          title={selectedSong?.title}
-          subtitle={selectedSong?.primaryArtist?.stageName}
-          thumbnailUrl={selectedSong?.thumbnailUrl}
-          onClose={() => setSelectedSong(null)}
-
-          actions={[
-            {
-              icon: '↗',
-              label: 'Chia sẻ qua QR',
-              onPress: async () => {
-                if (!selectedSong) return;
-                const qr = await getSongShareQr(selectedSong.id);
-                setQrModal({ songTitle: selectedSong.title, qr: qr.qrCodeBase64 });
-              },
+        visible={!!selectedSong}
+        title={selectedSong?.title}
+        subtitle={selectedSong?.primaryArtist?.stageName}
+        thumbnailUrl={selectedSong?.thumbnailUrl}
+        onClose={() => {
+          setSelectedSong(null);
+          setSelectedRecSong(null);
+        }}
+        actions={[
+          {
+            icon: '↗',
+            label: 'Chia sẻ qua QR',
+            onPress: async () => {
+              if (!selectedSong) return;
+              const qr = await getSongShareQr(selectedSong.id);
+              setQrModal({ title: selectedSong.title, qr: qr.qrCodeBase64 });
             },
-            {
-              icon: <AntDesign name="appstore-add" size={20} color="#fff" />,
-              label: 'Thêm vào playlist',
-              onPress: () => {
-                if (!selectedSong) return;
-                setSongToAdd(selectedSong);
-                setPlaylistPickerOpen(true);
-              },
+          },
+          {
+            icon: <AntDesign name="appstore-add" size={20} color="#fff" />,
+            label: 'Thêm vào playlist',
+            onPress: () => {
+              if (!selectedSong) return;
+              setSongToAdd(selectedSong);
+              setPlaylistPickerOpen(true);
             },
-            {
-              icon: isDownloaded(selectedSong?.id ?? '')
-                  ? <AntDesign name="check-circle" size={20} color="#4ade80" />
-                  : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                      ? <ActivityIndicator size="small" color="#fff" />
-                      : <AntDesign name="download" size={20} color="#fff" />,
-
-              label: isDownloaded(selectedSong?.id ?? '')
-                  ? 'Đã tải xuống'
-                  : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                      ? `Đang tải... ${(getJobStatus(selectedSong?.id ?? '') as any).progress}%`
-                      : 'Tải xuống (Offline)',
-
-              sublabel: isDownloaded(selectedSong?.id ?? '')
-                  ? 'Có thể nghe offline'
-                  : 'Cần gói Premium',
-
-              onPress: () => {
-                if (!selectedSong) return;
-                void handleDownloadSong(selectedSong);
+          },
+          {
+            icon: isDownloaded(selectedSong?.id ?? '')
+              ? <AntDesign name="check-circle" size={20} color="#4ade80" />
+              : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <AntDesign name="download" size={20} color="#fff" />,
+            label: isDownloaded(selectedSong?.id ?? '')
+              ? 'Đã tải xuống'
+              : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
+                ? `Đang tải... ${(getJobStatus(selectedSong?.id ?? '') as { progress?: number }).progress ?? 0}%`
+                : 'Tải xuống (Offline)',
+            sublabel: isDownloaded(selectedSong?.id ?? '') ? 'Có thể nghe offline' : 'Cần gói Premium',
+            disabled: isDownloaded(selectedSong?.id ?? ''),
+            onPress: () => selectedSong && void handleDownloadSong(selectedSong),
+          },
+          ...(selectedRecSong
+            ? [
+              {
+                icon: '👎',
+                label: 'Không muốn nghe bài này',
+                onPress: () => selectedRecSong && handleFeedback(selectedRecSong.songId, 'DISLIKE'),
               },
-
-              disabled: isDownloaded(selectedSong?.id ?? ''),
+            ]
+            : []),
+          {
+            icon: <AntDesign name="flag" size={20} color={COLORS.error} />,
+            label: 'Báo cáo bài hát',
+            separator: true,
+            destructive: true,
+            onPress: async () => {
+              if (!selectedSong) return;
+              const { reportSong } = await import('../services/music');
+              await reportSong(selectedSong.id, { reason: 'SPAM', description: 'Reported from home' });
+              Alert.alert('Đã báo cáo', 'Cảm ơn bạn!');
             },
-            {
-              icon: <AntDesign name="flag" size={20} color={COLORS.error} />,
-              label: 'Báo cáo bài hát',
-              separator: true,
-              destructive: true,
-              onPress: async () => {
-                if (!selectedSong) return;
-                await reportSong(selectedSong.id, {
-                  reason: 'SPAM',
-                  description: 'Reported from action sheet',
-                });
-                Alert.alert('Đã báo cáo', 'Cảm ơn bạn, chúng tôi sẽ xem xét.');
-              },
-            },
-          ]}
+          },
+        ]}
       />
 
-      <Modal visible={playlistPickerOpen} transparent animationType="fade" onRequestClose={() => { setPlaylistPickerOpen(false); setSongToAdd(null); }}>
-        <View style={styles.centerBackdrop}>
-          <View style={styles.centerCard}>
+      <Modal
+        visible={playlistPickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setPlaylistPickerOpen(false);
+          setSongToAdd(null);
+        }}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.modalCard}>
             <Pressable
-                style={styles.modalCloseBtn}
-                onPress={() => {
-                  setPlaylistPickerOpen(false);
-                  setSongToAdd(null);
-                }}
+              style={styles.modalClose}
+              onPress={() => {
+                setPlaylistPickerOpen(false);
+                setSongToAdd(null);
+              }}
             >
               <Text style={styles.modalCloseIcon}>✕</Text>
             </Pressable>
 
-            <Text style={styles.sheetTitle}>Thêm vào playlist</Text>
+            <Text style={styles.modalTitle}>Thêm vào playlist</Text>
             <ScrollView style={{ maxHeight: 240 }}>
               {playlists.map((p) => (
-                <Pressable key={p.id} onPress={async () => {
-                  if (!songToAdd) return;
-                  try {
-                    await addSongToPlaylist(p.id, songToAdd.id);
-                    Alert.alert('Thành công', `Đã thêm vào ${p.name}`);
-                    setPlaylistPickerOpen(false);
-                    setSongToAdd(null);
-                  } catch (error: any) {
-                    Alert.alert('Lỗi', error?.message || 'Không thể thêm vào playlist');
-                  }
-                }}><Text style={styles.sheetItem}>{p.name}</Text></Pressable>
+                <Pressable key={p.id} onPress={() => { void handleAddToPlaylist(p.id); }}>
+                  <Text style={styles.modalItem}>{p.name}</Text>
+                </Pressable>
               ))}
             </ScrollView>
-            <TextInput style={styles.playlistInput} value={newPlaylistName} onChangeText={setNewPlaylistName} placeholder="Tạo playlist mới" placeholderTextColor={COLORS.glass45} />
-            <Pressable onPress={async () => {
-              if (!songToAdd || !newPlaylistName.trim()) return;
-              try {
-                const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
-                await addSongToPlaylist(pl.id, songToAdd.id);
-                setNewPlaylistName('');
-                setPlaylistPickerOpen(false);
-                setSongToAdd(null);
-              } catch (error: any) {
-                Alert.alert('Lỗi', error?.message || 'Không thể tạo playlist mới');
-              }
-            }}><Text style={styles.sheetItemAccent}>+ Tạo mới và thêm</Text></Pressable>
+            <TextInput
+              style={styles.playlistInput}
+              value={newPlaylistName}
+              onChangeText={setNewPlaylistName}
+              placeholder="Tạo playlist mới"
+              placeholderTextColor={COLORS.glass45}
+            />
+            <Pressable onPress={() => { void handleCreateAndAdd(); }}>
+              <Text style={styles.modalItemAccent}>+ Tạo mới và thêm</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
 
-      <Modal visible={!!qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(null)}>
-        <View style={styles.centerBackdrop}>
-          <View style={styles.centerCard}>
-            <Pressable
-                style={styles.modalCloseBtn}
-                onPress={() => setQrModal(null)}
-            >
+      <Modal
+        visible={!!qrModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setQrModal(null)}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.modalCard}>
+            <Pressable style={styles.modalClose} onPress={() => setQrModal(null)}>
               <Text style={styles.modalCloseIcon}>✕</Text>
             </Pressable>
-
-            <Text style={styles.sheetTitle}>QR Share • {qrModal?.songTitle}</Text>
-            <View style={styles.qrContainer}>
-              {qrModal?.qr ? (
-                  <Image
-                      source={{ uri: qrModal.qr }}
-                      style={styles.qrImage}
-                  />
-              ) : (
-                  <Text style={styles.sheetItem}>Không tạo được QR</Text>
-              )}
-            </View>
+            <Text style={styles.modalTitle}>QR Share · {qrModal?.title}</Text>
+            {qrModal?.qr ? (
+              <Image source={{ uri: qrModal.qr }} style={styles.qrImage} />
+            ) : (
+              <Text style={styles.modalItem}>Không tạo được QR</Text>
+            )}
           </View>
         </View>
       </Modal>
@@ -341,41 +479,97 @@ export const HomeScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+  root: { flex: 1, backgroundColor: COLORS.bg },
   header: { paddingHorizontal: 20, paddingBottom: 20 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   greeting: { color: COLORS.glass50, fontSize: 14 },
   name: { color: COLORS.white, fontSize: 26, fontWeight: '800' },
-  avatarCircle: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.glass10, alignItems: 'center', justifyContent: 'center' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.glass08, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, gap: 10, borderWidth: 1, borderColor: COLORS.glass12 },
-  searchIcon: { fontSize: 15 },
+  updatedLabel: { color: COLORS.glass30, fontSize: 11, marginTop: 2 },
+  avatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: COLORS.glass10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.glass08,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: COLORS.glass12,
+  },
   searchPlaceholder: { color: COLORS.glass40, fontSize: 14, flex: 1 },
   section: { paddingHorizontal: 20, marginTop: 24 },
   sectionTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   quickCard: { width: '47%', borderRadius: 14, overflow: 'hidden' },
-  quickCardGradient: { padding: 16, minHeight: 90, justifyContent: 'space-between' },
+  quickGradient: { padding: 16, minHeight: 90, justifyContent: 'space-between' },
   cardEmoji: { fontSize: 26 },
   cardTitle: { color: COLORS.white, fontWeight: '700' },
-  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
-  sheet: { backgroundColor: COLORS.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 18, gap: 10 },
-  centerBackdrop: { flex: 1, backgroundColor: COLORS.scrim, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  centerCard: { width: '100%', backgroundColor: COLORS.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: COLORS.glass10 },
-  sheetTitle: { color: COLORS.white, fontSize: 17, fontWeight: '800' },
-  sheetItem: { color: COLORS.glass85, fontSize: 14, marginTop: 8, alignItems: "center" },
   genreWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  genreChip: { backgroundColor: COLORS.surface, borderRadius: 999, borderWidth: 1, borderColor: COLORS.glass15, paddingHorizontal: 12, paddingVertical: 6 },
+  genreChip: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.glass15,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
   genreChipActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
   genreText: { color: COLORS.glass85, fontSize: 12 },
   genreTextActive: { color: COLORS.accent, fontWeight: '700' },
-  playlistInput: { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 10 },
-  sheetItemAccent: { color: COLORS.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
-  modalCloseBtn: {position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.glass10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.glass15, zIndex: 10,
+  loadingWrap: { alignItems: 'center', paddingVertical: 32 },
+  loadingText: { color: COLORS.glass35, fontSize: 13, marginTop: 10 },
+  backdrop: {
+    flex: 1,
+    backgroundColor: COLORS.scrim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
-  modalCloseIcon: {color: COLORS.white, fontSize: 16, fontWeight: '700',
+  modalCard: {
+    width: '100%',
+    backgroundColor: COLORS.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.glass10,
   },
-  qrContainer: {alignItems: 'center', justifyContent: 'center', marginTop: 16,
+  modalTitle: { color: COLORS.white, fontSize: 17, fontWeight: '800', marginBottom: 10 },
+  modalClose: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.glass10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
   },
-  qrImage: {width: 220, height: 220, borderRadius: 8,
+  modalCloseIcon: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  modalItem: { color: COLORS.glass85, fontSize: 14, marginTop: 8 },
+  modalItemAccent: { color: COLORS.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
+  playlistInput: {
+    color: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.glass20,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 10,
   },
+  qrImage: { width: 220, height: 220, borderRadius: 8, alignSelf: 'center', marginTop: 12 },
 });
