@@ -38,6 +38,7 @@ interface CachedEntry {
 
 const REFRESH_ENDPOINT = '/auth/refresh';
 const DEFAULT_GET_CACHE_TTL_MS = 15000;
+const DISABLE_CACHE_TTL_MS = 0;
 
 let accessTokenInMemory: string | null = null;
 let refreshTokenGetter: (() => Promise<string | null>) | null = null;
@@ -90,6 +91,73 @@ const clearGetCache = () => {
   getCacheStore.clear();
 };
 
+const normalizeUrlPath = (url?: string): string => {
+  if (!url) return '';
+  const withoutQuery = url.split('?')[0] ?? '';
+  return withoutQuery.startsWith('/') ? withoutQuery : `/${withoutQuery}`;
+};
+
+const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
+  const path = normalizeUrlPath(config.url);
+
+  if (!path) return DEFAULT_GET_CACHE_TTL_MS;
+
+  if (/^\/songs\/[^/]+\/stream$/i.test(path)) return DISABLE_CACHE_TTL_MS;
+
+  if (path === '/social/feed') return 20000;
+  if (path.startsWith('/social/comments')) return 15000;
+
+  if (
+    path === '/songs/trending'
+    || path === '/songs/newest'
+    || path === '/artists/popular'
+    || path === '/genres/popular'
+  ) {
+    return 120000;
+  }
+
+  if (
+    path === '/playlists/my-playlists'
+    || path === '/songs/my-songs'
+    || path === '/albums/my'
+    || path === '/social/hearts/my'
+    || path === '/social/follows/my-artists'
+    || /^\/social\/artists\/[^/]+\/followers$/i.test(path)
+  ) {
+    return 45000;
+  }
+
+  if (
+    path === '/subscriptions/plans'
+  ) {
+    return 300000;
+  }
+
+  if (
+    path === '/subscriptions/my'
+    || path === '/subscriptions/my/history'
+  ) {
+    return 30000;
+  }
+
+  if (
+    /^\/songs\/[^/]+$/i.test(path)
+    || /^\/albums\/(my\/)?[^/]+$/i.test(path)
+    || /^\/playlists\/(id\/)?[^/]+$/i.test(path)
+    || /^\/artists\/[^/]+$/i.test(path)
+    || path === '/artists/me'
+    || /^\/social\/artists\/[^/]+\/stats$/i.test(path)
+  ) {
+    return 180000;
+  }
+
+  if (path === '/songs' || path === '/artists') {
+    return 90000;
+  }
+
+  return DEFAULT_GET_CACHE_TTL_MS;
+};
+
 const refreshClient: AxiosInstance = axios.create({
   baseURL: env.apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
@@ -107,6 +175,9 @@ apiClient.interceptors.request.use((config) => {
 
   const method = (config.method ?? 'get').toLowerCase();
   if (method === 'get') {
+    const ttlMs = resolveGetCacheTtlMs(config);
+    if (ttlMs <= 0) return config;
+
     const key = buildCacheKey(config);
     const cached = getCacheStore.get(key);
     if (cached && cached.expiresAt > Date.now()) {
@@ -129,8 +200,11 @@ apiClient.interceptors.response.use(
     const method = (response.config.method ?? 'get').toLowerCase();
     if (method === 'get') {
       const key = buildCacheKey(response.config as InternalAxiosRequestConfig);
+      const ttlMs = resolveGetCacheTtlMs(response.config as InternalAxiosRequestConfig);
+      if (ttlMs <= 0) return response;
+
       getCacheStore.set(key, {
-        expiresAt: Date.now() + DEFAULT_GET_CACHE_TTL_MS,
+        expiresAt: Date.now() + ttlMs,
         response,
       });
     }

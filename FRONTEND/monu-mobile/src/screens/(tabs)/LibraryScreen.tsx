@@ -1261,7 +1261,7 @@ export const LibraryScreen = () => {
       else setRefreshing(false);
       const [plRes, soRes, alRes] = await Promise.allSettled([
         getMyPlaylists({ page: 1, size: 50 }),
-        getMySongs({ page: 1, size: 50, noCache: true }),
+        getMySongs({ page: 1, size: 50 }),
         getMyAlbums({ page: 1, size: 50 }),
       ]);
       if (plRes.status === 'fulfilled') setPlaylists(plRes.value.content ?? []);
