@@ -336,7 +336,7 @@ const AlbumCard = ({
               <View style={[albumCardStyles.statusDot, { backgroundColor: statusColor }]} />
               <Text style={[albumCardStyles.status, { color: statusColor }]}>{statusLabel}</Text>
               <Text style={albumCardStyles.dot}>·</Text>
-              <Text style={albumCardStyles.count}>{album.songs?.length ?? 0} bài</Text>
+              <Text style={albumCardStyles.count}>{album.totalSongs ?? album.songs?.length ?? 0} bài</Text>
             </View>
           </View>
         </Pressable>
@@ -773,12 +773,12 @@ interface ShareToDiscoveryModalProps {
   visible: boolean;
   item: { type: ShareItemType; id: string; title: string } | null;
   onClose: () => void;
-  onPost: (title: string, caption: string, visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE') => Promise<void>;
+  onPost: (title: string, caption: string, visibility: 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE') => Promise<void>;
 }
 
-const DISCOVERY_VISIBILITY_OPTIONS: { value: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE'; label: string }[] = [
+const DISCOVERY_VISIBILITY_OPTIONS: { value: 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE'; label: string }[] = [
   { value: 'PUBLIC',    label: '🌐 Công khai' },
-  { value: 'FOLLOWERS', label: '👥 Người theo dõi' },
+  { value: 'FOLLOWERS_ONLY', label: '👥 Người theo dõi' },
   { value: 'PRIVATE',   label: '🔒 Riêng tư' },
 ];
 
@@ -786,7 +786,7 @@ const ShareToDiscoveryModal = ({ visible, item, onClose, onPost }: ShareToDiscov
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
-  const [visibility, setVisibility] = useState<'PUBLIC' | 'FOLLOWERS' | 'PRIVATE'>('PUBLIC');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE'>('PUBLIC');
   const [posting, setPosting] = useState(false);
 
   React.useEffect(() => {
@@ -1031,6 +1031,11 @@ const AlbumDetailModal = ({
 
   const queue = (album?.songs ?? []) as Song[];
 
+  const getAlbumSongId = (song: any): string | undefined => song?.id ?? song?.songId;
+  const getAlbumSongTitle = (song: any): string => song?.title ?? 'Bài hát';
+  const getAlbumSongArtist = (song: any): string => song?.primaryArtist?.stageName ?? song?.artistStageName ?? 'Nghệ sĩ';
+  const getAlbumSongThumb = (song: any): string | undefined => song?.thumbnailUrl;
+
   return (
       <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
         <View style={albumDetailStyles.root}>
@@ -1082,14 +1087,23 @@ const AlbumDetailModal = ({
                       </Text>
                     </View>
                 ) : (
-                    (album?.songs ?? []).map((song: Song, idx: number) => (
-                        <View key={song.id ?? `${idx}`} style={albumDetailStyles.songRow}>
+                    (album?.songs ?? []).map((song: any, idx: number) => {
+                        const songId = getAlbumSongId(song);
+                        const songTitle = getAlbumSongTitle(song);
+                        const artistName = getAlbumSongArtist(song);
+                        const thumbUrl = getAlbumSongThumb(song);
+                        return (
+                        <View key={songId ?? `${idx}`} style={albumDetailStyles.songRow}>
                           <Pressable
                               style={albumDetailStyles.songMain}
-                              onPress={() => playSong(song, queue)}
+                              onPress={() => {
+                                if ((song as Song).id) {
+                                  playSong(song as Song, queue);
+                                }
+                              }}
                           >
-                            {song.thumbnailUrl ? (
-                                <Image source={{ uri: song.thumbnailUrl }} style={albumDetailStyles.songThumb} />
+                            {thumbUrl ? (
+                                <Image source={{ uri: thumbUrl }} style={albumDetailStyles.songThumb} />
                             ) : (
                                 <View style={[albumDetailStyles.songThumb, { backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' }]}>
                                   <Text>🎵</Text>
@@ -1097,20 +1111,20 @@ const AlbumDetailModal = ({
                             )}
                             <View style={{ flex: 1 }}>
                               <Text style={albumDetailStyles.songTitle} numberOfLines={1}>
-                                {song.title}
+                                {songTitle}
                               </Text>
                               <Text style={albumDetailStyles.songArtist} numberOfLines={1}>
-                                {song.primaryArtist?.stageName}
+                                {artistName}
                               </Text>
                             </View>
                           </Pressable>
                           <Pressable
                               onPress={() => Alert.alert(
                                   'Xoá khỏi album?',
-                                  `"${song.title}" sẽ bị xoá khỏi album này.`,
+                                  `"${songTitle}" sẽ bị xoá khỏi album này.`,
                                   [
                                     { text: 'Huỷ', style: 'cancel' },
-                                    { text: 'Xoá', style: 'destructive', onPress: () => void handleRemoveSong(song.id) },
+                                    { text: 'Xoá', style: 'destructive', onPress: () => { if (songId) void handleRemoveSong(songId); } },
                                   ]
                               )}
                               hitSlop={10}
@@ -1119,7 +1133,8 @@ const AlbumDetailModal = ({
                             <Text style={albumDetailStyles.removeBtnText}>✕</Text>
                           </Pressable>
                         </View>
-                    ))
+                    );
+                    })
                 )}
               </ScrollView>
           )}
@@ -1296,7 +1311,7 @@ export const LibraryScreen = () => {
     }
   };
 
-  const handleDiscoveryPost = async (title: string, caption: string, visibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE') => {
+  const handleDiscoveryPost = async (title: string, caption: string, visibility: 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE') => {
     if (!discoveryShareItem) return;
     try {
       const contentType = discoveryShareItem.type === 'playlist' ? 'PLAYLIST' :

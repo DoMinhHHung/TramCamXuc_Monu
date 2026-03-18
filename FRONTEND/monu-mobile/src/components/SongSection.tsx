@@ -6,7 +6,7 @@ import { COLORS } from '../config/colors';
 import { SongCard } from './SongCard';
 
 type Props = {
-  title: string;
+  title?: string;
   songs: Song[];
   currentSong: Song | null;
   isPlaying: boolean;
@@ -20,7 +20,7 @@ export const SongSection = ({ title, songs, currentSong, isPlaying, onPressSong,
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      {!!title && <Text style={styles.sectionTitle}>{title}</Text>}
       {songs.slice(0, 5).map(song => (
         <SongCard
           key={song.id}

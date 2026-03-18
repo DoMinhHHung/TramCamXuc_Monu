@@ -33,6 +33,7 @@ import { ProfileScreen }          from '../screens/(tabs)/ProfileScreen';
 import { SearchScreen }           from '../screens/(tabs)/SearchScreen';
 import { DiscoverScreen }         from '../screens/(tabs)/DiscoverScreen';
 import { EditFavoritesScreen }    from '../screens/(settings)/EditFavoritesScreen';
+import { HistoryScreen }          from '../screens/(settings)/HistoryScreen';
 import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
 import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
 
@@ -41,7 +42,8 @@ import { ArtistProfileScreen }    from '../screens/(artist)/ArtistProfileScreen'
 import { RegisterArtistScreen }   from '../screens/(artist)/RegisterArtistScreen';
 import { ArtistTermsScreen }      from '../screens/(artist)/ArtistTermsScreen';
 import { FavoriteSongsScreen }    from '../screens/(artist)/FavoriteSongsScreen';
-import { FollowedArtistsScreen }  from '../screens/(artist)/FollowedArtistsScreen';
+import { FollowedArtistsScreen, FollowingScreen }  from '../screens/(artist)/FollowedArtistsScreen';
+import { FollowersScreen }       from '../screens/(artist)/FollowersScreen';
 import { ArtistDiscoveryScreen }  from '../screens/(artist)/ArtistDiscoveryScreen';
 import { AlbumAddSongScreen }     from '../screens/(artist)/AlbumAddSongScreen';
 
@@ -58,6 +60,7 @@ export type RootStackParamList = {
     SelectArtists:   { selectedGenreIds: string[] };
     MainTabs:        undefined;
     EditFavorites:   undefined;
+    History:         undefined;
     Profile:         undefined;
     Search:          undefined;
     PlaylistDetail:  { slug: string };
@@ -67,6 +70,8 @@ export type RootStackParamList = {
     RegisterArtist:  undefined;
     ArtistTerms:     undefined;
     FavoriteSongs:    undefined;
+    Following:        undefined;
+    Followers:        { artistId: string; artistName?: string };
     FollowedArtists:  undefined;
     ArtistDiscovery:  undefined;
     AlbumAddSong:    { albumId: string };
@@ -174,6 +179,7 @@ export const AppNavigator = () => {
                                 <Stack.Screen name="MainTabs"       component={MainTabNavigator}    />
                                 <Stack.Screen name="Search"         component={SearchScreen}        />
                                 <Stack.Screen name="EditFavorites"  component={EditFavoritesScreen} />
+                                <Stack.Screen name="History"        component={HistoryScreen}       />
                                 <Stack.Screen name="Profile"        component={ProfileScreen}       />
                                 <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen}/>
                                 <Stack.Screen name="AlbumDetail"    component={AlbumDetailScreen}   />
@@ -181,6 +187,8 @@ export const AppNavigator = () => {
                                 <Stack.Screen name="RegisterArtist"  component={RegisterArtistScreen}  />
                                 <Stack.Screen name="ArtistTerms"     component={ArtistTermsScreen}     />
                                 <Stack.Screen name="FavoriteSongs"    component={FavoriteSongsScreen}    />
+                                <Stack.Screen name="Following"        component={FollowingScreen}        />
+                                <Stack.Screen name="Followers"        component={FollowersScreen}        />
                                 <Stack.Screen name="FollowedArtists"  component={FollowedArtistsScreen}  />
                                 <Stack.Screen name="ArtistDiscovery"  component={ArtistDiscoveryScreen}  />
                                 <Stack.Screen name="AlbumAddSong"     component={AlbumAddSongScreen}     />

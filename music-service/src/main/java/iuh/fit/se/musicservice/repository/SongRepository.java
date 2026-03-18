@@ -2,7 +2,6 @@ package iuh.fit.se.musicservice.repository;
 
 import iuh.fit.se.musicservice.entity.Song;
 import iuh.fit.se.musicservice.enums.SongStatus;
-import iuh.fit.se.musicservice.enums.TranscodeStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -30,20 +29,32 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
             """)
     Optional<Song> findPublicById(@Param("id") UUID id);
 
-    @Query("""
-            SELECT DISTINCT s FROM Song s
-            LEFT JOIN FETCH s.genres g
-            WHERE s.status = 'PUBLIC'
-            AND s.transcodeStatus = 'COMPLETED'
-            AND s.deletedAt IS NULL
-            AND (:keyword IS NULL
-                OR LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
-                OR LOWER(s.primaryArtistStageName) LIKE LOWER(CONCAT('%', :keyword, '%')))
-            AND (:genreId IS NULL OR g.id = :genreId)
-            AND (:artistId IS NULL OR s.primaryArtistId = :artistId)
-            """)
+        @Query(value = """
+                        SELECT DISTINCT s FROM Song s
+                        LEFT JOIN s.genres g
+                        WHERE s.status = 'PUBLIC'
+                        AND s.transcodeStatus = 'COMPLETED'
+                        AND s.deletedAt IS NULL
+                        AND (:keywordPattern IS NULL
+                                OR s.title ILIKE :keywordPattern
+                                OR s.primaryArtistStageName ILIKE :keywordPattern)
+                        AND (:genreId IS NULL OR g.id = :genreId)
+                        AND (:artistId IS NULL OR s.primaryArtistId = :artistId)
+                        """,
+                        countQuery = """
+                        SELECT COUNT(DISTINCT s.id) FROM Song s
+                        LEFT JOIN s.genres g
+                        WHERE s.status = 'PUBLIC'
+                        AND s.transcodeStatus = 'COMPLETED'
+                        AND s.deletedAt IS NULL
+                        AND (:keywordPattern IS NULL
+                                OR s.title ILIKE :keywordPattern
+                                OR s.primaryArtistStageName ILIKE :keywordPattern)
+                        AND (:genreId IS NULL OR g.id = :genreId)
+                        AND (:artistId IS NULL OR s.primaryArtistId = :artistId)
+                        """)
     Page<Song> searchPublic(
-            @Param("keyword") String keyword,
+            @Param("keywordPattern") String keywordPattern,
             @Param("genreId") UUID genreId,
             @Param("artistId") UUID artistId,
             Pageable pageable
@@ -51,7 +62,7 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
 
     @Query("""
             SELECT DISTINCT s FROM Song s
-            LEFT JOIN FETCH s.genres
+            LEFT JOIN s.genres
             WHERE s.status = 'PUBLIC'
             AND s.transcodeStatus = 'COMPLETED'
             AND s.deletedAt IS NULL
@@ -61,7 +72,7 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
 
     @Query("""
             SELECT DISTINCT s FROM Song s
-            LEFT JOIN FETCH s.genres
+            LEFT JOIN s.genres
             WHERE s.status = 'PUBLIC'
             AND s.transcodeStatus = 'COMPLETED'
             AND s.deletedAt IS NULL
@@ -71,7 +82,7 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
 
     @Query("""
             SELECT s FROM Song s
-            LEFT JOIN FETCH s.genres
+            LEFT JOIN s.genres
             WHERE s.primaryArtistId = :artistId
             AND s.status = 'PUBLIC'
             AND s.transcodeStatus = 'COMPLETED'
@@ -92,7 +103,7 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
 
     @Query(value = """
             SELECT DISTINCT s FROM Song s
-            LEFT JOIN FETCH s.genres g
+            LEFT JOIN s.genres g
             WHERE s.ownerUserId = :userId
               AND s.deletedAt IS NULL
             ORDER BY s.createdAt DESC
@@ -115,14 +126,14 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
 
     @Query("""
             SELECT s FROM Song s
-            WHERE (:keyword IS NULL
-                OR LOWER(s.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
-                OR LOWER(s.primaryArtistStageName) LIKE LOWER(CONCAT('%', :keyword, '%')))
+            WHERE (:keywordPattern IS NULL
+                OR s.title ILIKE :keywordPattern
+                OR s.primaryArtistStageName ILIKE :keywordPattern)
             AND (:status IS NULL OR s.status = :status)
             AND (:showDeleted = true OR s.deletedAt IS NULL)
             """)
     Page<Song> findForAdmin(
-            @Param("keyword") String keyword,
+            @Param("keywordPattern") String keywordPattern,
             @Param("status") SongStatus status,
             @Param("showDeleted") boolean showDeleted,
             Pageable pageable

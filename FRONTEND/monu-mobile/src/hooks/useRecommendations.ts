@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Song, getTrendingSongs } from '../services/music';
 import {
   FeedbackType,
   HomeRecommendation,
@@ -12,6 +13,25 @@ import {
 } from '../services/recommendation';
 
 const RECOMMENDATION_POLL_MS = 90_000;
+
+const toErrorMessage = (reason: unknown): string => {
+  if (reason instanceof Error) return reason.message;
+  if (typeof reason === 'string') return reason;
+  return 'Không thể tải recommendation';
+};
+
+const mapMusicSongToRecommended = (song: Song): RecommendedSong => ({
+  songId: song.id,
+  title: song.title,
+  primaryArtist: song.primaryArtist,
+  genres: song.genres,
+  thumbnailUrl: song.thumbnailUrl,
+  durationSeconds: song.durationSeconds,
+  playCount: song.playCount,
+  score: 0,
+  reasonType: 'TRENDING_NOW',
+  reason: 'Đang hot',
+});
 
 export function useRecommendations() {
   const { authSession } = useAuth();
@@ -43,26 +63,63 @@ export function useRecommendations() {
 
       if (!isMountedRef.current) return;
 
+      const errors: string[] = [];
+
       if (trendingResult.status === 'fulfilled') {
-        setGlobalTrending((trendingResult.value as RecommendedSong[]) ?? []);
+        const trending = (trendingResult.value as RecommendedSong[]) ?? [];
+        if (trending.length > 0) {
+          setGlobalTrending(trending);
+        } else {
+          try {
+            const fallback = await getTrendingSongs({ page: 1, size: 20 });
+            const mapped = (fallback.content ?? []).map(mapMusicSongToRecommended);
+            setGlobalTrending(mapped);
+            if (!mapped.length) {
+              errors.push('Danh sách trending hiện đang trống.');
+            }
+          } catch (e: unknown) {
+            errors.push(`Không tải được trending fallback: ${toErrorMessage(e)}`);
+            setGlobalTrending([]);
+          }
+        }
+      } else {
+        errors.push(`Không tải được recommendation trending: ${toErrorMessage(trendingResult.reason)}`);
+
+        try {
+          const fallback = await getTrendingSongs({ page: 1, size: 20 });
+          const mapped = (fallback.content ?? []).map(mapMusicSongToRecommended);
+          setGlobalTrending(mapped);
+          if (!mapped.length) {
+            errors.push('Trending fallback không có dữ liệu.');
+          }
+        } catch (e: unknown) {
+          errors.push(`Không tải được trending fallback: ${toErrorMessage(e)}`);
+          setGlobalTrending([]);
+        }
       }
 
       if (releasesResult.status === 'fulfilled') {
         setNewReleases((releasesResult.value as RecommendedSong[]) ?? []);
+      } else {
+        errors.push(`Không tải được mục mới phát hành: ${toErrorMessage(releasesResult.reason)}`);
       }
 
       if (homeResult?.status === 'fulfilled') {
         setHomeFeed(homeResult.value as HomeRecommendation);
       } else if (!authSession) {
         setHomeFeed(null);
+      } else if (homeResult?.status === 'rejected') {
+        errors.push(`Không tải được gợi ý cá nhân: ${toErrorMessage(homeResult.reason)}`);
       }
 
       if (socialResult?.status === 'fulfilled') {
         setSocialRecs((socialResult.value as RecommendedSong[]) ?? []);
+      } else if (socialResult?.status === 'rejected') {
+        errors.push(`Không tải được gợi ý cộng đồng: ${toErrorMessage(socialResult.reason)}`);
       }
 
       setLastUpdatedAt(new Date());
-      setError(null);
+      setError(errors.length ? errors[0] : null);
     } catch (e: unknown) {
       if (!silent) {
         const msg = e instanceof Error ? e.message : 'Không thể tải recommendation';

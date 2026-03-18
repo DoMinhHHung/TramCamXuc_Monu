@@ -274,6 +274,19 @@ public class PlaylistServiceImpl implements PlaylistService {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override
+    public PlaylistResponse getById(UUID playlistId) {
+        UUID userId = currentUserIdOrNull();
+
+        Playlist playlist = userId != null
+                ? playlistRepository.findByIdForUser(playlistId, userId)
+                        .orElseThrow(() -> new AppException(ErrorCode.PLAYLIST_NOT_FOUND))
+                : playlistRepository.findPublicById(playlistId)
+                        .orElseThrow(() -> new AppException(ErrorCode.PLAYLIST_NOT_FOUND));
+
+        return toDetailResponse(playlist);
+    }
+
+    @Override
     public PlaylistResponse getBySlug(String slug) {
         UUID userId = currentUserIdOrNull();
 

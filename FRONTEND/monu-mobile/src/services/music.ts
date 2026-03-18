@@ -63,6 +63,8 @@ export interface Album {
   description?: string;
   coverUrl?: string;
   status: 'DRAFT' | 'PUBLIC' | 'PRIVATE';
+  totalSongs?: number;
+  totalDurationSeconds?: number;
   songs: Song[];
   createdAt: string;
   updatedAt: string;
@@ -205,7 +207,7 @@ export const getMyPlaylists = async (params?: { page?: number; size?: number }):
 };
 
 export const getPlaylistById = async (playlistId: string): Promise<Playlist> => {
-  const response = await apiClient.get<Playlist>(`/playlists/${playlistId}`);
+  const response = await apiClient.get<Playlist>(`/playlists/id/${playlistId}`);
   return unwrap<Playlist>(response.data);
 };
 
@@ -236,6 +238,10 @@ export const addSongToPlaylist = async (playlistId: string, songId: string): Pro
 export const reorderPlaylistSong = async (playlistId: string, payload: { draggedId: string; prevId?: string | null; nextId?: string | null }): Promise<Playlist> => {
   const response = await apiClient.patch<Playlist>(`/playlists/${playlistId}/songs/reorder`, payload);
   return unwrap<Playlist>(response.data);
+};
+
+export const removeSongFromPlaylist = async (playlistId: string, songId: string): Promise<void> => {
+  await apiClient.delete(`/playlists/${playlistId}/songs/${songId}`);
 };
 
 

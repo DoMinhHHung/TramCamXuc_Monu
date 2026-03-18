@@ -9,7 +9,7 @@ export interface FeedPost {
   title?: string;
   caption?: string;
   coverImageUrl?: string;
-  visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS';
+  visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY';
   likeCount: number;
   commentCount: number;
   shareCount: number;
@@ -40,7 +40,7 @@ export interface PageResponse<T> {
 }
 
 export interface FeedPostRequest {
-  visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS';
+  visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY';
   caption?: string;
   contentId?: string;
   contentType?: 'SONG' | 'ALBUM' | 'PLAYLIST';

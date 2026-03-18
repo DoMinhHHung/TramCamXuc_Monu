@@ -23,18 +23,18 @@ interface ArtistInfo {
     followedAt: string;
 }
 
-export const FollowedArtistsScreen = () => {
+export const FollowingScreen = () => {
     const navigation = useNavigation<any>();
     const insets     = useSafeAreaInsets();
     const [artists, setArtists]       = useState<ArtistInfo[]>([]);
     const [loading, setLoading]       = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [page, setPage]             = useState(1);
+    const [page, setPage]             = useState(0);
     const [hasMore, setHasMore]       = useState(true);
 
     const load = useCallback(async (reset = false) => {
         try {
-            const p = reset ? 1 : page;
+            const p = reset ? 0 : page;
             const res = await getMyFollowedArtists({ page: p, size: 20 });
             const follows: FollowResponse[] = res?.content ?? [];
 
@@ -59,19 +59,19 @@ export const FollowedArtistsScreen = () => {
 
             setArtists(prev => reset ? artistInfos : [...prev, ...artistInfos]);
             setHasMore(!res?.last);
-            if (!reset) setPage(p + 1);
+            setPage(p + 1);
         } catch (e) { console.warn('FollowedArtists load:', e); }
     }, [page]);
 
     useFocusEffect(useCallback(() => {
         setLoading(true);
-        setPage(1);
+        setPage(0);
         load(true).finally(() => setLoading(false));
-    }, []));
+    }, [load]));
 
     const onRefresh = async () => {
         setRefreshing(true);
-        setPage(1);
+        setPage(0);
         await load(true);
         setRefreshing(false);
     };
@@ -177,3 +177,5 @@ const styles = StyleSheet.create({
     exploreBtn:  { marginTop: 12, backgroundColor: COLORS.accentDim, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
     exploreBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 });
+
+export const FollowedArtistsScreen = FollowingScreen;

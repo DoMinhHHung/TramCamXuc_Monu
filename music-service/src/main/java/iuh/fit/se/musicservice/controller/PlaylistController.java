@@ -32,6 +32,13 @@ public class PlaylistController {
      * PUBLIC + COLLABORATIVE: ai cũng xem được (kể cả chưa login).
      * PRIVATE: phải là chủ mới xem được.
      */
+        @GetMapping("/id/{playlistId}")
+        public ApiResponse<PlaylistResponse> getById(@PathVariable UUID playlistId) {
+                return ApiResponse.<PlaylistResponse>builder()
+                                .result(playlistService.getById(playlistId))
+                                .build();
+        }
+
     @GetMapping("/{slug}")
     public ApiResponse<PlaylistResponse> getBySlug(@PathVariable String slug) {
         return ApiResponse.<PlaylistResponse>builder()

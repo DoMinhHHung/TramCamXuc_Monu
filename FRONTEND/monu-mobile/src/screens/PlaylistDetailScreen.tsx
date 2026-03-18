@@ -9,7 +9,7 @@ import { COLORS } from '../config/colors';
 import { BackButton } from '../components/BackButton';
 import { SongCard } from '../components/SongCard';
 import { usePlayer } from '../context/PlayerContext';
-import { getPlaylistBySlug, Playlist, reorderPlaylistSong, Song } from '../services/music';
+import { getPlaylistBySlug, Playlist, removeSongFromPlaylist, reorderPlaylistSong, Song } from '../services/music';
 
 export const PlaylistDetailScreen = () => {
   const route = useRoute<any>();
@@ -77,6 +77,25 @@ export const PlaylistDetailScreen = () => {
     await loadPlaylist();
   };
 
+  const removeSong = async (songId: string, songTitle: string) => {
+    if (!playlist?.id) return;
+    Alert.alert('Xoá khỏi playlist?', `"${songTitle}" sẽ bị xoá khỏi playlist này.`, [
+      { text: 'Huỷ', style: 'cancel' },
+      {
+        text: 'Xoá',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await removeSongFromPlaylist(playlist.id, songId);
+            await loadPlaylist();
+          } catch (error: any) {
+            Alert.alert('Lỗi', error?.message || 'Không thể xoá bài hát khỏi playlist.');
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
@@ -107,6 +126,7 @@ export const PlaylistDetailScreen = () => {
                 <View style={styles.row}>
                   <Pressable onPress={() => void moveSong(index, 'up')}><Text style={styles.action}>↑</Text></Pressable>
                   <Pressable onPress={() => void moveSong(index, 'down')}><Text style={styles.action}>↓</Text></Pressable>
+                  <Pressable onPress={() => void removeSong(song.id, song.title)}><Text style={styles.actionDelete}>✕</Text></Pressable>
                 </View>
               </View>
             );
@@ -128,6 +148,7 @@ const styles = StyleSheet.create({
   card: { marginBottom: 8 },
   row: { flexDirection: 'row', gap: 18, marginTop: 4, marginLeft: 8 },
   action: { color: COLORS.accent, fontSize: 16, fontWeight: '700' },
+  actionDelete: { color: COLORS.error, fontSize: 16, fontWeight: '700' },
   emptyCard: { borderRadius: 12, borderWidth: 1, borderColor: COLORS.glass10, padding: 14, backgroundColor: COLORS.surface },
   emptyText: { color: COLORS.glass60 },
 });

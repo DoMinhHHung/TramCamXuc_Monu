@@ -42,7 +42,7 @@ import {
   getArtistByUserId,
   getMyFollowedArtists,
 } from '../../services/social';
-import {Song, getAlbumById, getPlaylistById, getSongById, getSongsByIds, getPlaylistBySlug} from '../../services/music';
+import {Song, getAlbumById, getMyAlbumById, getPlaylistById, getSongById, getSongsByIds, getPlaylistBySlug} from '../../services/music';
 import { usePlayer } from '../../context/PlayerContext';
 
 interface OwnerInfo {
@@ -136,13 +136,13 @@ interface ComposeModalProps {
   userId: string;
   displayName: string | null;
   onClose: () => void;
-  onPost: (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS') => Promise<void>;
+  onPost: (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY') => Promise<void>;
   posting: boolean;
 }
 
-const VISIBILITY_OPTIONS: { value: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS'; label: string; icon: string }[] = [
+const VISIBILITY_OPTIONS: { value: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'; label: string; icon: string }[] = [
   { value: 'PUBLIC',    label: 'Công khai',         icon: '🌐' },
-  { value: 'FOLLOWERS', label: 'Người theo dõi',    icon: '👥' },
+  { value: 'FOLLOWERS_ONLY', label: 'Người theo dõi',    icon: '👥' },
   { value: 'PRIVATE',   label: 'Riêng tư',          icon: '🔒' },
 ];
 
@@ -157,7 +157,7 @@ const ComposeModal = ({
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
-  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS'>('PUBLIC');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'>('PUBLIC');
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -412,13 +412,149 @@ const CommentSheet = ({
     if (parentId) await loadReplies(parentId);
   };
 
-  if (!post) return null;
-
   const replyingToLabel = replyingTo
       ? replyingTo.userId === currentUserId
           ? myDisplayName || 'Bạn'
           : commentAuthorCache[replyingTo.userId] || replyingTo.userId.slice(0, 8)
       : null;
+
+  const renderCommentNode = useCallback((comment: Comment, depth = 0): React.ReactNode => {
+    const isOwn = comment.userId === currentUserId;
+    const displayName = isOwn
+        ? myDisplayName || 'Bạn'
+        : commentAuthorCache[comment.userId] || comment.userId.slice(0, 8);
+
+    const childReplies = replies[comment.id] ?? [];
+    const isExpanded = expandedReplies[comment.id];
+    const isLoadingReplies = loadingReplies[comment.id];
+    const indent = Math.min(depth, 5) * 10;
+
+    return (
+        <View key={`${comment.id}-${depth}`} style={[depth === 0 ? styles.commentRow : styles.replyRow, depth > 0 && { marginLeft: indent }]}>
+          <Avatar id={comment.userId} displayName={displayName} size={depth === 0 ? 34 : 30} />
+
+          <View style={styles.commentContent}>
+            {editingId === comment.id ? (
+                <View style={styles.commentEditRow}>
+                  <TextInput
+                      style={styles.commentEditInput}
+                      value={editingText}
+                      onChangeText={setEditingText}
+                      autoFocus
+                      multiline
+                  />
+                  <View style={styles.commentEditActions}>
+                    <Pressable onPress={() => setEditingId(null)}>
+                      <Text style={styles.commentEditCancel}>Huỷ</Text>
+                    </Pressable>
+                    <Pressable onPress={() => handleEdit(comment.id, comment.parentId)}>
+                      <Text style={styles.commentEditSave}>Lưu</Text>
+                    </Pressable>
+                  </View>
+                </View>
+            ) : (
+                <>
+                  <View style={styles.commentBubble}>
+                    <Text style={styles.commentUser}>{displayName}</Text>
+                    <Text style={styles.commentText}>{comment.content}</Text>
+                  </View>
+
+                  <View style={styles.commentMeta}>
+                    <Text style={styles.commentTime}>{timeAgo(comment.createdAt)}</Text>
+
+                    <Pressable onPress={() => onLikeComment(comment)} hitSlop={8}>
+                      <Text
+                          style={[
+                            styles.commentLike,
+                            comment.likedByCurrentUser && { color: COLORS.accent },
+                          ]}
+                      >
+                        {comment.likedByCurrentUser ? '♥' : '♡'}
+                        {comment.likeCount > 0 ? ` ${comment.likeCount}` : ''}
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                        onPress={() => {
+                          setReplyingTo(comment);
+                          setTimeout(() => inputRef.current?.focus(), 50);
+                        }}
+                        hitSlop={8}
+                    >
+                      <Text style={styles.commentAction}>Trả lời</Text>
+                    </Pressable>
+
+                    {isOwn && (
+                        <>
+                          <Pressable
+                              onPress={() => {
+                                setEditingId(comment.id);
+                                setEditingText(comment.content);
+                              }}
+                              hitSlop={8}
+                          >
+                            <Text style={styles.commentAction}>Sửa</Text>
+                          </Pressable>
+                          <Pressable
+                              onPress={async () => {
+                                await onDeleteComment(comment.id);
+                                if (comment.parentId) await loadReplies(comment.parentId);
+                              }}
+                              hitSlop={8}
+                          >
+                            <Text style={[styles.commentAction, { color: COLORS.error }]}>Xoá</Text>
+                          </Pressable>
+                        </>
+                    )}
+                  </View>
+
+                  {comment.replyCount > 0 && (
+                      <Pressable
+                          style={styles.replyToggle}
+                          onPress={() => {
+                            if (isExpanded) {
+                              setExpandedReplies((prev) => ({ ...prev, [comment.id]: false }));
+                            } else {
+                              void loadReplies(comment.id);
+                            }
+                          }}
+                      >
+                        <Text style={styles.replyToggleText}>
+                          {isExpanded ? 'Ẩn trả lời' : `Xem ${comment.replyCount} trả lời`}
+                        </Text>
+                      </Pressable>
+                  )}
+
+                  {isExpanded && (
+                      <View style={styles.replyList}>
+                        {isLoadingReplies ? (
+                            <ActivityIndicator color={COLORS.accent} size="small" />
+                        ) : (
+                            childReplies.map((reply) => renderCommentNode(reply, depth + 1))
+                        )}
+                      </View>
+                  )}
+                </>
+            )}
+          </View>
+        </View>
+    );
+  }, [
+    currentUserId,
+    myDisplayName,
+    commentAuthorCache,
+    replies,
+    expandedReplies,
+    loadingReplies,
+    editingId,
+    editingText,
+    onLikeComment,
+    onDeleteComment,
+    loadReplies,
+    handleEdit,
+  ]);
+
+  if (!post) return null;
 
   return (
       <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -448,215 +584,7 @@ const CommentSheet = ({
                   </Text>
               )}
 
-              {comments.map((c) => {
-                const isOwn = c.userId === currentUserId;
-                const displayName = isOwn
-                    ? myDisplayName || 'Bạn'
-                    : commentAuthorCache[c.userId] || c.userId.slice(0, 8);
-
-                const childReplies = replies[c.id] ?? [];
-                const isExpanded = expandedReplies[c.id];
-                const isLoadingReplies = loadingReplies[c.id];
-
-                return (
-                    <View key={c.id} style={styles.commentRow}>
-                      <Avatar id={c.userId} displayName={displayName} size={34} />
-
-                      <View style={styles.commentContent}>
-                        {editingId === c.id ? (
-                            <View style={styles.commentEditRow}>
-                              <TextInput
-                                  style={styles.commentEditInput}
-                                  value={editingText}
-                                  onChangeText={setEditingText}
-                                  autoFocus
-                                  multiline
-                              />
-                              <View style={styles.commentEditActions}>
-                                <Pressable onPress={() => setEditingId(null)}>
-                                  <Text style={styles.commentEditCancel}>Huỷ</Text>
-                                </Pressable>
-                                <Pressable onPress={() => handleEdit(c.id)}>
-                                  <Text style={styles.commentEditSave}>Lưu</Text>
-                                </Pressable>
-                              </View>
-                            </View>
-                        ) : (
-                            <>
-                              <View style={styles.commentBubble}>
-                                <Text style={styles.commentUser}>{displayName}</Text>
-                                <Text style={styles.commentText}>{c.content}</Text>
-                              </View>
-
-                              <View style={styles.commentMeta}>
-                                <Text style={styles.commentTime}>{timeAgo(c.createdAt)}</Text>
-
-                                <Pressable onPress={() => onLikeComment(c)} hitSlop={8}>
-                                  <Text
-                                      style={[
-                                        styles.commentLike,
-                                        c.likedByCurrentUser && { color: COLORS.accent },
-                                      ]}
-                                  >
-                                    {c.likedByCurrentUser ? '♥' : '♡'}
-                                    {c.likeCount > 0 ? ` ${c.likeCount}` : ''}
-                                  </Text>
-                                </Pressable>
-
-                                <Pressable
-                                    onPress={() => {
-                                      setReplyingTo(c);
-                                      setTimeout(() => inputRef.current?.focus(), 50);
-                                    }}
-                                    hitSlop={8}
-                                >
-                                  <Text style={styles.commentAction}>Trả lời</Text>
-                                </Pressable>
-
-                                {isOwn && (
-                                    <>
-                                      <Pressable
-                                          onPress={() => {
-                                            setEditingId(c.id);
-                                            setEditingText(c.content);
-                                          }}
-                                          hitSlop={8}
-                                      >
-                                        <Text style={styles.commentAction}>Sửa</Text>
-                                      </Pressable>
-                                      <Pressable
-                                          onPress={async () => {
-                                            await onDeleteComment(c.id);
-                                            if (c.parentId) await loadReplies(c.parentId);
-                                          }}
-                                          hitSlop={8}
-                                      >
-                                        <Text style={[styles.commentAction, { color: COLORS.error }]}>
-                                          Xoá
-                                        </Text>
-                                      </Pressable>
-                                    </>
-                                )}
-                              </View>
-
-                              {c.replyCount > 0 && (
-                                  <Pressable
-                                      style={styles.replyToggle}
-                                      onPress={() => {
-                                        if (isExpanded) {
-                                          setExpandedReplies((prev) => ({ ...prev, [c.id]: false }));
-                                        } else {
-                                          void loadReplies(c.id);
-                                        }
-                                      }}
-                                  >
-                                    <Text style={styles.replyToggleText}>
-                                      {isExpanded ? 'Ẩn trả lời' : `Xem ${c.replyCount} trả lời`}
-                                    </Text>
-                                  </Pressable>
-                              )}
-
-                              {isExpanded && (
-                                  <View style={styles.replyList}>
-                                    {isLoadingReplies ? (
-                                        <ActivityIndicator color={COLORS.accent} size="small" />
-                                    ) : (
-                                        childReplies.map((r) => {
-                                          const replyOwn = r.userId === currentUserId;
-                                          const replyName = replyOwn
-                                              ? myDisplayName || 'Bạn'
-                                              : commentAuthorCache[r.userId] || r.userId.slice(0, 8);
-
-                                          return (
-                                              <View key={r.id} style={styles.replyRow}>
-                                                <Avatar id={r.userId} displayName={replyName} size={30} />
-                                                <View style={styles.replyContent}>
-                                                  {editingId === r.id ? (
-                                                      <View style={styles.commentEditRow}>
-                                                        <TextInput
-                                                            style={styles.commentEditInput}
-                                                            value={editingText}
-                                                            onChangeText={setEditingText}
-                                                            autoFocus
-                                                            multiline
-                                                        />
-                                                        <View style={styles.commentEditActions}>
-                                                          <Pressable onPress={() => setEditingId(null)}>
-                                                            <Text style={styles.commentEditCancel}>Huỷ</Text>
-                                                          </Pressable>
-                                                          <Pressable onPress={() => handleEdit(r.id, r.parentId)}>
-                                                            <Text style={styles.commentEditSave}>Lưu</Text>
-                                                          </Pressable>
-                                                        </View>
-                                                      </View>
-                                                  ) : (
-                                                      <>
-                                                        <View style={styles.commentBubble}>
-                                                          <Text style={styles.commentUser}>{replyName}</Text>
-                                                          <Text style={styles.commentText}>{r.content}</Text>
-                                                        </View>
-                                                        <View style={styles.commentMeta}>
-                                                          <Text style={styles.commentTime}>{timeAgo(r.createdAt)}</Text>
-                                                          <Pressable onPress={() => onLikeComment(r)} hitSlop={8}>
-                                                            <Text
-                                                                style={[
-                                                                  styles.commentLike,
-                                                                  r.likedByCurrentUser && { color: COLORS.accent },
-                                                                ]}
-                                                            >
-                                                              {r.likedByCurrentUser ? '♥' : '♡'}
-                                                              {r.likeCount > 0 ? ` ${r.likeCount}` : ''}
-                                                            </Text>
-                                                          </Pressable>
-                                                          <Pressable
-                                                              onPress={() => {
-                                                                setReplyingTo(r);
-                                                                setTimeout(() => inputRef.current?.focus(), 50);
-                                                              }}
-                                                              hitSlop={8}
-                                                          >
-                                                            <Text style={styles.commentAction}>Trả lời</Text>
-                                                          </Pressable>
-                                                          {replyOwn && (
-                                                              <>
-                                                                <Pressable
-                                                                    onPress={() => {
-                                                                      setEditingId(r.id);
-                                                                      setEditingText(r.content);
-                                                                    }}
-                                                                    hitSlop={8}
-                                                                >
-                                                                  <Text style={styles.commentAction}>Sửa</Text>
-                                                                </Pressable>
-                                                                <Pressable
-                                                                    onPress={async () => {
-                                                                      await onDeleteComment(r.id);
-                                                                      if (r.parentId) await loadReplies(r.parentId);
-                                                                    }}
-                                                                    hitSlop={8}
-                                                                >
-                                                                  <Text style={[styles.commentAction, { color: COLORS.error }]}>
-                                                                    Xoá
-                                                                  </Text>
-                                                                </Pressable>
-                                                              </>
-                                                          )}
-                                                        </View>
-                                                      </>
-                                                  )}
-                                                </View>
-                                              </View>
-                                          );
-                                        })
-                                    )}
-                                  </View>
-                              )}
-                            </>
-                        )}
-                      </View>
-                    </View>
-                );
-              })}
+              {comments.map((comment) => renderCommentNode(comment, 0))}
 
               <View style={{ height: 16 }} />
             </ScrollView>
@@ -751,7 +679,7 @@ const PostCard = ({
 
   const visibilityBadge = (() => {
     if (post.visibility === 'PRIVATE') return { icon: '🔒', label: 'Riêng tư' };
-    if (post.visibility === 'FOLLOWERS') return { icon: '👥', label: 'Người theo dõi' };
+    if (post.visibility === 'FOLLOWERS_ONLY') return { icon: '👥', label: 'Người theo dõi' };
     return { icon: '🌐', label: 'Công khai' };
   })();
 
@@ -862,8 +790,8 @@ const PostCard = ({
               <Pressable
                   style={styles.contentCard}
                   onPress={() => {
-                    if (contentInfo.type === 'PLAYLIST' && onOpenContent) {
-                      onOpenContent(contentInfo);
+                    if (contentInfo.type === 'PLAYLIST' || contentInfo.type === 'ALBUM') {
+                      if (onOpenContent) onOpenContent(contentInfo);
                       return;
                     }
                     const first = contentInfo.songs?.[0];
@@ -887,28 +815,29 @@ const PostCard = ({
                   </View>
                 </View>
 
-                {contentInfo.songs?.length ? (
+                {(contentInfo.type === 'SONG' || contentInfo.type === 'ALBUM' || contentInfo.type === 'PLAYLIST') && contentInfo.songs?.length ? (
                     <View style={styles.contentTracks}>
-                      {contentInfo.songs.slice(0, 4).map((s) => (
+                      {(contentInfo.type === 'SONG' ? contentInfo.songs : contentInfo.songs.slice(0, 3)).map((s, idx) => (
                           <Pressable
-                              key={s.id}
+                              key={`${post.id}-${contentInfo.type}-${s.id ?? 'song'}-${idx}`}
                               style={styles.trackRow}
-                              onPress={() => playSong(s, contentInfo.songs)}
+                              onPress={() => {
+                                if (contentInfo.type === 'PLAYLIST' || contentInfo.type === 'ALBUM') return;
+                                playSong(s, contentInfo.songs);
+                              }}
                           >
                             <View style={styles.trackInfo}>
                               <Text style={styles.trackTitle} numberOfLines={1}>{s.title}</Text>
                               <Text style={styles.trackArtist} numberOfLines={1}>{s.primaryArtist?.stageName ?? 'Nghệ sĩ'}</Text>
                             </View>
-                            <Text style={styles.trackPlay}>▶</Text>
+                            {contentInfo.type !== 'PLAYLIST' && contentInfo.type !== 'ALBUM' && <Text style={styles.trackPlay}>▶</Text>}
                           </Pressable>
                       ))}
-                      {contentInfo.totalCount && contentInfo.totalCount > contentInfo.songs.length ? (
-                          <Text style={styles.trackMore}>+ {contentInfo.totalCount - contentInfo.songs.length} bài khác</Text>
+                      {(contentInfo.type === 'ALBUM' || contentInfo.type === 'PLAYLIST') && contentInfo.totalCount && contentInfo.totalCount > 3 ? (
+                          <Text style={styles.trackMore}>+ {contentInfo.totalCount - 3} bài khác</Text>
                       ) : null}
                     </View>
-                ) : (
-                    <Text style={styles.trackEmpty}>Không có bài hát để phát</Text>
-                )}
+                ) : null}
               </Pressable>
           )}
         </View>
@@ -955,7 +884,7 @@ interface EditPostModalProps {
   visible: boolean;
   post: FeedPost | null;
   onClose: () => void;
-  onSave: (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS') => Promise<void>;
+  onSave: (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY') => Promise<void>;
 }
 
 
@@ -963,14 +892,14 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
-  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS'>('PUBLIC');
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'>('PUBLIC');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (post) {
       setTitle(post.title ?? '');
       setCaption(post.caption ?? '');
-      setVisibility((post.visibility ?? 'PUBLIC') as 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS');
+      setVisibility((post.visibility ?? 'PUBLIC') as 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY');
     }
   }, [post]);
 
@@ -1050,6 +979,76 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
   );
 };
 
+interface SharedContentDetailModalProps {
+  visible: boolean;
+  content: PostContentInfo | null;
+  onClose: () => void;
+}
+
+const SharedContentDetailModal = ({ visible, content, onClose }: SharedContentDetailModalProps) => {
+  const insets = useSafeAreaInsets();
+  const { playSong, currentSong } = usePlayer();
+
+  if (!content) return null;
+
+  return (
+      <Modal
+          visible={visible}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={onClose}
+      >
+        <View style={styles.root}>
+          <View style={[styles.detailHeader, { paddingTop: insets.top + 6 }]}> 
+            <Pressable style={styles.detailBackBtn} onPress={onClose}>
+              <Ionicons name="arrow-back" size={22} color={COLORS.white} />
+              <Text style={styles.detailBackText}>Quay lại</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={styles.detailBody} showsVerticalScrollIndicator={false}>
+            <Image
+                source={{ uri: content.coverUrl || 'https://via.placeholder.com/240' }}
+                style={styles.detailCover}
+            />
+            <Text style={styles.detailTitle}>{content.title}</Text>
+            <Text style={styles.detailType}>
+              {content.type === 'ALBUM' ? 'Album' : 'Playlist'}
+              {content.totalCount ? ` · ${content.totalCount} bài` : ''}
+            </Text>
+            {content.subtitle ? <Text style={styles.detailSubtitle}>{content.subtitle}</Text> : null}
+
+            {content.songs && content.songs.length > 0 ? (
+                <View style={styles.detailTracks}>
+                    {content.songs.map((song, index) => {
+                    const isCurrentSongPlaying = currentSong?.id === song.id;
+                    return (
+                      <Pressable
+                        key={`${song.id}-${index}`}
+                        style={[styles.detailTrackRow, isCurrentSongPlaying && styles.detailTrackRowActive]}
+                          onPress={() => playSong(song, content.songs)}
+                        >
+                        <Text style={styles.detailTrackIndex}>{index + 1}</Text>
+                        <View style={styles.detailTrackInfo}>
+                          <Text style={[styles.detailTrackTitle, isCurrentSongPlaying && styles.detailTrackTitleActive]} numberOfLines={1}>
+                            {song.title}
+                          </Text>
+                          <Text style={styles.detailTrackArtist} numberOfLines={1}>{song.primaryArtist?.stageName ?? 'Nghệ sĩ'}</Text>
+                        </View>
+                        <Ionicons name={isCurrentSongPlaying ? 'pause' : 'play'} size={18} color={isCurrentSongPlaying ? COLORS.accent : COLORS.glass60} />
+                        </Pressable>
+                    );
+                  })}
+                </View>
+            ) : (
+                <Text style={styles.trackEmpty}>Không có bài hát để phát</Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+  );
+};
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export const DiscoverScreen = () => {
@@ -1078,6 +1077,7 @@ export const DiscoverScreen = () => {
 
   const [commentPost, setCommentPost] = useState<FeedPost | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [openedContent, setOpenedContent] = useState<PostContentInfo | null>(null);
 
   useEffect(() => {
     if (!currentUserId || !myDisplayName) return;
@@ -1136,7 +1136,7 @@ export const DiscoverScreen = () => {
 
   const loadContentForPost = useCallback(async (post: FeedPost) => {
     if (!post.contentId) return;
-    const key = `${post.contentType}:${post.contentId}`;
+    const key = `${post.id}:${post.contentType}:${post.contentId}`;
     if (contentCache[key] || contentLoadingRef.current.has(key)) return;
 
     contentLoadingRef.current.add(key);
@@ -1157,7 +1157,17 @@ export const DiscoverScreen = () => {
       }
 
       if (post.contentType === 'ALBUM') {
-        const album = await getAlbumById(post.contentId);
+        let album = null;
+        try {
+          album = await getAlbumById(post.contentId);
+        } catch {
+          if (post.ownerId === currentUserId) {
+            album = await getMyAlbumById(post.contentId);
+          }
+        }
+
+        if (!album) throw new Error('Album not found');
+
         const info: PostContentInfo = {
           type: 'ALBUM',
           id: album.id,
@@ -1229,11 +1239,11 @@ export const DiscoverScreen = () => {
       }
     } catch (err) {
       console.warn('Không tải được nội dung bài chia sẻ', { postId: post.id, err });
-      setContentCache((prev) => ({ ...prev, [key]: { type: post.contentType as any, id: post.contentId, title: post.title ?? 'Nội dung đã xoá', songs: [] } }));
+      setContentCache((prev) => ({ ...prev, [key]: { type: post.contentType as any, id: post.contentId ?? key, title: post.title ?? 'Nội dung đã xoá', songs: [] } }));
     } finally {
       contentLoadingRef.current.delete(key);
     }
-  }, [contentCache]);
+  }, [contentCache, currentUserId]);
 
   const getOwnerInfo = useCallback(
       (post: FeedPost): OwnerInfo => {
@@ -1255,7 +1265,7 @@ export const DiscoverScreen = () => {
   const getContentInfo = useCallback(
       (post: FeedPost): PostContentInfo | null => {
         if (!post.contentId) return null;
-        const key = `${post.contentType}:${post.contentId}`;
+        const key = `${post.id}:${post.contentType}:${post.contentId}`;
         return contentCache[key] ?? null;
       },
       [contentCache]
@@ -1269,7 +1279,7 @@ export const DiscoverScreen = () => {
       const data = await getTimeline({ page: 0, size: 30 });
       const newPosts = (data.content ?? []).filter((p) => {
         if (p.visibility === 'PRIVATE') return p.ownerId === currentUserId;
-        if (p.visibility === 'FOLLOWERS') {
+        if (p.visibility === 'FOLLOWERS_ONLY') {
           if (p.ownerId === currentUserId) return true;
           if (p.ownerType === 'ARTIST') return followedArtistIds.has(p.ownerId);
           return false;
@@ -1306,7 +1316,7 @@ export const DiscoverScreen = () => {
         }, [])
     );
 
-  const handleCreatePost = async (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS') => {
+  const handleCreatePost = async (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY') => {
     setPosting(true);
     try {
       await createFeedPost({
@@ -1346,14 +1356,19 @@ export const DiscoverScreen = () => {
         text: 'Xoá',
         style: 'destructive',
         onPress: async () => {
-          await deleteFeedPost(post.id);
-          await loadFeed('silent');
+          try {
+            await deleteFeedPost(post.id);
+            setPosts((prev) => prev.filter((p) => p.id !== post.id));
+            await loadFeed('silent');
+          } catch (err: any) {
+            Alert.alert('Không thể xoá bài viết', err?.response?.data?.message || err?.message || 'Vui lòng thử lại.');
+          }
         },
       },
     ]);
   };
 
-  const handleSaveEdit = async (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS') => {
+  const handleSaveEdit = async (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY') => {
     if (!editingPost) return;
     await updateFeedPost(editingPost.id, {
       visibility,
@@ -1366,9 +1381,6 @@ export const DiscoverScreen = () => {
 
   const openComments = async (post: FeedPost) => {
     setCommentPost(post);
-    setReplies({});
-    setExpandedReplies({});
-    setReplyingTo(null);
     try {
       const data = await getPostComments(post.id, { page: 0, size: 50 });
       setComments(data.content ?? []);
@@ -1469,6 +1481,7 @@ export const DiscoverScreen = () => {
                       currentUserId={currentUserId}
                       ownerInfo={getOwnerInfo(post)}
                       contentInfo={getContentInfo(post)}
+                      onOpenContent={setOpenedContent}
                       onLike={handleLike}
                       onComment={openComments}
                       onShare={handleShare}
@@ -1508,6 +1521,12 @@ export const DiscoverScreen = () => {
             onDeleteComment={handleDeleteComment}
             onEditComment={handleEditComment}
         />
+
+        <SharedContentDetailModal
+            visible={!!openedContent}
+            content={openedContent}
+            onClose={() => setOpenedContent(null)}
+        />
       </View>
   );
 };
@@ -1516,6 +1535,56 @@ export const DiscoverScreen = () => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
+
+  detailHeader: {
+    paddingHorizontal: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.glass08,
+  },
+  detailBackBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  detailBackText: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
+  detailBody: { paddingHorizontal: 18, paddingBottom: 34, paddingTop: 14 },
+  detailCover: {
+    width: 220,
+    height: 220,
+    borderRadius: 14,
+    alignSelf: 'center',
+    marginBottom: 14,
+    backgroundColor: COLORS.glass08,
+  },
+  detailTitle: { color: COLORS.white, fontSize: 24, fontWeight: '800', textAlign: 'center' },
+  detailType: { color: COLORS.glass60, fontSize: 14, textAlign: 'center', marginTop: 4 },
+  detailSubtitle: { color: COLORS.glass70, fontSize: 14, textAlign: 'center', marginTop: 10 },
+  detailTracks: { marginTop: 18, gap: 8 },
+  detailTrackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: COLORS.glass08,
+  },
+  detailTrackIndex: { color: COLORS.glass60, width: 20, textAlign: 'center', fontWeight: '700' },
+  detailTrackInfo: { flex: 1 },
+  detailTrackTitle: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
+  detailTrackArtist: { color: COLORS.glass60, fontSize: 12, marginTop: 2 },
+  detailTrackRowActive: {
+    backgroundColor: COLORS.accentFill20,
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder25,
+  },
+  detailTrackTitleActive: {
+    color: COLORS.accent,
+  },
 
   header: { paddingHorizontal: 20, paddingBottom: 20 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },

@@ -26,12 +26,12 @@ export const FavoriteSongsScreen = () => {
     const [items, setItems]           = useState<FavoriteSongItem[]>([]);
     const [loading, setLoading]       = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [page, setPage]             = useState(1);
+    const [page, setPage]             = useState(0);
     const [hasMore, setHasMore]       = useState(true);
 
     const load = useCallback(async (reset = false) => {
         try {
-            const p = reset ? 1 : page;
+            const p = reset ? 0 : page;
             const res = await getMyHearts({ page: p, size: 20 });
             const hearts = res?.content ?? [];
 
@@ -52,19 +52,19 @@ export const FavoriteSongsScreen = () => {
 
             setItems(prev => reset ? enriched : [...prev, ...enriched]);
             setHasMore(!res?.last);
-            if (!reset) setPage(p + 1);
+            setPage(p + 1);
         } catch (e) { console.warn('FavoriteSongs load:', e); }
     }, [page]);
 
     useFocusEffect(useCallback(() => {
         setLoading(true);
-        setPage(1);
+        setPage(0);
         load(true).finally(() => setLoading(false));
-    }, []));
+    }, [load]));
 
     const onRefresh = async () => {
         setRefreshing(true);
-        setPage(1);
+        setPage(0);
         await load(true);
         setRefreshing(false);
     };
