@@ -18,8 +18,12 @@ public interface GenreRepository extends JpaRepository<Genre, UUID> {
 
     @Query("""
             SELECT g FROM Genre g
-            LEFT JOIN Song s ON g MEMBER OF s.genres AND s.deletedAt IS NULL
+            LEFT JOIN Song s ON g MEMBER OF s.genres
+                AND s.deletedAt IS NULL
+                AND s.status = 'PUBLIC'
+                AND s.transcodeStatus = 'COMPLETED'
             GROUP BY g.id
+            HAVING COUNT(s.id) > 0
             ORDER BY COUNT(s.id) DESC, g.name ASC
             """)
     List<Genre> findPopularGenres(Pageable pageable);

@@ -1,5 +1,7 @@
 import { apiClient } from './api';
 
+const unwrap = <T>(data: any): T => (data && typeof data === 'object' && 'result' in data ? (data as any).result as T : data as T);
+
 export interface Artist {
   artistId: string;
   stageName: string;
@@ -61,6 +63,8 @@ export interface Album {
   description?: string;
   coverUrl?: string;
   status: 'DRAFT' | 'PUBLIC' | 'PRIVATE';
+  totalSongs?: number;
+  totalDurationSeconds?: number;
   songs: Song[];
   createdAt: string;
   updatedAt: string;
@@ -90,7 +94,7 @@ export const searchSongs = async (params: {
   size?: number;
 }): Promise<PageResponse<Song>> => {
   const response = await apiClient.get<PageResponse<Song>>('/songs', { params });
-  return response.data;
+  return unwrap<PageResponse<Song>>(response.data);
 };
 
 export const searchArtists = async (params: {
@@ -99,7 +103,7 @@ export const searchArtists = async (params: {
   size?: number;
 }): Promise<PageResponse<Artist>> => {
   const response = await apiClient.get<PageResponse<Artist>>('/artists', { params });
-  return response.data;
+  return unwrap<PageResponse<Artist>>(response.data);
 };
 
 export const getTrendingSongs = async (params?: {
@@ -107,7 +111,7 @@ export const getTrendingSongs = async (params?: {
   size?: number;
 }): Promise<PageResponse<Song>> => {
   const response = await apiClient.get<PageResponse<Song>>('/songs/trending', { params });
-  return response.data;
+  return unwrap<PageResponse<Song>>(response.data);
 };
 
 export const getNewestSongs = async (params?: {
@@ -115,12 +119,12 @@ export const getNewestSongs = async (params?: {
   size?: number;
 }): Promise<PageResponse<Song>> => {
   const response = await apiClient.get<PageResponse<Song>>('/songs/newest', { params });
-  return response.data;
+  return unwrap<PageResponse<Song>>(response.data);
 };
 
 export const getSongById = async (songId: string): Promise<Song> => {
   const response = await apiClient.get<Song>(`/songs/${songId}`);
-  return response.data;
+  return unwrap<Song>(response.data);
 };
 
 export const getSongsByArtist = async (
@@ -128,12 +132,12 @@ export const getSongsByArtist = async (
   params?: { page?: number; size?: number },
 ): Promise<PageResponse<Song>> => {
   const response = await apiClient.get<PageResponse<Song>>(`/songs/by-artist/${artistId}`, { params });
-  return response.data;
+  return unwrap<PageResponse<Song>>(response.data);
 };
 
 export const getStreamUrl = async (songId: string): Promise<string> => {
   const response = await apiClient.get<string>(`/songs/${songId}/stream`);
-  return response.data;
+  return unwrap<string>(response.data);
 };
 
 export const recordPlay = async (songId: string): Promise<void> => {
@@ -158,17 +162,24 @@ export const getSongsByIds = async (ids: string[]): Promise<Song[]> => {
   const response = await apiClient.get<Song[]>('/songs/batch', {
     params: { ids: ids.join(',') },
   });
-  return response.data;
+  return unwrap<Song[]>(response.data);
 };
 
-export const getMySongs = async (params?: { page?: number; size?: number }): Promise<PageResponse<Song>> => {
-  const response = await apiClient.get<PageResponse<Song>>('/songs/my-songs', { params });
-  return response.data;
+export const getMySongs = async (params?: { page?: number; size?: number; noCache?: boolean }): Promise<PageResponse<Song>> => {
+  const { noCache, ...rest } = params ?? {};
+  const response = await apiClient.get<PageResponse<Song>>('/songs/my-songs', {
+    params: {
+      page: rest.page,
+      size: rest.size,
+      ...(noCache ? { _ts: Date.now() } : {}),
+    },
+  });
+  return unwrap<PageResponse<Song>>(response.data);
 };
 
 export const requestUploadSong = async (payload: { title: string; fileExtension: string; genreIds: string[] }): Promise<Song> => {
   const response = await apiClient.post<Song>('/songs/request-upload', payload);
-  return response.data;
+  return unwrap<Song>(response.data);
 };
 
 export const confirmUploadSong = async (songId: string): Promise<void> => {
@@ -177,37 +188,42 @@ export const confirmUploadSong = async (songId: string): Promise<void> => {
 
 export const getMyAlbums = async (params?: { page?: number; size?: number }): Promise<PageResponse<Album>> => {
   const response = await apiClient.get<PageResponse<Album>>('/albums/my', { params });
-  return response.data;
+  return unwrap<PageResponse<Album>>(response.data);
 };
 
 export const getAlbumById = async (albumId: string): Promise<Album> => {
   const response = await apiClient.get<Album>(`/albums/${albumId}`);
-  return response.data;
+  return unwrap<Album>(response.data);
 };
 
 export const getMyAlbumById = async (albumId: string): Promise<Album> => {
   const response = await apiClient.get<Album>(`/albums/my/${albumId}`);
-  return response.data;
+  return unwrap<Album>(response.data);
 };
 
 export const getMyPlaylists = async (params?: { page?: number; size?: number }): Promise<PageResponse<Playlist>> => {
   const response = await apiClient.get<PageResponse<Playlist>>('/playlists/my-playlists', { params });
-  return response.data;
+  return unwrap<PageResponse<Playlist>>(response.data);
+};
+
+export const getPlaylistById = async (playlistId: string): Promise<Playlist> => {
+  const response = await apiClient.get<Playlist>(`/playlists/id/${playlistId}`);
+  return unwrap<Playlist>(response.data);
 };
 
 export const getPlaylistBySlug = async (slug: string): Promise<Playlist> => {
   const response = await apiClient.get<Playlist>(`/playlists/${slug}`);
-  return response.data;
+  return unwrap<Playlist>(response.data);
 };
 
 export const createPlaylist = async (payload: PlaylistCreateRequest): Promise<Playlist> => {
   const response = await apiClient.post<Playlist>('/playlists', payload);
-  return response.data;
+  return unwrap<Playlist>(response.data);
 };
 
 export const updatePlaylist = async (playlistId: string, payload: { name: string; description?: string; visibility: 'PUBLIC' | 'PRIVATE' | 'COLLABORATIVE' }): Promise<Playlist> => {
   const response = await apiClient.put<Playlist>(`/playlists/${playlistId}`, payload);
-  return response.data;
+  return unwrap<Playlist>(response.data);
 };
 
 export const deletePlaylist = async (playlistId: string): Promise<void> => {
@@ -216,12 +232,16 @@ export const deletePlaylist = async (playlistId: string): Promise<void> => {
 
 export const addSongToPlaylist = async (playlistId: string, songId: string): Promise<Playlist> => {
   const response = await apiClient.post<Playlist>(`/playlists/${playlistId}/songs/${songId}`);
-  return response.data;
+  return unwrap<Playlist>(response.data);
 };
 
 export const reorderPlaylistSong = async (playlistId: string, payload: { draggedId: string; prevId?: string | null; nextId?: string | null }): Promise<Playlist> => {
   const response = await apiClient.patch<Playlist>(`/playlists/${playlistId}/songs/reorder`, payload);
-  return response.data;
+  return unwrap<Playlist>(response.data);
+};
+
+export const removeSongFromPlaylist = async (playlistId: string, songId: string): Promise<void> => {
+  await apiClient.delete(`/playlists/${playlistId}/songs/${songId}`);
 };
 
 

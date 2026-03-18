@@ -14,7 +14,6 @@ import java.util.UUID;
                 def = "{'ownerId': 1, 'createdAt': -1}"),
         @CompoundIndex(name = "content_unique",
                 def = "{'contentId': 1, 'contentType': 1, 'ownerId': 1}",
-                unique = true,
                 sparse = true)   // sparse vì TEXT post không có contentId
 })
 @Data @Builder @NoArgsConstructor @AllArgsConstructor

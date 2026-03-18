@@ -13,6 +13,7 @@ import { recordPlay, recordListen, Song } from '../services/music';
 import { getMySubscription } from '../services/payment';
 import { getNextAd, AdDelivery } from '../services/ads';
 import { isSongDownloaded } from '../services/download';
+import { addListenHistory } from '../utils/listenHistory';
 
 // ─── Quality ──────────────────────────────────────────────────────────────────
 
@@ -208,7 +209,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                         completed,
                         artistId:  song.primaryArtist?.artistId,
                         genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
-                    }).catch(() => {});
+                    }).then(() => addListenHistory(song)).catch(() => {});
 
                     if (completed) completionFiredRef.current = true;
                 }, remaining);
@@ -255,7 +256,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             completed: true,
             artistId:  song.primaryArtist?.artistId,
             genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
-        }).catch(() => {});
+        }).then(() => addListenHistory(song)).catch(() => {});
 
         // Check ad sau khi bài kết thúc tự nhiên
         void checkForAd();

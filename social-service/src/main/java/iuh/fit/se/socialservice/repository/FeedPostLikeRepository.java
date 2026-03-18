@@ -10,5 +10,6 @@ import java.util.UUID;
 public interface FeedPostLikeRepository extends MongoRepository<FeedPostLike, String> {
     boolean existsByUserIdAndPostId(UUID userId, String postId);
     void deleteByUserIdAndPostId(UUID userId, String postId);
+    void deleteByPostId(String postId);
     long countByPostId(String postId);
 }

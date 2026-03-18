@@ -28,6 +28,70 @@ spring:
 
         # ================= IDENTITY =================
 
+        - id: identity-auth-login
+          uri: lb://IDENTITY-SERVICE
+          predicates:
+            - Path=/auth/login
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 3
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: identity-auth-registration
+          uri: lb://IDENTITY-SERVICE
+          predicates:
+            - Path=/auth/registration
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 2
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: identity-auth-otp-sensitive
+          uri: lb://IDENTITY-SERVICE
+          predicates:
+            - Path=/auth/verify, /auth/resend-otp, /auth/forgot-password, /auth/reset-password
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 2
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: identity-auth-refresh
+          uri: lb://IDENTITY-SERVICE
+          predicates:
+            - Path=/auth/refresh
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 6
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: identity-auth-social
+          uri: lb://IDENTITY-SERVICE
+          predicates:
+            - Path=/auth/social, /auth/oauth/complete
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 5
+                redis-rate-limiter.requestedTokens: 1
+
         - id: identity-service-auth
           uri: lb://IDENTITY-SERVICE
           predicates:
@@ -67,6 +131,58 @@ spring:
 
         # ================= MUSIC =================
 
+        - id: music-upload-sensitive
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/songs/request-upload, /songs/*/confirm
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 4
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: music-stream-download-sensitive
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/songs/*/download
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 5
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: music-analytics-write
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/songs/*/play, /songs/*/listen
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: music-admin-jamendo-import
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/admin/jamendo/import
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 1
+                redis-rate-limiter.requestedTokens: 1
+
         - id: music-service-api
           uri: lb://MUSIC-SERVICE
           predicates:
@@ -94,6 +210,45 @@ spring:
 
         # ================= PAYMENT =================
 
+        - id: payment-webhook
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/payments/payos_transfer_handler
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: payment-subscription-purchase
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/subscriptions/purchase
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 3
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: payment-cancel-payment-link
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/payments/*/cancel
+            - Method=PUT
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 3
+                redis-rate-limiter.requestedTokens: 1
+
         - id: payment-service-payments
           uri: lb://PAYMENT-SERVICE
           predicates:
@@ -104,6 +259,19 @@ spring:
                 key-resolver: "#{@ipAndUserKeyResolver}"
                 redis-rate-limiter.replenishRate: 10
                 redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: ads-clicked-sensitive
+          uri: lb://ADS-SERVICE
+          predicates:
+            - Path=/ads/*/clicked
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 1
+                redis-rate-limiter.burstCapacity: 3
                 redis-rate-limiter.requestedTokens: 1
 
         - id: ads-service-api
@@ -157,6 +325,84 @@ spring:
 
         # ================= SOCIAL =================
 
+        - id: social-feed-write
+          uri: lb://SOCIAL-SERVICE
+          predicates:
+            - Path=/social/feed, /social/feed/*
+            - Method=POST,PATCH,DELETE
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: social-comment-write
+          uri: lb://SOCIAL-SERVICE
+          predicates:
+            - Path=/social/comments, /social/comments/*, /social/comments/*/like, /social/comments/post
+            - Method=POST,PATCH,DELETE
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 3
+                redis-rate-limiter.burstCapacity: 15
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: social-feed-like-write
+          uri: lb://SOCIAL-SERVICE
+          predicates:
+            - Path=/social/feed/*/like
+            - Method=POST,DELETE
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 4
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: social-follow-write
+          uri: lb://SOCIAL-SERVICE
+          predicates:
+            - Path=/social/follows, /social/follows/*
+            - Method=POST,DELETE
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 3
+                redis-rate-limiter.burstCapacity: 12
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: social-heart-reaction-write
+          uri: lb://SOCIAL-SERVICE
+          predicates:
+            - Path=/social/hearts, /social/hearts/*, /social/reactions/like, /social/reactions/dislike, /social/reactions/*
+            - Method=POST,DELETE
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 4
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: social-share-to-feed-write
+          uri: lb://SOCIAL-SERVICE
+          predicates:
+            - Path=/social/share/feed
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+
         - id: social-service-api
           uri: lb://SOCIAL-SERVICE
           predicates:
@@ -183,6 +429,32 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         # ================= RECOMMENDATION =================
+
+        - id: recommendation-heavy-home
+          uri: lb://RECOMMENDATION-SERVICE
+          predicates:
+            - Path=/recommendations/home, /recommendations/social, /recommendations/similar/*
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 15
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: recommendation-feedback-write
+          uri: lb://RECOMMENDATION-SERVICE
+          predicates:
+            - Path=/recommendations/feedback
+            - Method=POST
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 4
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
 
         - id: recommendation-service-api
           uri: lb://RECOMMENDATION-SERVICE

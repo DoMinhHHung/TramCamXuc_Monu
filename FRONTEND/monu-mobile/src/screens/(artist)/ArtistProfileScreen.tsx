@@ -24,7 +24,7 @@ import { SongCard } from '../../components/SongCard';
 import { usePlayer } from '../../context/PlayerContext';
 import { useAuth } from '../../context/AuthContext';
 import { Album, Song, getSongsByArtist } from '../../services/music';
-import { FeedPost, getTimeline } from '../../services/social';
+import { FeedPost, getTimeline, getArtistStats, getMyFollowedArtists } from '../../services/social';
 import { apiClient } from '../../services/api';
 import { FollowButton } from '../../components/FollowButton';
 import { updateFeedPost, deleteFeedPost } from '../../services/social';
@@ -38,6 +38,11 @@ interface ArtistDetail {
     avatarUrl?: string;
     status: 'ACTIVE' | 'PENDING' | 'BANNED' | 'REJECTED';
     userId?: string;
+}
+
+interface ArtistCounters {
+    followers: number;
+    following: number;
 }
 
 type Tab = 'songs' | 'albums' | 'feed';
@@ -62,6 +67,15 @@ const FeedPostCard = ({ post, isOwnProfile, onDeleted, onUpdated }: FeedPostCard
     const [editVisible, setEditVisible] = React.useState(false);
     const [caption, setCaption]         = React.useState(post.caption ?? '');
     const [saving, setSaving]           = React.useState(false);
+   const [editVisibility, setEditVisibility] = React.useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'>(
+       (post.visibility as 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY') ?? 'PUBLIC'
+   );
+
+   const VISIBILITY_OPTIONS = [
+       { value: 'PUBLIC' as const, label: 'Công khai', icon: '🌐' },
+       { value: 'FOLLOWERS_ONLY' as const, label: 'Người theo dõi', icon: '👥' },
+       { value: 'PRIVATE' as const, label: 'Riêng tư', icon: '🔒' },
+   ];
 
     const timeAgo = (iso: string) => {
         const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
@@ -101,7 +115,7 @@ const FeedPostCard = ({ post, isOwnProfile, onDeleted, onUpdated }: FeedPostCard
     const handleSave = async () => {
         setSaving(true);
         try {
-            await updateFeedPost(post.id, { visibility: post.visibility, caption });
+            await updateFeedPost(post.id, { visibility: editVisibility, caption });
             onUpdated(post.id, caption);
             setEditVisible(false);
         } catch { Alert.alert('Lỗi', 'Không thể cập nhật bài viết'); }
@@ -129,7 +143,7 @@ const FeedPostCard = ({ post, isOwnProfile, onDeleted, onUpdated }: FeedPostCard
             </View>
             <Modal visible={editVisible} transparent animationType="slide">
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
-                    <View style={{ backgroundColor: COLORS.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 }}>
+                    <View style={{ backgroundColor: COLORS.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40, maxHeight: '80%' }}>
                         <Text style={{ color: COLORS.white, fontSize: 18, fontWeight: '700', marginBottom: 16 }}>Chỉnh sửa bài viết</Text>
                         <TextInput
                             style={{ backgroundColor: COLORS.surfaceLow, color: COLORS.white, borderRadius: 10, padding: 12, fontSize: 15, textAlignVertical: 'top', borderWidth: 1, borderColor: COLORS.accentBorder25, minHeight: 100 }}
@@ -139,6 +153,33 @@ const FeedPostCard = ({ post, isOwnProfile, onDeleted, onUpdated }: FeedPostCard
                             placeholder="Nội dung bài viết..."
                             placeholderTextColor={COLORS.glass30}
                         />
+                                               <View style={{ marginTop: 16, marginBottom: 16 }}>
+                                                   <Text style={{ color: COLORS.glass60, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, marginBottom: 8, textTransform: 'uppercase' }}>Hiển thị</Text>
+                                                   <View style={{ flexDirection: 'row', gap: 8 }}>
+                                                       {VISIBILITY_OPTIONS.map(opt => (
+                                                           <Pressable
+                                                               key={opt.value}
+                                                               onPress={() => setEditVisibility(opt.value)}
+                                                               style={{
+                                                                   flex: 1,
+                                                                   paddingHorizontal: 12,
+                                                                   paddingVertical: 8,
+                                                                   borderRadius: 10,
+                                                                   backgroundColor: editVisibility === opt.value ? COLORS.accentFill20 : COLORS.glass08,
+                                                                   borderWidth: editVisibility === opt.value ? 1 : 1,
+                                                                   borderColor: editVisibility === opt.value ? COLORS.accentBorder25 : COLORS.glass12,
+                                                                   alignItems: 'center',
+                                                                   justifyContent: 'center',
+                                                               }}
+                                                           >
+                                                               <Text style={{ fontSize: 16, marginBottom: 2 }}>{opt.icon}</Text>
+                                                               <Text style={{ color: editVisibility === opt.value ? COLORS.accent : COLORS.glass60, fontSize: 11, fontWeight: '600', textAlign: 'center' }}>
+                                                                   {opt.label}
+                                                               </Text>
+                                                           </Pressable>
+                                                       ))}
+                                                   </View>
+                                               </View>
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 }}>
                             <Pressable onPress={() => setEditVisible(false)} style={{ paddingHorizontal: 20, paddingVertical: 10 }}>
                                 <Text style={{ color: COLORS.glass60, fontSize: 15 }}>Huỷ</Text>
@@ -175,6 +216,7 @@ export const ArtistProfileScreen = () => {
     const [posts,   setPosts]   = useState<FeedPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<Tab>('songs');
+    const [counters, setCounters] = useState<ArtistCounters>({ followers: 0, following: 0 });
 
     // Edit
     const [editOpen,      setEditOpen]      = useState(false);
@@ -227,19 +269,34 @@ export const ArtistProfileScreen = () => {
             // Feed: load timeline and filter by this artist's userId
             try {
                 const feedRes = await getTimeline({ page: 0, size: 50 });
-                const artistPosts = (feedRes.content ?? []).filter(
-                    p => p.ownerId === (artistRes.data as ArtistDetail).userId,
-                );
-                setPosts(artistPosts);
+                const artistUserId = (artistRes.data as ArtistDetail).userId;
+                const artistPosts = (feedRes.content ?? []).filter((p) => p.ownerId === artistUserId);
+                const visiblePosts = isOwnProfile
+                    ? artistPosts
+                    : artistPosts.filter((p) => p.visibility === 'PUBLIC');
+                setPosts(visiblePosts);
             } catch {
                 setPosts([]);
+            }
+
+            // Stats (owner only needs following count; follower count useful for all)
+            try {
+                const stats = await getArtistStats(artistId);
+                let following = counters.following;
+                if (isOwnProfile) {
+                    const followingRes = await getMyFollowedArtists({ page: 0, size: 1 });
+                    following = followingRes.totalElements ?? following;
+                }
+                setCounters({ followers: stats.followerCount ?? 0, following });
+            } catch {
+                setCounters((prev) => ({ followers: prev.followers, following: prev.following }));
             }
         } catch (e: any) {
             Alert.alert('Lỗi', e?.message ?? 'Không thể tải hồ sơ nghệ sĩ.');
         } finally {
             setLoading(false);
         }
-    }, [artistId]);
+    }, [artistId, isOwnProfile]);
 
     useFocusEffect(useCallback(() => { void loadData(); }, [loadData]));
 
@@ -314,11 +371,11 @@ export const ArtistProfileScreen = () => {
                 showsVerticalScrollIndicator={false}
             >
                 {/* ── Header gradient ──────────────────────────────── */}
-                <LinearGradient
-                    colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]}
-                    locations={[0, 0.55, 1]}
-                    style={[styles.header, { paddingTop: insets.top + 12 }]}
-                >
+                    <LinearGradient
+                        colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]}
+                        locations={[0, 0.55, 1]}
+                        style={[styles.header, { paddingTop: insets.top + 12 }]}
+                    >
                     <View style={styles.headerBar}>
                         <BackButton onPress={() => navigation.goBack()} />
                         {isOwnProfile && (
@@ -380,6 +437,25 @@ export const ArtistProfileScreen = () => {
                             <Text style={styles.statLabel}>Bài đăng</Text>
                         </View>
                     </View>
+                    {isOwnProfile && (
+                        <View style={[styles.statsRow, { marginTop: 8 }]}>
+                            <Pressable
+                                style={[styles.statItem, styles.statPressable]}
+                                onPress={() => navigation.navigate('Following')}
+                            >
+                                <Text style={styles.statValue}>{counters.following}</Text>
+                                <Text style={styles.statLabel}>Đang theo dõi</Text>
+                            </Pressable>
+                            <View style={styles.statDivider} />
+                            <Pressable
+                                style={[styles.statItem, styles.statPressable]}
+                                onPress={() => navigation.navigate('Followers', { artistId, artistName: artist.stageName })}
+                            >
+                                <Text style={styles.statValue}>{counters.followers}</Text>
+                                <Text style={styles.statLabel}>Người theo dõi</Text>
+                            </Pressable>
+                        </View>
+                    )}
                     {/* Follow button — chỉ hiện khi không phải profile của mình */}
                     {!isOwnProfile && (
                         <View style={{ marginTop: 14 }}>
@@ -638,6 +714,7 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     statItem: { flex: 1, alignItems: 'center' },
+    statPressable: { borderRadius: 10, paddingVertical: 2 },
     statValue: { color: COLORS.white, fontSize: 20, fontWeight: '800' },
     statLabel: { color: COLORS.glass35, fontSize: 11, marginTop: 2 },
     statDivider: { width: 1, backgroundColor: COLORS.glass12, marginHorizontal: 8 },

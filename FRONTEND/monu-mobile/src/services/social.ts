@@ -9,7 +9,7 @@ export interface FeedPost {
   title?: string;
   caption?: string;
   coverImageUrl?: string;
-  visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS';
+  visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY';
   likeCount: number;
   commentCount: number;
   shareCount: number;
@@ -40,7 +40,7 @@ export interface PageResponse<T> {
 }
 
 export interface FeedPostRequest {
-  visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS';
+  visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY';
   caption?: string;
   contentId?: string;
   contentType?: 'SONG' | 'ALBUM' | 'PLAYLIST';
@@ -90,6 +90,14 @@ export const getPostComments = async (postId: string, params?: { page?: number; 
 
 export const createPostComment = async (payload: { postId: string; content: string; parentId?: string }): Promise<Comment> => {
   const response = await apiClient.post<Comment>('/social/comments/post', payload);
+  return response.data;
+};
+
+export const getCommentReplies = async (
+    parentId: string,
+    params?: { page?: number; size?: number },
+): Promise<PageResponse<Comment>> => {
+  const response = await apiClient.get<PageResponse<Comment>>(`/social/comments/${parentId}/replies`, { params });
   return response.data;
 };
 
@@ -223,8 +231,8 @@ export const getArtistByUserId = async (
     userId: string,
 ): Promise<{ id: string; stageName: string; avatarUrl?: string } | null> => {
   try {
-    const res = await apiClient.get<any>(`/artists/by-user/${userId}`);
-    const d = res.data?.result;
+    const res = await apiClient.get<{ id: string; stageName: string; avatarUrl?: string }>(`/artists/by-user/${userId}`);
+    const d = res.data;
     if (d?.id) return { id: d.id, stageName: d.stageName, avatarUrl: d.avatarUrl };
     return null;
   } catch {

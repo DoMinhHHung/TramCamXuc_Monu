@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -31,7 +32,7 @@ export const ProfileScreen = () => {
     const { authSession, refreshProfile, logout } = useAuth();
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
-    const { downloadedSongs, storageUsed } = useDownload();
+    const { downloadedSongs, storageUsed, deleteDownload } = useDownload();
 
     const [menuOpen,    setMenuOpen]    = useState(false);
     const [editOpen,    setEditOpen]    = useState(false);
@@ -127,6 +128,23 @@ export const ProfileScreen = () => {
         }
     };
 
+    const handleDeleteDownloadedSong = async (songId: string) => {
+        Alert.alert('Xoá bài đã tải', 'Bạn muốn xoá bài hát này khỏi bộ nhớ máy?', [
+            { text: 'Huỷ', style: 'cancel' },
+            {
+                text: 'Xoá',
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await deleteDownload(songId);
+                    } catch (error: any) {
+                        Alert.alert('Lỗi', error?.message || 'Không thể xoá bài đã tải.');
+                    }
+                },
+            },
+        ]);
+    };
+
     const getArtistStatusColor = () => {
         if (!artistProfile) return COLORS.glass35;
         switch (artistProfile.status) {
@@ -169,6 +187,12 @@ export const ProfileScreen = () => {
             onPress: () => navigation.navigate('FavoriteSongs'),
         },
         {
+            icon: <FontAwesome name="history" color="#38BDF8" size={18} />,
+            label: 'Lịch sử nghe nhạc',
+            sub: 'Các bài bạn đã nghe',
+            onPress: () => navigation.navigate('History'),
+        },
+        {
             icon: <AntDesign name="download" color="#fff" size={18} />,
             label: 'Đã tải xuống',
             sub: downloadedSongs.length > 0
@@ -180,7 +204,7 @@ export const ProfileScreen = () => {
             icon: <SimpleLineIcons name="user-following" color="#22C55E" size={18} />,
             label: 'Đang theo dõi',
             sub: undefined,
-            onPress: () => navigation.navigate('FollowedArtists'),
+            onPress: () => navigation.navigate('Following'),
         },
     ];
 
@@ -422,7 +446,7 @@ export const ProfileScreen = () => {
                             </Text>
                             <FlatList
                                 data={downloadedSongs}
-                                keyExtractor={i => i.song.id}
+                                keyExtractor={(i, idx) => `${i.song.id}-${idx}`}
                                 style={{ maxHeight: 320 }}
                                 renderItem={({ item }) => (
                                     <View style={styles.dlRow}>
@@ -440,6 +464,13 @@ export const ProfileScreen = () => {
                                         <Text style={styles.dlSize}>
                                             {formatStorage(item.size)}
                                         </Text>
+                                        <Pressable
+                                            style={styles.dlDeleteBtn}
+                                            onPress={() => handleDeleteDownloadedSong(item.song.id)}
+                                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                        >
+                                            <Text style={styles.dlDeleteText}>Xoá</Text>
+                                        </Pressable>
                                     </View>
                                 )}
                             />
@@ -674,6 +705,15 @@ const styles = StyleSheet.create({
     dlSongTitle:  { color: COLORS.white, fontSize: 14, fontWeight: '600' },
     dlSongArtist: { color: COLORS.glass45, fontSize: 12, marginTop: 2 },
     dlSize:       { color: COLORS.glass35, fontSize: 11 },
+    dlDeleteBtn: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        backgroundColor: COLORS.glass08,
+        borderWidth: 1,
+        borderColor: COLORS.glass12,
+    },
+    dlDeleteText: { color: COLORS.error, fontSize: 12, fontWeight: '700' },
     dlCloseBtn: {
         backgroundColor: COLORS.accentDim,
         borderRadius: 999,

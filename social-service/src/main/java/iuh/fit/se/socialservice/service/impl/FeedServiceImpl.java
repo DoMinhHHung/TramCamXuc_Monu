@@ -31,6 +31,7 @@ public class FeedServiceImpl implements FeedService {
     private static final int  TIMELINE_DAYS = 30;
     private final FeedPostRepository feedPostRepository;
     private final FeedPostLikeRepository feedPostLikeRepository;
+        private final CommentRepository commentRepository;
     private final FollowRepository       followRepository;
     private final UserFollowRepository   userFollowRepository;
     private final MongoTemplate mongoTemplate;
@@ -110,13 +111,6 @@ public class FeedServiceImpl implements FeedService {
     @Override
     public FeedPostResponse createPost(UUID ownerId, String ownerType,
                                        FeedPostRequest req) {
-        // Không cho phép share cùng 1 content 2 lần
-        if (req.getContentId() != null && req.getContentType() != null &&
-                feedPostRepository.existsByContentIdAndContentTypeAndOwnerId(
-                        req.getContentId(), req.getContentType(), ownerId)) {
-            throw new AppException(ErrorCode.FEED_POST_DUPLICATE);
-        }
-
         FeedPost post = FeedPost.builder()
                 .ownerId(ownerId)
                 .ownerType(ownerType)
@@ -156,6 +150,8 @@ public class FeedServiceImpl implements FeedService {
         if (!post.getOwnerId().equals(ownerId)) {
             throw new AppException(ErrorCode.ACCESS_DENIED);
         }
+                commentRepository.deleteByPostId(postId);
+                feedPostLikeRepository.deleteByPostId(postId);
         feedPostRepository.deleteById(postId);
     }
 
