@@ -93,6 +93,14 @@ export const createPostComment = async (payload: { postId: string; content: stri
   return response.data;
 };
 
+export const getCommentReplies = async (
+    parentId: string,
+    params?: { page?: number; size?: number },
+): Promise<PageResponse<Comment>> => {
+  const response = await apiClient.get<PageResponse<Comment>>(`/social/comments/${parentId}/replies`, { params });
+  return response.data;
+};
+
 export const updateComment = async (commentId: string, content: string): Promise<Comment> => {
   const response = await apiClient.patch<Comment>(`/social/comments/${commentId}`, { content });
   return response.data;
@@ -223,8 +231,8 @@ export const getArtistByUserId = async (
     userId: string,
 ): Promise<{ id: string; stageName: string; avatarUrl?: string } | null> => {
   try {
-    const res = await apiClient.get<any>(`/artists/by-user/${userId}`);
-    const d = res.data?.result;
+    const res = await apiClient.get<{ id: string; stageName: string; avatarUrl?: string }>(`/artists/by-user/${userId}`);
+    const d = res.data;
     if (d?.id) return { id: d.id, stageName: d.stageName, avatarUrl: d.avatarUrl };
     return null;
   } catch {

@@ -185,7 +185,7 @@ public class SongController {
      * GET /songs/my-songs
      */
     @GetMapping("/my-songs")
-    @PreAuthorize("hasRole('ARTIST')")
+    @PreAuthorize("hasAnyRole('ARTIST', 'USER')")
     public ApiResponse<Page<SongResponse>> getMySongs(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {

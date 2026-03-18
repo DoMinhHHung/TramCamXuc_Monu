@@ -64,8 +64,25 @@ public class SongServiceImpl implements SongService {
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     private UUID currentUserId() {
-        return UUID.fromString(
-                SecurityContextHolder.getContext().getAuthentication().getName());
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        String principal = null;
+        try {
+            principal = auth.getName();
+            return UUID.fromString(principal);
+        } catch (Exception e) {
+            if (principal == null && auth.getPrincipal() != null) {
+                try {
+                    principal = auth.getPrincipal().toString();
+                    return UUID.fromString(principal);
+                } catch (Exception ignored) {}
+            }
+            log.error("[SongService] Unable to parse user id from authentication: {}", auth, e);
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
     }
 
 
@@ -97,8 +114,13 @@ public class SongServiceImpl implements SongService {
             var auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth == null || !auth.isAuthenticated()
                     || "anonymousUser".equals(auth.getPrincipal())) return null;
-            return UUID.fromString(auth.getName());
+            try {
+                return UUID.fromString(auth.getName());
+            } catch (Exception ignored) {
+                return UUID.fromString(auth.getPrincipal().toString());
+            }
         } catch (Exception e) {
+            log.warn("[SongService] Failed to resolve current user id: {}", e.getMessage());
             return null;
         }
     }

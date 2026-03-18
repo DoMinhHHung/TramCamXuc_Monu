@@ -24,7 +24,7 @@ import { SongCard } from '../../components/SongCard';
 import { usePlayer } from '../../context/PlayerContext';
 import { useAuth } from '../../context/AuthContext';
 import { Album, Song, getSongsByArtist } from '../../services/music';
-import { FeedPost, getTimeline } from '../../services/social';
+import { FeedPost, getTimeline, getArtistStats, getMyFollowedArtists } from '../../services/social';
 import { apiClient } from '../../services/api';
 import { FollowButton } from '../../components/FollowButton';
 import { updateFeedPost, deleteFeedPost } from '../../services/social';
@@ -38,6 +38,11 @@ interface ArtistDetail {
     avatarUrl?: string;
     status: 'ACTIVE' | 'PENDING' | 'BANNED' | 'REJECTED';
     userId?: string;
+}
+
+interface ArtistCounters {
+    followers: number;
+    following: number;
 }
 
 type Tab = 'songs' | 'albums' | 'feed';
@@ -175,6 +180,7 @@ export const ArtistProfileScreen = () => {
     const [posts,   setPosts]   = useState<FeedPost[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<Tab>('songs');
+    const [counters, setCounters] = useState<ArtistCounters>({ followers: 0, following: 0 });
 
     // Edit
     const [editOpen,      setEditOpen]      = useState(false);
@@ -227,19 +233,34 @@ export const ArtistProfileScreen = () => {
             // Feed: load timeline and filter by this artist's userId
             try {
                 const feedRes = await getTimeline({ page: 0, size: 50 });
-                const artistPosts = (feedRes.content ?? []).filter(
-                    p => p.ownerId === (artistRes.data as ArtistDetail).userId,
-                );
-                setPosts(artistPosts);
+                const artistUserId = (artistRes.data as ArtistDetail).userId;
+                const artistPosts = (feedRes.content ?? []).filter((p) => p.ownerId === artistUserId);
+                const visiblePosts = isOwnProfile
+                    ? artistPosts
+                    : artistPosts.filter((p) => p.visibility === 'PUBLIC');
+                setPosts(visiblePosts);
             } catch {
                 setPosts([]);
+            }
+
+            // Stats (owner only needs following count; follower count useful for all)
+            try {
+                const stats = await getArtistStats(artistId);
+                let following = counters.following;
+                if (isOwnProfile) {
+                    const followingRes = await getMyFollowedArtists({ page: 1, size: 1 });
+                    following = followingRes.totalElements ?? following;
+                }
+                setCounters({ followers: stats.followerCount ?? 0, following });
+            } catch {
+                setCounters((prev) => ({ followers: prev.followers, following: prev.following }));
             }
         } catch (e: any) {
             Alert.alert('Lỗi', e?.message ?? 'Không thể tải hồ sơ nghệ sĩ.');
         } finally {
             setLoading(false);
         }
-    }, [artistId]);
+    }, [artistId, isOwnProfile]);
 
     useFocusEffect(useCallback(() => { void loadData(); }, [loadData]));
 
@@ -314,11 +335,11 @@ export const ArtistProfileScreen = () => {
                 showsVerticalScrollIndicator={false}
             >
                 {/* ── Header gradient ──────────────────────────────── */}
-                <LinearGradient
-                    colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]}
-                    locations={[0, 0.55, 1]}
-                    style={[styles.header, { paddingTop: insets.top + 12 }]}
-                >
+                    <LinearGradient
+                        colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]}
+                        locations={[0, 0.55, 1]}
+                        style={[styles.header, { paddingTop: insets.top + 12 }]}
+                    >
                     <View style={styles.headerBar}>
                         <BackButton onPress={() => navigation.goBack()} />
                         {isOwnProfile && (
@@ -380,6 +401,19 @@ export const ArtistProfileScreen = () => {
                             <Text style={styles.statLabel}>Bài đăng</Text>
                         </View>
                     </View>
+                    {isOwnProfile && (
+                        <View style={[styles.statsRow, { marginTop: 8 }]}>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statValue}>{counters.following}</Text>
+                                <Text style={styles.statLabel}>Đang theo dõi</Text>
+                            </View>
+                            <View style={styles.statDivider} />
+                            <View style={styles.statItem}>
+                                <Text style={styles.statValue}>{counters.followers}</Text>
+                                <Text style={styles.statLabel}>Người theo dõi</Text>
+                            </View>
+                        </View>
+                    )}
                     {/* Follow button — chỉ hiện khi không phải profile của mình */}
                     {!isOwnProfile && (
                         <View style={{ marginTop: 14 }}>

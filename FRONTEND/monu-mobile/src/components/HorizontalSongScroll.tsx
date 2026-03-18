@@ -87,7 +87,7 @@ export const HorizontalSongScroll = ({
   onLongPress,
   onFeedback,
   loading = false,
-  emptyText = 'Chưa có gợi ý',
+  emptyText = 'Đang cập nhật...'
 }: HorizontalSongScrollProps) => {
   if (loading) {
     return (

@@ -11,6 +11,7 @@ interface RecommendationSectionProps {
   songs: RecommendedSong[];
   activeSongId?: string;
   loading?: boolean;
+  emptyText?: string;
   onPress: (song: RecommendedSong) => void;
   onLongPress?: (song: RecommendedSong) => void;
   onFeedback?: (songId: string, feedback: FeedbackType) => void;
@@ -27,6 +28,7 @@ export const RecommendationSection = ({
   songs,
   activeSongId,
   loading = false,
+  emptyText,
   onPress,
   onLongPress,
   onFeedback,
@@ -66,6 +68,7 @@ export const RecommendationSection = ({
         onLongPress={onLongPress}
         onFeedback={onFeedback}
         loading={loading}
+        emptyText={emptyText}
       />
 
       {footer}

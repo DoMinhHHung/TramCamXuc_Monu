@@ -224,6 +224,7 @@ export const HomeScreen = () => {
           songs={rec.globalTrending}
           activeSongId={currentSong?.id}
           loading={rec.loading && !rec.globalTrending.length}
+          emptyText="Đang cập nhật..."
           onPress={(s) => playRec(s, rec.globalTrending)}
           onLongPress={openRecActionSheet}
           hideIfEmpty={false}
@@ -260,6 +261,7 @@ export const HomeScreen = () => {
           songs={(rec.homeFeed?.newReleases?.length ? rec.homeFeed.newReleases : rec.newReleases)}
           activeSongId={currentSong?.id}
           loading={rec.loading && !rec.newReleases.length}
+          emptyText="Đang cập nhật..."
           onPress={(s) => playRec(s, rec.homeFeed?.newReleases?.length ? rec.homeFeed.newReleases : rec.newReleases)}
           onLongPress={openRecActionSheet}
           hideIfEmpty={false}
@@ -275,6 +277,7 @@ export const HomeScreen = () => {
           onPress={(s) => playRec(s, rec.socialRecs)}
           onLongPress={openRecActionSheet}
           onFeedback={handleFeedback}
+          emptyText="Đang cập nhật..."
         />
       </ScrollView>
 

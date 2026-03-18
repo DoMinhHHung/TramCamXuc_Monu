@@ -1082,8 +1082,8 @@ const AlbumDetailModal = ({
                       </Text>
                     </View>
                 ) : (
-                    (album?.songs ?? []).map((song: Song) => (
-                        <View key={song.id} style={albumDetailStyles.songRow}>
+                    (album?.songs ?? []).map((song: Song, idx: number) => (
+                        <View key={song.id ?? `${idx}`} style={albumDetailStyles.songRow}>
                           <Pressable
                               style={albumDetailStyles.songMain}
                               onPress={() => playSong(song, queue)}
@@ -1137,9 +1137,9 @@ const AlbumDetailModal = ({
                   </Text>
               ) : (
                   <ScrollView style={{ maxHeight: 300 }}>
-                    {availableSongs.map(s => (
+                    {availableSongs.map((s, idx) => (
                         <Pressable
-                            key={s.id}
+                            key={s.id ?? `${idx}`}
                             style={sheetStyles.item}
                             onPress={() => { setAddOpen(false); void handleAddSong(s.id); }}
                         >
@@ -1246,12 +1246,19 @@ export const LibraryScreen = () => {
       else setRefreshing(false);
       const [plRes, soRes, alRes] = await Promise.allSettled([
         getMyPlaylists({ page: 1, size: 50 }),
-        getMySongs({ page: 1, size: 50 }),
+        getMySongs({ page: 1, size: 50, noCache: true }),
         getMyAlbums({ page: 1, size: 50 }),
       ]);
-      setPlaylists(plRes.status === 'fulfilled' ? plRes.value.content ?? [] : []);
-      setSongs(soRes.status === 'fulfilled' ? soRes.value.content ?? [] : []);
-      setAlbums(alRes.status === 'fulfilled' ? alRes.value.content ?? [] : []);
+      if (plRes.status === 'fulfilled') setPlaylists(plRes.value.content ?? []);
+      if (soRes.status === 'fulfilled') setSongs(soRes.value.content ?? []);
+      if (alRes.status === 'fulfilled') setAlbums(alRes.value.content ?? []);
+      if (soRes.status === 'rejected') {
+        const err: any = soRes.reason;
+        const status = err?.response?.status;
+        const backendMessage = err?.response?.data?.message;
+        console.warn('Tải bài hát thất bại', { status, data: err?.response?.data, message: err?.message });
+        Alert.alert('Không tải được bài hát', backendMessage || err?.message || 'Vui lòng thử lại.');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

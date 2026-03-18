@@ -90,11 +90,17 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
             """)
     Optional<Song> findByIdAndOwnerUserId(@Param("id") UUID id, @Param("userId") UUID userId);
 
-    @Query("""
-            SELECT s FROM Song s
+    @Query(value = """
+            SELECT DISTINCT s FROM Song s
+            LEFT JOIN FETCH s.genres g
             WHERE s.ownerUserId = :userId
-            AND s.deletedAt IS NULL
+              AND s.deletedAt IS NULL
             ORDER BY s.createdAt DESC
+            """,
+            countQuery = """
+            SELECT COUNT(s) FROM Song s
+            WHERE s.ownerUserId = :userId
+              AND s.deletedAt IS NULL
             """)
     Page<Song> findAllByOwnerUserId(@Param("userId") UUID userId, Pageable pageable);
 
