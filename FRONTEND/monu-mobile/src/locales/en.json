@@ -85,6 +85,19 @@
       "consecutive": "consecutive days",
       "longest": "longest streak"
     },
+    "settings": {
+      "title": "Settings",
+      "themeSection": "Theme",
+      "languageSection": "Language",
+      "aboutSection": "About",
+      "currentSettings": "Current Settings",
+      "theme": "Theme",
+      "language": "Language",
+      "followSystem": "Follow System Settings",
+      "followSystemDesc": "Currently using system appearance",
+      "version": "Version",
+      "appName": "App"
+    },
     "playlist": {
       "createNew": "Create New Playlist",
       "playlistName": "Playlist name",

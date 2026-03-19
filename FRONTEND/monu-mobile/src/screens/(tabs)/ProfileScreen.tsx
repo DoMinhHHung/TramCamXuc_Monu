@@ -379,6 +379,13 @@ export const ProfileScreen = () => {
                 <View style={[styles.dropMenu, { top: insets.top + 54 }]}>
                     <Pressable
                         style={styles.dropItem}
+                        onPress={() => { setMenuOpen(false); navigation.navigate('Settings'); }}
+                    >
+                        <Text style={styles.dropText}>⚙️ Cài đặt</Text>
+                    </Pressable>
+                    <View style={styles.dropDivider} />
+                    <Pressable
+                        style={styles.dropItem}
                         onPress={() => { setMenuOpen(false); setLogoutOpen(true); }}
                     >
                         <Text style={styles.dropText}>Đăng xuất</Text>

@@ -100,6 +100,19 @@
       "followers": "người theo dõi",
       "listening": "Đang nghe",
       "aboutArtist": "Về nghệ sĩ"
+    },
+    "settings": {
+      "title": "Cài đặt",
+      "themeSection": "Chủ đề",
+      "languageSection": "Ngôn ngữ",
+      "aboutSection": "Về ứng dụng",
+      "currentSettings": "Cài đặt hiện tại",
+      "theme": "Chủ đề",
+      "language": "Ngôn ngữ",
+      "followSystem": "Theo dõi cài đặt hệ thống",
+      "followSystemDesc": "Hiện tại đang sử dụng cài đặt giao diện hệ thống",
+      "version": "Phiên bản",
+      "appName": "Ứng dụng"
     }
   },
   "actions": {

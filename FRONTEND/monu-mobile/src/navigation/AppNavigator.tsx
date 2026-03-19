@@ -39,6 +39,7 @@ import { HistoryScreen }          from '../screens/(settings)/HistoryScreen';
 import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
 import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
 import { InsightsScreen }         from '../screens/InsightsScreen';
+import { SettingsScreen }         from '../screens/SettingsScreen';
 
 // ─── Artist screens ───────────────────────────────────────────────────────────
 import { ArtistProfileScreen }    from '../screens/(artist)/ArtistProfileScreen';
@@ -68,9 +69,10 @@ export type RootStackParamList = {
     Search:          undefined;
     PlaylistDetail:  { slug: string };
     AlbumDetail:     { albumId: string };
-    Insights: undefined;
-    ArtistProfile:   { artistId: string };
-    RegisterArtist:  undefined;
+    Insights:       undefined;
+    Settings:       undefined;
+    ArtistProfile:  { artistId: string };
+    RegisterArtist: undefined;
     ArtistTerms:     undefined;
     FavoriteSongs:    undefined;
     Following:        undefined;
@@ -196,7 +198,8 @@ export const AppNavigator = () => {
                         ) : (
                             <>
                                 <Stack.Screen name="MainTabs"       component={MainTabNavigator}    />
-                                <Stack.Screen name="Insights" component={InsightsScreen} options={{ headerShown: false }}/>
+                                <Stack.Screen name="Insights"  component={InsightsScreen}       options={{ headerShown: false }}/>
+                                <Stack.Screen name="Settings"  component={SettingsScreen}       options={{ headerShown: false }}/>
                                 <Stack.Screen name="Search"         component={SearchScreen}        />
                                 <Stack.Screen name="EditFavorites"  component={EditFavoritesScreen} />
                                 <Stack.Screen name="History"        component={HistoryScreen}       />

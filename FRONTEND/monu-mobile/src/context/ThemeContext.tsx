@@ -17,13 +17,15 @@ interface ThemeContextType {
   /** Current theme name */
   theme: ThemeName;
   /** Change theme and persist preference */
-  setTheme: (theme: ThemeName) => Promise<void>;
+  setTheme: (theme: ThemeName | 'system') => void;
   /** Available themes for user selection */
   availableThemes: ThemeName[];
   /** Get theme display name */
   getThemeName: (theme: ThemeName) => string;
   /** Whether system prefers dark mode (for device appearance detection) */
   systemDarkMode: boolean | null;
+  /** Whether to follow system appearance */
+  followSystem: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -50,20 +52,29 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const systemDarkMode = systemColorScheme === 'dark';
   
   const [theme, setThemeState] = useState<ThemeName>('dark');
+  const [followSystem, setFollowSystemState] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Load saved theme preference on mount
   useEffect(() => {
     const loadTheme = async () => {
       try {
-        const saved = await AsyncStorage.getItem(THEME_STORAGE_KEY);
-        if (saved && (saved === 'dark' || saved === 'light' || saved === 'classic')) {
-          setThemeState(saved);
-        } else {
-          // Use device appearance if no saved preference
+        const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+        const savedFollowSystem = await AsyncStorage.getItem(THEME_STORAGE_KEY + '_follow_system');
+        
+        const shouldFollowSystem = savedFollowSystem === 'true';
+        setFollowSystemState(shouldFollowSystem);
+
+        if (shouldFollowSystem) {
+          // Use device appearance
           const initialTheme = getInitialTheme(systemDarkMode);
           setThemeState(initialTheme);
-          await AsyncStorage.setItem(THEME_STORAGE_KEY, initialTheme);
+        } else if (savedTheme && (savedTheme === 'dark' || savedTheme === 'light' || savedTheme === 'classic')) {
+          setThemeState(savedTheme);
+        } else {
+          // Default
+          setThemeState('dark');
+          await AsyncStorage.setItem(THEME_STORAGE_KEY, 'dark');
         }
       } catch (error) {
         console.warn('[Theme] Failed to load saved theme:', error);
@@ -76,14 +87,32 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadTheme();
   }, [systemDarkMode]);
 
-  const setTheme = useCallback(async (newTheme: ThemeName) => {
-    try {
+  // Update theme if system appearance changes and followSystem is true
+  useEffect(() => {
+    if (followSystem && systemDarkMode !== null) {
+      const newTheme = systemDarkMode ? 'dark' : 'light';
       setThemeState(newTheme);
-      await AsyncStorage.setItem(THEME_STORAGE_KEY, newTheme);
+    }
+  }, [systemDarkMode, followSystem]);
+
+  const setTheme = useCallback((newThemeOrSystem: ThemeName | 'system') => {
+    try {
+      if (newThemeOrSystem === 'system') {
+        setFollowSystemState(true);
+        AsyncStorage.setItem(THEME_STORAGE_KEY + '_follow_system', 'true');
+        // Apply current system theme
+        const systemTheme = systemDarkMode ? 'dark' : 'light';
+        setThemeState(systemTheme);
+      } else {
+        setFollowSystemState(false);
+        AsyncStorage.setItem(THEME_STORAGE_KEY + '_follow_system', 'false');
+        setThemeState(newThemeOrSystem);
+        AsyncStorage.setItem(THEME_STORAGE_KEY, newThemeOrSystem);
+      }
     } catch (error) {
       console.warn('[Theme] Failed to save theme preference:', error);
     }
-  }, []);
+  }, [systemDarkMode]);
 
   if (isLoading) {
     return null; // Or return a loading screen
@@ -101,6 +130,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         availableThemes,
         getThemeName,
         systemDarkMode,
+        followSystem,
       }}
     >
       {children}
