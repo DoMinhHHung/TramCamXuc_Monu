@@ -12,6 +12,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import { BackButton } from '../../components/BackButton';
 import { COLORS } from '../../config/colors';
+import { ICONS, ICON_SIZES } from '../../config/icons';
 import { useAuth } from '../../context/AuthContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
@@ -55,7 +56,7 @@ export const LoginScreen = () => {
             <BackButton onPress={() => navigation.goBack()} />
             <View style={styles.logoRow}>
               <View style={styles.logoRing}>
-                <Text style={{ fontSize: 32 }}>🎵</Text>
+                <Text style={{ fontSize: ICON_SIZES.xl }}>{ICONS.song}</Text>
               </View>
             </View>
             <Text style={styles.title}>Đăng nhập</Text>

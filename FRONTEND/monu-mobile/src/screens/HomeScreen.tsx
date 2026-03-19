@@ -20,6 +20,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AntDesign, Fontisto, MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
+import { ICONS } from '../config/icons';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
 import { useDownload } from '../context/DownloadContext';
@@ -59,9 +60,9 @@ const toSong = (r: RecommendedSong): Song => ({
 
 const quickActions = [
   { title: 'Nhạc chữa lành', emoji: '🌙', color: [COLORS.cardHealingFrom, COLORS.gradPurple] as const },
-  { title: 'Top Trending', emoji: '🔥', color: [COLORS.cardTrendingFrom, COLORS.cardTrendingTo] as const },
-  { title: 'Acoustic', emoji: '🎸', color: [COLORS.cardAcousticFrom, COLORS.cardAcousticTo] as const },
-  { title: 'Lofi Focus', emoji: '🎧', color: [COLORS.cardLofiFrom, COLORS.cardLofiTo] as const },
+  { title: 'Top Trending', emoji: ICONS.fire, color: [COLORS.cardTrendingFrom, COLORS.cardTrendingTo] as const },
+  { title: 'Acoustic', emoji: ICONS.guitar, color: [COLORS.cardAcousticFrom, COLORS.cardAcousticTo] as const },
+  { title: 'Lofi Focus', emoji: ICONS.headphones, color: [COLORS.cardLofiFrom, COLORS.cardLofiTo] as const },
 ];
 
 const buildGenreSectionsFromPool = (

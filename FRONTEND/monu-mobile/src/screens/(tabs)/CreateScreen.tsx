@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 
 import { COLORS } from '../../config/colors';
+import { ICONS, ICON_SIZES } from '../../config/icons';
 import { useAuth } from '../../context/AuthContext';
 import { useUpload, UploadStage } from '../../context/UploadContext';
 import { apiClient } from '../../services/api';
@@ -283,8 +284,8 @@ export const CreateScreen = () => {
   // ── Render not logged in ───────────────────────────────────────────────────
   if (!authSession) {
     return (
-        <View style={styles.centerFull}>
-          <Text style={styles.gateEmoji}>🔒</Text>
+      <View style={styles.centerFull}>
+        <Text style={styles.gateEmoji}>{ICONS.lock}</Text>
           <Text style={styles.gateTitle}>Đăng nhập để tạo nội dung</Text>
         </View>
     );
@@ -293,8 +294,8 @@ export const CreateScreen = () => {
   // ── Render banned ─────────────────────────────────────────────────────────
   if (isBanned) {
     return (
-        <View style={styles.centerFull}>
-          <Text style={styles.gateEmoji}>🚫</Text>
+      <View style={styles.centerFull}>
+        <Text style={styles.gateEmoji}>{ICONS.banned}</Text>
           <Text style={styles.gateTitle}>Tài khoản bị hạn chế</Text>
           <Text style={styles.gateSub}>Liên hệ hỗ trợ để biết thêm chi tiết.</Text>
         </View>
@@ -314,11 +315,11 @@ export const CreateScreen = () => {
               colors={[COLORS.gradNavy, COLORS.bg]}
               style={[styles.hero, { paddingTop: insets.top + 20 }]}
           >
-            <Text style={styles.heroEmoji}>🎼</Text>
+            <Text style={styles.heroEmoji}>{ICONS.music_note}</Text>
             <Text style={styles.heroTitle}>Creator Studio</Text>
             <Text style={styles.heroSub}>
               {canUpload
-                  ? `Xin chào, ${artistProfile?.stageName} 👋`
+                  ? `Xin chào, ${artistProfile?.stageName} ${ICONS.wave}`
                   : isArtist && !hasActiveSub
                       ? 'Gói cước đã hết hạn — gia hạn để tiếp tục upload'
                       : !isArtist
@@ -445,7 +446,7 @@ export const CreateScreen = () => {
                   >
                     {pickedFile ? (
                         <View style={styles.filePickerRow}>
-                          <Text style={styles.fileIcon}>🎵</Text>
+                          <Text style={styles.fileIcon}>{ICONS.song}</Text>
                           <View style={styles.fileInfo}>
                             <Text style={styles.fileName} numberOfLines={1}>
                               {pickedFile.name}

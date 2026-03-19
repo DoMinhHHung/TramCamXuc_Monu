@@ -1,0 +1,384 @@
+================================================================================
+                    MONU DESIGN SYSTEM - VISUAL GUIDE
+================================================================================
+
+This is a text-based visual reference for the design system. Use this alongside
+the code files and documentation.
+
+================================================================================
+                              SPACING GRID (8PT)
+================================================================================
+
+xs  4px   ░░          (micro spacing, line-height adjustments)
+sm  8px   ░░░░        (tight spacing, inline elements)
+md 16px   ░░░░░░░░    (standard padding - MOST COMMON)
+lg 24px   ░░░░░░░░░░░░ (section spacing)
+xl 32px   ░░░░░░░░░░░░░░░░ (major sections)
+xxl 48px  ░░░░░░░░░░░░░░░░░░░░░░░░ (page spacing)
+
+8pt Grid Visual:
+┌────────────────────────────────────────────────────────────────┐
+│ ░░ 4px                                                          │
+├────────────────────────────────────────────────────────────────┤
+│ ░░░░ 8px                                                        │
+├────────────────────────────────────────────────────────────────┤
+│ ░░░░░░░░ 16px (standard)                                       │
+├────────────────────────────────────────────────────────────────┤
+│ ░░░░░░░░░░░░ 24px (section)                                    │
+├────────────────────────────────────────────────────────────────┤
+│ ░░░░░░░░░░░░░░░░ 32px (major)                                 │
+├────────────────────────────────────────────────────────────────┤
+│ ░░░░░░░░░░░░░░░░░░░░░░░░ 48px (page)                          │
+└────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                           TYPOGRAPHY HIERARCHY
+================================================================================
+
+H1 - 34px (extrabold, -0.5 letter-spacing)
+     ╔═══════════════════════════════════════════╗
+     ║ Welcome Back, User                        ║
+     ║ Very Large Hero Title                     ║
+     ╚═══════════════════════════════════════════╝
+
+H2 - 32px (extrabold, -0.4 letter-spacing)
+     ╔═══════════════════════════════════════════╗
+     ║ Page Title                                ║
+     ║ Main Content Header                       ║
+     ╚═══════════════════════════════════════════╝
+
+H3 - 26px (extrabold, -0.3 letter-spacing)
+     ┌───────────────────────────────────────────┐
+     │ Section Title                             │
+     │ Category or Major Subheading              │
+     └───────────────────────────────────────────┘
+
+H4 - 22px (bold)
+     ┌───────────────────────────────────────────┐
+     │ Card Title or Subsection                  │
+     └───────────────────────────────────────────┘
+
+H5/H6 - 20px/18px (bold)
+     Standard heading sizes for cards and lists
+
+Body (14px, normal weight, relaxed line height)
+     This is body text. It should be comfortable to read
+     with plenty of breathing room. Line height is relaxed
+     at 1.5x for natural, easy reading.
+
+BodyLg (15px) - Larger body text
+BodySm (13px) - Smaller descriptions
+
+Label (12px, bold, uppercase, +0.8 letter-spacing)
+     FIELD LABEL OR CAPTION
+
+Hint/Muted (13px, gray color)
+     Small helper text or secondary information
+
+Error (13px, red color)
+     Error message shown to user
+
+Success (13px, green color)
+     Success confirmation message
+
+Accent (varies, accent color)
+     Highlighted or interactive text
+
+================================================================================
+                              ICON SIZES
+================================================================================
+
+XS  16px  └─┬─┘                    (inline icons)
+SM  20px  └─┼─┘                    (buttons, tabs)
+MD  24px  └─┼─┴─┐                  (standard elements)
+LG  32px  └─┼─┴─┴─┐                (large buttons)
+XL  48px  └─┼─┴─┴─┴─┐              (hero sections)
+XXL 56px  └─┼─┴─┴─┴─┴─┐            (large displays)
+XXXL 64px └─┼─┴─┴─┴─┴─┴─┐          (full-screen heroes)
+
+Examples:
+16px:  🎵  ← inline music icon
+20px:  🎵  ← button icon
+24px:  🎵  ← standard icon
+32px:  🎵  ← large card icon
+48px:  🎵  ← hero section
+56px:  🎵  ← large display
+64px:  🎵  ← full screen
+
+================================================================================
+                            ICON CATEGORIES
+================================================================================
+
+MUSIC ICONS (Music-related)
+  🎵 song           🎧 headphones     🎸 guitar
+  🎹 piano          🎤 microphone     🎼 music_note
+  💿 disk           📋 playlist
+
+ACTION ICONS (User interactions)
+  ↗ share          ⬛ qr              🌟 discovery
+  ⚙️ settings       ❤️ favorite        ✚ add
+  ✓ checkmark      ✕ close            ⋯ more
+  › arrow_right    ‹ arrow_left
+
+STATUS ICONS (States and conditions)
+  🔒 lock          🌐 public          🚫 banned
+  ⟳ loading        ✓ success          ⚠ error
+  ℹ info
+
+UI ICONS (Interface elements)
+  ✨ sparkles      📄 document        📎 paperclip
+  ⬆ upload         ⬇ download         🔔 bell
+  🔍 search        🏠 home            👤 user
+  ⏱ clock          🔗 link            🔐 lock_alt
+  🔊 volume
+
+GREETING ICONS (Welcome/celebration)
+  👋 wave          🎉 tada            🚀 rocket
+  ⭐ star          🔥 fire            ⚡ zap
+  👑 crown
+
+================================================================================
+                         LAYOUT PRESETS VISUAL
+================================================================================
+
+┌──────────────────────────────────────────┐
+│ PRESET: centerFull                       │
+│ flex: 1, alignItems: center,             │
+│ justifyContent: center                   │
+├──────────────────────────────────────────┤
+│                                          │
+│                                          │
+│            ┌──────────────┐              │
+│            │  Centered    │              │
+│            │   Content    │              │
+│            └──────────────┘              │
+│                                          │
+│                                          │
+└──────────────────────────────────────────┘
+
+┌──────────────────────────────────────────┐
+│ PRESET: rowBetween                       │
+│ row, center, space-between               │
+├──────────────────────────────────────────┤
+│ ┌──────────┐              ┌──────────┐   │
+│ │ Content  │              │ Action   │   │
+│ └──────────┘              └──────────┘   │
+└──────────────────────────────────────────┘
+
+┌──────────────────────────────────────────┐
+│ PRESET: rowCenter                        │
+│ row, center, gap: md (16px)              │
+├──────────────────────────────────────────┤
+│ ┌──────────┐  gap  ┌──────────┐  gap  │  │
+│ │  Icon    │       │  Text    │         │  │
+│ └──────────┘       └──────────┘         │  │
+└──────────────────────────────────────────┘
+
+┌──────────────────────────────────────────┐
+│ PRESET: card                             │
+│ surface bg, radius, padding              │
+├──────────────────────────────────────────┤
+│  ┌────────────────────────────────────┐  │
+│  │ Card Title (16px padding)          │  │
+│  │                                    │  │
+│  │ Card description or content        │  │
+│  │                                    │  │
+│  └────────────────────────────────────┘  │
+└──────────────────────────────────────────┘
+
+┌──────────────────────────────────────────┐
+│ PRESET: section                          │
+│ horizontal pad: md, top margin: lg       │
+├──────────────────────────────────────────┤
+│                                          │
+│   ┌──────────────────────────────────┐   │
+│   │ Section Content                  │   │
+│   │ (16px horizontal, 24px top)      │   │
+│   └──────────────────────────────────┘   │
+│                                          │
+└──────────────────────────────────────────┘
+
+================================================================================
+                            COLOR PALETTE
+================================================================================
+
+PRIMARY ACCENT: Lavender/Purple (#C084FC)
+  Used for: buttons, links, active states, highlights
+
+BACKGROUNDS:
+  Main:      #0D0D14 (very dark)
+  Surface:   #1E1A38 (card/modal)
+  Surface-:  #16132A (lower)
+  Surface~:  #2A2A3A (middle)
+
+TEXT COLORS:
+  Primary:   #FFFFFF (white)
+  Secondary: #F3F0FF (off-white)
+  Muted:     #7B7591 (gray)
+  Hint:      glass40-50 (light gray)
+
+SEMANTIC:
+  Error:     #EF4444 (red)
+  Success:   #22C55E (green)
+  Warning:   #F59E0B (orange)
+  Info:      #3B82F6 (blue)
+
+GLASS (Transparency layers):
+  glass08:  2% white opacity (subtle)
+  glass15:  15% white opacity (visible)
+  glass30:  30% white opacity (clear)
+  glass50:  50% white opacity (prominent)
+  glass80:  80% white opacity (text)
+
+================================================================================
+                          COMPONENT SPACING
+================================================================================
+
+BUTTON
+┌─────────────────────────────────────┐
+│    ┌─────────────────────────────┐  │
+│    │  ├─ Text (16px)        ├─  │  │
+│    └─────────────────────────────┘  │
+│ min-height: 56px, radius: 12px      │
+└─────────────────────────────────────┘
+
+TEXT INPUT
+┌──────────────────────────────────────┐
+│  ┌────────────────────────────────┐  │
+│  │ ├─ Placeholder text    ├─ eye  │  │
+│  └────────────────────────────────┘  │
+│  padding: 12px vertical, 16px horiz  │
+│  radius: 12px                        │
+└──────────────────────────────────────┘
+
+LIST ITEM
+┌──────────────────────────────────────┐
+│  ├─ Icon ├─ Title                    │
+│  │   (24px)  (15px, bold)            │
+│  ├─ Subtitle (13px, gray)            │
+│  padding: 14px top/bottom, 16px x    │
+└──────────────────────────────────────┘
+  border-bottom: 1px, glass06
+
+CARD
+┌──────────────────────────────────────┐
+│                                      │
+│  Title (20px, bold)                  │
+│                    (gap: 8px)        │
+│  Description (14px)                  │
+│                                      │
+│  Button (56px height)                │
+│                    (gap: 16px top)   │
+│                                      │
+└──────────────────────────────────────┘
+  padding: 20px, radius: 18px, shadow
+
+================================================================================
+                        SHADOW/ELEVATION SYSTEM
+================================================================================
+
+shadowSmall (elevation: 2)
+  offset: 0, 1    opacity: 0.08    blur: 3px
+  Use: subtle card, hover states
+
+shadowMedium (elevation: 4)
+  offset: 0, 2    opacity: 0.10    blur: 6px
+  Use: cards, modals, buttons
+
+shadowLarge (elevation: 8)
+  offset: 0, 4    opacity: 0.15    blur: 12px
+  Use: important modals, featured sections
+
+shadowXl (elevation: 12)
+  offset: 0, 8    opacity: 0.20    blur: 16px
+  Use: fullscreen modals, overlays
+
+Stacking (visual hierarchy):
+  Base (no shadow)  ↓
+  shadowSmall       ↓ (cards)
+  shadowMedium      ↓ (modal)
+  shadowLarge       ↓ (important)
+  shadowXl          ↓ (fullscreen)
+
+================================================================================
+                        PRACTICAL LAYOUT EXAMPLES
+================================================================================
+
+Example 1: Song Card
+┌─────────────────────────────────────┐
+│                                     │
+│  🎵 Song Title (20px bold)          │
+│                            (gap 8)  │
+│  by Artist Name (13px gray)         │
+│                                     │
+│  (padding: 16px all, shadow)        │
+└─────────────────────────────────────┘
+
+Example 2: Action Row
+┌─────────────────────────────────────┐
+│ 🎵 My Music          ➤              │
+│  (24px)            (20px)           │
+└─────────────────────────────────────┘
+  (gap: 16px, space-between)
+
+Example 3: Form Section
+  FIELD LABEL (12px, uppercase)
+  (gap: 8px)
+  ┌─────────────────────────────────┐
+  │ your@email.com                  │
+  └─────────────────────────────────┘
+  (padding: 12/16, border, radius 12px)
+  (gap: 16px to next section)
+
+Example 4: Button with Icon
+  ┌──────────────────────────────────┐
+  │  🌟  Continue  (gap: 12px)       │
+  │                                  │
+  │  height: 56px, radius: 999px     │
+  │  Text: 17px bold                 │
+  │  Icon: 32px                      │
+  └──────────────────────────────────┘
+
+================================================================================
+                              KEY TAKEAWAYS
+================================================================================
+
+✓ Use 8pt multiples for all spacing (4, 8, 16, 24, 32, 48)
+✓ Use TEXT_STYLES presets instead of inline font sizes
+✓ Use ICONS constants instead of hardcoded emojis
+✓ Use LAYOUT_PRESETS for common patterns
+✓ Maintain clear h1-h6 hierarchy
+✓ Keep spacing consistent within sections
+✓ Use semantic icons from organized categories
+✓ Apply appropriate shadows for depth
+✓ Never use magic numbers - use constants
+
+CONSISTENCY = BEAUTY = PROFESSIONALISM
+
+================================================================================
+                          QUICK DECISION GUIDE
+================================================================================
+
+Question: What spacing should I use?
+Answer:   Use SPACING constants: xs(4), sm(8), md(16), lg(24), xl(32), xxl(48)
+
+Question: What size should this text be?
+Answer:   Use TEXT_STYLES: h1-h6 for headings, body/bodySm for text, label for captions
+
+Question: Which icon should I use?
+Answer:   Find in ICONS config: music, action, status, ui, greeting categories
+
+Question: What should this layout look like?
+Answer:   Use LAYOUT_PRESETS: centerFull, rowBetween, rowCenter, card, section
+
+Question: Should I add custom styling?
+Answer:   Only if it's not covered by design system. Prefer presets!
+
+Question: How do I make things consistent?
+Answer:   Use design system constants. Never hardcode values!
+
+================================================================================
+                        Document Version: 1.0
+                         Last Updated: Mar 2026
+                     For full documentation, see DESIGN_SYSTEM.md
+================================================================================

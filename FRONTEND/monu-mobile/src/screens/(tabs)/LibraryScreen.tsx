@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {Fontisto, AntDesign, FontAwesome} from '@expo/vector-icons';
 
 import { COLORS } from '../../config/colors';
+import { ICONS, ICON_SIZES } from '../../config/icons';
 import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
 import {
@@ -63,7 +64,7 @@ const getSongStatusLabel = (song: Song): { label: string; color: string; pulse: 
     case 'PENDING':
       return { label: 'Đang trong hàng chờ phát hành...', color: COLORS.warningMid, pulse: true };
     case 'PROCESSING':
-      return { label: 'Đang chuẩn bị, sắp xong rồi ✨', color: COLORS.accent, pulse: true };
+      return { label: `Đang chuẩn bị, sắp xong rồi ${ICONS.sparkles}`, color: COLORS.accent, pulse: true };
     case 'FAILED':
       return { label: 'Phát hành thất bại — thử đăng lại', color: COLORS.error, pulse: false };
     case 'COMPLETED':
@@ -86,8 +87,8 @@ const TabBar = ({
 }) => {
   const tabs: { key: Tab; label: string; icon: string| React.ReactNode }[] = [
     { key: 'playlists', label: 'Playlist', icon: <Fontisto name="play-list" color="#A855F7" size={14} /> },
-    { key: 'songs',     label: 'Bài hát',  icon: '🎵' },
-    { key: 'albums',    label: 'Album',    icon: '💿' },
+    { key: 'songs',     label: 'Bài hát',  icon: ICONS.song },
+    { key: 'albums',    label: 'Album',    icon: ICONS.disk },
   ];
 
   return (
@@ -714,13 +715,13 @@ const ShareOptionsSheet = ({ visible, item, onClose, onQr, onExternal, onDiscove
             onPress={() => { onClose(); onDiscovery(); }}
           >
             <View style={[shareOptionStyles.iconWrap, { backgroundColor: COLORS.accentFill25 }]}>
-              <Text style={shareOptionStyles.emoji}>🌟</Text>
+              <Text style={shareOptionStyles.emoji}>{ICONS.discovery}</Text>
             </View>
             <View style={shareOptionStyles.info}>
               <Text style={shareOptionStyles.label}>Chia sẻ lên Discovery</Text>
               <Text style={shareOptionStyles.desc}>Đăng bài viết lên cộng đồng</Text>
             </View>
-            <Text style={shareOptionStyles.arrow}>›</Text>
+            <Text style={shareOptionStyles.arrow}>{ICONS.arrow_right}</Text>
           </Pressable>
 
           <Pressable 
@@ -728,13 +729,13 @@ const ShareOptionsSheet = ({ visible, item, onClose, onQr, onExternal, onDiscove
             onPress={() => { onClose(); onExternal(); }}
           >
             <View style={[shareOptionStyles.iconWrap, { backgroundColor: COLORS.accentFill25 }]}>
-              <Text style={shareOptionStyles.emoji}>↗</Text>
+              <Text style={shareOptionStyles.emoji}>{ICONS.share}</Text>
             </View>
             <View style={shareOptionStyles.info}>
               <Text style={shareOptionStyles.label}>Chia sẻ ra ngoài app</Text>
               <Text style={shareOptionStyles.desc}>Gửi link qua tin nhắn, mạng xã hội...</Text>
             </View>
-            <Text style={shareOptionStyles.arrow}>›</Text>
+            <Text style={shareOptionStyles.arrow}>{ICONS.arrow_right}</Text>
           </Pressable>
 
           <Pressable 
@@ -742,13 +743,13 @@ const ShareOptionsSheet = ({ visible, item, onClose, onQr, onExternal, onDiscove
             onPress={() => { onClose(); onQr(); }}
           >
             <View style={[shareOptionStyles.iconWrap, { backgroundColor: COLORS.accentFill25 }]}>
-              <Text style={shareOptionStyles.emoji}>⬛</Text>
+              <Text style={shareOptionStyles.emoji}>{ICONS.qr}</Text>
             </View>
             <View style={shareOptionStyles.info}>
               <Text style={shareOptionStyles.label}>Chia sẻ bằng QR</Text>
               <Text style={shareOptionStyles.desc}>Tạo mã QR để quét</Text>
             </View>
-            <Text style={shareOptionStyles.arrow}>›</Text>
+            <Text style={shareOptionStyles.arrow}>{ICONS.arrow_right}</Text>
           </Pressable>
         </View>
 
