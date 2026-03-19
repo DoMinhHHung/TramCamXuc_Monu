@@ -574,21 +574,24 @@ const sheetStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: COLORS.scrim },
   sheet: {
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
     paddingBottom: 32,
   },
   handle: {
-    width: 36,
+    width: 40,
     height: 4,
     borderRadius: 2,
     backgroundColor: COLORS.glass20,
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 18,
   },
-  title: { color: COLORS.white, fontSize: 17, fontWeight: '700', marginBottom: 2 },
-  subtitle: { color: COLORS.glass45, fontSize: 13, marginBottom: 12 },
+  titleSection: {
+    paddingBottom: 4,
+  },
+  title: { color: COLORS.white, fontSize: 19, fontWeight: '700', marginBottom: 4 },
+  subtitle: { color: COLORS.glass50, fontSize: 14, marginBottom: 0, lineHeight: 20 },
   item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 },
   itemIcon: { fontSize: 18 },
   itemText: { flex: 1, color: COLORS.white, fontSize: 14, fontWeight: '500' },
@@ -700,40 +703,56 @@ const ShareOptionsSheet = ({ visible, item, onClose, onQr, onExternal, onDiscove
       <Pressable style={sheetStyles.overlay} onPress={onClose} />
       <View style={sheetStyles.sheet}>
         <View style={sheetStyles.handle} />
-        <Text style={sheetStyles.title}>Chia sẻ</Text>
-        <Text style={sheetStyles.subtitle} numberOfLines={1}>{item?.title}</Text>
+        <View style={sheetStyles.titleSection}>
+          <Text style={sheetStyles.title}>Chia sẻ</Text>
+          <Text style={sheetStyles.subtitle} numberOfLines={2}>{item?.title}</Text>
+        </View>
 
-        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onDiscovery(); }}>
-          <View style={[shareOptionStyles.iconWrap, { backgroundColor: '#4f46e5' }]}>
-            <Text style={{ fontSize: 20 }}>🌟</Text>
-          </View>
-          <View style={shareOptionStyles.info}>
-            <Text style={shareOptionStyles.label}>Chia sẻ lên Discovery</Text>
-            <Text style={shareOptionStyles.desc}>Đăng bài viết lên cộng đồng</Text>
-          </View>
-        </Pressable>
+        <View style={shareOptionStyles.container}>
+          <Pressable 
+            style={({ pressed }) => [shareOptionStyles.option, pressed && shareOptionStyles.optionPressed]} 
+            onPress={() => { onClose(); onDiscovery(); }}
+          >
+            <View style={[shareOptionStyles.iconWrap, { backgroundColor: COLORS.accentFill25 }]}>
+              <Text style={shareOptionStyles.emoji}>🌟</Text>
+            </View>
+            <View style={shareOptionStyles.info}>
+              <Text style={shareOptionStyles.label}>Chia sẻ lên Discovery</Text>
+              <Text style={shareOptionStyles.desc}>Đăng bài viết lên cộng đồng</Text>
+            </View>
+            <Text style={shareOptionStyles.arrow}>›</Text>
+          </Pressable>
 
-        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onExternal(); }}>
-          <View style={[shareOptionStyles.iconWrap, { backgroundColor: '#0891b2' }]}>
-            <Text style={{ fontSize: 20 }}>↗</Text>
-          </View>
-          <View style={shareOptionStyles.info}>
-            <Text style={shareOptionStyles.label}>Chia sẻ ra ngoài app</Text>
-            <Text style={shareOptionStyles.desc}>Gửi link qua tin nhắn, mạng xã hội...</Text>
-          </View>
-        </Pressable>
+          <Pressable 
+            style={({ pressed }) => [shareOptionStyles.option, shareOptionStyles.optionBorder, pressed && shareOptionStyles.optionPressed]} 
+            onPress={() => { onClose(); onExternal(); }}
+          >
+            <View style={[shareOptionStyles.iconWrap, { backgroundColor: COLORS.accentFill25 }]}>
+              <Text style={shareOptionStyles.emoji}>↗</Text>
+            </View>
+            <View style={shareOptionStyles.info}>
+              <Text style={shareOptionStyles.label}>Chia sẻ ra ngoài app</Text>
+              <Text style={shareOptionStyles.desc}>Gửi link qua tin nhắn, mạng xã hội...</Text>
+            </View>
+            <Text style={shareOptionStyles.arrow}>›</Text>
+          </Pressable>
 
-        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onQr(); }}>
-          <View style={[shareOptionStyles.iconWrap, { backgroundColor: '#059669' }]}>
-            <Text style={{ fontSize: 20 }}>⬛</Text>
-          </View>
-          <View style={shareOptionStyles.info}>
-            <Text style={shareOptionStyles.label}>Chia sẻ bằng QR</Text>
-            <Text style={shareOptionStyles.desc}>Tạo mã QR để quét</Text>
-          </View>
-        </Pressable>
+          <Pressable 
+            style={({ pressed }) => [shareOptionStyles.option, shareOptionStyles.optionBorder, pressed && shareOptionStyles.optionPressed]} 
+            onPress={() => { onClose(); onQr(); }}
+          >
+            <View style={[shareOptionStyles.iconWrap, { backgroundColor: COLORS.accentFill25 }]}>
+              <Text style={shareOptionStyles.emoji}>⬛</Text>
+            </View>
+            <View style={shareOptionStyles.info}>
+              <Text style={shareOptionStyles.label}>Chia sẻ bằng QR</Text>
+              <Text style={shareOptionStyles.desc}>Tạo mã QR để quét</Text>
+            </View>
+            <Text style={shareOptionStyles.arrow}>›</Text>
+          </Pressable>
+        </View>
 
-        <Pressable style={shareOptionStyles.cancelBtn} onPress={onClose}>
+        <Pressable style={({ pressed }) => [shareOptionStyles.cancelBtn, pressed && shareOptionStyles.cancelBtnPressed]} onPress={onClose}>
           <Text style={shareOptionStyles.cancelText}>Huỷ</Text>
         </Pressable>
       </View>
@@ -741,30 +760,52 @@ const ShareOptionsSheet = ({ visible, item, onClose, onQr, onExternal, onDiscove
 );
 
 const shareOptionStyles = StyleSheet.create({
+  container: {
+    borderRadius: 12,
+    backgroundColor: COLORS.surface,
+    marginHorizontal: 0,
+    marginVertical: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.glass10,
+  },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 13,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     gap: 14,
+  },
+  optionBorder: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.glass08,
+  },
+  optionPressed: {
+    backgroundColor: COLORS.glass08,
   },
   iconWrap: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  info: { flex: 1 },
+  emoji: { fontSize: 22 },
+  info: { flex: 1, gap: 3 },
   label: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
-  desc: { color: COLORS.glass45, fontSize: 12, marginTop: 2 },
+  desc: { color: COLORS.glass45, fontSize: 13, marginTop: 2 },
+  arrow: { color: COLORS.glass40, fontSize: 20, marginLeft: 4 },
   cancelBtn: {
-    marginTop: 8,
-    paddingVertical: 13,
+    marginTop: 12,
+    paddingVertical: 14,
     alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.glass08,
+    borderRadius: 10,
+    backgroundColor: COLORS.glass08,
   },
-  cancelText: { color: COLORS.glass60, fontSize: 15 },
+  cancelBtnPressed: {
+    opacity: 0.6,
+  },
+  cancelText: { color: COLORS.glass60, fontSize: 15, fontWeight: '600' },
 });
 
 // ─── Share to Discovery Modal ─────────────────────────────────────────────────

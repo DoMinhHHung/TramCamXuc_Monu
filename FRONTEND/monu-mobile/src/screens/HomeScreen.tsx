@@ -367,26 +367,31 @@ export const HomeScreen = () => {
       >
         <LinearGradient
           colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]}
-          style={[styles.header, { paddingTop: insets.top + 16 }]}
+          style={[styles.header, { paddingTop: insets.top + 18 }]}
         >
-          <Pressable style={styles.headerTop} onPress={() => navigation.navigate('Profile')}>
-            <View>
-              <Text style={styles.greeting}>{getGreeting()},</Text>
-              <Text style={styles.name}>{displayName} 👋</Text>
+          <Pressable 
+            style={styles.headerTop} 
+            onPress={() => navigation.navigate('Profile')}
+            android_ripple={{ color: 'rgba(255,255,255,0.05)', borderless: true }}
+          >
+            <View style={styles.headerContent}>
+              <Text style={styles.greeting}>{getGreeting()}</Text>
+              <Text style={styles.name} numberOfLines={1}>{displayName}</Text>
               {updatedLabel && (
                 <Text style={styles.updatedLabel}>{updatedLabel}</Text>
               )}
             </View>
             <View style={styles.avatarCircle}>
-              <Fontisto name="person" color="#3B82F6" size={24} />
+              <Fontisto name="person" color={COLORS.white} size={22} />
             </View>
           </Pressable>
 
           <Pressable
             onPress={() => navigation.navigate('Search')}
             style={styles.searchBar}
+            android_ripple={{ color: 'rgba(192,132,252,0.1)', borderless: false }}
           >
-            <MaterialIcons name="saved-search" color="#2563EB" size={26} />
+            <MaterialIcons name="search" color={COLORS.accent} size={20} />
             <Text style={styles.searchPlaceholder}>Tìm bài hát, nghệ sĩ...</Text>
           </Pressable>
         </LinearGradient>
@@ -395,10 +400,14 @@ export const HomeScreen = () => {
           <Text style={styles.sectionTitle}>Phát nhanh</Text>
           <View style={styles.grid}>
             {quickActions.map((item) => (
-              <Pressable key={item.title} style={styles.quickCard}>
+              <Pressable 
+                key={item.title} 
+                style={styles.quickCard}
+                android_ripple={{ color: 'rgba(255,255,255,0.1)', borderless: false }}
+              >
                 <LinearGradient colors={item.color} style={styles.quickGradient}>
                   <Text style={styles.cardEmoji}>{item.emoji}</Text>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
                 </LinearGradient>
               </Pressable>
             ))}
@@ -692,66 +701,70 @@ export const HomeScreen = () => {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.bg },
-  header: { paddingHorizontal: 20, paddingBottom: 20 },
+  header: { paddingHorizontal: 20, paddingBottom: 24 },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  greeting: { color: COLORS.glass50, fontSize: 14 },
-  name: { color: COLORS.white, fontSize: 26, fontWeight: '800' },
-  updatedLabel: { color: COLORS.glass30, fontSize: 11, marginTop: 2 },
+  headerContent: { flex: 1 },
+  greeting: { color: COLORS.glass50, fontSize: 13, fontWeight: '500', letterSpacing: 0.3 },
+  name: { color: COLORS.white, fontSize: 28, fontWeight: '800', marginTop: 2, lineHeight: 33 },
+  updatedLabel: { color: COLORS.glass35, fontSize: 11, marginTop: 4, fontWeight: '500' },
   avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: COLORS.glass10,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.accentFill25,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 12,
+    borderWidth: 1,
+    borderColor: COLORS.accentBorder25,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.glass08,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingVertical: 12,
     gap: 10,
     borderWidth: 1,
     borderColor: COLORS.glass12,
   },
-  searchPlaceholder: { color: COLORS.glass40, fontSize: 14, flex: 1 },
-  section: { paddingHorizontal: 20, marginTop: 24 },
-  sectionTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 14 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  quickCard: { width: '47%', borderRadius: 14, overflow: 'hidden' },
-  quickGradient: { padding: 16, minHeight: 90, justifyContent: 'space-between' },
-  cardEmoji: { fontSize: 26 },
-  cardTitle: { color: COLORS.white, fontWeight: '700' },
+  searchPlaceholder: { color: COLORS.glass40, fontSize: 14, flex: 1, fontWeight: '500' },
+  section: { paddingHorizontal: 20, marginTop: 28 },
+  sectionTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 16, letterSpacing: -0.4 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  quickCard: { width: '47.5%', borderRadius: 16, overflow: 'hidden', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8 },
+  quickGradient: { padding: 18, minHeight: 110, justifyContent: 'space-between' },
+  cardEmoji: { fontSize: 28 },
+  cardTitle: { color: COLORS.white, fontWeight: '700', fontSize: 14, lineHeight: 18 },
   genreHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginTop: 18,
-    marginBottom: 8,
+    marginTop: 24,
+    marginBottom: 12,
   },
-  genreSectionTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
-  seeMoreText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
-  loadingWrap: { alignItems: 'center', paddingVertical: 32 },
-  loadingText: { color: COLORS.glass35, fontSize: 13, marginTop: 10 },
+  genreSectionTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700', letterSpacing: -0.3 },
+  seeMoreText: { color: COLORS.accent, fontSize: 12, fontWeight: '600', paddingVertical: 6, paddingHorizontal: 10 },
+  loadingWrap: { alignItems: 'center', paddingVertical: 40, gap: 10 },
+  loadingText: { color: COLORS.glass40, fontSize: 14, fontWeight: '500', marginTop: 4 },
   errorWrap: {
     marginHorizontal: 20,
-    marginTop: 12,
-    borderRadius: 10,
+    marginTop: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.error,
-    backgroundColor: COLORS.warningDim,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: COLORS.errorDim,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  errorText: { color: COLORS.error, fontSize: 12, fontWeight: '600' },
+  errorText: { color: COLORS.error, fontSize: 13, fontWeight: '600', lineHeight: 18 },
   backdrop: {
     flex: 1,
     backgroundColor: COLORS.scrim,
@@ -762,35 +775,41 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     backgroundColor: COLORS.surface,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 18,
+    padding: 20,
     borderWidth: 1,
-    borderColor: COLORS.glass10,
+    borderColor: COLORS.glass12,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
   },
-  modalTitle: { color: COLORS.white, fontSize: 17, fontWeight: '800', marginBottom: 10 },
+  modalTitle: { color: COLORS.white, fontSize: 18, fontWeight: '800', marginBottom: 14, lineHeight: 24 },
   modalClose: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: 12,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: COLORS.glass10,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
-  modalCloseIcon: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  modalItem: { color: COLORS.glass85, fontSize: 14, marginTop: 8 },
-  modalItemAccent: { color: COLORS.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
+  modalCloseIcon: { color: COLORS.glass60, fontSize: 18, fontWeight: '700' },
+  modalItem: { color: COLORS.glass80, fontSize: 15, marginTop: 10, paddingVertical: 8, paddingHorizontal: 4 },
+  modalItemAccent: { color: COLORS.accent, fontSize: 15, fontWeight: '700', marginTop: 10, paddingVertical: 8, paddingHorizontal: 4 },
   playlistInput: {
     color: COLORS.white,
     borderWidth: 1,
-    borderColor: COLORS.glass20,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginTop: 10,
+    borderColor: COLORS.glass15,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12,
+    backgroundColor: COLORS.surfaceLow,
   },
-  qrImage: { width: 220, height: 220, borderRadius: 8, alignSelf: 'center', marginTop: 12 },
+  qrImage: { width: 240, height: 240, borderRadius: 12, alignSelf: 'center', marginTop: 16 },
 });
