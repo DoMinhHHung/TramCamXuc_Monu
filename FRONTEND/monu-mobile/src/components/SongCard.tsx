@@ -5,6 +5,7 @@ import { AntDesign } from '@expo/vector-icons';
 
 import { Song } from '../services/music';
 import { COLORS } from '../config/colors';
+import { MUSIC_EMOJIS } from '../config/emojis';
 import { HeartButton } from './HeartButton';
 
 type Props = {
@@ -35,7 +36,7 @@ export const SongCard = ({
         <View style={[styles.listIconWrap, isActive && styles.listIconWrapActive]}>
           {song.thumbnailUrl
               ? <Image source={{ uri: song.thumbnailUrl }} style={styles.songThumbnail} />
-              : <Text style={styles.listIcon}>🎵</Text>}
+              : <Text style={styles.listIcon}>{MUSIC_EMOJIS.song}</Text>}
         </View>
 
         <View style={styles.listInfo}>

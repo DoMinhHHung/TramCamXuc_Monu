@@ -23,6 +23,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {Fontisto, AntDesign, FontAwesome} from '@expo/vector-icons';
 
 import { COLORS } from '../../config/colors';
+import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
 import {

@@ -6,7 +6,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS }                 from '../config/colors';
+import { NAV_ICONS }              from '../config/icons';
 import { useAuth }                from '../context/AuthContext';
+import { useTranslation }         from '../context/LocalizationContext';
 import { usePlayer }              from '../context/PlayerContext';
 import { UploadProvider }         from '../context/UploadContext';
 
@@ -90,11 +92,11 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab   = createBottomTabNavigator<MainTabParamList>();
 
 const tabMeta: Record<keyof MainTabParamList, { label: string; icon: string }> = {
-    Home:     { label: 'Trang chủ', icon: 'home'          },
-    Discover: { label: 'Khám phá',  icon: 'explore'       },
-    Create:   { label: 'Tạo',       icon: 'add'           },
-    Library:  { label: 'Thư viện',  icon: 'library-music' },
-    Premium:  { label: 'Premium',   icon: 'redeem'        },
+    Home:     { label: 'Trang chủ', icon: NAV_ICONS.home          },
+    Discover: { label: 'Khám phá',  icon: NAV_ICONS.discover       },
+    Create:   { label: 'Tạo',       icon: NAV_ICONS.create         },
+    Library:  { label: 'Thư viện',  icon: NAV_ICONS.library        },
+    Premium:  { label: 'Premium',   icon: NAV_ICONS.premium        },
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
@@ -102,14 +104,29 @@ const linking: LinkingOptions<RootStackParamList> = {
     config: { screens: { MainTabs: 'home' } },
 };
 
-const MainTabNavigator = () => (
+const MainTabNavigator = () => {
+    const { t } = useTranslation();
+    
+    // Build labels dynamically with translations
+    const getTabLabel = (routeName: keyof MainTabParamList): string => {
+        const labelKeys: Record<keyof MainTabParamList, string> = {
+            Home: 'navigation.home',
+            Discover: 'navigation.discover',
+            Create: 'navigation.create',
+            Library: 'navigation.library',
+            Premium: 'navigation.premium',
+        };
+        return t(labelKeys[routeName]);
+    };
+    
+    return (
     <Tab.Navigator
         screenOptions={({ route }: any) => {
             const meta     = tabMeta[route.name as keyof MainTabParamList];
             const isCreate = route.name === 'Create';
             return {
                 headerShown: false,
-                tabBarLabel: meta.label,
+                tabBarLabel: getTabLabel(route.name as keyof MainTabParamList),
                 tabBarStyle: {
                     backgroundColor: COLORS.surface,
                     borderTopColor:  COLORS.border,
@@ -137,7 +154,8 @@ const MainTabNavigator = () => (
         <Tab.Screen name="Library"  component={LibraryScreen}  />
         <Tab.Screen name="Premium"  component={PremiumScreen}  />
     </Tab.Navigator>
-);
+    );
+};
 
 const GlobalOverlays = () => {
     const { pendingAd, dismissAd, currentSong } = usePlayer();

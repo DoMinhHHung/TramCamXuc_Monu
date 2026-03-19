@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../../components/BackButton';
 import { GenreChip } from '../../components/GenreChip';
 import { COLORS } from '../../config/colors';
+import { ONBOARDING_EMOJIS } from '../../config/emojis';
 import { useAuth } from '../../context/AuthContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { getPopularGenres } from '../../services/favorites';
@@ -100,7 +101,7 @@ export const SelectGenresScreen = () => {
               <View style={styles.stepDot} />
             </View>
 
-            <Text style={styles.emoji}>🎵</Text>
+            <Text style={styles.emoji}>{ONBOARDING_EMOJIS.welcome}</Text>
             <Text style={styles.title}>Chào mừng đến{'\n'}PhazelSound!</Text>
             <Text style={styles.subtitle}>Chọn thể loại nhạc bạn yêu thích</Text>
           </LinearGradient>

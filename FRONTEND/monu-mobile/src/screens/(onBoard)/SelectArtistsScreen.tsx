@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArtistCard } from '../../components/ArtistCard';
 import { BackButton } from '../../components/BackButton';
 import { COLORS } from '../../config/colors';
+import { ONBOARDING_EMOJIS } from '../../config/emojis';
 import { useAuth } from '../../context/AuthContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { getPopularArtists, updateMyFavorites } from '../../services/favorites';
@@ -85,7 +86,7 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
               <View style={styles.stepDotActive} />
             </View>
 
-            <Text style={styles.emoji}>🎤</Text>
+            <Text style={styles.emoji}>{ONBOARDING_EMOJIS.artist}</Text>
             <Text style={styles.title}>Nghệ sĩ bạn{'\n'}yêu thích</Text>
             <Text style={styles.subtitle}>Playlist của bạn sẽ được cá nhân hóa theo lựa chọn này</Text>
           </LinearGradient>

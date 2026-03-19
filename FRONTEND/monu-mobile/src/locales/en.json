@@ -1,0 +1,179 @@
+{
+  "common": {
+    "appName": "Monu",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "done": "Done",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "share": "Share",
+    "more": "More",
+    "search": "Search",
+    "noResults": "No results found",
+    "tryAgain": "Try Again",
+    "offline": "You're offline",
+    "comingSoon": "Coming Soon"
+  },
+  "navigation": {
+    "home": "Home",
+    "discover": "Discover",
+    "create": "Create",
+    "library": "Library",
+    "premium": "Premium"
+  },
+  "screens": {
+    "home": {
+      "greeting": "Hi",
+      "recentlyUpdated": "Recently updated",
+      "searchPlaceholder": "Find songs, artists...",
+      "quickActions": "Quick Actions",
+      "loadingRecommendations": "Loading music recommendations...",
+      "expandedSections": "Music by Genre",
+      "loadingExpandedSections": "Loading more music sections...",
+      "showMore": "See more",
+      "showLess": "Collapse"
+    },
+    "discover": {
+      "title": "Discover",
+      "exploreNew": "Explore new music",
+      "trending": "Trending",
+      "featured": "Featured",
+      "newReleases": "New Releases",
+      "recommended": "Recommended for You"
+    },
+    "library": {
+      "title": "Library",
+      "myPlaylists": "My Playlists",
+      "savedSongs": "Saved Songs",
+      "favoriteArtists": "Favorite Artists",
+      "empty": "Your library is empty",
+      "recentlyPlayed": "Recently Played",
+      "downloads": "Downloads"
+    },
+    "create": {
+      "title": "Create",
+      "uploadSong": "Upload Song",
+      "newPlaylist": "New Playlist",
+      "myUploads": "My Uploads",
+      "uploadInstructions": "Select an audio file to upload"
+    },
+    "profile": {
+      "title": "Profile",
+      "myProfile": "My Profile",
+      "editProfile": "Edit Profile",
+      "settings": "Settings",
+      "logout": "Logout",
+      "language": "Language",
+      "theme": "Theme",
+      "about": "About",
+      "help": "Help",
+      "privacyPolicy": "Privacy Policy",
+      "termsOfService": "Terms of Service"
+    },
+    "insights": {
+      "title": "Insights",
+      "overview": "Overview",
+      "listeningTime": "Listening Time",
+      "uniqueSongs": "Unique Songs",
+      "currentStreak": "Current Streak",
+      "longestStreak": "Longest Streak",
+      "minutes": "minutes listened",
+      "different": "different songs",
+      "consecutive": "consecutive days",
+      "longest": "longest streak"
+    },
+    "playlist": {
+      "createNew": "Create New Playlist",
+      "playlistName": "Playlist name",
+      "playlistDescription": "Description (optional)",
+      "addToPlaylist": "Add to Playlist",
+      "removeFromPlaylist": "Remove from Playlist",
+      "deletePlaylist": "Delete Playlist",
+      "songs": "songs"
+    },
+    "artist": {
+      "followArtist": "Follow Artist",
+      "unfollowArtist": "Unfollow Artist",
+      "followers": "followers",
+      "listening": "Listening now",
+      "aboutArtist": "About Artist"
+    }
+  },
+  "actions": {
+    "shareQR": "Share via QR",
+    "addToPlaylist": "Add to Playlist",
+    "download": "Download",
+    "removeFromFavorites": "Don't want to hear this",
+    "reportSong": "Report Song",
+    "createNewPlaylist": "Create new and add",
+    "sharePlaylist": "Share Playlist",
+    "editPlaylist": "Edit Playlist",
+    "deletePlaylist": "Delete Playlist",
+    "confirmDelete": "Are you sure you want to delete?",
+    "canListenOffline": "Can listen offline",
+    "requiresPremium": "Requires Premium"
+  },
+  "modals": {
+    "addToPlaylist": "Add to Playlist",
+    "sharePlaylist": "Share Playlist",
+    "couldNotGenerateQR": "Could not generate QR"
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "name": "Name",
+    "forgotPassword": "Forgot Password?",
+    "resetPassword": "Reset Password",
+    "verifyEmail": "Verify Email",
+    "verifyOtp": "Verify OTP",
+    "enterOtp": "Enter OTP sent to your email",
+    "resendOtp": "Resend OTP",
+    "createAccount": "Create Account",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?",
+    "welcomeBack": "Welcome Back",
+    "getStarted": "Get Started",
+    "selectLanguage": "Select Language",
+    "selectGenres": "Select Genres",
+    "selectArtists": "Select Artists",
+    "selectGenresDescription": "Choose music genres you like",
+    "selectArtistsDescription": "Your playlists will be personalized based on your choices"
+  },
+  "premium": {
+    "title": "Premium",
+    "upgrade": "Upgrade to Premium",
+    "benefits": "Benefits",
+    "noAds": "No Ads",
+    "unlimitedSkips": "Unlimited Skips",
+    "offlineListening": "Offline Listening",
+    "highQualityAudio": "High Quality Audio",
+    "subscribe": "Subscribe Now",
+    "currentPlan": "Current Plan"
+  },
+  "errors": {
+    "networkError": "Network error. Please check your connection.",
+    "loadingFailed": "Failed to load content. Please try again.",
+    "uploadFailed": "Upload failed. Please try again.",
+    "invalidEmail": "Invalid email address",
+    "passwordMismatch": "Passwords do not match",
+    "required": "This field is required",
+    "somethingWentWrong": "Something went wrong. Please try again."
+  },
+  "onboarding": {
+    "selectGenres": "Select Genres",
+    "selectGenresTitle": "Welcome to Monu!",
+    "selectGenresSubtitle": "Choose music genres you like",
+    "selectArtists": "Select Artists",
+    "selectArtistsTitle": "Your Favorite Artists",
+    "selectArtistsSubtitle": "Your playlists will be personalized based on your choices",
+    "selectCount": "Select {min}–{max}",
+    "selected": "{count}/{max}"
+  }
+}

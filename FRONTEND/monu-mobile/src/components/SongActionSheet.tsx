@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../config/colors';
+import { MUSIC_EMOJIS } from '../config/emojis';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ export const SongActionSheet = ({
                                   title,
                                   subtitle,
                                   thumbnailUrl,
-                                  thumbnailEmoji = '🎵',
+                                  thumbnailEmoji = MUSIC_EMOJIS.song,
                                   onClose,
                                   actions,
                                 }: SongActionSheetProps) => {

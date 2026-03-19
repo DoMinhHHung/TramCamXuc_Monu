@@ -20,9 +20,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AntDesign, Fontisto, MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
+import { MOOD_EMOJIS, MUSIC_EMOJIS } from '../config/emojis';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
 import { useDownload } from '../context/DownloadContext';
+import { useTranslation } from '../context/LocalizationContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { RecommendationSection } from '../components/RecommendationSection';
 import { SongSection } from '../components/SongSection';
@@ -58,10 +60,10 @@ const toSong = (r: RecommendedSong): Song => ({
 });
 
 const quickActions = [
-  { title: 'Nhạc chữa lành', emoji: '🌙', color: [COLORS.cardHealingFrom, COLORS.gradPurple] as const },
-  { title: 'Top Trending', emoji: '🔥', color: [COLORS.cardTrendingFrom, COLORS.cardTrendingTo] as const },
-  { title: 'Acoustic', emoji: '🎸', color: [COLORS.cardAcousticFrom, COLORS.cardAcousticTo] as const },
-  { title: 'Lofi Focus', emoji: '🎧', color: [COLORS.cardLofiFrom, COLORS.cardLofiTo] as const },
+  { title: 'Nhạc chữa lành', emoji: MOOD_EMOJIS.healing, color: [COLORS.cardHealingFrom, COLORS.gradPurple] as const },
+  { title: 'Top Trending', emoji: MOOD_EMOJIS.trending, color: [COLORS.cardTrendingFrom, COLORS.cardTrendingTo] as const },
+  { title: 'Acoustic', emoji: MUSIC_EMOJIS.guitar, color: [COLORS.cardAcousticFrom, COLORS.cardAcousticTo] as const },
+  { title: 'Lofi Focus', emoji: MOOD_EMOJIS.focus, color: [COLORS.cardLofiFrom, COLORS.cardLofiTo] as const },
 ];
 
 const buildGenreSectionsFromPool = (
@@ -94,6 +96,7 @@ export const HomeScreen = () => {
   const { playSong, currentSong, isPlaying } = usePlayer();
   const insets = useSafeAreaInsets();
   const { startDownload, isDownloaded, getJobStatus } = useDownload();
+  const { t } = useTranslation();
 
   const {
     rec,
@@ -387,12 +390,12 @@ export const HomeScreen = () => {
             style={styles.searchBar}
           >
             <MaterialIcons name="saved-search" color="#2563EB" size={26} />
-            <Text style={styles.searchPlaceholder}>Tìm bài hát, nghệ sĩ...</Text>
+            <Text style={styles.searchPlaceholder}>{t('screens.home.searchPlaceholder')}</Text>
           </Pressable>
         </LinearGradient>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Phát nhanh</Text>
+          <Text style={styles.sectionTitle}>{t('screens.home.quickActions')}</Text>
           <View style={styles.grid}>
             {quickActions.map((item) => (
               <Pressable key={item.title} style={styles.quickCard}>
@@ -408,7 +411,7 @@ export const HomeScreen = () => {
         {loading && !rec.homeFeed && !rec.globalTrending.length && (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={COLORS.accent} />
-            <Text style={styles.loadingText}>Đang tải gợi ý nhạc...</Text>
+            <Text style={styles.loadingText}>{t('screens.home.loadingRecommendations')}</Text>
           </View>
         )}
 

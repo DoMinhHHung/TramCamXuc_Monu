@@ -1,0 +1,179 @@
+{
+  "common": {
+    "appName": "Monu",
+    "loading": "Đang tải...",
+    "error": "Lỗi",
+    "success": "Thành công",
+    "cancel": "Huỷ bỏ",
+    "done": "Xong",
+    "save": "Lưu",
+    "delete": "Xoá",
+    "edit": "Sửa",
+    "share": "Chia sẻ",
+    "more": "Thêm",
+    "search": "Tìm kiếm",
+    "noResults": "Không tìm thấy kết quả",
+    "tryAgain": "Thử Lại",
+    "offline": "Bạn đang ngoại tuyến",
+    "comingSoon": "Sắp có"
+  },
+  "navigation": {
+    "home": "Trang chủ",
+    "discover": "Khám phá",
+    "create": "Tạo",
+    "library": "Thư viện",
+    "premium": "Premium"
+  },
+  "screens": {
+    "home": {
+      "greeting": "Xin chào",
+      "recentlyUpdated": "Vừa cập nhật",
+      "searchPlaceholder": "Tìm bài hát, nghệ sĩ...",
+      "quickActions": "Phát nhanh",
+      "loadingRecommendations": "Đang tải gợi ý nhạc...",
+      "expandedSections": "Nhạc theo thể loại",
+      "loadingExpandedSections": "Đang tải mục nhạc mở rộng...",
+      "showMore": "Xem thêm",
+      "showLess": "Thu gọn"
+    },
+    "discover": {
+      "title": "Khám phá",
+      "exploreNew": "Khám phá nhạc mới",
+      "trending": "Đang Thịnh Hành",
+      "featured": "Nổi Bật",
+      "newReleases": "Phát Hành Mới",
+      "recommended": "Đề Xuất Cho Bạn"
+    },
+    "library": {
+      "title": "Thư viện",
+      "myPlaylists": "Playlist của tôi",
+      "savedSongs": "Bài hát đã lưu",
+      "favoriteArtists": "Nghệ sĩ yêu thích",
+      "empty": "Thư viện của bạn trống",
+      "recentlyPlayed": "Vừa phát",
+      "downloads": "Tải xuống"
+    },
+    "create": {
+      "title": "Tạo",
+      "uploadSong": "Tải lên bài hát",
+      "newPlaylist": "Playlist mới",
+      "myUploads": "Bài hát của tôi",
+      "uploadInstructions": "Chọn một tệp âm thanh để tải lên"
+    },
+    "profile": {
+      "title": "Hồ sơ",
+      "myProfile": "Hồ sơ của tôi",
+      "editProfile": "Chỉnh sửa hồ sơ",
+      "settings": "Cài đặt",
+      "logout": "Đăng xuất",
+      "language": "Ngôn ngữ",
+      "theme": "Chủ đề",
+      "about": "Về chúng tôi",
+      "help": "Trợ giúp",
+      "privacyPolicy": "Chính sách bảo mật",
+      "termsOfService": "Điều khoản dịch vụ"
+    },
+    "insights": {
+      "title": "Thống kê",
+      "overview": "Tổng quan",
+      "listeningTime": "Thời gian nghe nhạc",
+      "uniqueSongs": "Bài hát khác nhau",
+      "currentStreak": "Streak hiện tại",
+      "longestStreak": "Streak dài nhất",
+      "minutes": "phút nghe nhạc",
+      "different": "bài khác nhau",
+      "consecutive": "ngày liên tiếp",
+      "longest": "streak dài nhất"
+    },
+    "playlist": {
+      "createNew": "Tạo Playlist mới",
+      "playlistName": "Tên playlist",
+      "playlistDescription": "Mô tả (tùy chọn)",
+      "addToPlaylist": "Thêm vào playlist",
+      "removeFromPlaylist": "Xóa khỏi playlist",
+      "deletePlaylist": "Xóa playlist",
+      "songs": "bài hát"
+    },
+    "artist": {
+      "followArtist": "Theo dõi nghệ sĩ",
+      "unfollowArtist": "Bỏ theo dõi nghệ sĩ",
+      "followers": "người theo dõi",
+      "listening": "Đang nghe",
+      "aboutArtist": "Về nghệ sĩ"
+    }
+  },
+  "actions": {
+    "shareQR": "Chia sẻ qua QR",
+    "addToPlaylist": "Thêm vào playlist",
+    "download": "Tải xuống",
+    "removeFromFavorites": "Không muốn nghe bài này",
+    "reportSong": "Báo cáo bài hát",
+    "createNewPlaylist": "Tạo mới và thêm",
+    "sharePlaylist": "Chia sẻ playlist",
+    "editPlaylist": "Sửa playlist",
+    "deletePlaylist": "Xóa playlist",
+    "confirmDelete": "Bạn có chắc chắn muốn xóa?",
+    "canListenOffline": "Có thể nghe offline",
+    "requiresPremium": "Cần gói Premium"
+  },
+  "modals": {
+    "addToPlaylist": "Thêm vào playlist",
+    "sharePlaylist": "Chia sẻ playlist",
+    "couldNotGenerateQR": "Không tạo được QR"
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "signup": "Đăng ký",
+    "register": "Đăng ký",
+    "email": "Email",
+    "password": "Mật khẩu",
+    "confirmPassword": "Xác nhận mật khẩu",
+    "name": "Tên",
+    "forgotPassword": "Quên mật khẩu?",
+    "resetPassword": "Đặt lại mật khẩu",
+    "verifyEmail": "Xác minh email",
+    "verifyOtp": "Xác minh OTP",
+    "enterOtp": "Nhập OTP được gửi đến email của bạn",
+    "resendOtp": "Gửi lại OTP",
+    "createAccount": "Tạo tài khoản",
+    "alreadyHaveAccount": "Đã có tài khoản?",
+    "dontHaveAccount": "Chưa có tài khoản?",
+    "welcomeBack": "Chào mừng trở lại",
+    "getStarted": "Bắt đầu",
+    "selectLanguage": "Chọn ngôn ngữ",
+    "selectGenres": "Chọn thể loại",
+    "selectArtists": "Chọn nghệ sĩ",
+    "selectGenresDescription": "Chọn thể loại nhạc bạn yêu thích",
+    "selectArtistsDescription": "Playlist của bạn sẽ được cá nhân hóa theo lựa chọn này"
+  },
+  "premium": {
+    "title": "Premium",
+    "upgrade": "Nâng cấp lên Premium",
+    "benefits": "Lợi ích",
+    "noAds": "Không quảng cáo",
+    "unlimitedSkips": "Bỏ qua không giới hạn",
+    "offlineListening": "Nghe offline",
+    "highQualityAudio": "Âm thanh chất lượng cao",
+    "subscribe": "Đăng ký ngay",
+    "currentPlan": "Gói hiện tại"
+  },
+  "errors": {
+    "networkError": "Lỗi mạng. Vui lòng kiểm tra kết nối của bạn.",
+    "loadingFailed": "Không tải được nội dung. Vui lòng thử lại.",
+    "uploadFailed": "Tải lên thất bại. Vui lòng thử lại.",
+    "invalidEmail": "Địa chỉ email không hợp lệ",
+    "passwordMismatch": "Mật khẩu không khớp",
+    "required": "Trường này là bắt buộc",
+    "somethingWentWrong": "Có điều gì đó sai. Vui lòng thử lại."
+  },
+  "onboarding": {
+    "selectGenres": "Chọn thể loại",
+    "selectGenresTitle": "Chào mừng đến PhazelSound!",
+    "selectGenresSubtitle": "Chọn thể loại nhạc bạn yêu thích",
+    "selectArtists": "Chọn nghệ sĩ",
+    "selectArtistsTitle": "Nghệ sĩ bạn yêu thích",
+    "selectArtistsSubtitle": "Playlist của bạn sẽ được cá nhân hóa theo lựa chọn này",
+    "selectCount": "Chọn {min}–{max}",
+    "selected": "{count}/{max}"
+  }
+}

@@ -15,6 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
+import { STATS_EMOJIS } from '../config/emojis';
 import {
     getListeningInsights,
     ListeningInsights,
@@ -245,25 +246,25 @@ export const InsightsScreen = () => {
                     )}
 
                     {/* Summary stats */}
-                    <Section title="📊 Tổng quan">
+                    <Section title={`${STATS_EMOJIS.overview} Tổng quan`}>
                         <View style={styles.statsGrid}>
                             <StatCard
-                                emoji="⏱"
+                                emoji={STATS_EMOJIS.duration}
                                 value={`${insights?.totalListeningMinutesLast30Days ?? 0}`}
                                 label="phút nghe nhạc"
                             />
                             <StatCard
-                                emoji="🎵"
+                                emoji={STATS_EMOJIS.overview}
                                 value={`${insights?.uniqueSongsLast30Days ?? 0}`}
                                 label="bài khác nhau"
                             />
                             <StatCard
-                                emoji="🔥"
+                                emoji={STATS_EMOJIS.streak}
                                 value={`${insights?.currentStreakDays ?? 0}`}
                                 label="ngày liên tiếp"
                             />
                             <StatCard
-                                emoji="🏆"
+                                emoji={STATS_EMOJIS.achievement}
                                 value={`${insights?.longestStreakDays ?? 0}`}
                                 label="streak dài nhất"
                             />
