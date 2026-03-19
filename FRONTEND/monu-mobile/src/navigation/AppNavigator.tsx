@@ -139,13 +139,13 @@ const MainTabNavigator = () => (
 );
 
 const GlobalOverlays = () => {
-    const { pendingAd, dismissAd } = usePlayer();
+    const { pendingAd, dismissAd, currentSong } = usePlayer();
     return (
         <>
             <MiniPlayer />
             <UploadProgressBanner />
             <FullPlayerModal />
-            <AdPlayerModal ad={pendingAd} onFinished={dismissAd} />
+            <AdPlayerModal ad={pendingAd} songId={currentSong?.id} onFinished={dismissAd} />
         </>
     );
 };

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator, FlatList, Pressable,
+    ActivityIndicator, Animated, FlatList, Pressable,
     StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -9,8 +9,10 @@ import { useNavigation } from '@react-navigation/native';
 import { AntDesign } from '@expo/vector-icons';
 
 import { BackButton } from '../../components/BackButton';
+import { VoiceSearchButton } from '../../components/VoiceSearchButton';
 import { COLORS } from '../../config/colors';
 import { usePlayer } from '../../context/PlayerContext';
+import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import {
     Artist, getSongsByArtist, searchArtists, searchSongs, Song,
 } from '../../services/music';
@@ -36,6 +38,34 @@ export const SearchScreen = () => {
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputRef    = useRef<TextInput>(null);
+
+    // ── Voice search ─────────────────────────────────────────────────────────
+    const voice = useVoiceSearch();
+    const voiceBannerAnim = useRef(new Animated.Value(0)).current;
+
+    // Hiện / ẩn banner trạng thái voice
+    useEffect(() => {
+        const shouldShow = voice.state === 'recording' || voice.state === 'processing';
+        Animated.timing(voiceBannerAnim, {
+            toValue: shouldShow ? 1 : 0,
+            duration: 200,
+            useNativeDriver: true,
+        }).start();
+    }, [voice.state]);
+
+    const handleVoicePressIn = useCallback(async () => {
+        await voice.startRecording();
+    }, [voice]);
+
+    const handleVoicePressOut = useCallback(async () => {
+        const text = await voice.stopAndTranscribe();
+        if (text) {
+            setQuery(text);
+            await addSearchHistory(text.trim());
+            setHistory(await getSearchHistory());
+            doSearch(text.trim(), tab);
+        }
+    }, [voice, tab]);
 
     // ── Mount: load history + focus input ────────────────────────────────────
     useEffect(() => {
@@ -83,7 +113,6 @@ export const SearchScreen = () => {
 
     const handleSubmit = async () => {
         if (!query.trim()) return;
-        // Lưu vào lịch sử khi user bấm search / enter
         await addSearchHistory(query.trim());
         setHistory(await getSearchHistory());
         doSearch(query.trim(), tab);
@@ -101,7 +130,6 @@ export const SearchScreen = () => {
     const handleHistoryItemPress = (q: string) => {
         setQuery(q);
         scheduleSearch(q, tab);
-        // Lưu lại lịch sử (đưa lên đầu)
         addSearchHistory(q).then(() => getSearchHistory().then(setHistory));
     };
 
@@ -130,7 +158,6 @@ export const SearchScreen = () => {
 
     const handleSongPress = (song: Song, queue: Song[]) => {
         playSong(song, queue);
-        // Lưu lịch sử khi chọn bài từ kết quả search
         if (query.trim()) {
             addSearchHistory(query.trim()).then(() => getSearchHistory().then(setHistory));
         }
@@ -170,6 +197,13 @@ export const SearchScreen = () => {
         </Pressable>
     );
 
+    // ── Voice state label ─────────────────────────────────────────────────────
+    const voiceStateLabel = voice.state === 'recording'
+        ? '🔴  Đang ghi âm... thả để tìm kiếm'
+        : voice.state === 'processing'
+            ? '⏳  Đang nhận dạng giọng nói...'
+            : voice.errorMessage ?? '';
+
     // ─────────────────────────────────────────────────────────────────────────
     return (
         <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -178,6 +212,7 @@ export const SearchScreen = () => {
             {/* ── Header ── */}
             <View style={styles.header}>
                 <BackButton onPress={() => navigation.goBack()} />
+
                 <TextInput
                     ref={inputRef}
                     style={styles.input}
@@ -188,18 +223,66 @@ export const SearchScreen = () => {
                     onSubmitEditing={handleSubmit}
                     returnKeyType="search"
                     autoCorrect={false}
+                    editable={voice.state !== 'recording' && voice.state !== 'processing'}
                 />
-                {query.length > 0 && (
-                    <Pressable onPress={() => {
-                        setQuery('');
-                        setSongResults([]);
-                        setArtistResults([]);
-                        setArtistDetail(null);
-                    }}>
+
+                {/* Clear button (chỉ khi có text) */}
+                {query.length > 0 && voice.state === 'idle' && (
+                    <Pressable
+                        onPress={() => {
+                            setQuery('');
+                            setSongResults([]);
+                            setArtistResults([]);
+                            setArtistDetail(null);
+                            voice.cancel();
+                        }}
+                        hitSlop={8}
+                    >
                         <Text style={styles.clearIcon}>✕</Text>
                     </Pressable>
                 )}
+
+                {/* Voice search button */}
+                <VoiceSearchButton
+                    state={voice.state}
+                    onPressIn={handleVoicePressIn}
+                    onPressOut={handleVoicePressOut}
+                />
             </View>
+
+            {/* ── Voice status banner ── */}
+            <Animated.View
+                style={[
+                    styles.voiceBanner,
+                    {
+                        opacity: voiceBannerAnim,
+                        transform: [{
+                            translateY: voiceBannerAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [-8, 0],
+                            }),
+                        }],
+                    },
+                ]}
+                pointerEvents="none"
+            >
+                <Text style={[
+                    styles.voiceBannerText,
+                    voice.state === 'error' && { color: COLORS.error },
+                ]}>
+                    {voiceStateLabel}
+                </Text>
+            </Animated.View>
+
+            {/* Error banner (ngoài recording/processing) */}
+            {voice.state === 'error' && voice.errorMessage && (
+                <View style={styles.errorBanner}>
+                    <Text style={styles.errorBannerText}>⚠️  {voice.errorMessage}</Text>
+                    <Pressable onPress={voice.cancel} hitSlop={8}>
+                        <Text style={styles.errorBannerDismiss}>✕</Text>
+                    </Pressable>
+                </View>
+            )}
 
             {/* ── Tabs (chỉ hiện khi có query) ── */}
             {!showHistory && (
@@ -225,6 +308,7 @@ export const SearchScreen = () => {
                 </View>
             )}
 
+            {/* ── History ── */}
             {!loading && showHistory && (
                 <View style={{ flex: 1 }}>
                     {history.length > 0 ? (
@@ -259,7 +343,14 @@ export const SearchScreen = () => {
                         </>
                     ) : (
                         <View style={styles.center}>
-                            <Text style={styles.hintText}>Nhập tên bài hát hoặc nghệ sĩ để tìm kiếm</Text>
+                            <View style={styles.voiceHintBox}>
+                                <Text style={styles.voiceHintIcon}>🎙</Text>
+                                <Text style={styles.voiceHintTitle}>Tìm kiếm bằng giọng nói</Text>
+                                <Text style={styles.voiceHintDesc}>
+                                    Nhấn và giữ nút 🎤 ở góc phải để nói tên bài hát hoặc nghệ sĩ
+                                </Text>
+                            </View>
+                            <Text style={styles.hintText}>Hoặc nhập từ khóa vào ô tìm kiếm</Text>
                         </View>
                     )}
                 </View>
@@ -331,25 +422,83 @@ export const SearchScreen = () => {
 
 const styles = StyleSheet.create({
     root:   { flex: 1, backgroundColor: COLORS.bg },
+
+    // ── Header ──────────────────────────────────────────────────────────────
     header: {
         flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 16, paddingBottom: 12, gap: 10,
+        paddingHorizontal: 16, paddingBottom: 12, gap: 8,
         borderBottomWidth: 1, borderBottomColor: COLORS.border,
     },
-    input:     { flex: 1, color: COLORS.white, fontSize: 16, paddingVertical: 8 },
-    clearIcon: { color: COLORS.glass40, fontSize: 18, paddingHorizontal: 4 },
+    input: {
+        flex: 1, color: COLORS.white, fontSize: 16, paddingVertical: 8,
+    },
+    clearIcon: { color: COLORS.glass40, fontSize: 18, paddingHorizontal: 2 },
 
+    // ── Voice banner ─────────────────────────────────────────────────────────
+    voiceBanner: {
+        backgroundColor: COLORS.accentFill20,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.accentBorder25,
+        paddingHorizontal: 20,
+        paddingVertical: 9,
+    },
+    voiceBannerText: {
+        color: COLORS.accent,
+        fontSize: 13,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(239,68,68,0.12)',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(239,68,68,0.3)',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        gap: 8,
+    },
+    errorBannerText: {
+        flex: 1,
+        color: COLORS.error,
+        fontSize: 13,
+    },
+    errorBannerDismiss: {
+        color: COLORS.error,
+        fontSize: 16,
+        fontWeight: '700',
+    },
+
+    // ── Tabs ─────────────────────────────────────────────────────────────────
     tabs:          { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
     tabBtn:        { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border },
     tabBtnActive:  { backgroundColor: COLORS.accentDim, borderColor: COLORS.accentDim },
     tabText:       { color: COLORS.muted, fontWeight: '600', fontSize: 13 },
     tabTextActive: { color: COLORS.white },
 
+    // ── Common ────────────────────────────────────────────────────────────────
     center:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
     emptyText: { color: COLORS.glass35, textAlign: 'center', fontSize: 14, lineHeight: 22 },
-    hintText:  { color: COLORS.glass25, textAlign: 'center', fontSize: 14 },
+    hintText:  { color: COLORS.glass25, textAlign: 'center', fontSize: 13, marginTop: 12 },
 
-    // History
+
+    voiceHintBox: {
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: COLORS.accentBorder25,
+        padding: 24,
+        marginBottom: 20,
+        width: '100%',
+    },
+    voiceHintIcon:  { fontSize: 42, marginBottom: 10 },
+    voiceHintTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
+    voiceHintDesc:  {
+        color: COLORS.glass50, fontSize: 13, textAlign: 'center', lineHeight: 20,
+    },
+
+    // ── History ───────────────────────────────────────────────────────────────
     historyHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
@@ -367,7 +516,7 @@ const styles = StyleSheet.create({
     historyRemoveBtn:  { padding: 4 },
     historyRemoveIcon: { color: COLORS.glass30, fontSize: 14 },
 
-    // Results
+    // ── Results ───────────────────────────────────────────────────────────────
     resultRow: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
@@ -381,7 +530,7 @@ const styles = StyleSheet.create({
     resultSub:      { color: COLORS.muted, fontSize: 12, marginTop: 2 },
     playIcon:       { color: COLORS.glass30, fontSize: 18 },
 
-    // Artist detail
+    // ── Artist detail ─────────────────────────────────────────────────────────
     artistDetailHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 10,
