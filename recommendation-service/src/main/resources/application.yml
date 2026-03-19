@@ -26,10 +26,13 @@ eureka:
 jwt:
   signerKey: ${JWT_SECRET}
 
-# URL của Python ML service — không qua Eureka vì là non-JVM
+# URL của Python ML service
 ml:
   service:
     url: ${ML_SERVICE_URL:http://localhost:8771}
+social:
+  service:
+    url: ${SOCIAL_SERVICE_URL:http://social-service:8767}
 
 # Cấu hình blending weights — tách ra yml để dễ tune không cần redeploy
 recommendation:
@@ -48,6 +51,7 @@ recommendation:
     trending-ttl-minutes: 5
     social-ttl-minutes: 10
     similar-ttl-minutes: 30
+    insights-ttl-minutes: 30
   page:
     default-size: 20
     max-songs-per-artist: 2      # không trả quá 2 bài cùng artist trong top-20

@@ -206,6 +206,12 @@ export const ProfileScreen = () => {
             sub: undefined,
             onPress: () => navigation.navigate('Following'),
         },
+
+        {
+            icon: '📊',
+            label: 'Thống kê nghe nhạc',
+            onPress: () => navigation.navigate('Insights'),
+        }
     ];
 
     return (

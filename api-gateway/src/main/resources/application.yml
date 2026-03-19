@@ -456,6 +456,19 @@ spring:
                 redis-rate-limiter.burstCapacity: 20
                 redis-rate-limiter.requestedTokens: 1
 
+        - id: recommendation-insights
+          uri: lb://RECOMMENDATION-SERVICE
+          predicates:
+            - Path=/recommendations/insights
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 5
+                redis-rate-limiter.requestedTokens: 1
+
         - id: recommendation-service-api
           uri: lb://RECOMMENDATION-SERVICE
           predicates:
@@ -464,7 +477,6 @@ spring:
             - name: RequestRateLimiter
               args:
                 key-resolver: "#{@ipAndUserKeyResolver}"
-                # Rate limit thoải mái hơn — user refresh home feed thường xuyên
                 redis-rate-limiter.replenishRate: 30
                 redis-rate-limiter.burstCapacity: 60
                 redis-rate-limiter.requestedTokens: 1

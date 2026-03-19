@@ -64,7 +64,7 @@ const transcribeWithAssembly = async (uri: string): Promise<string> => {
     });
 
     const { id } = await transRes.json();
-    
+
     let status = 'queued';
     let resultText = '';
 

@@ -36,6 +36,7 @@ import { EditFavoritesScreen }    from '../screens/(settings)/EditFavoritesScree
 import { HistoryScreen }          from '../screens/(settings)/HistoryScreen';
 import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
 import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
+import { InsightsScreen }         from '../screens/InsightsScreen';
 
 // ─── Artist screens ───────────────────────────────────────────────────────────
 import { ArtistProfileScreen }    from '../screens/(artist)/ArtistProfileScreen';
@@ -65,7 +66,7 @@ export type RootStackParamList = {
     Search:          undefined;
     PlaylistDetail:  { slug: string };
     AlbumDetail:     { albumId: string };
-    // Artist
+    Insights: undefined;
     ArtistProfile:   { artistId: string };
     RegisterArtist:  undefined;
     ArtistTerms:     undefined;
@@ -177,6 +178,7 @@ export const AppNavigator = () => {
                         ) : (
                             <>
                                 <Stack.Screen name="MainTabs"       component={MainTabNavigator}    />
+                                <Stack.Screen name="Insights" component={InsightsScreen} options={{ headerShown: false }}/>
                                 <Stack.Screen name="Search"         component={SearchScreen}        />
                                 <Stack.Screen name="EditFavorites"  component={EditFavoritesScreen} />
                                 <Stack.Screen name="History"        component={HistoryScreen}       />

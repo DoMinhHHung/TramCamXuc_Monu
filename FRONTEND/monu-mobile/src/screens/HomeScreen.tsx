@@ -336,19 +336,19 @@ export const HomeScreen = () => {
     })()
     : undefined;
 
-  const emptyTrendingText = rec.error
-    ? 'Không tải được trending. Kéo xuống để thử lại.'
-    : 'Chưa có dữ liệu trending lúc này.';
-
-  const emptyNewReleaseText = rec.error
-    ? 'Không tải được bài mới phát hành. Kéo xuống để thử lại.'
-    : 'Hiện chưa có bài mới phát hành.';
-
-  const emptySocialText = !authSession
-    ? 'Đăng nhập để xem đề xuất cộng đồng.'
-    : rec.error
-      ? 'Không tải được đề xuất cộng đồng. Kéo xuống để thử lại.'
-      : 'Chưa có dữ liệu đề xuất cộng đồng.';
+  // const emptyTrendingText = rec.error
+  //   ? 'Không tải được trending. Kéo xuống để thử lại.'
+  //   : 'Chưa có dữ liệu trending lúc này.';
+  //
+  // const emptyNewReleaseText = rec.error
+  //   ? 'Không tải được bài mới phát hành. Kéo xuống để thử lại.'
+  //   : 'Hiện chưa có bài mới phát hành.';
+  //
+  // const emptySocialText = !authSession
+  //   ? 'Đăng nhập để xem đề xuất cộng đồng.'
+  //   : rec.error
+  //     ? 'Không tải được đề xuất cộng đồng. Kéo xuống để thử lại.'
+  //     : 'Chưa có dữ liệu đề xuất cộng đồng.';
 
   return (
     <View style={styles.root}>
@@ -450,7 +450,7 @@ export const HomeScreen = () => {
           songs={rec.globalTrending}
           activeSongId={currentSong?.id}
           loading={rec.loading && !rec.globalTrending.length}
-          emptyText={emptyTrendingText}
+          // emptyText={emptyTrendingText}
           onPress={(s) => playRec(s, rec.globalTrending)}
           onLongPress={openRecActionSheet}
           hideIfEmpty={false}
@@ -491,7 +491,7 @@ export const HomeScreen = () => {
           onPress={(s) => playRec(s, rec.socialRecs)}
           onLongPress={openRecActionSheet}
           onFeedback={handleFeedback}
-          emptyText={emptySocialText}
+          // emptyText={emptySocialText}
         />
 
         {legacyLoading

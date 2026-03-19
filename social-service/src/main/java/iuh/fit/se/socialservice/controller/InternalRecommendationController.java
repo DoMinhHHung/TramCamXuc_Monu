@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.socialservice.dto.ApiResponse;
 import iuh.fit.se.socialservice.dto.response.ListenHistoryResponse;
 import iuh.fit.se.socialservice.service.InternalRecommendationService;
+import iuh.fit.se.socialservice.service.impl.ListenAggregationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -24,6 +26,7 @@ public class InternalRecommendationController {
     private final InternalRecommendationService internalRecommendationService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ObjectMapper                  objectMapper;
+    private final ListenAggregationService listenAggregationService;
 
     private static final Duration TTL_LISTEN  = Duration.ofMinutes(5);
     private static final Duration TTL_FOLLOWS = Duration.ofMinutes(10);
@@ -125,5 +128,16 @@ public class InternalRecommendationController {
         }
 
         return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @GetMapping("/listen-insights/{userId}")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getListenInsights(
+            @PathVariable UUID userId,
+            @RequestParam(defaultValue = "30") int days) {
+
+        if (days < 1 || days > 365) days = 30;
+
+        Map<String, Object> raw = listenAggregationService.aggregate(userId, days);
+        return ResponseEntity.ok(ApiResponse.success(raw));
     }
 }

@@ -155,6 +155,10 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
     return 90000;
   }
 
+  if (path === '/recommendations/insights') {
+    return 1800000;
+  }
+
   return DEFAULT_GET_CACHE_TTL_MS;
 };
 
