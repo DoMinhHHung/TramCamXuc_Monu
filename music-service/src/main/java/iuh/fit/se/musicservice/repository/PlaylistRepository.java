@@ -34,6 +34,25 @@ public interface PlaylistRepository extends JpaRepository<Playlist, UUID> {
             """)
     Optional<Playlist> findPublicBySlug(@Param("slug") String slug);
 
+    @Query("""
+            SELECT p FROM Playlist p
+            WHERE p.id = :playlistId
+            AND (
+                p.visibility IN ('PUBLIC', 'COLLABORATIVE')
+                OR p.ownerId = :requesterId
+            )
+            """)
+    Optional<Playlist> findByIdForUser(
+            @Param("playlistId") UUID playlistId,
+            @Param("requesterId") UUID requesterId);
+
+    @Query("""
+            SELECT p FROM Playlist p
+            WHERE p.id = :playlistId
+            AND p.visibility IN ('PUBLIC', 'COLLABORATIVE')
+            """)
+    Optional<Playlist> findPublicById(@Param("playlistId") UUID playlistId);
+
     Page<Playlist> findByOwnerId(UUID ownerId, Pageable pageable);
 
     Optional<Playlist> findByIdAndOwnerId(UUID id, UUID ownerId);

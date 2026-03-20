@@ -1,338 +1,814 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Pressable, ScrollView, StyleSheet, Text, View,
-  ActivityIndicator, Alert, Modal, TextInput, Image,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AntDesign, MaterialIcons, Fontisto   } from '@expo/vector-icons';
-import { useDownload } from '../context/DownloadContext';
+import { AntDesign, Fontisto, MaterialIcons } from '@expo/vector-icons';
 
-import { COLORS } from '../config/colors';
+import { ColorScheme, useThemeColors } from '../config/colors';
+import { MOOD_EMOJIS, MUSIC_EMOJIS } from '../config/emojis';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
+import { useDownload } from '../context/DownloadContext';
+import { useTranslation } from '../context/LocalizationContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { addSongToPlaylist, createPlaylist, getMyPlaylists, getTrendingSongs, getNewestSongs, Playlist, reportSong, searchSongs, Song } from '../services/music';
-import { getPopularGenres } from '../services/favorites';
-import { Genre } from '../types/favorites';
+import { RecommendationSection } from '../components/RecommendationSection';
 import { SongSection } from '../components/SongSection';
 import { SongActionSheet } from '../components/SongActionSheet';
+import {
+  addSongToPlaylist,
+  createPlaylist,
+  getNewestSongs,
+  getTrendingSongs,
+  searchSongs,
+  Song,
+} from '../services/music';
+import { getPopularGenres } from '../services/favorites';
+import { FeedbackType, RecommendedSong } from '../services/recommendation';
 import { getSongShareQr } from '../services/social';
+import { Genre } from '../types/favorites';
+import { useHomeData } from '../hooks/useHomeData';
+import { useHomeStats } from '../hooks/useHomeStats';
+import { AlbumCard } from '../components/AlbumCard';
+import { ArtistCardEnhanced } from '../components/ArtistCardEnhanced';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
+const TOP_ARTIST_CARD_STEP = 292;
 
-const quickActions = [
-  { title: 'Nhạc chữa lành', emoji: '🌙', color: [COLORS.cardHealingFrom, COLORS.gradPurple] as const },
-  { title: 'Top Trending', emoji: '🔥', color: [COLORS.cardTrendingFrom, COLORS.cardTrendingTo] as const },
-  { title: 'Acoustic', emoji: '🎸', color: [COLORS.cardAcousticFrom, COLORS.cardAcousticTo] as const },
-  { title: 'Lofi Focus', emoji: '🎧', color: [COLORS.cardLofiFrom, COLORS.cardLofiTo] as const },
-];
+const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
+  const hex = backgroundColor.replace('#', '');
+  if (hex.length !== 6) return 'light';
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  return luminance > 0.6 ? 'dark' : 'light';
+};
+
+const toSong = (r: RecommendedSong): Song => ({
+  id: r.songId,
+  title: r.title,
+  primaryArtist: r.primaryArtist,
+  genres: r.genres,
+  thumbnailUrl: r.thumbnailUrl,
+  durationSeconds: r.durationSeconds,
+  playCount: r.playCount,
+  status: 'PUBLIC',
+  transcodeStatus: 'COMPLETED',
+  createdAt: '',
+  updatedAt: '',
+});
+
+const buildGenreSectionsFromPool = (
+  genres: Genre[],
+  songsPool: Song[],
+): Record<string, { songs: Song[]; hasMore: boolean; expanded: boolean; loading: boolean }> => {
+  const dedupedPool = Array.from(new Map(songsPool.map((song) => [song.id, song])).values());
+
+  const nextSections: Record<string, { songs: Song[]; hasMore: boolean; expanded: boolean; loading: boolean }> = {};
+  genres.forEach((genre) => {
+    const genreSongs = dedupedPool.filter((song) =>
+      (song.genres ?? []).some((songGenre) => songGenre.id === genre.id));
+
+    if (genreSongs.length > 0) {
+      nextSections[genre.id] = {
+        songs: genreSongs.slice(0, 5),
+        hasMore: genreSongs.length > 5,
+        expanded: false,
+        loading: false,
+      };
+    }
+  });
+
+  return nextSections;
+};
 
 export const HomeScreen = () => {
   const navigation = useNavigation<HomeNavigationProp>();
   const { authSession } = useAuth();
   const { playSong, currentSong, isPlaying } = usePlayer();
   const insets = useSafeAreaInsets();
-
-  const [trendingSongs, setTrendingSongs] = useState<Song[]>([]);
-  const [newestSongs, setNewestSongs] = useState<Song[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
-  const [songToAdd, setSongToAdd] = useState<Song | null>(null);
-  const [genres, setGenres] = useState<Genre[]>([]);
-  const [genreSongs, setGenreSongs] = useState<Record<string, Song[]>>({});
-  const [expandedGenreIds, setExpandedGenreIds] = useState<string[]>([]);
-  const [loadingGenreId, setLoadingGenreId] = useState<string | null>(null);
-
-  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [newPlaylistName, setNewPlaylistName] = useState('');
-  const [qrModal, setQrModal] = useState<{ songTitle: string; qr?: string } | null>(null);
-
   const { startDownload, isDownloaded, getJobStatus } = useDownload();
+  const { t } = useTranslation();
+  const themeColors = useThemeColors();
 
-  const handleDownloadSong = async (song: Song) => {
-    try {
-      await startDownload(song);
-    } catch (e: any) {
-      Alert.alert(
-          'Cần nâng cấp',
-          'Tính năng tải nhạc cần gói Premium. Vào tab Premium để nâng cấp.',
-      );
-    }
-  };
+  const {
+    rec,
+    playlists,
+    loading,
+    refresh,
+  } = useHomeData();
 
-  const fetchHomeData = async (silent = false) => {
-    try {
-      if (!silent) setLoading(true);
-      const [trending, newest, popularGenres, myPlaylists] = await Promise.all([
-        getTrendingSongs({ page: 1, size: 10 }),
-        getNewestSongs({ page: 1, size: 10 }),
-        getPopularGenres(12),
-        getMyPlaylists({ page: 1, size: 50 }),
-      ]);
-      setTrendingSongs(trending.content);
-      setNewestSongs(newest.content);
-      setGenres(popularGenres);
-      setPlaylists(myPlaylists.content ?? []);
-    } catch {
-      if (!silent) Alert.alert('Lỗi', 'Không thể tải dữ liệu trang chủ');
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  };
+  const { data: homeStats, loading: statsLoading, error: statsError } = useHomeStats();
 
-  useEffect(() => {
-    void fetchHomeData(false);
-    const id = setInterval(() => void fetchHomeData(true), 15000);
-    return () => clearInterval(id);
+  const styles = useMemo(() => getStyles(themeColors), [themeColors]);
+
+  const [selectedSong, setSelectedSong] = useState<Song | null>(null);
+  const [selectedRecSong, setSelectedRecSong] = useState<RecommendedSong | null>(null);
+  const [songToAdd, setSongToAdd] = useState<Song | null>(null);
+  const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
+
+  const [legacyTrendingSongs, setLegacyTrendingSongs] = useState<Song[]>([]);
+  const [legacyNewestSongs, setLegacyNewestSongs] = useState<Song[]>([]);
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [genreSections, setGenreSections] = useState<Record<string, {
+    songs: Song[];
+    hasMore: boolean;
+    expanded: boolean;
+    loading: boolean;
+  }>>({});
+  const [legacyLoading, setLegacyLoading] = useState(false);
+  const topArtistsScrollRef = useRef<ScrollView | null>(null);
+  const topArtistsPausedRef = useRef(false);
+  const topArtistIndexRef = useRef(0);
+
+  const playRec = useCallback((r: RecommendedSong, queue: RecommendedSong[]) => {
+    playSong(toSong(r), queue.map(toSong));
+  }, [playSong]);
+
+  const openRecActionSheet = useCallback((r: RecommendedSong) => {
+    setSelectedRecSong(r);
+    setSelectedSong(toSong(r));
+  }, []);
+
+  const openSongActionSheet = useCallback((song: Song) => {
+    setSelectedRecSong(null);
+    setSelectedSong(song);
   }, []);
 
   const handlePressSong = useCallback((song: Song, queue: Song[]) => {
     playSong(song, queue);
   }, [playSong]);
 
-  const formatDuration = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
+  const handleOpenProfile = useCallback(() => {
+    const parentNavigation = navigation.getParent();
+    const rootNavigation = parentNavigation?.getParent?.();
 
-  const displayName = authSession?.profile?.fullName || authSession?.profile?.email?.split('@')[0] || 'bạn';
-  const getGreeting = () => {
-    const h = new Date().getHours();
-    if (h >= 6 && h < 10) return 'Chào buổi sáng ☀';
-    if (h >= 10 && h < 13) return 'Buổi trưa vui vẻ 🌤';
-    if (h >= 13 && h < 17) return 'Good afternoon 🌤';
-    if (h >= 17 && h < 22) return 'Chào buổi tối 🌆';
-    return 'Chúc ngủ ngon 🌙';
-  };
-
-  const toggleGenre = async (genreId: string) => {
-    if (expandedGenreIds.includes(genreId)) {
-      setExpandedGenreIds(prev => prev.filter(id => id !== genreId));
+    if (rootNavigation && 'navigate' in rootNavigation) {
+      (rootNavigation as { navigate: (route: 'Profile') => void }).navigate('Profile');
       return;
     }
 
-    try {
-      if (!genreSongs[genreId]) {
-        setLoadingGenreId(genreId);
-        const res = await searchSongs({ genreId, page: 1, size: 8 });
-        setGenreSongs(prev => ({ ...prev, [genreId]: res.content ?? [] }));
-      }
-      setExpandedGenreIds(prev => [...prev, genreId]);
-    } finally {
-      setLoadingGenreId(null);
+    if (parentNavigation && 'navigate' in parentNavigation) {
+      (parentNavigation as { navigate: (route: 'Profile') => void }).navigate('Profile');
+      return;
     }
+
+    (navigation as unknown as { navigate: (route: 'Profile') => void }).navigate('Profile');
+  }, [navigation]);
+
+  const handleOpenSearch = useCallback(() => {
+    const parentNavigation = navigation.getParent();
+    const rootNavigation = parentNavigation?.getParent?.();
+
+    if (rootNavigation && 'navigate' in rootNavigation) {
+      (rootNavigation as { navigate: (route: 'Search') => void }).navigate('Search');
+      return;
+    }
+
+    if (parentNavigation && 'navigate' in parentNavigation) {
+      (parentNavigation as { navigate: (route: 'Search') => void }).navigate('Search');
+      return;
+    }
+
+    (navigation as unknown as { navigate: (route: 'Search') => void }).navigate('Search');
+  }, [navigation]);
+
+  const handleFeedback = useCallback((songId: string, feedback: FeedbackType) => {
+    void rec.sendFeedback(songId, feedback, 'home');
+  }, [rec]);
+
+  const handleDownloadSong = useCallback(async (song: Song) => {
+    try {
+      await startDownload(song);
+    } catch {
+      Alert.alert('Cần nâng cấp', 'Tính năng tải nhạc cần gói Premium.');
+    }
+  }, [startDownload]);
+
+  const handleAddToPlaylist = useCallback(async (playlistId: string) => {
+    if (!songToAdd) return;
+    try {
+      await addSongToPlaylist(playlistId, songToAdd.id);
+      Alert.alert('Thành công', 'Đã thêm vào playlist.');
+      setPlaylistPickerOpen(false);
+      setSongToAdd(null);
+    } catch (e: unknown) {
+      Alert.alert('Lỗi', e instanceof Error ? e.message : 'Không thể thêm');
+    }
+  }, [songToAdd]);
+
+  const handleCreateAndAdd = useCallback(async () => {
+    if (!songToAdd || !newPlaylistName.trim()) return;
+    try {
+      const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
+      await addSongToPlaylist(pl.id, songToAdd.id);
+      setNewPlaylistName('');
+      setPlaylistPickerOpen(false);
+      setSongToAdd(null);
+    } catch (e: unknown) {
+      Alert.alert('Lỗi', e instanceof Error ? e.message : 'Không thể tạo playlist');
+    }
+  }, [songToAdd, newPlaylistName]);
+
+  const fetchLegacySections = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLegacyLoading(true);
+      const [trending, newest, popularGenres] = await Promise.all([
+        getTrendingSongs({ page: 1, size: 10 }),
+        getNewestSongs({ page: 1, size: 10 }),
+        getPopularGenres(12),
+      ]);
+
+      setLegacyTrendingSongs(trending.content ?? []);
+      setLegacyNewestSongs(newest.content ?? []);
+
+      const genreList = popularGenres ?? [];
+      setGenres(genreList);
+
+      if (genreList.length) {
+        const genreResults = await Promise.allSettled(
+          genreList.map(async (genre) => {
+            const res = await searchSongs({ genreId: genre.id, page: 1, size: 6 });
+            const songs = res.content ?? [];
+            return {
+              genreId: genre.id,
+              songs: songs.slice(0, 5),
+              hasMore: songs.length > 5,
+            };
+          }),
+        );
+
+        const hasAtLeastOneSuccess = genreResults.some((result) => result.status === 'fulfilled');
+
+        if (!hasAtLeastOneSuccess) {
+          const fallbackSections = buildGenreSectionsFromPool(
+            genreList,
+            [...(trending.content ?? []), ...(newest.content ?? [])],
+          );
+          setGenreSections(fallbackSections);
+          return;
+        }
+
+        setGenreSections((prev) => {
+          const nextSections: Record<string, { songs: Song[]; hasMore: boolean; expanded: boolean; loading: boolean }> = {};
+
+          genreResults.forEach((result, index) => {
+            const genreId = genreList[index].id;
+            const current = prev[genreId];
+
+            if (result.status === 'fulfilled') {
+              nextSections[genreId] = {
+                songs: result.value.songs,
+                hasMore: result.value.hasMore,
+                expanded: current?.expanded ?? false,
+                loading: false,
+              };
+            } else {
+              nextSections[genreId] = {
+                songs: current?.songs ?? [],
+                hasMore: current?.hasMore ?? false,
+                expanded: current?.expanded ?? false,
+                loading: false,
+              };
+            }
+          });
+
+          return nextSections;
+        });
+      }
+    } catch {
+      if (!silent) Alert.alert('Lỗi', 'Không thể tải dữ liệu nhạc theo section');
+    } finally {
+      if (!silent) setLegacyLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchLegacySections(false);
+    const intervalId = setInterval(() => {
+      void fetchLegacySections(true);
+    }, 90_000);
+
+    return () => clearInterval(intervalId);
+  }, [fetchLegacySections]);
+
+  useEffect(() => {
+    const artistsCount = homeStats?.topArtists?.length ?? 0;
+    if (artistsCount < 2) return;
+
+    const intervalId = setInterval(() => {
+      if (topArtistsPausedRef.current || !topArtistsScrollRef.current) return;
+
+      topArtistIndexRef.current = (topArtistIndexRef.current + 1) % artistsCount;
+      topArtistsScrollRef.current.scrollTo({
+        x: topArtistIndexRef.current * TOP_ARTIST_CARD_STEP,
+        y: 0,
+        animated: true,
+      });
+    }, 3200);
+
+    return () => clearInterval(intervalId);
+  }, [homeStats?.topArtists]);
+
+  const handleSeeMoreGenre = useCallback(async (genreId: string) => {
+    const section = genreSections[genreId];
+    if (!section) return;
+
+    if (section.expanded) {
+      setGenreSections((prev) => ({
+        ...prev,
+        [genreId]: {
+          ...prev[genreId],
+          expanded: false,
+        },
+      }));
+      return;
+    }
+
+    setGenreSections((prev) => ({
+      ...prev,
+      [genreId]: {
+        ...prev[genreId],
+        loading: true,
+      },
+    }));
+
+    try {
+      const res = await searchSongs({ genreId, page: 1, size: 20 });
+      const allSongs = res.content ?? [];
+
+      setGenreSections((prev) => ({
+        ...prev,
+        [genreId]: {
+          ...prev[genreId],
+          songs: allSongs,
+          hasMore: allSongs.length > 5,
+          expanded: true,
+          loading: false,
+        },
+      }));
+    } catch {
+      setGenreSections((prev) => ({
+        ...prev,
+        [genreId]: {
+          ...prev[genreId],
+          loading: false,
+        },
+      }));
+      Alert.alert('Lỗi', 'Không thể tải thêm bài hát theo thể loại');
+    }
+  }, [genreSections]);
+
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([refresh(), fetchLegacySections(true)]);
+  }, [fetchLegacySections, refresh]);
+
+  const formatDuration = useCallback((seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }, []);
+
+  const displayName = authSession?.profile?.fullName
+    || authSession?.profile?.email?.split('@')[0]
+    || 'bạn';
+
+  const getGreeting = () => {
+    const h = new Date().getHours();
+    if (h < 10) return 'Chào buổi sáng ☀';
+    if (h < 13) return 'Buổi trưa vui vẻ 🌤';
+    if (h < 17) return 'Good afternoon 🌤';
+    if (h < 22) return 'Chào buổi tối 🌆';
+    return 'Chúc ngủ ngon 🌙';
   };
 
+  const updatedLabel = rec.lastUpdatedAt
+    ? (() => {
+      const diff = Math.floor((Date.now() - rec.lastUpdatedAt.getTime()) / 60_000);
+      return diff < 1 ? 'Vừa cập nhật' : `Cập nhật ${diff} phút trước`;
+    })()
+    : undefined;
+
+
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 90 }}>
-        <LinearGradient colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]} style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <Pressable style={styles.headerTop} onPress={() => navigation.navigate('Profile')}>
+    <View style={styles.root}>
+      <StatusBar style={getStatusBarStyle(themeColors.bg)} />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={(
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={handleRefresh}
+            tintColor={themeColors.accent}
+          />
+        )}
+      >
+        <LinearGradient
+          colors={[themeColors.gradPurple, themeColors.gradIndigo, themeColors.bg]}
+          style={[styles.header, { paddingTop: insets.top + 16 }]}
+        >
+          <Pressable
+            style={styles.headerTop}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            onPressIn={handleOpenProfile}
+          >
             <View>
               <Text style={styles.greeting}>{getGreeting()},</Text>
               <Text style={styles.name}>{displayName} 👋</Text>
+              {updatedLabel && (
+                <Text style={styles.updatedLabel}>{updatedLabel}</Text>
+              )}
             </View>
             <View style={styles.avatarCircle}>
-              <Fontisto name="person" color="#3B82F6" size={24} />
+              <Fontisto name="person" color={themeColors.accent} size={24} />
             </View>
           </Pressable>
 
-          <Pressable onPress={() => navigation.navigate('Search')} style={({ pressed }) => [styles.searchBar, { opacity: pressed ? 0.8 : 1 }]}>
-            <MaterialIcons name="saved-search" color="#2563EB" size={26} />
-            <Text style={styles.searchPlaceholder}>Tìm bài hát, nghệ sĩ...</Text>
+          <Pressable
+            onPressIn={handleOpenSearch}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            style={styles.searchBar}
+          >
+            <MaterialIcons name="saved-search" color={themeColors.accent} size={26} />
+            <Text style={styles.searchPlaceholder}>{t('screens.home.searchPlaceholder')}</Text>
           </Pressable>
         </LinearGradient>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Phát nhanh</Text>
-          <View style={styles.grid}>
-            {quickActions.map(item => (
-              <Pressable key={item.title} style={styles.quickCard}><LinearGradient colors={item.color} style={styles.quickCardGradient}><Text style={styles.cardEmoji}>{item.emoji}</Text><Text style={styles.cardTitle}>{item.title}</Text></LinearGradient></Pressable>
-            ))}
+        {/* Dynamic Home Sections */}
+        {statsLoading && !homeStats ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={themeColors.accent} />
+            <Text style={styles.loadingText}>{t('homeScreen.noDataAvailable')}</Text>
           </View>
+        ) : homeStats ? (
+          <>
+            {/* Albums from Followed Artists */}
+            {homeStats.followedArtistAlbums.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>💿 {t('homeScreen.followedArtistsAlbums')}</Text>
+                <View style={{ paddingHorizontal: 20 }}>
+                  {homeStats.followedArtistAlbums.map((album) => (
+                    <AlbumCard
+                      key={album.id}
+                      album={album}
+                      onPress={() => {
+                        navigation.navigate('AlbumDetail', {
+                          albumId: album.id,
+                        });
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Top Artists */}
+            {homeStats.topArtists.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>🎤 {t('homeScreen.topArtists')}</Text>
+                <ScrollView
+                  ref={topArtistsScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.artistHorizontalList}
+                  onTouchStart={() => {
+                    topArtistsPausedRef.current = true;
+                  }}
+                  onTouchEnd={() => {
+                    topArtistsPausedRef.current = false;
+                  }}
+                  onScrollEndDrag={() => {
+                    topArtistsPausedRef.current = false;
+                  }}
+                  onMomentumScrollEnd={() => {
+                    topArtistsPausedRef.current = false;
+                  }}
+                  onScroll={(e) => {
+                    const x = e.nativeEvent.contentOffset.x;
+                    topArtistIndexRef.current = Math.max(0, Math.round(x / TOP_ARTIST_CARD_STEP));
+                  }}
+                  scrollEventThrottle={16}
+                >
+                  {homeStats.topArtists.map((artist) => (
+                    <ArtistCardEnhanced
+                      key={artist.id}
+                      artist={artist}
+                      style={styles.artistHorizontalCard}
+                      onPress={() => {
+                        navigation.navigate('ArtistProfile', {
+                          artistId: artist.id,
+                        });
+                      }}
+                      onFollowPress={(artistId, isFollowing) => {
+                        // TODO: Call follow/unfollow API
+                        console.log('Toggle follow for artist:', artistId, isFollowing);
+                      }}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+          </>
+        ) : null}
+
+        {loading && !rec.homeFeed && !rec.globalTrending.length && (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={themeColors.accent} />
+            <Text style={styles.loadingText}>{t('screens.home.loadingRecommendations')}</Text>
+          </View>
+        )}
+
+        {!!rec.error && (
+          <View style={styles.errorWrap}>
+            <Text style={styles.errorText}>{rec.error}</Text>
+          </View>
+        )}
+
+        {authSession && (
+          <RecommendationSection
+            icon="✨"
+            title={t('screens.home.recommendForYou')}
+            subtitle={updatedLabel}
+            songs={rec.homeFeed?.forYou ?? []}
+            activeSongId={currentSong?.id}
+            loading={rec.loading && !rec.homeFeed}
+            onPress={(s) => playRec(s, rec.homeFeed?.forYou ?? [])}
+            onLongPress={openRecActionSheet}
+            onFeedback={handleFeedback}
+            hasBadge={!!rec.homeFeed?.forYou?.length}
+          />
+        )}
+
+
+        <SongSection
+          title={`✨ ${t('screens.home.newReleases')}`}
+            songs={legacyNewestSongs}
+            currentSong={currentSong}
+            isPlaying={isPlaying}
+            onPressSong={(song) => handlePressSong(song, legacyNewestSongs)}
+            onSongAction={openSongActionSheet}
+            formatDuration={formatDuration}
+        />
+
+        <RecommendationSection
+          icon="🔥"
+          title={t('screens.home.trendingNow')}
+          songs={rec.globalTrending}
+          activeSongId={currentSong?.id}
+          loading={rec.loading && !rec.globalTrending.length}
+          // emptyText={emptyTrendingText}
+          onPress={(s) => playRec(s, rec.globalTrending)}
+          onLongPress={openRecActionSheet}
+          hideIfEmpty={false}
+        />
+
+        {authSession && (
+          <RecommendationSection
+            icon="👥"
+            title={t('screens.home.friendsAreListening')}
+            songs={rec.homeFeed?.friendsAreListening ?? []}
+            activeSongId={currentSong?.id}
+            loading={rec.loading && !rec.homeFeed}
+            onPress={(s) => playRec(s, rec.homeFeed?.friendsAreListening ?? [])}
+            onLongPress={openRecActionSheet}
+            onFeedback={handleFeedback}
+          />
+        )}
+
+        {authSession && (
+          <RecommendationSection
+            icon="🎤"
+            title={t('screens.home.fromFollowedArtists')}
+            songs={rec.homeFeed?.fromArtists ?? []}
+            activeSongId={currentSong?.id}
+            loading={rec.loading && !rec.homeFeed}
+            onPress={(s) => playRec(s, rec.homeFeed?.fromArtists ?? [])}
+            onLongPress={openRecActionSheet}
+          />
+        )}
+
+        <RecommendationSection
+          icon="🌐"
+          title={t('screens.home.socialRecommendations')}
+          subtitle={t('screens.home.socialRecommendationsSubtitle')}
+          songs={rec.socialRecs}
+          activeSongId={currentSong?.id}
+          loading={rec.loading && !rec.socialRecs.length}
+          onPress={(s) => playRec(s, rec.socialRecs)}
+          onLongPress={openRecActionSheet}
+          onFeedback={handleFeedback}
+          // emptyText={emptySocialText}
+        />
+
+        {legacyLoading
+          && !legacyTrendingSongs.length
+          && !legacyNewestSongs.length
+          && !genres.length && (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="small" color={themeColors.accent} />
+            <Text style={styles.loadingText}>{t('screens.home.loadingExpandedSections')}</Text>
+          </View>
+        )}
+
+        <SongSection
+          title={`🔥 ${t('screens.home.trending')}`}
+          songs={legacyTrendingSongs}
+          currentSong={currentSong}
+          isPlaying={isPlaying}
+          onPressSong={(song) => handlePressSong(song, legacyTrendingSongs)}
+          onSongAction={openSongActionSheet}
+          formatDuration={formatDuration}
+        />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🎶 {t('screens.home.expandedSections')}</Text>
         </View>
 
-        {loading && <ActivityIndicator size="large" color={COLORS.accent} style={{ marginTop: 30 }} />}
+        {genres.map((genre) => {
+          const section = genreSections[genre.id];
+          const songs = section?.songs ?? [];
+          const showSeeMore = !!section?.hasMore;
 
-        {!loading && (
-          <>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>🎶 Thể loại nhạc</Text>
-              <View style={styles.genreWrap}>
-                {genres.map(g => (
-                  <Pressable key={g.id} style={[styles.genreChip, expandedGenreIds.includes(g.id) && styles.genreChipActive]} onPress={() => void toggleGenre(g.id)}>
-                    <Text style={[styles.genreText, expandedGenreIds.includes(g.id) && styles.genreTextActive]}>{expandedGenreIds.includes(g.id) ? '▼ ' : '▶ '} {g.name}</Text>
+          if (!section?.loading && songs.length === 0) {
+            return null;
+          }
+
+          return (
+            <View key={genre.id}>
+              <View style={styles.genreHeaderRow}>
+                <Text style={styles.genreSectionTitle}># {genre.name}</Text>
+                {showSeeMore && (
+                  <Pressable onPress={() => { void handleSeeMoreGenre(genre.id); }} hitSlop={8}>
+                    <Text style={styles.seeMoreText}>{section?.expanded ? t('screens.home.showLess') : t('screens.home.showMore')}</Text>
                   </Pressable>
-                ))}
+                )}
               </View>
 
-              {loadingGenreId && <ActivityIndicator color={COLORS.accent} style={{ marginTop: 10 }} />}
+              {section?.loading && (
+                <ActivityIndicator color={themeColors.accent} style={{ marginTop: 10 }} />
+              )}
 
-              {expandedGenreIds.map((id) => {
-                const genre = genres.find(g => g.id === id);
-                const songs = genreSongs[id] ?? [];
-                return (
-                  <SongSection
-                    key={id}
-                    title={`# ${genre?.name ?? 'Genre'}`}
-                    songs={songs}
-                    currentSong={currentSong}
-                    isPlaying={isPlaying}
-                    onPressSong={(song) => handlePressSong(song, songs)}
-                    onSongAction={setSelectedSong}
-                    formatDuration={formatDuration}
-                  />
-                );
-              })}
+              <SongSection
+                title=""
+                songs={songs}
+                currentSong={currentSong}
+                isPlaying={isPlaying}
+                onPressSong={(song) => handlePressSong(song, songs)}
+                onSongAction={openSongActionSheet}
+                formatDuration={formatDuration}
+              />
             </View>
-
-            <SongSection title="🔥 Trending" songs={trendingSongs} currentSong={currentSong} isPlaying={isPlaying} onPressSong={song => handlePressSong(song, trendingSongs)} onSongAction={setSelectedSong} formatDuration={formatDuration} />
-            <SongSection title="✨ Mới phát hành" songs={newestSongs} currentSong={currentSong} isPlaying={isPlaying} onPressSong={song => handlePressSong(song, newestSongs)} onSongAction={setSelectedSong} formatDuration={formatDuration} />
-          </>
-        )}
+          );
+        })}
       </ScrollView>
 
       <SongActionSheet
-          visible={!!selectedSong}
-          title={selectedSong?.title}
-          subtitle={selectedSong?.primaryArtist?.stageName}
-          thumbnailUrl={selectedSong?.thumbnailUrl}
-          onClose={() => setSelectedSong(null)}
-
-          actions={[
-            {
-              icon: '↗',
-              label: 'Chia sẻ qua QR',
-              onPress: async () => {
-                if (!selectedSong) return;
-                const qr = await getSongShareQr(selectedSong.id);
-                setQrModal({ songTitle: selectedSong.title, qr: qr.qrCodeBase64 });
-              },
+        visible={!!selectedSong}
+        title={selectedSong?.title}
+        subtitle={selectedSong?.primaryArtist?.stageName}
+        thumbnailUrl={selectedSong?.thumbnailUrl}
+        onClose={() => {
+          setSelectedSong(null);
+          setSelectedRecSong(null);
+        }}
+        actions={[
+          {
+            icon: '↗',
+            label: 'Chia sẻ qua QR',
+            onPress: async () => {
+              if (!selectedSong) return;
+              const qr = await getSongShareQr(selectedSong.id);
+              setQrModal({ title: selectedSong.title, qr: qr.qrCodeBase64 });
             },
-            {
-              icon: <AntDesign name="appstore-add" size={20} color="#fff" />,
-              label: 'Thêm vào playlist',
-              onPress: () => {
-                if (!selectedSong) return;
-                setSongToAdd(selectedSong);
-                setPlaylistPickerOpen(true);
-              },
+          },
+          {
+            icon: <AntDesign name="appstore-add" size={20} color={themeColors.text} />,
+            label: 'Thêm vào playlist',
+            onPress: () => {
+              if (!selectedSong) return;
+              setSongToAdd(selectedSong);
+              setPlaylistPickerOpen(true);
             },
-            {
-              icon: isDownloaded(selectedSong?.id ?? '')
-                  ? <AntDesign name="check-circle" size={20} color="#4ade80" />
-                  : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                      ? <ActivityIndicator size="small" color="#fff" />
-                      : <AntDesign name="download" size={20} color="#fff" />,
-
-              label: isDownloaded(selectedSong?.id ?? '')
-                  ? 'Đã tải xuống'
-                  : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                      ? `Đang tải... ${(getJobStatus(selectedSong?.id ?? '') as any).progress}%`
-                      : 'Tải xuống (Offline)',
-
-              sublabel: isDownloaded(selectedSong?.id ?? '')
-                  ? 'Có thể nghe offline'
-                  : 'Cần gói Premium',
-
-              onPress: () => {
-                if (!selectedSong) return;
-                void handleDownloadSong(selectedSong);
+          },
+          {
+            icon: isDownloaded(selectedSong?.id ?? '')
+              ? <AntDesign name="check-circle" size={20} color={themeColors.success} />
+              : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
+                ? <ActivityIndicator size="small" color={themeColors.text} />
+                : <AntDesign name="download" size={20} color={themeColors.text} />,
+            label: isDownloaded(selectedSong?.id ?? '')
+              ? 'Đã tải xuống'
+              : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
+                ? `Đang tải... ${(getJobStatus(selectedSong?.id ?? '') as { progress?: number }).progress ?? 0}%`
+                : 'Tải xuống (Offline)',
+            sublabel: isDownloaded(selectedSong?.id ?? '') ? 'Có thể nghe offline' : 'Cần gói Premium',
+            disabled: isDownloaded(selectedSong?.id ?? ''),
+            onPress: () => { if (selectedSong) void handleDownloadSong(selectedSong); },
+          },
+          ...(selectedRecSong
+            ? [
+              {
+                icon: '👎',
+                label: 'Không muốn nghe bài này',
+                onPress: () => selectedRecSong && handleFeedback(selectedRecSong.songId, 'DISLIKE'),
               },
-
-              disabled: isDownloaded(selectedSong?.id ?? ''),
+            ]
+            : []),
+          {
+            icon: <AntDesign name="flag" size={20} color={themeColors.error} />,
+            label: 'Báo cáo bài hát',
+            separator: true,
+            destructive: true,
+            onPress: async () => {
+              if (!selectedSong) return;
+              const { reportSong } = await import('../services/music');
+              await reportSong(selectedSong.id, { reason: 'SPAM', description: 'Reported from home' });
+              Alert.alert('Đã báo cáo', 'Cảm ơn bạn!');
             },
-            {
-              icon: <AntDesign name="flag" size={20} color={COLORS.error} />,
-              label: 'Báo cáo bài hát',
-              separator: true,
-              destructive: true,
-              onPress: async () => {
-                if (!selectedSong) return;
-                await reportSong(selectedSong.id, {
-                  reason: 'SPAM',
-                  description: 'Reported from action sheet',
-                });
-                Alert.alert('Đã báo cáo', 'Cảm ơn bạn, chúng tôi sẽ xem xét.');
-              },
-            },
-          ]}
+          },
+        ]}
       />
 
-      <Modal visible={playlistPickerOpen} transparent animationType="fade" onRequestClose={() => { setPlaylistPickerOpen(false); setSongToAdd(null); }}>
-        <View style={styles.centerBackdrop}>
-          <View style={styles.centerCard}>
+      <Modal
+        visible={playlistPickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setPlaylistPickerOpen(false);
+          setSongToAdd(null);
+        }}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.modalCard}>
             <Pressable
-                style={styles.modalCloseBtn}
-                onPress={() => {
-                  setPlaylistPickerOpen(false);
-                  setSongToAdd(null);
-                }}
+              style={styles.modalClose}
+              onPress={() => {
+                setPlaylistPickerOpen(false);
+                setSongToAdd(null);
+              }}
             >
               <Text style={styles.modalCloseIcon}>✕</Text>
             </Pressable>
 
-            <Text style={styles.sheetTitle}>Thêm vào playlist</Text>
+            <Text style={styles.modalTitle}>Thêm vào playlist</Text>
             <ScrollView style={{ maxHeight: 240 }}>
               {playlists.map((p) => (
-                <Pressable key={p.id} onPress={async () => {
-                  if (!songToAdd) return;
-                  try {
-                    await addSongToPlaylist(p.id, songToAdd.id);
-                    Alert.alert('Thành công', `Đã thêm vào ${p.name}`);
-                    setPlaylistPickerOpen(false);
-                    setSongToAdd(null);
-                  } catch (error: any) {
-                    Alert.alert('Lỗi', error?.message || 'Không thể thêm vào playlist');
-                  }
-                }}><Text style={styles.sheetItem}>{p.name}</Text></Pressable>
+                <Pressable key={p.id} onPress={() => { void handleAddToPlaylist(p.id); }}>
+                  <Text style={styles.modalItem}>{p.name}</Text>
+                </Pressable>
               ))}
             </ScrollView>
-            <TextInput style={styles.playlistInput} value={newPlaylistName} onChangeText={setNewPlaylistName} placeholder="Tạo playlist mới" placeholderTextColor={COLORS.glass45} />
-            <Pressable onPress={async () => {
-              if (!songToAdd || !newPlaylistName.trim()) return;
-              try {
-                const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
-                await addSongToPlaylist(pl.id, songToAdd.id);
-                setNewPlaylistName('');
-                setPlaylistPickerOpen(false);
-                setSongToAdd(null);
-              } catch (error: any) {
-                Alert.alert('Lỗi', error?.message || 'Không thể tạo playlist mới');
-              }
-            }}><Text style={styles.sheetItemAccent}>+ Tạo mới và thêm</Text></Pressable>
+            <TextInput
+              style={styles.playlistInput}
+              value={newPlaylistName}
+              onChangeText={setNewPlaylistName}
+              placeholder="Tạo playlist mới"
+              placeholderTextColor={themeColors.glass45}
+            />
+            <Pressable onPress={() => { void handleCreateAndAdd(); }}>
+              <Text style={styles.modalItemAccent}>+ Tạo mới và thêm</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
 
-      <Modal visible={!!qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(null)}>
-        <View style={styles.centerBackdrop}>
-          <View style={styles.centerCard}>
-            <Pressable
-                style={styles.modalCloseBtn}
-                onPress={() => setQrModal(null)}
-            >
+      <Modal
+        visible={!!qrModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setQrModal(null)}
+      >
+        <View style={styles.backdrop}>
+          <View style={styles.modalCard}>
+            <Pressable style={styles.modalClose} onPress={() => setQrModal(null)}>
               <Text style={styles.modalCloseIcon}>✕</Text>
             </Pressable>
-
-            <Text style={styles.sheetTitle}>QR Share • {qrModal?.songTitle}</Text>
-            <View style={styles.qrContainer}>
-              {qrModal?.qr ? (
-                  <Image
-                      source={{ uri: qrModal.qr }}
-                      style={styles.qrImage}
-                  />
-              ) : (
-                  <Text style={styles.sheetItem}>Không tạo được QR</Text>
-              )}
-            </View>
+            <Text style={styles.modalTitle}>QR Share · {qrModal?.title}</Text>
+            {qrModal?.qr ? (
+              <Image source={{ uri: qrModal.qr }} style={styles.qrImage} />
+            ) : (
+              <Text style={styles.modalItem}>Không tạo được QR</Text>
+            )}
           </View>
         </View>
       </Modal>
@@ -340,42 +816,141 @@ export const HomeScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+const getStyles = (colors: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   header: { paddingHorizontal: 20, paddingBottom: 20 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  greeting: { color: COLORS.glass50, fontSize: 14 },
-  name: { color: COLORS.white, fontSize: 26, fontWeight: '800' },
-  avatarCircle: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.glass10, alignItems: 'center', justifyContent: 'center' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.glass08, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, gap: 10, borderWidth: 1, borderColor: COLORS.glass12 },
-  searchIcon: { fontSize: 15 },
-  searchPlaceholder: { color: COLORS.glass40, fontSize: 14, flex: 1 },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  greeting: { color: colors.textSecondary, fontSize: 14 },
+  name: { color: colors.text, fontSize: 26, fontWeight: '800' },
+  updatedLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
+  avatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.surfaceMid,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLow,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  searchPlaceholder: { color: colors.muted, fontSize: 14, flex: 1 },
   section: { paddingHorizontal: 20, marginTop: 24 },
-  sectionTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 14 },
+  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 14 },
+  artistHorizontalList: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  artistHorizontalCard: {
+    width: 280,
+    marginBottom: 0,
+  },
+  genreChipCloud: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingHorizontal: 20,
+  },
+  genreChip: {
+    borderWidth: 1,
+    borderColor: colors.accentBorder25,
+    backgroundColor: colors.surfaceLow,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  genreChipActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentFill20,
+  },
+  genreChipText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  genreChipTextActive: {
+    color: colors.accent,
+  },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   quickCard: { width: '47%', borderRadius: 14, overflow: 'hidden' },
-  quickCardGradient: { padding: 16, minHeight: 90, justifyContent: 'space-between' },
+  quickGradient: { padding: 16, minHeight: 90, justifyContent: 'space-between' },
   cardEmoji: { fontSize: 26 },
-  cardTitle: { color: COLORS.white, fontWeight: '700' },
-  sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
-  sheet: { backgroundColor: COLORS.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 18, gap: 10 },
-  centerBackdrop: { flex: 1, backgroundColor: COLORS.scrim, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  centerCard: { width: '100%', backgroundColor: COLORS.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: COLORS.glass10 },
-  sheetTitle: { color: COLORS.white, fontSize: 17, fontWeight: '800' },
-  sheetItem: { color: COLORS.glass85, fontSize: 14, marginTop: 8, alignItems: "center" },
-  genreWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  genreChip: { backgroundColor: COLORS.surface, borderRadius: 999, borderWidth: 1, borderColor: COLORS.glass15, paddingHorizontal: 12, paddingVertical: 6 },
-  genreChipActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
-  genreText: { color: COLORS.glass85, fontSize: 12 },
-  genreTextActive: { color: COLORS.accent, fontWeight: '700' },
-  playlistInput: { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 10 },
-  sheetItemAccent: { color: COLORS.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
-  modalCloseBtn: {position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.glass10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.glass15, zIndex: 10,
+  cardTitle: { color: colors.text, fontWeight: '700' },
+  genreHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginTop: 18,
+    marginBottom: 8,
   },
-  modalCloseIcon: {color: COLORS.white, fontSize: 16, fontWeight: '700',
+  genreSectionTitle: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  seeMoreText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
+  loadingWrap: { alignItems: 'center', paddingVertical: 32 },
+  loadingText: { color: colors.textSecondary, fontSize: 13, marginTop: 10 },
+  errorWrap: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.error,
+    backgroundColor: colors.surfaceDim,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  qrContainer: {alignItems: 'center', justifyContent: 'center', marginTop: 16,
+  errorText: { color: colors.error, fontSize: 12, fontWeight: '600' },
+  backdrop: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
   },
-  qrImage: {width: 220, height: 220, borderRadius: 8,
+  modalCard: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+  modalTitle: { color: colors.text, fontSize: 17, fontWeight: '800', marginBottom: 10 },
+  modalClose: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceMid,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  modalCloseIcon: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  modalItem: { color: colors.textSecondary, fontSize: 14, marginTop: 8 },
+  modalItemAccent: { color: colors.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
+  playlistInput: {
+    color: colors.text,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginTop: 10,
+  },
+  qrImage: { width: 220, height: 220, borderRadius: 8, alignSelf: 'center', marginTop: 12 },
 });

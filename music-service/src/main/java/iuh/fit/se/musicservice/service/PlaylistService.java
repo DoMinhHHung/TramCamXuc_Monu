@@ -19,6 +19,7 @@ public interface PlaylistService {
     PlaylistResponse uploadCover(UUID playlistId, MultipartFile file);
 
     // ── View ──────────────────────────────────────────────────
+    PlaylistResponse getById(UUID playlistId);
     PlaylistResponse getBySlug(String slug);
     Page<PlaylistResponse> getMyPlaylists(Pageable pageable);
 

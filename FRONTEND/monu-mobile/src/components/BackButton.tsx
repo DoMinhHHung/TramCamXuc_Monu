@@ -1,34 +1,31 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
-import { COLORS } from '../config/colors';
+import { useThemeColors } from '../config/colors';
 
 interface BackButtonProps {
   onPress: () => void;
 }
 
 export const BackButton = ({ onPress }: BackButtonProps) => {
+  const colors = useThemeColors();
   return (
-    <Pressable style={styles.button} onPress={onPress}>
-      <Text style={styles.icon}>‹</Text>
+    <Pressable style={{
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    }} onPress={onPress}>
+      <Text style={{
+        color: colors.white,
+        fontSize: 24,
+        lineHeight: 24,
+      }}>‹</Text>
     </Pressable>
   );
 };
 
-const styles = StyleSheet.create({
-  button: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surface,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  icon: {
-    color: COLORS.white,
-    fontSize: 24,
-    lineHeight: 24,
-  },
-});

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,8 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { verifyOtp, resendOtp } from '../../services/auth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { COLORS } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
+import { useTranslation } from '../../context/LocalizationContext';
 
 const OTP_LENGTH = 6;
 const RESEND_SECS = 60;
@@ -22,6 +23,9 @@ export default function VerifyOtpScreen() {
     const route = useRoute<Route>();
     const { email } = route.params;
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
+    const themeColors = useThemeColors();
+    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [loading, setLoading] = useState(false);
@@ -65,17 +69,17 @@ export default function VerifyOtpScreen() {
 
     const handleVerify = async () => {
         if (!isComplete) {
-            Alert.alert('Thiếu mã OTP', 'Vui lòng nhập đủ 6 chữ số.');
+            Alert.alert(t('common.error'), t('screens.authVerifyOtp.missingOtp'));
             return;
         }
         setLoading(true);
         try {
             await verifyOtp({ email, otp: code });
-            Alert.alert('Thành công! 🎉', 'Tài khoản đã được xác thực. Hãy đăng nhập.', [
-                { text: 'Đăng nhập', onPress: () => navigation.navigate('Login') },
+            Alert.alert(t('common.success'), t('screens.authVerifyOtp.verifiedSuccess'), [
+                { text: t('auth.login'), onPress: () => navigation.navigate('Login') },
             ]);
         } catch (e: any) {
-            Alert.alert('Xác thực thất bại', e?.message || 'Mã OTP không đúng hoặc đã hết hạn.');
+            Alert.alert(t('screens.authVerifyOtp.verifyFailed'), e?.message || t('screens.authVerifyOtp.invalidOtp'));
         } finally {
             setLoading(false);
         }
@@ -87,9 +91,9 @@ export default function VerifyOtpScreen() {
         try {
             await resendOtp(email);
             setCountdown(RESEND_SECS);
-            Alert.alert('Đã gửi lại', `Mã OTP mới đã được gửi đến ${email}`);
+            Alert.alert(t('screens.authVerifyOtp.resentTitle'), `${t('screens.authVerifyOtp.resentToPrefix')} ${email}`);
         } catch (e: any) {
-            Alert.alert('Lỗi', e?.message || 'Không thể gửi lại mã.');
+            Alert.alert(t('common.error'), e?.message || t('screens.authVerifyOtp.resendFailed'));
         } finally {
             setResending(false);
         }
@@ -103,7 +107,7 @@ export default function VerifyOtpScreen() {
             <StatusBar style="light" />
 
             <LinearGradient
-                colors={[COLORS.gradIndigo, COLORS.bg]}
+                colors={[themeColors.gradIndigo, themeColors.bg]}
                 style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
             >
                 <BackButton onPress={() => navigation.goBack()} />
@@ -112,9 +116,9 @@ export default function VerifyOtpScreen() {
                     <Text style={{ fontSize: 40 }}>🔑</Text>
                 </View>
 
-                <Text style={styles.title}>Xác thực OTP</Text>
+                <Text style={styles.title}>{t('auth.verifyOtp')}</Text>
                 <Text style={styles.subtitle}>
-                    Mã đã được gửi đến <Text style={{ color: COLORS.accent }}>{email}</Text>
+                    {t('screens.authVerifyOtp.sentTo')} <Text style={{ color: themeColors.accent }}>{email}</Text>
                 </Text>
             </LinearGradient>
 
@@ -149,29 +153,29 @@ export default function VerifyOtpScreen() {
                     disabled={!isComplete || loading}
                 >
                     <LinearGradient
-                        colors={[COLORS.accent, COLORS.accentAlt]}
+                        colors={[themeColors.accent, themeColors.accentAlt]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.btnGradient}
                     >
                         <Text style={styles.btnText}>
-                            {loading ? 'Đang xác thực...' : 'Xác thực'}
+                            {loading ? t('screens.authVerifyOtp.verifying') : t('screens.authVerifyOtp.verify')}
                         </Text>
                     </LinearGradient>
                 </Pressable>
 
                 <View style={styles.resendRow}>
-                    <Text style={styles.resendPrefix}>Không nhận được mã? </Text>
+                    <Text style={styles.resendPrefix}>{t('screens.authVerifyOtp.notReceived')} </Text>
                     <Pressable onPress={handleResend} disabled={countdown > 0 || resending}>
                         <Text style={[
                             styles.resendBtn,
                             (countdown > 0 || resending) && styles.resendDisabled
                         ]}>
                             {countdown > 0
-                                ? `Gửi lại sau ${countdown}s`
+                                ? `${t('screens.authVerifyOtp.resendAfterPrefix')} ${countdown}s`
                                 : resending
-                                    ? 'Đang gửi...'
-                                    : 'Gửi lại'}
+                                    ? t('screens.authVerifyOtp.resending')
+                                    : t('screens.authVerifyOtp.resend')}
                         </Text>
                     </Pressable>
                 </View>
@@ -180,23 +184,23 @@ export default function VerifyOtpScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: colors.bg },
     gradientTop: { paddingHorizontal: 24, paddingBottom: 36, alignItems: 'center' },
     iconWrap: {
         width: 88,
         height: 88,
         borderRadius: 44,
-        backgroundColor: COLORS.glass07,
+        backgroundColor: colors.glass07,
         borderWidth: 1.5,
-        borderColor: COLORS.accentBorder40,
+        borderColor: colors.accentBorder40,
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: 24,
         marginBottom: 20,
     },
-    title: { color: COLORS.white, fontSize: 28, fontWeight: '800', marginBottom: 10 },
-    subtitle: { color: COLORS.glass50, fontSize: 15, textAlign: 'center' },
+    title: { color: colors.white, fontSize: 28, fontWeight: '800', marginBottom: 10 },
+    subtitle: { color: colors.glass50, fontSize: 15, textAlign: 'center' },
     content: { paddingHorizontal: 24, paddingTop: 24, alignItems: 'center' },
     otpRow: { flexDirection: 'row', justifyContent: 'space-between', width: '80%', marginBottom: 32 },
     cell: {
@@ -204,19 +208,19 @@ const styles = StyleSheet.create({
         height: 60,
         borderRadius: 14,
         borderWidth: 1.5,
-        borderColor: COLORS.glass12,
-        backgroundColor: COLORS.glass05,
+        borderColor: colors.glass12,
+        backgroundColor: colors.glass05,
         fontSize: 24,
         fontWeight: '800',
-        color: COLORS.white,
+        color: colors.white,
         textAlign: 'center',
     },
-    cellFilled: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
+    cellFilled: { borderColor: colors.accent, backgroundColor: colors.accentFill20 },
     btn: { borderRadius: 999, overflow: 'hidden', width: '80%', marginBottom: 24 },
     btnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center' },
-    btnText: { color: COLORS.white, fontWeight: '800', fontSize: 16 },
+    btnText: { color: colors.white, fontWeight: '800', fontSize: 16 },
     resendRow: { flexDirection: 'row', alignItems: 'center' },
-    resendPrefix: { color: COLORS.glass40, fontSize: 14 },
-    resendBtn: { color: COLORS.accent, fontSize: 14, fontWeight: '700' },
-    resendDisabled: { color: COLORS.glass30 },
+    resendPrefix: { color: colors.glass40, fontSize: 14 },
+    resendBtn: { color: colors.accent, fontSize: 14, fontWeight: '700' },
+    resendDisabled: { color: colors.glass30 },
 });

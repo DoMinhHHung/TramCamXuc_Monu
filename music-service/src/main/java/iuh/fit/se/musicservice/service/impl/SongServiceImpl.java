@@ -64,8 +64,25 @@ public class SongServiceImpl implements SongService {
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     private UUID currentUserId() {
-        return UUID.fromString(
-                SecurityContextHolder.getContext().getAuthentication().getName());
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        String principal = null;
+        try {
+            principal = auth.getName();
+            return UUID.fromString(principal);
+        } catch (Exception e) {
+            if (principal == null && auth.getPrincipal() != null) {
+                try {
+                    principal = auth.getPrincipal().toString();
+                    return UUID.fromString(principal);
+                } catch (Exception ignored) {}
+            }
+            log.error("[SongService] Unable to parse user id from authentication: {}", auth, e);
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
     }
 
 
@@ -97,8 +114,13 @@ public class SongServiceImpl implements SongService {
             var auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth == null || !auth.isAuthenticated()
                     || "anonymousUser".equals(auth.getPrincipal())) return null;
-            return UUID.fromString(auth.getName());
+            try {
+                return UUID.fromString(auth.getName());
+            } catch (Exception ignored) {
+                return UUID.fromString(auth.getPrincipal().toString());
+            }
         } catch (Exception e) {
+            log.warn("[SongService] Failed to resolve current user id: {}", e.getMessage());
             return null;
         }
     }
@@ -232,6 +254,7 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<SongResponse> getMySongs(Pageable pageable) {
         UUID userId = currentUserId();
         return songRepository.findAllByOwnerUserId(userId, pageable)
@@ -353,23 +376,27 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<SongResponse> searchSongs(String keyword, UUID genreId,
                                           UUID artistId, Pageable pageable) {
-        return songRepository.searchPublic(keyword, genreId, artistId, pageable)
+        return songRepository.searchPublic(toKeywordPattern(keyword), genreId, artistId, pageable)
                 .map(songMapper::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<SongResponse> getTrending(Pageable pageable) {
         return songRepository.findTrending(pageable).map(songMapper::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<SongResponse> getNewest(Pageable pageable) {
         return songRepository.findNewest(pageable).map(songMapper::toResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<SongResponse> getSongsByArtist(UUID artistId, Pageable pageable) {
         return songRepository.findPublicByArtistId(artistId, pageable)
                 .map(songMapper::toResponse);
@@ -414,6 +441,7 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<SongResponse> getSongsByArtistTop(UUID artistId, int limit) {
         String cacheKey = CACHE_ARTIST_PREFIX + artistId + ":" + limit;
         try {
@@ -444,9 +472,10 @@ public class SongServiceImpl implements SongService {
     // ── Admin ──────────────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public Page<SongResponse> getAdminSongs(String keyword, SongStatus status,
                                              boolean showDeleted, Pageable pageable) {
-        return songRepository.findForAdmin(keyword, status, showDeleted, pageable)
+        return songRepository.findForAdmin(toKeywordPattern(keyword), status, showDeleted, pageable)
                 .map(songMapper::toResponse);
     }
 
@@ -493,6 +522,17 @@ public class SongServiceImpl implements SongService {
     }
 
     // ── Private helpers ────────────────────────────────────────────────────────
+
+    private String toKeywordPattern(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String normalized = keyword.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        return "%" + normalized + "%";
+    }
 
     private boolean hasFeature(String featureKey) {
         Map<String, Object> features = loadSubscriptionFeatures(currentUserId());

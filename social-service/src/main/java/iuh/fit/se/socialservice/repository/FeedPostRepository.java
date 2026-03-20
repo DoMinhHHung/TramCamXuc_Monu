@@ -38,4 +38,11 @@ public interface FeedPostRepository extends MongoRepository<FeedPost, String> {
                                                       UUID ownerId);
 
     long countByOwnerId(UUID ownerId);
+
+    // Public feed — tất cả post công khai
+    @Query("{'visibility': {$in: ?0}, 'createdAt': {$gte: ?1}}")
+    List<FeedPost> findPublicFeed(List<String> visibilities, Instant since, Pageable pageable);
+
+    @Query(value = "{'visibility': {$in: ?0}, 'createdAt': {$gte: ?1}}", count = true)
+    long countPublicFeed(List<String> visibilities, Instant since);
 }

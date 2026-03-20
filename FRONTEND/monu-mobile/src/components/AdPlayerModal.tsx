@@ -29,13 +29,15 @@ const SKIP_LOCK_SECONDS = 5;
 interface AdPlayerModalProps {
     /** Ad cần phát. null → modal không render */
     ad: AdDelivery | null;
+    /** Bài hát đang phát tại thời điểm hiển thị ad (optional analytics context) */
+    songId?: string;
     /** Được gọi khi ad kết thúc (hoặc bị skip) */
     onFinished: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export const AdPlayerModal = ({ ad, onFinished }: AdPlayerModalProps) => {
+export const AdPlayerModal = ({ ad, songId, onFinished }: AdPlayerModalProps) => {
     const insets    = useSafeAreaInsets();
     const visible   = ad !== null;
 
@@ -126,7 +128,7 @@ export const AdPlayerModal = ({ ad, onFinished }: AdPlayerModalProps) => {
             try { adPlayer.pause(); } catch { /* ignore */ }
 
             // Báo backend
-            await recordAdPlayed(ad.adId, { completed });
+            await recordAdPlayed(ad.adId, { completed, songId });
 
             // Slide down animation rồi gọi onFinished
             Animated.timing(slideAnim, {
@@ -137,7 +139,7 @@ export const AdPlayerModal = ({ ad, onFinished }: AdPlayerModalProps) => {
                 onFinished();
             });
         },
-        [ad, adPlayer, onFinished, slideAnim],
+        [ad, adPlayer, songId, onFinished, slideAnim],
     );
 
     const handleSkip = useCallback((): void => {

@@ -20,9 +20,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
 import { apiClient } from '../../services/api';
+import { useTranslation } from '../../context/LocalizationContext';
 
 export const RegisterArtistScreen = () => {
     const navigation = useNavigation<any>();
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
 
     const [stageName, setStageName] = useState('');
@@ -38,15 +40,15 @@ export const RegisterArtistScreen = () => {
         try {
             await apiClient.post('/artists/register', {
                 stageName: stageName.trim(),
-                bio: bio.trim() || 'Artist from Monu',
+                bio: bio.trim() || t('screens.registerArtist.defaultBio', 'Artist from Monu'),
             });
             Alert.alert(
-                '🎉 Đăng ký thành công!',
-                'Hồ sơ nghệ sĩ đang được xét duyệt (1–3 ngày). Bạn sẽ nhận thông báo qua email khi được phê duyệt.',
-                [{ text: 'OK', onPress: () => navigation.goBack() }],
+                t('screens.registerArtist.successTitle', '🎉 Registration successful!'),
+                t('screens.registerArtist.successMessage', 'Your artist profile is under review (1–3 days). You will receive an email notification once approved.'),
+                [{ text: t('controls.ok', 'OK'), onPress: () => navigation.goBack() }],
             );
         } catch (e: any) {
-            Alert.alert('Lỗi', e?.message ?? 'Không thể đăng ký. Vui lòng thử lại.');
+            Alert.alert(t('common.error'), e?.message ?? t('screens.registerArtist.registerFailed', 'Could not register. Please try again.'));
         } finally {
             setLoading(false);
         }
@@ -71,9 +73,9 @@ export const RegisterArtistScreen = () => {
                     <BackButton onPress={() => navigation.goBack()} />
                     <View style={styles.heroContent}>
                         <Text style={styles.heroEmoji}>🎤</Text>
-                        <Text style={styles.heroTitle}>Trở thành Nghệ sĩ</Text>
+                        <Text style={styles.heroTitle}>{t('screens.registerArtist.title', 'Become an Artist')}</Text>
                         <Text style={styles.heroSub}>
-                            Chia sẻ âm nhạc của bạn với hàng nghìn người nghe
+                            {t('screens.registerArtist.subtitle', 'Share your music with thousands of listeners')}
                         </Text>
                     </View>
                 </LinearGradient>
@@ -82,12 +84,12 @@ export const RegisterArtistScreen = () => {
                 <View style={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
 
                     {/* Stage name */}
-                    <Text style={styles.fieldLabel}>Nghệ danh *</Text>
+                    <Text style={styles.fieldLabel}>{t('screens.registerArtist.stageNameLabel', 'Stage name *')}</Text>
                     <TextInput
                         style={styles.input}
                         value={stageName}
                         onChangeText={setStageName}
-                        placeholder="Tên nghệ danh của bạn"
+                        placeholder={t('screens.registerArtist.stageNamePlaceholder', 'Your stage name')}
                         placeholderTextColor={COLORS.glass35}
                         maxLength={50}
                         autoCapitalize="words"
@@ -95,12 +97,12 @@ export const RegisterArtistScreen = () => {
                     <Text style={styles.charCount}>{stageName.length}/50</Text>
 
                     {/* Bio */}
-                    <Text style={styles.fieldLabel}>Giới thiệu</Text>
+                    <Text style={styles.fieldLabel}>{t('screens.registerArtist.bioLabel', 'Bio')}</Text>
                     <TextInput
                         style={[styles.input, styles.textArea]}
                         value={bio}
                         onChangeText={setBio}
-                        placeholder="Kể đôi điều về bạn và hành trình âm nhạc..."
+                        placeholder={t('screens.registerArtist.bioPlaceholder', 'Tell us about you and your music journey...')}
                         placeholderTextColor={COLORS.glass35}
                         multiline
                         numberOfLines={4}
@@ -119,14 +121,14 @@ export const RegisterArtistScreen = () => {
                         />
                         <View style={styles.termsTextWrap}>
                             <Text style={styles.termsLabel}>
-                                Tôi đồng ý với{' '}
+                                {t('screens.registerArtist.acceptPrefix', 'I agree to')}{' '}
                                 <Text
                                     style={styles.termsLink}
                                     onPress={() => navigation.navigate('ArtistTerms')}
                                 >
-                                    Điều khoản dành cho Nghệ sĩ
+                                    {t('screens.registerArtist.artistTerms', 'Artist Terms')}
                                 </Text>
-                                {' '}của Monu
+                                {' '}{t('screens.registerArtist.acceptSuffix', 'of Monu')}
                             </Text>
                         </View>
                     </View>
@@ -150,19 +152,19 @@ export const RegisterArtistScreen = () => {
                             {loading ? (
                                 <ActivityIndicator color={COLORS.white} />
                             ) : (
-                                <Text style={styles.submitText}>Đăng ký Nghệ sĩ</Text>
+                                <Text style={styles.submitText}>{t('screens.registerArtist.submit', 'Register as Artist')}</Text>
                             )}
                         </LinearGradient>
                     </Pressable>
 
                     {/* Info card */}
                     <View style={styles.infoCard}>
-                        <Text style={styles.infoTitle}>📋 Quy trình xét duyệt</Text>
+                        <Text style={styles.infoTitle}>{t('screens.registerArtist.reviewProcessTitle', '📋 Review process')}</Text>
                         {[
-                            'Hồ sơ được xem xét trong 1–3 ngày làm việc',
-                            'Thông báo phê duyệt sẽ gửi qua email',
-                            'Sau khi được duyệt, bạn có thể upload nhạc và tạo album',
-                            'Cần có gói Premium để kích hoạt tính năng Artist',
+                            t('screens.registerArtist.reviewStep1', 'Profile is reviewed within 1–3 business days'),
+                            t('screens.registerArtist.reviewStep2', 'Approval notification is sent via email'),
+                            t('screens.registerArtist.reviewStep3', 'After approval, you can upload songs and create albums'),
+                            t('screens.registerArtist.reviewStep4', 'A Premium plan is required to activate Artist features'),
                         ].map((item, i) => (
                             <View key={i} style={styles.infoRow}>
                                 <Text style={styles.infoDot}>•</Text>
