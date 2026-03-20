@@ -10,8 +10,9 @@ import { StatusBar } from 'expo-status-bar';
 
 import { BackButton } from '../../components/BackButton';
 import { SocialButton } from '../../components/SocialButton';
-import { COLORS } from '../../config/colors';
+import { COLORS, ColorScheme, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -22,6 +23,9 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'LoginOptions'>;
 export const LoginOptionsScreen = () => {
   const navigation = useNavigation<Nav>();
   const { loginDirect } = useAuth();
+  const { t } = useTranslation();
+  const themeColors = useThemeColors();
+  const styles = createStyles(themeColors);
   const [loading, setLoading] = useState(false);
   const insets = useSafeAreaInsets();
 
@@ -39,7 +43,7 @@ export const LoginOptionsScreen = () => {
       const params = parsed.queryParams;
 
       if (params?.error) {
-        Alert.alert('Đăng nhập thất bại', 'Xác thực OAuth không thành công');
+        Alert.alert(t('auth.login', 'Login'), t('screens.authOptions.oauthFailed', 'OAuth authentication failed'));
         return;
       }
 
@@ -47,13 +51,13 @@ export const LoginOptionsScreen = () => {
       const refreshToken = params?.refreshToken as string | undefined;
 
       if (!accessToken || !refreshToken) {
-        Alert.alert('Lỗi', 'Không nhận được token từ server');
+        Alert.alert(t('common.error'), t('screens.authOptions.missingToken', 'No token received from server'));
         return;
       }
 
       await loginDirect(accessToken, refreshToken);
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Đăng nhập social thất bại');
+      Alert.alert(t('common.error'), error?.message || t('screens.authOptions.socialLoginFailed', 'Social login failed'));
     } finally {
       setLoading(false);
     }
@@ -64,16 +68,16 @@ export const LoginOptionsScreen = () => {
         <StatusBar style="light" />
 
         <LinearGradient
-            colors={[COLORS.gradIndigo, COLORS.bg]}
+          colors={[themeColors.gradIndigo, themeColors.bg]}
             style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
         >
           <BackButton onPress={() => navigation.navigate('Welcome')} />
 
           <View style={styles.heroText}>
             <Text style={styles.heroEmoji}>👋</Text>
-            <Text style={styles.title}>Chào mừng trở lại</Text>
+            <Text style={styles.title}>{t('auth.welcomeBack', 'Welcome back')}</Text>
             <Text style={styles.subtitle}>
-              Tiếp tục với phương thức đăng nhập bạn muốn
+              {t('screens.authOptions.loginSubtitle', 'Continue with your preferred sign-in method')}
             </Text>
           </View>
         </LinearGradient>
@@ -84,12 +88,12 @@ export const LoginOptionsScreen = () => {
               onPress={() => navigation.navigate('Login')}
           >
             <LinearGradient
-                colors={[COLORS.accent, COLORS.accentAlt]}
+                colors={[themeColors.accent, themeColors.accentAlt]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.emailBtnGradient}
             >
-              <Text style={styles.emailText}>Tiếp tục bằng Email</Text>
+              <Text style={styles.emailText}>{t('screens.authOptions.continueWithEmail', 'Continue with Email')}</Text>
             </LinearGradient>
           </Pressable>
 
@@ -109,7 +113,7 @@ export const LoginOptionsScreen = () => {
               onPress={() => navigation.navigate('RegisterOptions')}
           >
             <Text style={styles.footerText}>
-              Bạn chưa có tài khoản? <Text style={styles.footerLink}>Đăng ký</Text>
+              {t('auth.dontHaveAccount', "Don't have an account?")} <Text style={styles.footerLink}>{t('auth.signup', 'Sign up')}</Text>
             </Text>
           </Pressable>
         </View>
@@ -117,13 +121,13 @@ export const LoginOptionsScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   gradientTop: { paddingHorizontal: 24, paddingBottom: 32 },
   heroText: { alignItems: 'center', marginTop: 40 },
   heroEmoji: { fontSize: 48, marginBottom: 16 },
-  title: { color: COLORS.white, fontSize: 34, fontWeight: '800', marginBottom: 8 },
-  subtitle: { color: COLORS.glass50, fontSize: 16, textAlign: 'center', lineHeight: 24 },
+  title: { color: colors.white, fontSize: 34, fontWeight: '800', marginBottom: 8 },
+  subtitle: { color: colors.glass50, fontSize: 16, textAlign: 'center', lineHeight: 24 },
   content: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
   emailBtn: { borderRadius: 999, overflow: 'hidden', marginBottom: 16 },
   emailBtnGradient: {
@@ -131,8 +135,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emailText: { color: COLORS.white, fontSize: 16, fontWeight: '800' },
+  emailText: { color: colors.white, fontSize: 16, fontWeight: '800' },
   footer: { alignItems: 'center', marginTop: 32 },
-  footerText: { color: COLORS.glass45, fontSize: 15 },
-  footerLink: { color: COLORS.accent, fontWeight: '700' },
+  footerText: { color: colors.glass45, fontSize: 15 },
+  footerLink: { color: colors.accent, fontWeight: '700' },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator, Alert, Pressable,
   ScrollView, StyleSheet, Text, View,
@@ -11,8 +11,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '../../components/BackButton';
 import { GenreChip } from '../../components/GenreChip';
-import { COLORS } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
+import { ONBOARDING_EMOJIS } from '../../config/emojis';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { getPopularGenres } from '../../services/favorites';
 import { Genre } from '../../types/favorites';
@@ -25,7 +27,10 @@ const MAX_GENRES = 5;
 export const SelectGenresScreen = () => {
   const navigation = useNavigation<Nav>();
   const { refreshProfile, logout } = useAuth();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [loading, setLoading] = useState(true);
   const [genres, setGenres] = useState<Genre[]>([]);
@@ -38,15 +43,15 @@ export const SelectGenresScreen = () => {
       setLoading(true);
       setGenres(await getPopularGenres(20));
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể tải dữ liệu. Vui lòng thử lại.');
+      Alert.alert(t('common.error'), error?.message || t('errors.loadingFailed'));
     } finally { setLoading(false); }
   };
 
   const handleBack = () => {
-    Alert.alert('Huỷ thiết lập?', 'Bạn có muốn hủy và đăng xuất?', [
-      { text: 'Không', style: 'cancel' },
+    Alert.alert(t('screens.onboarding.cancelSetupTitle'), t('screens.onboarding.cancelSetupMessage'), [
+      { text: t('controls.no'), style: 'cancel' },
       {
-        text: 'Đăng xuất',
+        text: t('screens.profile.logout'),
         style: 'destructive',
         onPress: async () => {
           await logout();
@@ -58,19 +63,25 @@ export const SelectGenresScreen = () => {
 
   const toggleGenre = (id: string) => {
     if (selectedGenres.includes(id)) { setSelectedGenres(selectedGenres.filter(g => g !== id)); return; }
-    if (selectedGenres.length >= MAX_GENRES) { Alert.alert('Giới hạn', `Tối đa ${MAX_GENRES} thể loại.`); return; }
+    if (selectedGenres.length >= MAX_GENRES) {
+      Alert.alert(t('screens.onboarding.limitTitle'), t('screens.onboarding.maxGenres').replace('{max}', String(MAX_GENRES)));
+      return;
+    }
     setSelectedGenres([...selectedGenres, id]);
   };
 
   const handleContinue = () => {
-    if (selectedGenres.length < MIN_GENRES) { Alert.alert('Lỗi', `Vui lòng chọn ít nhất ${MIN_GENRES} thể loại.`); return; }
+    if (selectedGenres.length < MIN_GENRES) {
+      Alert.alert(t('common.error'), t('screens.onboarding.minGenres').replace('{min}', String(MIN_GENRES)));
+      return;
+    }
     navigation.navigate('SelectArtists', { selectedGenreIds: selectedGenres });
   };
 
   const handleSkip = () => {
-    Alert.alert('Bỏ qua?', 'Bạn sẽ không nhận được gợi ý nhạc phù hợp.', [
-      { text: 'Hủy', style: 'cancel' },
-      { text: 'Bỏ qua', style: 'destructive', onPress: async () => { await refreshProfile(); } },
+    Alert.alert(t('controls.skip'), t('screens.onboarding.skipGenresMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('controls.skip'), style: 'destructive', onPress: async () => { await refreshProfile(); } },
     ]);
   };
 
@@ -79,8 +90,8 @@ export const SelectGenresScreen = () => {
   if (loading) {
     return (
         <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
-          <ActivityIndicator size="large" color={COLORS.accent} />
-          <Text style={styles.loadingText}>Đang tải...</Text>
+          <ActivityIndicator size="large" color={themeColors.accent} />
+          <Text style={styles.loadingText}>{t('common.loading')}</Text>
         </View>
     );
   }
@@ -90,7 +101,7 @@ export const SelectGenresScreen = () => {
         <StatusBar style="light" />
         <ScrollView showsVerticalScrollIndicator={false}>
           <LinearGradient
-              colors={[COLORS.gradNavy, COLORS.bg]}
+              colors={[themeColors.gradNavy, themeColors.bg]}
               style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
           >
             <BackButton onPress={handleBack} />
@@ -100,16 +111,16 @@ export const SelectGenresScreen = () => {
               <View style={styles.stepDot} />
             </View>
 
-            <Text style={styles.emoji}>🎵</Text>
-            <Text style={styles.title}>Chào mừng đến{'\n'}PhazelSound!</Text>
-            <Text style={styles.subtitle}>Chọn thể loại nhạc bạn yêu thích</Text>
+            <Text style={styles.emoji}>{ONBOARDING_EMOJIS.welcome}</Text>
+            <Text style={styles.title}>{t('onboarding.selectGenresTitle')}</Text>
+            <Text style={styles.subtitle}>{t('onboarding.selectGenresSubtitle')}</Text>
           </LinearGradient>
 
           <View style={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
             <View style={styles.countRow}>
-              <Text style={styles.countLabel}>Chọn {MIN_GENRES}–{MAX_GENRES} thể loại</Text>
+              <Text style={styles.countLabel}>{t('onboarding.selectCount').replace('{min}', String(MIN_GENRES)).replace('{max}', String(MAX_GENRES))}</Text>
               <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{selectedGenres.length}/{MAX_GENRES}</Text>
+                <Text style={styles.countBadgeText}>{t('onboarding.selected').replace('{count}', String(selectedGenres.length)).replace('{max}', String(MAX_GENRES))}</Text>
               </View>
             </View>
 
@@ -131,16 +142,16 @@ export const SelectGenresScreen = () => {
                 disabled={!canContinue}
             >
               <LinearGradient
-                  colors={canContinue ? [COLORS.accent, COLORS.accentAlt] : [COLORS.surfaceMid, COLORS.surfaceMid]}
+                  colors={canContinue ? [themeColors.accent, themeColors.accentAlt] : [themeColors.surfaceMid, themeColors.surfaceMid]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={styles.btnGradient}
               >
-                <Text style={styles.primaryBtnText}>Tiếp tục →</Text>
+                <Text style={styles.primaryBtnText}>{t('controls.next')} →</Text>
               </LinearGradient>
             </Pressable>
 
             <Pressable style={styles.skipBtn} onPress={handleSkip}>
-              <Text style={styles.skipText}>Bỏ qua bước này</Text>
+              <Text style={styles.skipText}>{t('screens.onboarding.skipStep')}</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -148,19 +159,19 @@ export const SelectGenresScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-  loadingText: { color: 'COLORS.glass40', marginTop: 12 },
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  loadingText: { color: colors.glass40, marginTop: 12 },
 
   gradientTop: { paddingHorizontal: 24, paddingBottom: 32 },
 
   stepRow: { flexDirection: 'row', gap: 8, marginTop: 20, marginBottom: 24 },
-  stepDotActive: { width: 24, height: 8, borderRadius: 4, backgroundColor: COLORS.accent },
-  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'COLORS.glass20' },
+  stepDotActive: { width: 24, height: 8, borderRadius: 4, backgroundColor: colors.accent },
+  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.glass20 },
 
   emoji: { fontSize: 44, marginBottom: 14 },
-  title: { color: COLORS.white, fontSize: 30, fontWeight: '800', lineHeight: 38, marginBottom: 10 },
-  subtitle: { color: 'COLORS.glass50', fontSize: 15, lineHeight: 22 },
+  title: { color: colors.white, fontSize: 30, fontWeight: '800', lineHeight: 38, marginBottom: 10 },
+  subtitle: { color: colors.glass50, fontSize: 15, lineHeight: 22 },
 
   body: { paddingHorizontal: 20, paddingTop: 24 },
 
@@ -170,23 +181,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  countLabel: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  countLabel: { color: colors.white, fontSize: 16, fontWeight: '700' },
   countBadge: {
-    backgroundColor: 'COLORS.accentFill25',
+    backgroundColor: colors.accentFill25,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: 'COLORS.accentBorder30',
+    borderColor: colors.accentBorder30,
   },
-  countBadgeText: { color: COLORS.accent, fontWeight: '700', fontSize: 13 },
+  countBadgeText: { color: colors.accent, fontWeight: '700', fontSize: 13 },
 
   genresWrap: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 28 },
 
   primaryBtn: { borderRadius: 999, overflow: 'hidden', marginBottom: 12 },
   btnDisabled: { opacity: 0.5 },
   btnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
-  primaryBtnText: { color: COLORS.white, fontWeight: '800', fontSize: 16 },
+  primaryBtnText: { color: colors.white, fontWeight: '800', fontSize: 16 },
 
   skipBtn: {
     minHeight: 52,
@@ -194,7 +205,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'COLORS.glass10',
+    borderColor: colors.glass10,
   },
-  skipText: { color: 'COLORS.glass45', fontWeight: '600', fontSize: 15 },
+  skipText: { color: colors.glass45, fontWeight: '600', fontSize: 15 },
 });

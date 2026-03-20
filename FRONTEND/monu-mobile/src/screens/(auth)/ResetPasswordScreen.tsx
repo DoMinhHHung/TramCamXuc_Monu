@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,8 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { resetPassword, resendOtp } from '../../services/auth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { COLORS } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
+import { useTranslation } from '../../context/LocalizationContext';
 
 const OTP_LENGTH = 6;
 const RESEND_SECS = 60;
@@ -22,6 +23,9 @@ export default function ResetPasswordScreen() {
     const route = useRoute<Route>();
     const { email } = route.params;
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
+    const themeColors = useThemeColors();
+    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [newPassword, setNewPw] = useState('');
@@ -66,28 +70,28 @@ export default function ResetPasswordScreen() {
     const code = otp.join('');
 
     const validate = () => {
-        if (code.length < OTP_LENGTH) return 'Vui lòng nhập đủ 6 chữ số OTP.';
-        if (!newPassword) return 'Vui lòng nhập mật khẩu mới.';
+        if (code.length < OTP_LENGTH) return t('screens.authReset.otpRequired');
+        if (!newPassword) return t('screens.authReset.newPasswordRequired');
         if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(newPassword))
-            return 'Mật khẩu cần ≥ 8 ký tự, chữ hoa, thường, số và ký tự đặc biệt.';
-        if (newPassword !== confirmPw) return 'Mật khẩu nhập lại không khớp.';
+            return t('screens.authReset.passwordPolicy');
+        if (newPassword !== confirmPw) return t('screens.authReset.passwordMismatch');
         return null;
     };
 
     const handleReset = async () => {
         const err = validate();
         if (err) {
-            Alert.alert('Thông tin không hợp lệ', err);
+            Alert.alert(t('common.error'), err);
             return;
         }
         setLoading(true);
         try {
             await resetPassword({ email, otp: code, newPassword });
-            Alert.alert('Thành công! 🎉', 'Mật khẩu đã được đặt lại. Hãy đăng nhập lại.', [
-                { text: 'Đăng nhập', onPress: () => navigation.navigate('Login') },
+            Alert.alert(t('common.success'), t('screens.authReset.resetSuccess'), [
+                { text: t('auth.login'), onPress: () => navigation.navigate('Login') },
             ]);
         } catch (e: any) {
-            Alert.alert('Lỗi', e?.message || 'Không thể đặt lại mật khẩu.');
+            Alert.alert(t('common.error'), e?.message || t('screens.authReset.resetFailed'));
         } finally {
             setLoading(false);
         }
@@ -99,9 +103,9 @@ export default function ResetPasswordScreen() {
         try {
             await resendOtp(email);
             setCountdown(RESEND_SECS);
-            Alert.alert('Đã gửi lại', `Mã OTP mới đã được gửi đến ${email}`);
+            Alert.alert(t('screens.authReset.resentTitle'), `${t('screens.authReset.resentToPrefix')} ${email}`);
         } catch (e: any) {
-            Alert.alert('Lỗi', e?.message || 'Không thể gửi lại mã.');
+            Alert.alert(t('common.error'), e?.message || t('screens.authReset.resendFailed'));
         } finally {
             setResending(false);
         }
@@ -115,7 +119,7 @@ export default function ResetPasswordScreen() {
             <StatusBar style="light" />
 
             <LinearGradient
-                colors={[COLORS.gradIndigo, COLORS.bg]}
+                colors={[themeColors.gradIndigo, themeColors.bg]}
                 style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
             >
                 <BackButton onPress={() => navigation.goBack()} />
@@ -124,14 +128,14 @@ export default function ResetPasswordScreen() {
                     <Text style={{ fontSize: 40 }}>🔄</Text>
                 </View>
 
-                <Text style={styles.title}>Đặt lại mật khẩu</Text>
+                <Text style={styles.title}>{t('auth.resetPassword')}</Text>
                 <Text style={styles.subtitle}>
-                    Nhập mã OTP và mật khẩu mới cho <Text style={{ color: COLORS.accent }}>{email}</Text>
+                    {t('screens.authReset.subtitle')} <Text style={{ color: themeColors.accent }}>{email}</Text>
                 </Text>
             </LinearGradient>
 
             <View style={[styles.form, { paddingBottom: insets.bottom + 32 }]}>
-                <Text style={styles.fieldLabel}>Mã OTP</Text>
+                <Text style={styles.fieldLabel}>{t('auth.verifyOtp')}</Text>
                 <View style={styles.otpRow}>
                     {otp.map((digit, index) => (
                         <TextInput
@@ -162,14 +166,14 @@ export default function ResetPasswordScreen() {
                         (countdown > 0 || resending) && styles.resendDisabled
                     ]}>
                         {countdown > 0
-                            ? `Gửi lại sau ${countdown}s`
+                            ? `${t('screens.authReset.resendAfterPrefix')} ${countdown}s`
                             : resending
-                                ? 'Đang gửi...'
-                                : 'Gửi lại mã OTP'}
+                                ? t('screens.authReset.resending')
+                                : t('screens.authReset.resendOtp')}
                     </Text>
                 </Pressable>
 
-                <Text style={styles.fieldLabel}>Mật khẩu mới</Text>
+                <Text style={styles.fieldLabel}>{t('screens.authReset.newPassword')}</Text>
                 <View style={styles.pwWrap}>
                     <TextInput
                         secureTextEntry={!showPw}
@@ -177,21 +181,21 @@ export default function ResetPasswordScreen() {
                         value={newPassword}
                         onChangeText={setNewPw}
                         placeholder="••••••••"
-                        placeholderTextColor={COLORS.glass25}
+                        placeholderTextColor={themeColors.glass25}
                     />
                     <Pressable onPress={() => setShowPw(!showPw)} style={styles.eyeBtn}>
                         <Text style={{ fontSize: 18 }}>{showPw ? '🙈' : '👁️'}</Text>
                     </Pressable>
                 </View>
 
-                <Text style={styles.fieldLabel}>Xác nhận mật khẩu</Text>
+                <Text style={styles.fieldLabel}>{t('auth.confirmPassword')}</Text>
                 <TextInput
                     secureTextEntry
                     style={styles.input}
                     value={confirmPw}
                     onChangeText={setConfirmPw}
                     placeholder="••••••••"
-                    placeholderTextColor={COLORS.glass25}
+                    placeholderTextColor={themeColors.glass25}
                 />
 
                 <Pressable
@@ -203,13 +207,13 @@ export default function ResetPasswordScreen() {
                     disabled={loading}
                 >
                     <LinearGradient
-                        colors={[COLORS.accent, COLORS.accentAlt]}
+                        colors={[themeColors.accent, themeColors.accentAlt]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.btnGradient}
                     >
                         <Text style={styles.btnText}>
-                            {loading ? 'Đang đặt lại...' : 'Đặt lại mật khẩu'}
+                            {loading ? t('screens.authReset.resetting') : t('auth.resetPassword')}
                         </Text>
                     </LinearGradient>
                 </Pressable>
@@ -218,26 +222,26 @@ export default function ResetPasswordScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: colors.bg },
     gradientTop: { paddingHorizontal: 24, paddingBottom: 32, alignItems: 'center' },
     iconWrap: {
         width: 88,
         height: 88,
         borderRadius: 44,
-        backgroundColor: COLORS.glass07,
+        backgroundColor: colors.glass07,
         borderWidth: 1.5,
-        borderColor: COLORS.accentBorder40,
+        borderColor: colors.accentBorder40,
         alignItems: 'center',
         justifyContent: 'center',
         marginTop: 24,
         marginBottom: 18,
     },
-    title: { color: COLORS.white, fontSize: 28, fontWeight: '800', marginBottom: 8 },
-    subtitle: { color: COLORS.glass50, fontSize: 15, textAlign: 'center', lineHeight: 22 },
+    title: { color: colors.white, fontSize: 28, fontWeight: '800', marginBottom: 8 },
+    subtitle: { color: colors.glass50, fontSize: 15, textAlign: 'center', lineHeight: 22 },
     form: { paddingHorizontal: 24, paddingTop: 8 },
     fieldLabel: {
-        color: COLORS.glass40,
+        color: colors.glass40,
         fontSize: 11,
         fontWeight: '700',
         letterSpacing: 1.2,
@@ -251,37 +255,37 @@ const styles = StyleSheet.create({
         height: 56,
         borderRadius: 12,
         borderWidth: 1.5,
-        borderColor: COLORS.glass12,
-        backgroundColor: COLORS.glass05,
+        borderColor: colors.glass12,
+        backgroundColor: colors.glass05,
         fontSize: 22,
         fontWeight: '800',
-        color: COLORS.white,
+        color: colors.white,
         textAlign: 'center',
     },
-    cellFilled: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
+    cellFilled: { borderColor: colors.accent, backgroundColor: colors.accentFill20 },
     resendRow: { alignSelf: 'flex-end', marginBottom: 24 },
-    resendText: { color: COLORS.accent, fontSize: 14, fontWeight: '600' },
-    resendDisabled: { color: COLORS.glass30 },
+    resendText: { color: colors.accent, fontSize: 14, fontWeight: '600' },
+    resendDisabled: { color: colors.glass30 },
     input: {
-        backgroundColor: COLORS.glass06,
+        backgroundColor: colors.glass06,
         borderWidth: 1,
-        borderColor: COLORS.glass10,
+        borderColor: colors.glass10,
         borderRadius: 14,
         paddingHorizontal: 16,
         paddingVertical: 15,
-        color: COLORS.white,
+        color: colors.white,
         fontSize: 15,
     },
     pwWrap: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.glass06,
+        backgroundColor: colors.glass06,
         borderWidth: 1,
-        borderColor: COLORS.glass10,
+        borderColor: colors.glass10,
         borderRadius: 14,
     },
     eyeBtn: { paddingHorizontal: 14 },
     btn: { borderRadius: 999, overflow: 'hidden', marginTop: 32 },
     btnGradient: { minHeight: 60, alignItems: 'center', justifyContent: 'center' },
-    btnText: { color: COLORS.white, fontWeight: '800', fontSize: 17 },
+    btnText: { color: colors.white, fontWeight: '800', fontSize: 17 },
 });

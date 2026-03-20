@@ -10,9 +10,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConfirmModal } from '../../components/ConfirmModal';
-import { COLORS } from '../../config/colors';
+import { COLORS, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useDownload } from '../../context/DownloadContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { deleteMyProfile, updateMyProfile, uploadAvatar } from '../../services/auth';
 import { getMyPlaylists } from '../../services/music';
 import { getMyHearts } from '../../services/social';
@@ -30,6 +31,8 @@ type ArtistProfile = {
 
 export const ProfileScreen = () => {
     const { authSession, refreshProfile, logout } = useAuth();
+    const { t } = useTranslation();
+    const themeColors = useThemeColors();
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const { downloadedSongs, storageUsed, deleteDownload } = useDownload();
@@ -81,7 +84,7 @@ export const ProfileScreen = () => {
     const pickAvatar = async () => {
         const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
-            Alert.alert('Quyền truy cập bị từ chối', 'Vui lòng cấp quyền để chọn ảnh.');
+            Alert.alert(t('screens.profile.permissionDeniedTitle', 'Permission denied'), t('screens.profile.permissionDeniedMessage', 'Please grant permission to select image.'));
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -96,7 +99,7 @@ export const ProfileScreen = () => {
             await uploadAvatar(result.assets[0].uri);
             await refreshProfile();
         } catch (error: any) {
-            Alert.alert('Lỗi', error?.message || 'Không thể cập nhật avatar.');
+            Alert.alert(t('common.error'), error?.message || t('screens.profile.updateAvatarFailed', 'Cannot update avatar.'));
         } finally {
             setSaving(false);
         }
@@ -109,7 +112,7 @@ export const ProfileScreen = () => {
             await refreshProfile();
             setEditOpen(false);
         } catch (error: any) {
-            Alert.alert('Lỗi', error?.message || 'Không thể cập nhật hồ sơ.');
+            Alert.alert(t('common.error'), error?.message || t('screens.profile.updateProfileFailed', 'Cannot update profile.'));
         } finally {
             setSaving(false);
         }
@@ -122,23 +125,23 @@ export const ProfileScreen = () => {
             setDeleteOpen(false);
             await logout();
         } catch (error: any) {
-            Alert.alert('Lỗi', error?.message || 'Không thể xóa tài khoản.');
+            Alert.alert(t('common.error'), error?.message || t('screens.profile.deleteAccountFailed', 'Cannot delete account.'));
         } finally {
             setSaving(false);
         }
     };
 
     const handleDeleteDownloadedSong = async (songId: string) => {
-        Alert.alert('Xoá bài đã tải', 'Bạn muốn xoá bài hát này khỏi bộ nhớ máy?', [
-            { text: 'Huỷ', style: 'cancel' },
+        Alert.alert(t('screens.profile.deleteDownloadedTitle', 'Delete downloaded song'), t('screens.profile.deleteDownloadedMessage', 'Do you want to remove this song from device storage?'), [
+            { text: t('common.cancel'), style: 'cancel' },
             {
-                text: 'Xoá',
+                text: t('common.delete'),
                 style: 'destructive',
                 onPress: async () => {
                     try {
                         await deleteDownload(songId);
                     } catch (error: any) {
-                        Alert.alert('Lỗi', error?.message || 'Không thể xoá bài đã tải.');
+                        Alert.alert(t('common.error'), error?.message || t('screens.profile.deleteDownloadedFailed', 'Cannot delete downloaded song.'));
                     }
                 },
             },
@@ -175,37 +178,43 @@ export const ProfileScreen = () => {
     // ── Menu items config ─────────────────────────────────────────────────
     const menuItems = [
         {
-            icon: <Fontisto name="play-list" color="#22C55E" size={18} />,
-            label: 'Playlist của tôi',
-            sub: playlistCount !== null ? `${playlistCount} playlist` : undefined,
+            icon: <Fontisto name="play-list" color={themeColors.success} size={18} />,
+            label: t('screens.profile.myPlaylists', 'My playlists'),
+            sub: playlistCount !== null ? `${playlistCount} ${t('screens.profile.playlistsSuffix', 'playlists')}` : undefined,
             onPress: () => navigation.navigate('MainTabs', { screen: 'Library' }),
         },
         {
-            icon: <FontAwesome name="heartbeat" color="#E11D48" size={18} />,
-            label: 'Bài hát yêu thích',
-            sub: favoriteCount !== null ? `${favoriteCount} bài` : undefined,
+            icon: <FontAwesome name="heartbeat" color={themeColors.error} size={18} />,
+            label: t('screens.profile.favoriteSongs', 'Favorite songs'),
+            sub: favoriteCount !== null ? `${favoriteCount} ${t('screens.profile.songsSuffix', 'songs')}` : undefined,
             onPress: () => navigation.navigate('FavoriteSongs'),
         },
         {
-            icon: <FontAwesome name="history" color="#38BDF8" size={18} />,
-            label: 'Lịch sử nghe nhạc',
-            sub: 'Các bài bạn đã nghe',
+            icon: <FontAwesome name="history" color={themeColors.accentAlt} size={18} />,
+            label: t('screens.history.title', 'Listening history'),
+            sub: t('screens.profile.listenedSongsSub', 'Songs you listened to'),
             onPress: () => navigation.navigate('History'),
         },
         {
-            icon: <AntDesign name="download" color="#fff" size={18} />,
-            label: 'Đã tải xuống',
+            icon: <AntDesign name="download" color={themeColors.white} size={18} />,
+            label: t('screens.library.downloads', 'Downloads'),
             sub: downloadedSongs.length > 0
-                ? `${downloadedSongs.length} bài · ${formatStorage(storageUsed)}`
-                : 'Chưa có bài nào',
+                ? `${downloadedSongs.length} ${t('screens.profile.songsSuffix', 'songs')} · ${formatStorage(storageUsed)}`
+                : t('screens.profile.noSongsYet', 'No songs yet'),
             onPress: () => setDownloadsOpen(true),
         },
         {
-            icon: <SimpleLineIcons name="user-following" color="#22C55E" size={18} />,
-            label: 'Đang theo dõi',
+            icon: <SimpleLineIcons name="user-following" color={themeColors.success} size={18} />,
+            label: t('artistProfile.following', 'Following'),
             sub: undefined,
             onPress: () => navigation.navigate('Following'),
         },
+
+        {
+            icon: '📊',
+            label: t('screens.insights.title', 'Insights'),
+            onPress: () => navigation.navigate('Insights'),
+        }
     ];
 
     return (
@@ -221,9 +230,9 @@ export const ProfileScreen = () => {
                 >
                     <View style={styles.topBar}>
                         <BackButton onPress={() => navigation.goBack()} />
-                        <Text style={styles.topBarTitle}>Hồ sơ</Text>
+                        <Text style={styles.topBarTitle}>{t('screens.profile.title', 'Profile')}</Text>
                         <Pressable onPress={() => setMenuOpen(p => !p)} style={styles.gearBtn}>
-                            <Text style={styles.gearIcon}><Feather name="settings" color="#FFFFFF" size={24} /></Text>
+                            <Text style={styles.gearIcon}><Feather name="settings" color={themeColors.white} size={24} /></Text>
                         </Pressable>
                     </View>
 
@@ -240,23 +249,23 @@ export const ProfileScreen = () => {
                             </View>
                         )}
                         <View style={styles.avatarEditBadge}>
-                            <Text style={{ fontSize: 12 }}><FontAwesome name="edit" color="#FFFFFF" size={16} /></Text>
+                            <Text style={{ fontSize: 12 }}><FontAwesome name="edit" color={themeColors.white} size={16} /></Text>
                         </View>
                     </Pressable>
 
                     <Text style={styles.name}>
-                        {authSession?.profile?.fullName ?? authSession?.profile?.email ?? 'Monu User'}
+                        {authSession?.profile?.fullName ?? authSession?.profile?.email ?? t('screens.profile.defaultUserName', 'Monu User')}
                     </Text>
                     <Text style={styles.email}>{authSession?.profile?.email}</Text>
 
                     <Pressable style={styles.editBtn} onPress={() => setEditOpen(true)}>
-                        <Text style={styles.editBtnText}>Chỉnh sửa hồ sơ</Text>
+                        <Text style={styles.editBtnText}>{t('screens.profile.editProfile', 'Edit profile')}</Text>
                     </Pressable>
                 </LinearGradient>
 
                 {/* ── Artist card ──────────────────────────────────── */}
                 <View style={styles.sectionWrapper}>
-                    <Text style={styles.sectionHeading}>Nghệ sĩ</Text>
+                    <Text style={styles.sectionHeading}>{t('labels.artist', 'Artist')}</Text>
 
                     {loadingArtist ? (
                         <View style={[styles.artistCard, { alignItems: 'center', paddingVertical: 20 }]}>
@@ -288,15 +297,15 @@ export const ProfileScreen = () => {
                             )}
 
                             <Text style={styles.artistViewHint}>
-                                Nhấn để xem trang nghệ sĩ công khai
+                                {t('screens.profile.viewPublicArtistPage', 'Tap to view public artist page')}
                             </Text>
                         </Pressable>
                     ) : (
                         /* No artist profile */
                         <View style={styles.artistCard}>
-                            <Text style={styles.artistNoProfileTitle}>🎤 Bạn chưa có hồ sơ Nghệ sĩ</Text>
+                            <Text style={styles.artistNoProfileTitle}>🎤 {t('screens.profile.noArtistProfileTitle', 'You do not have an Artist profile')}</Text>
                             <Text style={styles.artistNoProfileDesc}>
-                                Đăng ký để upload nhạc, tạo album và chia sẻ âm nhạc của bạn với hàng nghìn người nghe.
+                                {t('screens.profile.noArtistProfileDesc', 'Register to upload music, create albums, and share your music with thousands of listeners.')}
                             </Text>
                             <Pressable
                                 style={styles.registerArtistBtn}
@@ -308,7 +317,7 @@ export const ProfileScreen = () => {
                                     end={{ x: 1, y: 0 }}
                                     style={styles.registerArtistBtnGradient}
                                 >
-                                    <Text style={styles.registerArtistBtnText}>Đăng ký Nghệ sĩ →</Text>
+                                    <Text style={styles.registerArtistBtnText}>{t('screens.profile.registerArtistButton', 'Register Artist')} →</Text>
                                 </LinearGradient>
                             </Pressable>
                         </View>
@@ -327,13 +336,13 @@ export const ProfileScreen = () => {
                         <Text style={styles.statVal}>
                             {downloadedSongs.length}
                         </Text>
-                        <Text style={styles.statLabel}>Đã tải</Text>
+                        <Text style={styles.statLabel}>{t('screens.library.downloads', 'Downloads')}</Text>
                     </View>
                     <View style={styles.statItem}>
                         <Text style={styles.statVal}>
                             {favoriteCount !== null ? favoriteCount : '—'}
                         </Text>
-                        <Text style={styles.statLabel}>Yêu thích</Text>
+                        <Text style={styles.statLabel}>{t('labels.likes', 'Likes')}</Text>
                     </View>
                 </View>
 
@@ -373,16 +382,23 @@ export const ProfileScreen = () => {
                 <View style={[styles.dropMenu, { top: insets.top + 54 }]}>
                     <Pressable
                         style={styles.dropItem}
+                        onPress={() => { setMenuOpen(false); navigation.navigate('Settings'); }}
+                    >
+                        <Text style={styles.dropText}>⚙️ Cài đặt</Text>
+                    </Pressable>
+                    <View style={styles.dropDivider} />
+                    <Pressable
+                        style={styles.dropItem}
                         onPress={() => { setMenuOpen(false); setLogoutOpen(true); }}
                     >
-                        <Text style={styles.dropText}>Đăng xuất</Text>
+                        <Text style={styles.dropText}>{t('screens.profile.logout', 'Logout')}</Text>
                     </Pressable>
                     <View style={styles.dropDivider} />
                     <Pressable
                         style={styles.dropItem}
                         onPress={() => { setMenuOpen(false); setDeleteOpen(true); }}
                     >
-                        <Text style={[styles.dropText, { color: COLORS.error }]}>Xóa tài khoản</Text>
+                        <Text style={[styles.dropText, { color: COLORS.error }]}>{t('screens.profile.deleteAccount', 'Delete account')}</Text>
                     </Pressable>
                 </View>
             )}
@@ -391,23 +407,23 @@ export const ProfileScreen = () => {
             {editOpen && (
                 <View style={styles.modalOverlay}>
                     <View style={styles.editModal}>
-                        <Text style={styles.modalTitle}>Chỉnh sửa hồ sơ</Text>
-                        <Text style={styles.modalFieldLabel}>Tên hiển thị</Text>
+                        <Text style={styles.modalTitle}>{t('screens.profile.editProfile', 'Edit profile')}</Text>
+                        <Text style={styles.modalFieldLabel}>{t('screens.profile.displayNameLabel', 'Display name')}</Text>
                         <TextInput
                             style={styles.modalInput}
                             value={fullName}
                             onChangeText={setFullName}
-                            placeholder="Nhập tên hiển thị"
+                            placeholder={t('screens.profile.displayNamePlaceholder', 'Enter display name')}
                             placeholderTextColor={COLORS.glass25}
                         />
                         <View style={styles.modalActions}>
                             <Pressable style={styles.cancelBtn} onPress={() => setEditOpen(false)}>
-                                <Text style={styles.cancelBtnText}>Hủy</Text>
+                                <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
                             </Pressable>
                             <Pressable style={styles.saveBtn} onPress={onSaveProfile}>
                                 {saving
                                     ? <ActivityIndicator color={COLORS.white} size="small" />
-                                    : <Text style={styles.saveBtnText}>Lưu</Text>
+                                    : <Text style={styles.saveBtnText}>{t('common.save')}</Text>
                                 }
                             </Pressable>
                         </View>
@@ -429,20 +445,20 @@ export const ProfileScreen = () => {
                 <View style={styles.dlSheet}>
                     <View style={styles.dlHandle} />
                     <Text style={styles.dlTitle}>
-                        Đã tải xuống · {downloadedSongs.length} bài
+                        {t('screens.library.downloads', 'Downloads')} · {downloadedSongs.length} {t('screens.profile.songsSuffix', 'songs')}
                     </Text>
                     {downloadedSongs.length === 0 ? (
                         <View style={styles.dlEmpty}>
                             <Text style={{ fontSize: 40, marginBottom: 10 }}>⬇️</Text>
                             <Text style={styles.dlEmptyText}>Chưa có bài hát nào được tải</Text>
                             <Text style={styles.dlEmptyHint}>
-                                Bấm ⬇️ trên bài hát để tải về nghe offline
+                                {t('screens.profile.downloadHint', 'Tap ⬇️ on songs to download for offline listening')}
                             </Text>
                         </View>
                     ) : (
                         <>
                             <Text style={styles.dlStorage}>
-                                Dung lượng đã dùng: {formatStorage(storageUsed)}
+                                {t('screens.profile.storageUsed', 'Storage used')}: {formatStorage(storageUsed)}
                             </Text>
                             <FlatList
                                 data={downloadedSongs}
@@ -487,18 +503,18 @@ export const ProfileScreen = () => {
 
             <ConfirmModal
                 visible={deleteOpen}
-                title="Xóa tài khoản?"
-                message="Hành động này không thể hoàn tác."
-                confirmText="Xóa tài khoản"
+                title={t('screens.profile.deleteAccountConfirmTitle', 'Delete account?')}
+                message={t('screens.profile.deleteAccountConfirmMessage', 'This action cannot be undone.')}
+                confirmText={t('screens.profile.deleteAccount', 'Delete account')}
                 destructive
                 onCancel={() => setDeleteOpen(false)}
                 onConfirm={onDeleteAccount}
             />
             <ConfirmModal
                 visible={logoutOpen}
-                title="Xác nhận đăng xuất"
-                message="Bạn có chắc muốn đăng xuất?"
-                confirmText="Đăng xuất"
+                title={t('screens.profile.logoutConfirmTitle', 'Confirm logout')}
+                message={t('screens.profile.logoutConfirmMessage', 'Are you sure you want to logout?')}
+                confirmText={t('screens.profile.logout', 'Logout')}
                 onCancel={() => setLogoutOpen(false)}
                 onConfirm={async () => { setLogoutOpen(false); await logout(); }}
             />

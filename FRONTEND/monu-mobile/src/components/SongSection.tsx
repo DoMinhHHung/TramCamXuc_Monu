@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Song } from '../services/music';
-import { COLORS } from '../config/colors';
+import { useThemeColors } from '../config/colors';
 import { SongCard } from './SongCard';
 
 type Props = {
@@ -16,6 +16,9 @@ type Props = {
 };
 
 export const SongSection = ({ title, songs, currentSong, isPlaying, onPressSong, onSongAction, formatDuration }: Props) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   if (!songs.length) return null;
 
   return (
@@ -37,7 +40,7 @@ export const SongSection = ({ title, songs, currentSong, isPlaying, onPressSong,
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   section: { paddingHorizontal: 20, marginTop: 24 },
-  sectionTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 14 },
+  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 14 },
 });

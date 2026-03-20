@@ -25,7 +25,13 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Cho phép Monu dùng microphone để tìm kiếm bằng giọng nói"
+        }
+      ]
     ]
   }
 }

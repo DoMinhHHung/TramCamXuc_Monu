@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator, FlatList, Pressable,
+    ActivityIndicator, Animated, FlatList, Pressable,
     StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -9,8 +9,11 @@ import { useNavigation } from '@react-navigation/native';
 import { AntDesign } from '@expo/vector-icons';
 
 import { BackButton } from '../../components/BackButton';
-import { COLORS } from '../../config/colors';
+import { VoiceSearchButton } from '../../components/VoiceSearchButton';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import { usePlayer } from '../../context/PlayerContext';
+import { useTranslation } from '../../context/LocalizationContext';
+import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import {
     Artist, getSongsByArtist, searchArtists, searchSongs, Song,
 } from '../../services/music';
@@ -25,6 +28,9 @@ export const SearchScreen = () => {
     const insets     = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const { playSong } = usePlayer();
+    const { t } = useTranslation();
+    const themeColors = useThemeColors();
+    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
     const [query,          setQuery]          = useState('');
     const [tab,            setTab]            = useState<Tab>('songs');
@@ -36,6 +42,34 @@ export const SearchScreen = () => {
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputRef    = useRef<TextInput>(null);
+
+    // ── Voice search ─────────────────────────────────────────────────────────
+    const voice = useVoiceSearch();
+    const voiceBannerAnim = useRef(new Animated.Value(0)).current;
+
+    // Hiện / ẩn banner trạng thái voice
+    useEffect(() => {
+        const shouldShow = voice.state === 'recording' || voice.state === 'processing';
+        Animated.timing(voiceBannerAnim, {
+            toValue: shouldShow ? 1 : 0,
+            duration: 200,
+            useNativeDriver: true,
+        }).start();
+    }, [voice.state]);
+
+    const handleVoicePressIn = useCallback(async () => {
+        await voice.startRecording();
+    }, [voice]);
+
+    const handleVoicePressOut = useCallback(async () => {
+        const text = await voice.stopAndTranscribe();
+        if (text) {
+            setQuery(text);
+            await addSearchHistory(text.trim());
+            setHistory(await getSearchHistory());
+            doSearch(text.trim(), tab);
+        }
+    }, [voice, tab]);
 
     // ── Mount: load history + focus input ────────────────────────────────────
     useEffect(() => {
@@ -83,7 +117,6 @@ export const SearchScreen = () => {
 
     const handleSubmit = async () => {
         if (!query.trim()) return;
-        // Lưu vào lịch sử khi user bấm search / enter
         await addSearchHistory(query.trim());
         setHistory(await getSearchHistory());
         doSearch(query.trim(), tab);
@@ -101,7 +134,6 @@ export const SearchScreen = () => {
     const handleHistoryItemPress = (q: string) => {
         setQuery(q);
         scheduleSearch(q, tab);
-        // Lưu lại lịch sử (đưa lên đầu)
         addSearchHistory(q).then(() => getSearchHistory().then(setHistory));
     };
 
@@ -130,7 +162,6 @@ export const SearchScreen = () => {
 
     const handleSongPress = (song: Song, queue: Song[]) => {
         playSong(song, queue);
-        // Lưu lịch sử khi chọn bài từ kết quả search
         if (query.trim()) {
             addSearchHistory(query.trim()).then(() => getSearchHistory().then(setHistory));
         }
@@ -153,7 +184,7 @@ export const SearchScreen = () => {
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.resultSub}   numberOfLines={1}>{item.primaryArtist.stageName}</Text>
             </View>
-            <AntDesign name="play-circle" size={26} color="#fff" />
+            <AntDesign name="play-circle" size={26} color={themeColors.white} />
         </Pressable>
     );
 
@@ -164,11 +195,18 @@ export const SearchScreen = () => {
             </View>
             <View style={styles.resultInfo}>
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.stageName}</Text>
-                <Text style={styles.resultSub}>Nghệ sĩ</Text>
+                <Text style={styles.resultSub}>{t('screens.search.artistType')}</Text>
             </View>
             <Text style={styles.playIcon}>›</Text>
         </Pressable>
     );
+
+    // ── Voice state label ─────────────────────────────────────────────────────
+    const voiceStateLabel = voice.state === 'recording'
+        ? `🔴  ${t('screens.search.voiceRecording')}`
+        : voice.state === 'processing'
+            ? `⏳  ${t('screens.search.voiceProcessing')}`
+            : voice.errorMessage ?? '';
 
     // ─────────────────────────────────────────────────────────────────────────
     return (
@@ -178,40 +216,89 @@ export const SearchScreen = () => {
             {/* ── Header ── */}
             <View style={styles.header}>
                 <BackButton onPress={() => navigation.goBack()} />
+
                 <TextInput
                     ref={inputRef}
                     style={styles.input}
-                    placeholder="Tìm bài hát, nghệ sĩ..."
-                    placeholderTextColor={COLORS.glass35}
+                    placeholder={t('screens.search.inputPlaceholder')}
+                    placeholderTextColor={themeColors.glass35}
                     value={query}
                     onChangeText={handleQueryChange}
                     onSubmitEditing={handleSubmit}
                     returnKeyType="search"
                     autoCorrect={false}
+                    editable={voice.state !== 'recording' && voice.state !== 'processing'}
                 />
-                {query.length > 0 && (
-                    <Pressable onPress={() => {
-                        setQuery('');
-                        setSongResults([]);
-                        setArtistResults([]);
-                        setArtistDetail(null);
-                    }}>
+
+                {/* Clear button (chỉ khi có text) */}
+                {query.length > 0 && voice.state === 'idle' && (
+                    <Pressable
+                        onPress={() => {
+                            setQuery('');
+                            setSongResults([]);
+                            setArtistResults([]);
+                            setArtistDetail(null);
+                            voice.cancel();
+                        }}
+                        hitSlop={8}
+                    >
                         <Text style={styles.clearIcon}>✕</Text>
                     </Pressable>
                 )}
+
+                {/* Voice search button */}
+                <VoiceSearchButton
+                    state={voice.state}
+                    onPressIn={handleVoicePressIn}
+                    onPressOut={handleVoicePressOut}
+                />
             </View>
+
+            {/* ── Voice status banner ── */}
+            <Animated.View
+                style={[
+                    styles.voiceBanner,
+                    {
+                        opacity: voiceBannerAnim,
+                        transform: [{
+                            translateY: voiceBannerAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [-8, 0],
+                            }),
+                        }],
+                    },
+                ]}
+                pointerEvents="none"
+            >
+                <Text style={[
+                    styles.voiceBannerText,
+                    voice.state === 'error' && { color: themeColors.error },
+                ]}>
+                    {voiceStateLabel}
+                </Text>
+            </Animated.View>
+
+            {/* Error banner (ngoài recording/processing) */}
+            {voice.state === 'error' && voice.errorMessage && (
+                <View style={styles.errorBanner}>
+                    <Text style={styles.errorBannerText}>⚠️  {voice.errorMessage}</Text>
+                    <Pressable onPress={voice.cancel} hitSlop={8}>
+                        <Text style={styles.errorBannerDismiss}>✕</Text>
+                    </Pressable>
+                </View>
+            )}
 
             {/* ── Tabs (chỉ hiện khi có query) ── */}
             {!showHistory && (
                 <View style={styles.tabs}>
-                    {(['songs', 'artists'] as Tab[]).map(t => (
+                    {(['songs', 'artists'] as Tab[]).map(tabKey => (
                         <Pressable
-                            key={t}
-                            style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
-                            onPress={() => handleTabChange(t)}
+                            key={tabKey}
+                            style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
+                            onPress={() => handleTabChange(tabKey)}
                         >
-                            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                                {t === 'songs' ? '🎵 Bài hát' : '🎤 Nghệ sĩ'}
+                            <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
+                                {tabKey === 'songs' ? t('screens.search.tabSongs') : t('screens.search.tabArtists')}
                             </Text>
                         </Pressable>
                     ))}
@@ -221,18 +308,19 @@ export const SearchScreen = () => {
             {/* ── Loading ── */}
             {loading && (
                 <View style={styles.center}>
-                    <ActivityIndicator color={COLORS.accent} />
+                    <ActivityIndicator color={themeColors.accent} />
                 </View>
             )}
 
+            {/* ── History ── */}
             {!loading && showHistory && (
                 <View style={{ flex: 1 }}>
                     {history.length > 0 ? (
                         <>
                             <View style={styles.historyHeader}>
-                                <Text style={styles.historyTitle}>Lịch sử tìm kiếm</Text>
+                                <Text style={styles.historyTitle}>{t('screens.search.historyTitle')}</Text>
                                 <Pressable onPress={handleClearHistory} hitSlop={8}>
-                                    <Text style={styles.historyClearAll}>Xóa tất cả</Text>
+                                    <Text style={styles.historyClearAll}>{t('screens.search.clearAll')}</Text>
                                 </Pressable>
                             </View>
                             <FlatList
@@ -259,7 +347,14 @@ export const SearchScreen = () => {
                         </>
                     ) : (
                         <View style={styles.center}>
-                            <Text style={styles.hintText}>Nhập tên bài hát hoặc nghệ sĩ để tìm kiếm</Text>
+                            <View style={styles.voiceHintBox}>
+                                <Text style={styles.voiceHintIcon}>🎙</Text>
+                                <Text style={styles.voiceHintTitle}>{t('screens.search.voiceHintTitle')}</Text>
+                                <Text style={styles.voiceHintDesc}>
+                                    {t('screens.search.voiceHintDesc')}
+                                </Text>
+                            </View>
+                            <Text style={styles.hintText}>{t('screens.search.voiceHintInput')}</Text>
                         </View>
                     )}
                 </View>
@@ -268,7 +363,7 @@ export const SearchScreen = () => {
             {/* ── Empty ── */}
             {!loading && showEmpty && (
                 <View style={styles.center}>
-                    <Text style={styles.emptyText}>Không tìm thấy kết quả cho "{query}"</Text>
+                    <Text style={styles.emptyText}>{`${t('screens.search.noResultsPrefix')} "${query}"`}</Text>
                 </View>
             )}
 
@@ -279,7 +374,7 @@ export const SearchScreen = () => {
                         <Pressable onPress={() => setArtistDetail(null)}>
                             <Text style={styles.backToArtistsText}>‹ {artistDetail.artist.stageName}</Text>
                         </Pressable>
-                        <Text style={styles.artistDetailSub}>{artistDetail.songs.length} bài hát</Text>
+                        <Text style={styles.artistDetailSub}>{`${artistDetail.songs.length} ${t('screens.search.songCountSuffix')}`}</Text>
                     </View>
                     <FlatList
                         data={artistDetail.songs}
@@ -329,64 +424,122 @@ export const SearchScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    root:   { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
+    root:   { flex: 1, backgroundColor: colors.bg },
+
+    // ── Header ──────────────────────────────────────────────────────────────
     header: {
         flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 16, paddingBottom: 12, gap: 10,
-        borderBottomWidth: 1, borderBottomColor: COLORS.border,
+        paddingHorizontal: 16, paddingBottom: 12, gap: 8,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
     },
-    input:     { flex: 1, color: COLORS.white, fontSize: 16, paddingVertical: 8 },
-    clearIcon: { color: COLORS.glass40, fontSize: 18, paddingHorizontal: 4 },
+    input: {
+        flex: 1, color: colors.white, fontSize: 16, paddingVertical: 8,
+    },
+    clearIcon: { color: colors.glass40, fontSize: 18, paddingHorizontal: 2 },
 
+    // ── Voice banner ─────────────────────────────────────────────────────────
+    voiceBanner: {
+        backgroundColor: colors.accentFill20,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.accentBorder25,
+        paddingHorizontal: 20,
+        paddingVertical: 9,
+    },
+    voiceBannerText: {
+        color: colors.accent,
+        fontSize: 13,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(239,68,68,0.12)',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(239,68,68,0.3)',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        gap: 8,
+    },
+    errorBannerText: {
+        flex: 1,
+        color: colors.error,
+        fontSize: 13,
+    },
+    errorBannerDismiss: {
+        color: colors.error,
+        fontSize: 16,
+        fontWeight: '700',
+    },
+
+    // ── Tabs ─────────────────────────────────────────────────────────────────
     tabs:          { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-    tabBtn:        { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border },
-    tabBtnActive:  { backgroundColor: COLORS.accentDim, borderColor: COLORS.accentDim },
-    tabText:       { color: COLORS.muted, fontWeight: '600', fontSize: 13 },
-    tabTextActive: { color: COLORS.white },
+    tabBtn:        { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border },
+    tabBtnActive:  { backgroundColor: colors.accentDim, borderColor: colors.accentDim },
+    tabText:       { color: colors.muted, fontWeight: '600', fontSize: 13 },
+    tabTextActive: { color: colors.white },
 
+    // ── Common ────────────────────────────────────────────────────────────────
     center:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-    emptyText: { color: COLORS.glass35, textAlign: 'center', fontSize: 14, lineHeight: 22 },
-    hintText:  { color: COLORS.glass25, textAlign: 'center', fontSize: 14 },
+    emptyText: { color: colors.glass35, textAlign: 'center', fontSize: 14, lineHeight: 22 },
+    hintText:  { color: colors.glass25, textAlign: 'center', fontSize: 13, marginTop: 12 },
 
-    // History
+
+    voiceHintBox: {
+        alignItems: 'center',
+        backgroundColor: colors.surface,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: colors.accentBorder25,
+        padding: 24,
+        marginBottom: 20,
+        width: '100%',
+    },
+    voiceHintIcon:  { fontSize: 42, marginBottom: 10 },
+    voiceHintTitle: { color: colors.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
+    voiceHintDesc:  {
+        color: colors.glass50, fontSize: 13, textAlign: 'center', lineHeight: 20,
+    },
+
+    // ── History ───────────────────────────────────────────────────────────────
     historyHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
     },
-    historyTitle:    { color: COLORS.white, fontSize: 15, fontWeight: '700' },
-    historyClearAll: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
+    historyTitle:    { color: colors.white, fontSize: 15, fontWeight: '700' },
+    historyClearAll: { color: colors.accent, fontSize: 13, fontWeight: '600' },
     historyRow: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 13,
-        borderBottomWidth: 1, borderBottomColor: COLORS.glass06,
+        borderBottomWidth: 1, borderBottomColor: colors.glass06,
         gap: 12,
     },
     historyIcon:       { fontSize: 15, opacity: 0.5 },
-    historyText:       { flex: 1, color: COLORS.glass70, fontSize: 14 },
+    historyText:       { flex: 1, color: colors.glass70, fontSize: 14 },
     historyRemoveBtn:  { padding: 4 },
-    historyRemoveIcon: { color: COLORS.glass30, fontSize: 14 },
+    historyRemoveIcon: { color: colors.glass30, fontSize: 14 },
 
-    // Results
+    // ── Results ───────────────────────────────────────────────────────────────
     resultRow: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
-        borderBottomWidth: 1, borderBottomColor: COLORS.glass06, gap: 12,
+        borderBottomWidth: 1, borderBottomColor: colors.glass06, gap: 12,
     },
-    resultIndex:    { width: 32, height: 32, borderRadius: 8, backgroundColor: COLORS.glass06, alignItems: 'center', justifyContent: 'center' },
-    artistIconWrap: { backgroundColor: COLORS.accentFill20 },
-    resultIndexText: { color: COLORS.glass40, fontSize: 12, fontWeight: '600' },
+    resultIndex:    { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.glass06, alignItems: 'center', justifyContent: 'center' },
+    artistIconWrap: { backgroundColor: colors.accentFill20 },
+    resultIndexText: { color: colors.glass40, fontSize: 12, fontWeight: '600' },
     resultInfo:     { flex: 1 },
-    resultTitle:    { color: COLORS.white, fontSize: 14, fontWeight: '600' },
-    resultSub:      { color: COLORS.muted, fontSize: 12, marginTop: 2 },
-    playIcon:       { color: COLORS.glass30, fontSize: 18 },
+    resultTitle:    { color: colors.white, fontSize: 14, fontWeight: '600' },
+    resultSub:      { color: colors.muted, fontSize: 12, marginTop: 2 },
+    playIcon:       { color: colors.glass30, fontSize: 18 },
 
-    // Artist detail
+    // ── Artist detail ─────────────────────────────────────────────────────────
     artistDetailHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 10,
-        borderBottomWidth: 1, borderBottomColor: COLORS.border,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
     },
-    backToArtistsText: { color: COLORS.accent, fontSize: 15, fontWeight: '600' },
-    artistDetailSub:   { color: COLORS.glass35, fontSize: 12 },
+    backToArtistsText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
+    artistDetailSub:   { color: colors.glass35, fontSize: 12 },
 });

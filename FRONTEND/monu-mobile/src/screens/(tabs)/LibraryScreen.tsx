@@ -22,9 +22,10 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {Fontisto, AntDesign, FontAwesome} from '@expo/vector-icons';
 
-import { COLORS } from '../../config/colors';
+import { COLORS, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import {
   addSongToPlaylist,
   Album,
@@ -51,23 +52,25 @@ import { apiClient } from '../../services/api';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Tab = 'playlists' | 'songs' | 'albums';
+let tr = (key: string, fallback?: string) => fallback ?? key;
+let rc = COLORS;
 
 const getSongStatusLabel = (song: Song): { label: string; color: string; pulse: boolean } => {
   if (song.status === 'DELETED') {
-    return { label: 'Đã xoá', color: COLORS.error, pulse: false };
+    return { label: tr('screens.library.songDeleted', 'Deleted'), color: COLORS.error, pulse: false };
   }
   if (song.status === 'PRIVATE') {
-    return { label: 'Riêng tư', color: COLORS.glass40, pulse: false };
+    return { label: tr('screens.library.private', 'Private'), color: COLORS.glass40, pulse: false };
   }
   switch (song.transcodeStatus as string) {
     case 'PENDING':
-      return { label: 'Đang trong hàng chờ phát hành...', color: COLORS.warningMid, pulse: true };
+      return { label: tr('screens.library.releasePending', 'Pending release...'), color: COLORS.warningMid, pulse: true };
     case 'PROCESSING':
-      return { label: 'Đang chuẩn bị, sắp xong rồi ✨', color: COLORS.accent, pulse: true };
+      return { label: tr('screens.library.processing', 'Preparing, almost done ✨'), color: COLORS.accent, pulse: true };
     case 'FAILED':
-      return { label: 'Phát hành thất bại — thử đăng lại', color: COLORS.error, pulse: false };
+      return { label: tr('screens.library.releaseFailed', 'Release failed — try re-uploading'), color: COLORS.error, pulse: false };
     case 'COMPLETED':
-      return { label: 'Đang phát hành', color: COLORS.success, pulse: false };
+      return { label: tr('screens.library.published', 'Published'), color: COLORS.success, pulse: false };
     default:
       return { label: '', color: COLORS.glass40, pulse: false };
   }
@@ -85,9 +88,9 @@ const TabBar = ({
   counts: Record<Tab, number>;
 }) => {
   const tabs: { key: Tab; label: string; icon: string| React.ReactNode }[] = [
-    { key: 'playlists', label: 'Playlist', icon: <Fontisto name="play-list" color="#A855F7" size={14} /> },
-    { key: 'songs',     label: 'Bài hát',  icon: '🎵' },
-    { key: 'albums',    label: 'Album',    icon: '💿' },
+    { key: 'playlists', label: tr('screens.library.tabPlaylists', 'Playlists'), icon: <Fontisto name="play-list" color={rc.accent} size={14} /> },
+    { key: 'songs',     label: tr('screens.library.tabSongs', 'Songs'),  icon: '🎵' },
+    { key: 'albums',    label: tr('screens.library.tabAlbums', 'Albums'),    icon: '💿' },
   ];
 
   return (
@@ -266,7 +269,7 @@ const songRowStyles = StyleSheet.create({
   },
   playingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: COLORS.scrim,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -311,9 +314,9 @@ const AlbumCard = ({
           album.status === 'PRIVATE'  ? COLORS.warningMid :
               COLORS.glass40;
   const statusLabel =
-      album.status === 'PUBLIC'   ? 'Công khai' :
-          album.status === 'PRIVATE'  ? 'Riêng tư' :
-              'Bản nháp';
+      album.status === 'PUBLIC'   ? tr('screens.library.public', 'Public') :
+        album.status === 'PRIVATE'  ? tr('screens.library.private', 'Private') :
+          tr('screens.library.draft', 'Draft');
 
   return (
       <View style={albumCardStyles.card}>
@@ -336,7 +339,7 @@ const AlbumCard = ({
               <View style={[albumCardStyles.statusDot, { backgroundColor: statusColor }]} />
               <Text style={[albumCardStyles.status, { color: statusColor }]}>{statusLabel}</Text>
               <Text style={albumCardStyles.dot}>·</Text>
-              <Text style={albumCardStyles.count}>{album.totalSongs ?? album.songs?.length ?? 0} bài</Text>
+              <Text style={albumCardStyles.count}>{album.totalSongs ?? album.songs?.length ?? 0} {tr('screens.library.songsSuffix', 'songs')}</Text>
             </View>
           </View>
         </Pressable>
@@ -348,24 +351,24 @@ const AlbumCard = ({
         {menuOpen && (
             <View style={albumCardStyles.menu}>
               <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPress(); }}>
-                <Text style={albumCardStyles.menuItemText}>👁  Xem chi tiết</Text>
+                <Text style={albumCardStyles.menuItemText}>👁  {tr('screens.library.viewDetails', 'View details')}</Text>
               </Pressable>
               {album.status !== 'PUBLIC' && (
                   <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPublish(); }}>
-                    <Text style={albumCardStyles.menuItemText}>🚀  Phát hành</Text>
+                    <Text style={albumCardStyles.menuItemText}>🚀  {tr('screens.library.publish', 'Publish')}</Text>
                   </Pressable>
               )}
               {album.status === 'PUBLIC' && (
                   <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onUnpublish(); }}>
-                    <Text style={albumCardStyles.menuItemText}>🔒  Đặt riêng tư</Text>
+                    <Text style={albumCardStyles.menuItemText}>🔒  {tr('screens.library.setPrivate', 'Set private')}</Text>
                   </Pressable>
               )}
               <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onShare(); }}>
-                <Text style={albumCardStyles.menuItemText}>↗  Chia sẻ</Text>
+                <Text style={albumCardStyles.menuItemText}>↗  {tr('common.share', 'Share')}</Text>
               </Pressable>
               <View style={albumCardStyles.menuDivider} />
               <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onDelete(); }}>
-                <Text style={[albumCardStyles.menuItemText, { color: COLORS.error }]}><AntDesign name="delete" colors={['#ff4d4f', '#ff7875']} size={15} />  Xoá album</Text>
+                <Text style={[albumCardStyles.menuItemText, { color: COLORS.error }]}><AntDesign name="delete" color={COLORS.error} size={15} />  {tr('screens.library.deleteAlbum', 'Delete album')}</Text>
               </Pressable>
             </View>
         )}
@@ -434,18 +437,18 @@ const CreateAlbumModal = ({
       <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
         <View style={modalStyles.overlay}>
           <View style={modalStyles.card}>
-            <Text style={modalStyles.title}>Tạo album mới</Text>
+            <Text style={modalStyles.title}>{tr('screens.library.createNewAlbum', 'Create new album')}</Text>
             <TextInput
                 style={modalStyles.input}
                 value={title}
                 onChangeText={setTitle}
-                placeholder="Tên album..."
+                placeholder={tr('screens.library.albumNamePlaceholder', 'Album name...')}
                 placeholderTextColor={COLORS.glass30}
                 autoFocus
             />
             <View style={modalStyles.actions}>
               <Pressable style={modalStyles.cancelBtn} onPress={onClose}>
-                <Text style={modalStyles.cancelText}>Huỷ</Text>
+                <Text style={modalStyles.cancelText}>{tr('common.cancel', 'Cancel')}</Text>
               </Pressable>
               <Pressable
                   style={[modalStyles.createBtn, !title.trim() && { opacity: 0.4 }]}
@@ -454,7 +457,7 @@ const CreateAlbumModal = ({
               >
                 {loading
                     ? <ActivityIndicator size="small" color={COLORS.white} />
-                    : <Text style={modalStyles.createText}>Tạo</Text>
+                    : <Text style={modalStyles.createText}>{tr('common.create', 'Create')}</Text>
                 }
               </Pressable>
             </View>
@@ -538,14 +541,14 @@ const AddToPlaylistModal = ({
         <Pressable style={sheetStyles.overlay} onPress={onClose} />
         <View style={sheetStyles.sheet}>
           <View style={sheetStyles.handle} />
-          <Text style={sheetStyles.title}>Thêm vào Playlist</Text>
+          <Text style={sheetStyles.title}>{tr('actions.addToPlaylist', 'Add to playlist')}</Text>
           <Text style={sheetStyles.subtitle} numberOfLines={1}>{song?.title}</Text>
           <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
             {playlists.map(p => (
                 <Pressable key={p.id} style={sheetStyles.item} onPress={() => onAdd(p.id)}>
-                  <Text style={sheetStyles.itemIcon}><Fontisto name="play-list" color="#A855F7" size={14} /></Text>
+                  <Text style={sheetStyles.itemIcon}><Fontisto name="play-list" color={rc.accent} size={14} /></Text>
                   <Text style={sheetStyles.itemText}>{p.name}</Text>
-                  <Text style={sheetStyles.itemCount}>{p.totalSongs ?? 0} bài</Text>
+                  <Text style={sheetStyles.itemCount}>{p.totalSongs ?? 0} {tr('screens.library.songsSuffix', 'songs')}</Text>
                 </Pressable>
             ))}
           </ScrollView>
@@ -554,7 +557,7 @@ const AddToPlaylistModal = ({
                 style={sheetStyles.newInput}
                 value={newName}
                 onChangeText={setNewName}
-                placeholder="Tạo playlist mới..."
+                placeholder={tr('screens.library.createPlaylistPlaceholder', 'Create new playlist...')}
                 placeholderTextColor={COLORS.glass30}
             />
             <Pressable
@@ -632,14 +635,14 @@ const QrModal = ({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={qrStyles.overlay} onPress={onClose}>
         <View style={qrStyles.card}>
-          <Text style={qrStyles.title}>QR Chia sẻ</Text>
+          <Text style={qrStyles.title}>{tr('actions.shareQR', 'Share via QR')}</Text>
           {image
               ? <Image source={{ uri: image }} style={qrStyles.image} />
               : <View style={qrStyles.placeholder}><Text style={qrStyles.placeholderText}>QR</Text></View>
           }
           <Text style={qrStyles.link} numberOfLines={2}>{link}</Text>
           <Pressable style={qrStyles.closeBtn} onPress={onClose}>
-            <Text style={qrStyles.closeBtnText}>Đóng</Text>
+            <Text style={qrStyles.closeBtnText}>{tr('controls.close', 'Close')}</Text>
           </Pressable>
         </View>
       </Pressable>
@@ -700,41 +703,41 @@ const ShareOptionsSheet = ({ visible, item, onClose, onQr, onExternal, onDiscove
       <Pressable style={sheetStyles.overlay} onPress={onClose} />
       <View style={sheetStyles.sheet}>
         <View style={sheetStyles.handle} />
-        <Text style={sheetStyles.title}>Chia sẻ</Text>
+        <Text style={sheetStyles.title}>{tr('common.share', 'Share')}</Text>
         <Text style={sheetStyles.subtitle} numberOfLines={1}>{item?.title}</Text>
 
         <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onDiscovery(); }}>
-          <View style={[shareOptionStyles.iconWrap, { backgroundColor: '#4f46e5' }]}>
+          <View style={[shareOptionStyles.iconWrap, { backgroundColor: rc.gradIndigo }]}>
             <Text style={{ fontSize: 20 }}>🌟</Text>
           </View>
           <View style={shareOptionStyles.info}>
-            <Text style={shareOptionStyles.label}>Chia sẻ lên Discovery</Text>
-            <Text style={shareOptionStyles.desc}>Đăng bài viết lên cộng đồng</Text>
+            <Text style={shareOptionStyles.label}>{tr('screens.library.shareToDiscovery', 'Share to Discovery')}</Text>
+            <Text style={shareOptionStyles.desc}>{tr('screens.library.shareToDiscoveryDesc', 'Post to the community feed')}</Text>
           </View>
         </Pressable>
 
         <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onExternal(); }}>
-          <View style={[shareOptionStyles.iconWrap, { backgroundColor: '#0891b2' }]}>
+          <View style={[shareOptionStyles.iconWrap, { backgroundColor: rc.accentAlt }]}>
             <Text style={{ fontSize: 20 }}>↗</Text>
           </View>
           <View style={shareOptionStyles.info}>
-            <Text style={shareOptionStyles.label}>Chia sẻ ra ngoài app</Text>
-            <Text style={shareOptionStyles.desc}>Gửi link qua tin nhắn, mạng xã hội...</Text>
+            <Text style={shareOptionStyles.label}>{tr('screens.library.shareOutsideApp', 'Share outside app')}</Text>
+            <Text style={shareOptionStyles.desc}>{tr('screens.library.shareOutsideAppDesc', 'Send link via message or social networks...')}</Text>
           </View>
         </Pressable>
 
         <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onQr(); }}>
-          <View style={[shareOptionStyles.iconWrap, { backgroundColor: '#059669' }]}>
+          <View style={[shareOptionStyles.iconWrap, { backgroundColor: rc.success }]}>
             <Text style={{ fontSize: 20 }}>⬛</Text>
           </View>
           <View style={shareOptionStyles.info}>
-            <Text style={shareOptionStyles.label}>Chia sẻ bằng QR</Text>
-            <Text style={shareOptionStyles.desc}>Tạo mã QR để quét</Text>
+            <Text style={shareOptionStyles.label}>{tr('actions.shareQR', 'Share via QR')}</Text>
+            <Text style={shareOptionStyles.desc}>{tr('screens.library.shareQrDesc', 'Generate a QR code to scan')}</Text>
           </View>
         </Pressable>
 
         <Pressable style={shareOptionStyles.cancelBtn} onPress={onClose}>
-          <Text style={shareOptionStyles.cancelText}>Huỷ</Text>
+          <Text style={shareOptionStyles.cancelText}>{tr('common.cancel', 'Cancel')}</Text>
         </Pressable>
       </View>
     </Modal>
@@ -1225,6 +1228,10 @@ export const LibraryScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { authSession } = useAuth();
+  const { t } = useTranslation();
+  const themeColors = useThemeColors();
+  tr = t;
+  rc = themeColors;
   const { playSong, currentSong, isPlaying } = usePlayer();
 
   const [activeTab, setActiveTab] = useState<Tab>('playlists');
@@ -1239,6 +1246,8 @@ export const LibraryScreen = () => {
   // Modals
   const [qrData, setQrData]         = useState<{ link: string; image?: string } | null>(null);
   const [addSongTo, setAddSongTo]   = useState<Song | null>(null);
+  const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
   const [createAlbumOpen, setCreateAlbumOpen] = useState(false);
   const [detailAlbumId, setDetailAlbumId]     = useState<string | null>(null);
   const [editPlaylist, setEditPlaylist]        = useState<Playlist | null>(null);
@@ -1272,7 +1281,7 @@ export const LibraryScreen = () => {
         const status = err?.response?.status;
         const backendMessage = err?.response?.data?.message;
         console.warn('Tải bài hát thất bại', { status, data: err?.response?.data, message: err?.message });
-        Alert.alert('Không tải được bài hát', backendMessage || err?.message || 'Vui lòng thử lại.');
+        Alert.alert(t('screens.library.loadSongsFailedTitle', 'Failed to load songs'), backendMessage || err?.message || t('errors.tryAgain', 'Please try again.'));
       }
     } finally {
       setLoading(false);
@@ -1294,7 +1303,7 @@ export const LibraryScreen = () => {
               await getAlbumShareQr(id);
       setQrData({ link: qr.shareUrl, image: qr.qrCodeBase64 });
     } catch (e: any) {
-      Alert.alert('Lỗi', e?.message ?? 'Không thể tạo QR.');
+      Alert.alert(t('common.error'), e?.message ?? t('modals.couldNotGenerateQR', 'Could not generate QR'));
     }
   };
 
@@ -1307,7 +1316,7 @@ export const LibraryScreen = () => {
               await getAlbumShareLink(id);
       await Share.share({ message: `${title}\n${res.shareUrl}` });
     } catch (e: any) {
-      Alert.alert('Lỗi', e?.message ?? 'Không thể chia sẻ.');
+      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotShare', 'Cannot share.'));
     }
   };
 
@@ -1324,17 +1333,17 @@ export const LibraryScreen = () => {
         contentType,
       });
       setDiscoveryShareItem(null);
-      Alert.alert('Đã đăng!', 'Bài viết của bạn đã được chia sẻ lên Discovery.');
+      Alert.alert(t('screens.library.postedTitle', 'Posted!'), t('screens.library.postedToDiscovery', 'Your post has been shared to Discovery.'));
     } catch (e: any) {
-      Alert.alert('Lỗi', e?.message ?? 'Không thể đăng bài viết.');
+      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotPostToDiscovery', 'Cannot post to Discovery.'));
     }
   };
 
   // ── Playlist actions ──────────────────────────────────────────────────────
   const handleDeletePlaylist = (p: Playlist) => {
-    Alert.alert('Xoá playlist?', `"${p.name}" sẽ bị xoá vĩnh viễn.`, [
-      { text: 'Huỷ', style: 'cancel' },
-      { text: 'Xoá', style: 'destructive', onPress: async () => {
+    Alert.alert(t('screens.library.deletePlaylistConfirmTitle', 'Delete playlist?'), `"${p.name}" ${t('screens.library.deletePermanentlySuffix', 'will be deleted permanently.')}`, [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: async () => {
           await deletePlaylist(p.id);
           await load(true);
         }},
@@ -1352,7 +1361,22 @@ export const LibraryScreen = () => {
       setEditPlaylist(null);
       await load(true);
     } catch (e: any) {
-      Alert.alert('Lỗi', e?.message ?? 'Không thể cập nhật.');
+      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotUpdate', 'Cannot update.'));
+    }
+  };
+
+  const handleCreatePlaylist = async () => {
+    if (!newPlaylistName.trim()) return;
+    try {
+      await createPlaylist({
+        name: newPlaylistName.trim(),
+        visibility: 'PUBLIC',
+      });
+      setNewPlaylistName('');
+      setCreatePlaylistOpen(false);
+      await load(true);
+    } catch (e: any) {
+      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotCreatePlaylist', 'Cannot create playlist.'));
     }
   };
 
@@ -1363,7 +1387,7 @@ export const LibraryScreen = () => {
       setCreateAlbumOpen(false);
       await load(true);
     } catch (e: any) {
-      Alert.alert('Lỗi', e?.message ?? 'Không thể tạo album.');
+      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotCreateAlbum', 'Cannot create album.'));
     }
   };
 
@@ -1371,9 +1395,9 @@ export const LibraryScreen = () => {
     try {
       await apiClient.post(`/albums/${albumId}/publish`);
       await load(true);
-      Alert.alert('Đã phát hành!', 'Album của bạn hiện đã công khai.');
+      Alert.alert(t('screens.library.publishedTitle', 'Published!'), t('screens.library.albumPublicNow', 'Your album is now public.'));
     } catch (e: any) {
-      Alert.alert('Không thể phát hành', e?.message ?? 'Kiểm tra lại album có đủ bài hát chưa.');
+      Alert.alert(t('screens.library.cannotPublishTitle', 'Cannot publish'), e?.message ?? t('screens.library.checkAlbumSongs', 'Check whether your album has enough songs.'));
     }
   };
 
@@ -1382,19 +1406,19 @@ export const LibraryScreen = () => {
       await apiClient.post(`/albums/${albumId}/unpublish`);
       await load(true);
     } catch (e: any) {
-      Alert.alert('Lỗi', e?.message ?? 'Không thể đặt riêng tư.');
+      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotSetPrivate', 'Cannot set private.'));
     }
   };
 
   const handleDeleteAlbum = (a: Album) => {
-    Alert.alert('Xoá album?', `"${a.title}" sẽ bị xoá vĩnh viễn.`, [
-      { text: 'Huỷ', style: 'cancel' },
-      { text: 'Xoá', style: 'destructive', onPress: async () => {
+    Alert.alert(t('screens.library.deleteAlbumConfirmTitle', 'Delete album?'), `"${a.title}" ${t('screens.library.deletePermanentlySuffix', 'will be deleted permanently.')}`, [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: async () => {
           try {
             await apiClient.delete(`/albums/${a.id}`);
             await load(true);
           } catch (e: any) {
-            Alert.alert('Lỗi', e?.message);
+            Alert.alert(t('common.error'), e?.message);
           }
         }},
     ]);
@@ -1406,9 +1430,9 @@ export const LibraryScreen = () => {
     try {
       await addSongToPlaylist(playlistId, addSongTo.id);
       setAddSongTo(null);
-      Alert.alert('Đã thêm', `Bài hát đã được thêm vào playlist.`);
+      Alert.alert(t('screens.library.addedTitle', 'Added'), t('screens.library.songAddedToPlaylist', 'Song has been added to playlist.'));
     } catch (e: any) {
-      Alert.alert('Lỗi', e?.message);
+      Alert.alert(t('common.error'), e?.message);
     }
   };
 
@@ -1420,7 +1444,7 @@ export const LibraryScreen = () => {
       setAddSongTo(null);
       await load(true);
     } catch (e: any) {
-      Alert.alert('Lỗi', e?.message);
+      Alert.alert(t('common.error'), e?.message);
     }
   };
 
@@ -1429,19 +1453,22 @@ export const LibraryScreen = () => {
       <>
         <Pressable
             style={styles.createBtn}
-            onPress={() => {setCreateAlbumOpen(false);navigation.navigate('Create');}}
+            onPress={() => {
+              setCreateAlbumOpen(false);
+              setCreatePlaylistOpen(true);
+            }}
         >
           <View style={styles.createBtnInner}>
             <Text style={styles.createBtnIcon}>+</Text>
-            <Text style={styles.createBtnText}>Tạo playlist mới</Text>
+            <Text style={styles.createBtnText}>{t('screens.library.createNewPlaylist', 'Create new playlist')}</Text>
           </View>
         </Pressable>
 
         {playlists.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}><Fontisto name="play-list" color="#A855F7" size={14} /></Text>
-              <Text style={styles.emptyTitle}>Chưa có playlist nào</Text>
-              <Text style={styles.emptySub}>Tạo playlist để sắp xếp bài hát yêu thích</Text>
+              <Text style={styles.emptyEmoji}><Fontisto name="play-list" color={themeColors.accent} size={14} /></Text>
+              <Text style={styles.emptyTitle}>{t('screens.library.noPlaylists', 'No playlists yet')}</Text>
+              <Text style={styles.emptySub}>{t('screens.library.noPlaylistsHint', 'Create playlists to organize your favorite songs')}</Text>
             </View>
         ) : playlists.map(p => (
             <Pressable
@@ -1450,11 +1477,11 @@ export const LibraryScreen = () => {
                 onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug })}
             >
               <View style={styles.listItemThumb}>
-                <Text style={{ fontSize: 22 }}><Fontisto name="play-list" color="#A855F7" size={14} /></Text>
+                <Text style={{ fontSize: 22 }}><Fontisto name="play-list" color={themeColors.accent} size={14} /></Text>
               </View>
               <View style={styles.listItemInfo}>
                 <Text style={styles.listItemTitle} numberOfLines={1}>{p.name}</Text>
-                <Text style={styles.listItemSub}>{p.totalSongs ?? 0} bài hát</Text>
+                <Text style={styles.listItemSub}>{p.totalSongs ?? 0} {t('screens.library.songsSuffix', 'songs')}</Text>
               </View>
               <View style={styles.listItemActions}>
                 <Pressable
@@ -1463,14 +1490,14 @@ export const LibraryScreen = () => {
                     style={styles.iconBtn}
                 >
                   <Text style={styles.iconBtnText}>
-                    <FontAwesome name="edit" color="#ff7e5f" size={18} />
+                    <FontAwesome name="edit" color={themeColors.accentAlt} size={18} />
                       </Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => openShareOptions('playlist', p.id, p.name)} style={styles.iconBtn}>
                   <Text style={styles.iconBtnText}>↗</Text>
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => handleDeletePlaylist(p)} style={styles.iconBtn}>
-                  <Text style={[styles.iconBtnText, { color: COLORS.error }]}><AntDesign name="delete" colors={['#ff4d4f', '#ff7875']} size={15} /></Text>
+                  <Text style={[styles.iconBtnText, { color: COLORS.error }]}><AntDesign name="delete" color={COLORS.error} size={15} /></Text>
                 </Pressable>
               </View>
             </Pressable>
@@ -1483,8 +1510,8 @@ export const LibraryScreen = () => {
         {songs.length === 0 ? (
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>🎵</Text>
-              <Text style={styles.emptyTitle}>Chưa có bài hát nào</Text>
-              <Text style={styles.emptySub}>Upload bài hát trong tab "Tạo"</Text>
+              <Text style={styles.emptyTitle}>{t('screens.library.noSongs', 'No songs yet')}</Text>
+              <Text style={styles.emptySub}>{t('screens.library.noSongsHint', 'Upload songs in the Create tab')}</Text>
             </View>
         ) : songs.map(s => (
             <SongRow
@@ -1505,15 +1532,15 @@ export const LibraryScreen = () => {
         <Pressable style={[styles.createBtn, { marginBottom: 12 }]} onPress={() => setCreateAlbumOpen(true)}>
           <View style={styles.createBtnInner}>
             <Text style={styles.createBtnIcon}>+</Text>
-            <Text style={styles.createBtnText}>Tạo album mới</Text>
+            <Text style={styles.createBtnText}>{t('screens.library.createNewAlbum', 'Create new album')}</Text>
           </View>
         </Pressable>
 
         {albums.length === 0 ? (
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>💿</Text>
-              <Text style={styles.emptyTitle}>Chưa có album nào</Text>
-              <Text style={styles.emptySub}>Tổ chức bài hát thành album để phát hành</Text>
+              <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
+              <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
             </View>
         ) : albums.map(a => (
             <AlbumCard
@@ -1546,12 +1573,12 @@ export const LibraryScreen = () => {
         >
           {/* Header */}
           <LinearGradient
-              colors={[COLORS.gradSlate, COLORS.bg]}
+              colors={[themeColors.gradSlate, themeColors.bg]}
               style={[styles.header, { paddingTop: insets.top + 18 }]}
           >
-            <Text style={styles.headerTitle}>Thư viện</Text>
+            <Text style={styles.headerTitle}>{t('screens.library.title', 'Library')}</Text>
             <Text style={styles.headerSub}>
-              {playlists.length} playlist · {songs.length} bài · {albums.length} album
+              {playlists.length} {t('screens.library.tabPlaylists', 'playlists')} · {songs.length} {t('screens.library.tabSongs', 'songs')} · {albums.length} {t('screens.library.tabAlbums', 'albums')}
             </Text>
           </LinearGradient>
 
@@ -1584,6 +1611,7 @@ export const LibraryScreen = () => {
           <View style={modalStyles.overlay}>
             <View style={modalStyles.card}>
               <Text style={modalStyles.title}>Sửa tên playlist</Text>
+              <Text style={modalStyles.title}>{t('screens.library.editPlaylistName', 'Edit playlist name')}</Text>
               <TextInput
                   style={modalStyles.input}
                   value={editPlaylistName}
@@ -1592,10 +1620,49 @@ export const LibraryScreen = () => {
               />
               <View style={modalStyles.actions}>
                 <Pressable style={modalStyles.cancelBtn} onPress={() => setEditPlaylist(null)}>
-                  <Text style={modalStyles.cancelText}>Huỷ</Text>
+                  <Text style={modalStyles.cancelText}>{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable style={modalStyles.createBtn} onPress={handleSavePlaylistEdit}>
-                  <Text style={modalStyles.createText}>Lưu</Text>
+                  <Text style={modalStyles.createText}>{t('common.save')}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <Modal
+            visible={createPlaylistOpen}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setCreatePlaylistOpen(false)}
+        >
+          <View style={modalStyles.overlay}>
+            <View style={modalStyles.card}>
+              <Text style={modalStyles.title}>{t('screens.library.createNewPlaylist', 'Create new playlist')}</Text>
+              <TextInput
+                  style={modalStyles.input}
+                  value={newPlaylistName}
+                  onChangeText={setNewPlaylistName}
+                  placeholder={t('screens.library.createPlaylistPlaceholder', 'Create new playlist...')}
+                  placeholderTextColor={COLORS.glass30}
+                  autoFocus
+              />
+              <View style={modalStyles.actions}>
+                <Pressable
+                    style={modalStyles.cancelBtn}
+                    onPress={() => {
+                      setCreatePlaylistOpen(false);
+                      setNewPlaylistName('');
+                    }}
+                >
+                  <Text style={modalStyles.cancelText}>{t('common.cancel')}</Text>
+                </Pressable>
+                <Pressable
+                    style={[modalStyles.createBtn, !newPlaylistName.trim() && { opacity: 0.4 }]}
+                    onPress={handleCreatePlaylist}
+                    disabled={!newPlaylistName.trim()}
+                >
+                  <Text style={modalStyles.createText}>{t('common.create', 'Create')}</Text>
                 </Pressable>
               </View>
             </View>

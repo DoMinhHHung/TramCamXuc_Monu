@@ -146,15 +146,27 @@ public class RecommendationOrchestratorService {
 
         // ── Phase 3: Cold-start check & handling ─────────────────────────────
 
-        boolean isColdStart = coldStartHandler.needsColdStart(
-                cfScores.size() + cbScores.size());
+        int mlTotal = cfScores.size() + cbScores.size();
+        boolean isColdStart = coldStartHandler.needsColdStart(mlTotal);
 
         List<RecommendedSongDto> forYouSection;
 
         if (isColdStart) {
-            log.debug("[Orchestrator] Cold-start mode for userId={}", userId);
+            log.debug("[Orchestrator] Cold-start: mlResults={} for userId={}", mlTotal, userId);
+
             forYouSection = coldStartHandler.getColdStartRecommendations(
                     userId, pageSize, disliked);
+
+            if (forYouSection.isEmpty() && !trendingIds.isEmpty()) {
+                log.debug("[Orchestrator] Cold-start returned empty, using trending as forYou");
+                Set<String> trendingFiltered = trendingIds.stream()
+                        .filter(id -> !disliked.contains(id))
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+                Map<String, SongDetailDto> trendingDetails = hydrateSongsBatch(trendingFiltered);
+                forYouSection = ranker.rankTrending(
+                        trendingIds, trendingDetails, disliked, null, pageSize);
+            }
+
         } else {
             // ── Phase 4: Hydrate ML candidates ──────────────────────────────
             Set<String> mlCandidateIds = new LinkedHashSet<>();

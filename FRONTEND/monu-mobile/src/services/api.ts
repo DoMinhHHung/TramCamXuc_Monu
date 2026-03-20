@@ -120,11 +120,13 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
     path === '/playlists/my-playlists'
     || path === '/songs/my-songs'
     || path === '/albums/my'
+    || path === '/social/listen-history/my'
+    || path === '/recommendations/insights'
     || path === '/social/hearts/my'
     || path === '/social/follows/my-artists'
     || /^\/social\/artists\/[^/]+\/followers$/i.test(path)
   ) {
-    return 45000;
+    return 300000;
   }
 
   if (

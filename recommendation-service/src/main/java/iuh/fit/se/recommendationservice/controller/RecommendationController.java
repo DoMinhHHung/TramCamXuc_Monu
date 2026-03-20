@@ -1,6 +1,7 @@
 package iuh.fit.se.recommendationservice.controller;
 
 import iuh.fit.se.recommendationservice.dto.*;
+import iuh.fit.se.recommendationservice.service.ListeningInsightsService;
 import iuh.fit.se.recommendationservice.service.RecommendationOrchestratorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,22 +34,10 @@ import java.util.UUID;
 public class RecommendationController {
 
     private final RecommendationOrchestratorService orchestrator;
+    private final ListeningInsightsService insightsService;
 
     // ── Home feed ─────────────────────────────────────────────────────────────
 
-    /**
-     * Home feed — tổng hợp tất cả sources.
-     *
-     * Response gồm nhiều sections:
-     *   - forYou: CF + CB blended personalized
-     *   - trendingNow: global trending
-     *   - fromArtists: songs từ followed artists
-     *   - newReleases: album/song mới
-     *   - friendsAreListening: social signals
-     *
-     * Query params:
-     *   debug=true → kèm theo debugScore (chỉ dùng khi dev)
-     */
     @GetMapping("/home")
     public ApiResponse<HomeRecommendationResponse> getHome(
             Authentication auth,
@@ -60,13 +49,6 @@ public class RecommendationController {
 
     // ── Trending ──────────────────────────────────────────────────────────────
 
-    /**
-     * Global trending — PUBLIC, không cần đăng nhập.
-     * Nếu có auth thì loại bỏ bài đã dislike.
-     *
-     * Query params:
-     *   limit=20 (default), max=50
-     */
     @GetMapping("/trending")
     public ApiResponse<List<RecommendedSongDto>> getTrending(
             Authentication auth,
@@ -77,10 +59,6 @@ public class RecommendationController {
         return ApiResponse.ok(orchestrator.getTrending(userId, safeLimit));
     }
 
-    /**
-     * Trending theo genre cụ thể — PUBLIC.
-     * Hữu ích cho trang genre detail page.
-     */
     @GetMapping("/trending/genre/{genreId}")
     public ApiResponse<List<RecommendedSongDto>> getTrendingByGenre(
             Authentication auth,
@@ -94,10 +72,6 @@ public class RecommendationController {
 
     // ── Social feed ───────────────────────────────────────────────────────────
 
-    /**
-     * Social recommendation — friends + followed artists.
-     * Cần đăng nhập.
-     */
     @GetMapping("/social")
     public ApiResponse<List<RecommendedSongDto>> getSocialFeed(
             Authentication auth,
@@ -109,11 +83,6 @@ public class RecommendationController {
 
     // ── Similar songs ─────────────────────────────────────────────────────────
 
-    /**
-     * Bài hát tương tự cho một bài cụ thể.
-     * Dùng ở trang detail bài hát → "You might also like"
-     * Không cần đăng nhập, nhưng nếu có auth thì filter disliked.
-     */
     @GetMapping("/similar/{songId}")
     public ApiResponse<List<RecommendedSongDto>> getSimilarSongs(
             Authentication auth,
@@ -127,10 +96,6 @@ public class RecommendationController {
 
     // ── New releases ──────────────────────────────────────────────────────────
 
-    /**
-     * New releases từ followed artists.
-     * Cần đăng nhập (vì phụ thuộc vào danh sách followed artists).
-     */
     @GetMapping("/new-releases")
     public ApiResponse<List<RecommendedSongDto>> getNewReleases(
             Authentication auth,
@@ -148,17 +113,7 @@ public class RecommendationController {
 
     // ── Feedback ──────────────────────────────────────────────────────────────
 
-    /**
-     * Nhận feedback từ client.
-     * Client nên gửi feedback khi:
-     *   - User skip bài sau < 10 giây → FeedbackType.SKIP
-     *   - User replay bài → FeedbackType.REPLAY
-     *   - User thêm vào playlist → FeedbackType.ADD_PLAYLIST
-     *   - User bấm dislike → FeedbackType.DISLIKE
-     *
-     * NOTE: Với DISLIKE, client cũng cần gọi POST /social/reactions/dislike
-     * để social-service lưu vào MongoDB. Endpoint này chỉ invalidate cache.
-     */
+
     @PostMapping("/feedback")
     public ApiResponse<Void> submitFeedback(
             Authentication auth,
@@ -174,10 +129,7 @@ public class RecommendationController {
 
     // ── Health check ──────────────────────────────────────────────────────────
 
-    /**
-     * Health check endpoint — kiểm tra Spring service và Python ML service.
-     * Dùng bởi DevOps monitoring, không cần auth.
-     */
+
     @GetMapping("/health")
     public ApiResponse<java.util.Map<String, Object>> health() {
         return ApiResponse.ok(java.util.Map.of(
@@ -188,7 +140,6 @@ public class RecommendationController {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /** Extract userId, throw nếu không có auth (dùng cho protected endpoints) */
     private UUID extractUserId(Authentication auth) {
         if (auth == null || !auth.isAuthenticated()) {
             throw new IllegalStateException("Authentication required");
@@ -196,7 +147,6 @@ public class RecommendationController {
         return UUID.fromString((String) auth.getPrincipal());
     }
 
-    /** Try extract userId, return null nếu anonymous (dùng cho public endpoints) */
     private UUID tryExtractUserId(Authentication auth) {
         try {
             if (auth != null && auth.isAuthenticated()
@@ -205,5 +155,17 @@ public class RecommendationController {
             }
         } catch (Exception ignored) {}
         return null;
+    }
+
+    @GetMapping("/insights")
+    public ApiResponse<ListeningInsightsResponse> getListeningInsights(
+            Authentication auth,
+            @RequestParam(defaultValue = "30") int days) {
+
+        UUID userId = extractUserId(auth);
+
+        int safeDays = (days <= 7) ? 7 : (days <= 30) ? 30 : 90;
+
+        return ApiResponse.ok(insightsService.getInsights(userId, safeDays));
     }
 }
