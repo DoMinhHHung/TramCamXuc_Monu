@@ -25,6 +25,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
 import { useDownload } from '../context/DownloadContext';
 import { useTranslation } from '../context/LocalizationContext';
+import { useTheme } from '../context/ThemeContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { RecommendationSection } from '../components/RecommendationSection';
 import { SongSection } from '../components/SongSection';
@@ -102,6 +103,7 @@ export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { startDownload, isDownloaded, getJobStatus } = useDownload();
   const { t } = useTranslation();
+  const { COLORS: themeColors } = useTheme();
 
   const {
     rec,
@@ -111,6 +113,8 @@ export const HomeScreen = () => {
   } = useHomeData();
 
   const { data: homeStats, loading: statsLoading, error: statsError } = useHomeStats();
+
+  const styles = getStyles(themeColors);
 
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedRecSong, setSelectedRecSong] = useState<RecommendedSong | null>(null);
@@ -388,7 +392,7 @@ export const HomeScreen = () => {
               )}
             </View>
             <View style={styles.avatarCircle}>
-              <Fontisto name="person" color="#3B82F6" size={24} />
+              <Fontisto name="person" color={themeColors.accent} size={24} />
             </View>
           </Pressable>
 
@@ -396,7 +400,7 @@ export const HomeScreen = () => {
             onPress={() => navigation.navigate('Search')}
             style={styles.searchBar}
           >
-            <MaterialIcons name="saved-search" color="#2563EB" size={26} />
+            <MaterialIcons name="saved-search" color={themeColors.accent} size={26} />
             <Text style={styles.searchPlaceholder}>{t('screens.home.searchPlaceholder')}</Text>
           </Pressable>
         </LinearGradient>
@@ -404,7 +408,7 @@ export const HomeScreen = () => {
         {/* Dynamic Home Sections */}
         {statsLoading && !homeStats ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={COLORS.accent} />
+            <ActivityIndicator size="large" color={themeColors.accent} />
             <Text style={styles.loadingText}>{t('homeScreen.noDataAvailable')}</Text>
           </View>
         ) : homeStats ? (
@@ -667,7 +671,7 @@ export const HomeScreen = () => {
             },
           },
           {
-            icon: <AntDesign name="appstore-add" size={20} color="#fff" />,
+            icon: <AntDesign name="appstore-add" size={20} color={themeColors.text} />,
             label: 'Thêm vào playlist',
             onPress: () => {
               if (!selectedSong) return;
@@ -677,10 +681,10 @@ export const HomeScreen = () => {
           },
           {
             icon: isDownloaded(selectedSong?.id ?? '')
-              ? <AntDesign name="check-circle" size={20} color="#4ade80" />
+              ? <AntDesign name="check-circle" size={20} color={themeColors.success} />
               : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <AntDesign name="download" size={20} color="#fff" />,
+                ? <ActivityIndicator size="small" color={themeColors.text} />
+                : <AntDesign name="download" size={20} color={themeColors.text} />,
             label: isDownloaded(selectedSong?.id ?? '')
               ? 'Đã tải xuống'
               : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
@@ -781,8 +785,8 @@ export const HomeScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const getStyles = (colors: typeof COLORS) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   header: { paddingHorizontal: 20, paddingBottom: 20 },
   headerTop: {
     flexDirection: 'row',
@@ -790,36 +794,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  greeting: { color: COLORS.glass50, fontSize: 14 },
-  name: { color: COLORS.white, fontSize: 26, fontWeight: '800' },
-  updatedLabel: { color: COLORS.glass30, fontSize: 11, marginTop: 2 },
+  greeting: { color: colors.textSecondary, fontSize: 14 },
+  name: { color: colors.text, fontSize: 26, fontWeight: '800' },
+  updatedLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
   avatarCircle: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: COLORS.glass10,
+    backgroundColor: colors.surfaceMid,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.glass08,
+    backgroundColor: colors.surfaceLow,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 11,
     gap: 10,
     borderWidth: 1,
-    borderColor: COLORS.glass12,
+    borderColor: colors.border,
   },
-  searchPlaceholder: { color: COLORS.glass40, fontSize: 14, flex: 1 },
+  searchPlaceholder: { color: colors.muted, fontSize: 14, flex: 1 },
   section: { paddingHorizontal: 20, marginTop: 24 },
-  sectionTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 14 },
+  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   quickCard: { width: '47%', borderRadius: 14, overflow: 'hidden' },
   quickGradient: { padding: 16, minHeight: 90, justifyContent: 'space-between' },
   cardEmoji: { fontSize: 26 },
-  cardTitle: { color: COLORS.white, fontWeight: '700' },
+  cardTitle: { color: colors.text, fontWeight: '700' },
   genreHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -828,37 +832,37 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 8,
   },
-  genreSectionTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
-  seeMoreText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
+  genreSectionTitle: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  seeMoreText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
   loadingWrap: { alignItems: 'center', paddingVertical: 32 },
-  loadingText: { color: COLORS.glass35, fontSize: 13, marginTop: 10 },
+  loadingText: { color: colors.textSecondary, fontSize: 13, marginTop: 10 },
   errorWrap: {
     marginHorizontal: 20,
     marginTop: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.error,
-    backgroundColor: COLORS.warningDim,
+    borderColor: colors.error,
+    backgroundColor: colors.surfaceDim,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  errorText: { color: COLORS.error, fontSize: 12, fontWeight: '600' },
+  errorText: { color: colors.error, fontSize: 12, fontWeight: '600' },
   backdrop: {
     flex: 1,
-    backgroundColor: COLORS.scrim,
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   modalCard: {
     width: '100%',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: COLORS.glass10,
+    borderColor: colors.border,
   },
-  modalTitle: { color: COLORS.white, fontSize: 17, fontWeight: '800', marginBottom: 10 },
+  modalTitle: { color: colors.text, fontSize: 17, fontWeight: '800', marginBottom: 10 },
   modalClose: {
     position: 'absolute',
     top: 10,
@@ -866,18 +870,18 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.glass10,
+    backgroundColor: colors.surfaceMid,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
-  modalCloseIcon: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  modalItem: { color: COLORS.glass85, fontSize: 14, marginTop: 8 },
-  modalItemAccent: { color: COLORS.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
+  modalCloseIcon: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  modalItem: { color: colors.textSecondary, fontSize: 14, marginTop: 8 },
+  modalItemAccent: { color: colors.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
   playlistInput: {
-    color: COLORS.white,
+    color: colors.text,
     borderWidth: 1,
-    borderColor: COLORS.glass20,
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
