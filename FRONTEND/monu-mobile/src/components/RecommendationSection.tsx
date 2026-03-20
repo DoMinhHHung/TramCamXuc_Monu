@@ -1,6 +1,6 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../config/colors';
+import { useThemeColors } from '../config/colors';
 import { FeedbackType, RecommendedSong } from '../services/recommendation';
 import { HorizontalSongScroll } from './HorizontalSongScroll';
 
@@ -37,6 +37,9 @@ export const RecommendationSection = ({
   hideIfEmpty = true,
   footer,
 }: RecommendationSectionProps) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   if (hideIfEmpty && !loading && songs.length === 0) return null;
 
   return (
@@ -76,7 +79,7 @@ export const RecommendationSection = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   section: {
     marginTop: 28,
   },
@@ -93,22 +96,22 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   icon: { fontSize: 18 },
-  title: { color: COLORS.white, fontSize: 18, fontWeight: '800' },
+  title: { color: colors.text, fontSize: 18, fontWeight: '800' },
   newDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: COLORS.error,
+    backgroundColor: colors.error,
     marginLeft: 2,
   },
   subtitle: {
-    color: COLORS.glass35,
+    color: colors.textSecondary,
     fontSize: 12,
     paddingHorizontal: 20,
     marginBottom: 10,
   },
   seeAll: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontSize: 13,
     fontWeight: '600',
   },

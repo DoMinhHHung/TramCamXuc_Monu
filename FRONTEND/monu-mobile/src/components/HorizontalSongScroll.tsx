@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import React, { memo, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../config/colors';
+import { useThemeColors } from '../config/colors';
 import { ReasonBadge } from './ReasonBadge';
 import { FeedbackType, RecommendedSong } from '../services/recommendation';
 
@@ -22,19 +22,35 @@ interface CardProps {
 }
 
 const SongCard = memo(({ item, isActive, onPress, onLongPress, onFeedback }: CardProps) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+  const longPressTriggeredRef = useRef(false);
+
   return (
     <Pressable
       style={[styles.card, isActive && styles.cardActive]}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      delayLongPress={500}
+      onPressIn={() => {
+        longPressTriggeredRef.current = false;
+      }}
+      onPress={() => {
+        if (longPressTriggeredRef.current) {
+          longPressTriggeredRef.current = false;
+          return;
+        }
+        onPress();
+      }}
+      onLongPress={() => {
+        longPressTriggeredRef.current = true;
+        onLongPress?.();
+      }}
+      delayLongPress={380}
     >
       <View style={styles.thumbWrap}>
         {item.thumbnailUrl ? (
           <Image source={{ uri: item.thumbnailUrl }} style={styles.thumb} />
         ) : (
           <LinearGradient
-            colors={[COLORS.gradPurple, COLORS.gradIndigo]}
+            colors={[colors.gradPurple, colors.gradIndigo]}
             style={[styles.thumb, styles.thumbFallback]}
           >
             <Text style={styles.thumbIcon}>🎵</Text>
@@ -89,10 +105,13 @@ export const HorizontalSongScroll = ({
   loading = false,
   emptyText = 'Đang cập nhật...'
 }: HorizontalSongScrollProps) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   if (loading) {
     return (
       <View style={styles.emptyWrap}>
-        <ActivityIndicator size="small" color={COLORS.accent} />
+        <ActivityIndicator size="small" color={colors.accent} />
       </View>
     );
   }
@@ -127,32 +146,32 @@ export const HorizontalSongScroll = ({
 
 const CARD_WIDTH = 148;
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   listContent: { paddingHorizontal: 20, gap: 10 },
   card: {
     width: CARD_WIDTH,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: COLORS.glass08,
+    borderColor: colors.border,
   },
-  cardActive: { borderColor: COLORS.accentBorder35 },
+  cardActive: { borderColor: colors.accentBorder35 },
   thumbWrap: { position: 'relative' },
   thumb: { width: CARD_WIDTH, height: CARD_WIDTH, borderRadius: 0 },
   thumbFallback: { alignItems: 'center', justifyContent: 'center' },
   thumbIcon: { fontSize: 36 },
   activeOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: colors.scrim,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeIcon: { fontSize: 16, color: COLORS.white },
+  activeIcon: { fontSize: 16, color: colors.text },
   info: { padding: 10, gap: 4 },
-  title: { color: COLORS.white, fontSize: 13, fontWeight: '700', lineHeight: 17 },
-  titleActive: { color: COLORS.accent },
-  artist: { color: COLORS.glass45, fontSize: 11 },
+  title: { color: colors.text, fontSize: 13, fontWeight: '700', lineHeight: 17 },
+  titleActive: { color: colors.accent },
+  artist: { color: colors.textSecondary, fontSize: 11 },
   dislikeBtn: {
     position: 'absolute',
     top: 6,
@@ -160,15 +179,15 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.surfaceDim,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dislikeBtnText: { color: COLORS.glass70, fontSize: 11, fontWeight: '700' },
+  dislikeBtnText: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
   emptyWrap: {
     paddingHorizontal: 20,
     paddingVertical: 12,
     alignItems: 'center',
   },
-  emptyText: { color: COLORS.glass30, fontSize: 13 },
+  emptyText: { color: colors.textSecondary, fontSize: 13 },
 });

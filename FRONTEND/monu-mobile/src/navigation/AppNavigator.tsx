@@ -34,9 +34,11 @@ import { SearchScreen }           from '../screens/(tabs)/SearchScreen';
 import { DiscoverScreen }         from '../screens/(tabs)/DiscoverScreen';
 import { EditFavoritesScreen }    from '../screens/(settings)/EditFavoritesScreen';
 import { HistoryScreen }          from '../screens/(settings)/HistoryScreen';
+import { SettingsScreen }         from '../screens/SettingsScreen';
+import { InsightsScreen }         from '../screens/InsightsScreen';
 import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
 import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
-import { InsightsScreen }         from '../screens/InsightsScreen';
+import { GenreDetailScreen }      from '../screens/GenreDetailScreen';
 
 // ─── Artist screens ───────────────────────────────────────────────────────────
 import { ArtistProfileScreen }    from '../screens/(artist)/ArtistProfileScreen';
@@ -62,11 +64,14 @@ export type RootStackParamList = {
     MainTabs:        undefined;
     EditFavorites:   undefined;
     History:         undefined;
+    Settings:        undefined;
+    Insights:        undefined;
     Profile:         undefined;
     Search:          undefined;
     PlaylistDetail:  { slug: string };
     AlbumDetail:     { albumId: string };
-    Insights: undefined;
+    GenreDetail:     { genreId: string; genreName: string };
+    // Artist
     ArtistProfile:   { artistId: string };
     RegisterArtist:  undefined;
     ArtistTerms:     undefined;
@@ -178,13 +183,15 @@ export const AppNavigator = () => {
                         ) : (
                             <>
                                 <Stack.Screen name="MainTabs"       component={MainTabNavigator}    />
-                                <Stack.Screen name="Insights" component={InsightsScreen} options={{ headerShown: false }}/>
                                 <Stack.Screen name="Search"         component={SearchScreen}        />
                                 <Stack.Screen name="EditFavorites"  component={EditFavoritesScreen} />
                                 <Stack.Screen name="History"        component={HistoryScreen}       />
+                                <Stack.Screen name="Settings"       component={SettingsScreen}      />
+                                <Stack.Screen name="Insights"       component={InsightsScreen}      />
                                 <Stack.Screen name="Profile"        component={ProfileScreen}       />
                                 <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen}/>
                                 <Stack.Screen name="AlbumDetail"    component={AlbumDetailScreen}   />
+                                <Stack.Screen name="GenreDetail"    component={GenreDetailScreen}   />
                                 <Stack.Screen name="ArtistProfile"   component={ArtistProfileScreen}   />
                                 <Stack.Screen name="RegisterArtist"  component={RegisterArtistScreen}  />
                                 <Stack.Screen name="ArtistTerms"     component={ArtistTermsScreen}     />

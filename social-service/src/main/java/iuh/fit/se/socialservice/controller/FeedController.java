@@ -41,6 +41,14 @@ public class FeedController {
                 feedService.getOwnerFeed(ownerId, viewerId, pageable)));
     }
 
+    /** GET /social/feed/public — global public feed */
+    @GetMapping("/public")
+    public ResponseEntity<ApiResponse<Page<FeedPostResponse>>> publicFeed(
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(
+            feedService.getPublicFeed(pageable)));
+    }
+
     /** POST /social/feed — tạo post mới (share hoặc text) */
     @PostMapping
     public ResponseEntity<ApiResponse<FeedPostResponse>> create(

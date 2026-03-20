@@ -60,11 +60,16 @@ export interface Playlist {
 export interface Album {
   id: string;
   title: string;
+  slug?: string;
   description?: string;
   coverUrl?: string;
+  releaseDate?: string;
   status: 'DRAFT' | 'PUBLIC' | 'PRIVATE';
   totalSongs?: number;
   totalDurationSeconds?: number;
+  ownerArtistId?: string;
+  ownerStageName?: string;
+  ownerAvatarUrl?: string;
   songs: Song[];
   createdAt: string;
   updatedAt: string;
@@ -191,6 +196,11 @@ export const getMyAlbums = async (params?: { page?: number; size?: number }): Pr
   return unwrap<PageResponse<Album>>(response.data);
 };
 
+export const getPublicAlbums = async (params?: { page?: number; size?: number; artistId?: string }): Promise<PageResponse<Album>> => {
+  const response = await apiClient.get<PageResponse<Album>>('/albums', { params });
+  return unwrap<PageResponse<Album>>(response.data);
+};
+
 export const getAlbumById = async (albumId: string): Promise<Album> => {
   const response = await apiClient.get<Album>(`/albums/${albumId}`);
   return unwrap<Album>(response.data);
@@ -244,6 +254,13 @@ export const removeSongFromPlaylist = async (playlistId: string, songId: string)
   await apiClient.delete(`/playlists/${playlistId}/songs/${songId}`);
 };
 
+/**
+ * Reorder user's playlists
+ * @param playlistIds Array of playlist IDs in the desired order
+ */
+export const reorderPlaylists = async (playlistIds: string[]): Promise<void> => {
+  await apiClient.patch('/playlists/reorder', { playlistIds });
+};
 
 export const reportSong = async (songId: string, payload: { reason: 'COPYRIGHT_VIOLATION' | 'EXPLICIT_CONTENT' | 'HATE_SPEECH' | 'SPAM' | 'MISINFORMATION' | 'OTHER'; description?: string }): Promise<void> => {
   await apiClient.post(`/songs/${songId}/report`, payload);

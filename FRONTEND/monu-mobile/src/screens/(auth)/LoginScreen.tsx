@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Alert, KeyboardAvoidingView, Platform, Pressable,
   ScrollView, StyleSheet, Text, TextInput, View,
@@ -11,8 +11,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { BackButton } from '../../components/BackButton';
-import { COLORS } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -20,7 +21,10 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 export const LoginScreen = () => {
   const navigation = useNavigation<Nav>();
   const { login } = useAuth();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -31,7 +35,7 @@ export const LoginScreen = () => {
       setLoading(true);
       await login(email.trim(), password);
     } catch (e: any) {
-      Alert.alert('Đăng nhập thất bại', e?.message || 'Kiểm tra lại email/mật khẩu.');
+      Alert.alert(t('auth.login'), e?.message || t('errors.somethingWentWrong'));
     } finally {
       setLoading(false);
     }
@@ -49,7 +53,7 @@ export const LoginScreen = () => {
             showsVerticalScrollIndicator={false}
         >
           <LinearGradient
-              colors={[COLORS.gradIndigo, COLORS.bg]}
+              colors={[themeColors.gradIndigo, themeColors.bg]}
               style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
           >
             <BackButton onPress={() => navigation.goBack()} />
@@ -58,28 +62,28 @@ export const LoginScreen = () => {
                 <Text style={{ fontSize: 32 }}>🎵</Text>
               </View>
             </View>
-            <Text style={styles.title}>Đăng nhập</Text>
-            <Text style={styles.subtitle}>Chào mừng trở lại với Monu</Text>
+            <Text style={styles.title}>{t('auth.login')}</Text>
+            <Text style={styles.subtitle}>{t('auth.welcomeBack')}</Text>
           </LinearGradient>
 
           <View style={[styles.form, { paddingBottom: insets.bottom + 32 }]}>
-            <Text style={styles.fieldLabel}>Email</Text>
+            <Text style={styles.fieldLabel}>{t('auth.email')}</Text>
             <TextInput
                 autoCapitalize="none"
                 keyboardType="email-address"
                 placeholder="you@example.com"
-                placeholderTextColor={COLORS.glass25}
+                placeholderTextColor={themeColors.glass25}
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
             />
 
-            <Text style={styles.fieldLabel}>Mật khẩu</Text>
+            <Text style={styles.fieldLabel}>{t('auth.password')}</Text>
             <View style={styles.pwWrap}>
               <TextInput
                   secureTextEntry={!showPw}
                   placeholder="••••••••"
-                  placeholderTextColor={COLORS.glass25}
+                  placeholderTextColor={themeColors.glass25}
                   style={styles.pwInput}
                   value={password}
                   onChangeText={setPassword}
@@ -88,14 +92,14 @@ export const LoginScreen = () => {
                 <MaterialIcons
                     name={showPw ? 'visibility-off' : 'visibility'}
                     size={20}
-                    color="#999"
+                  color={themeColors.glass50}
                     style={{ transform: [{ translateX: -5 }] }}
                 />
               </Pressable>
             </View>
 
             <Pressable onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotRow}>
-              <Text style={styles.forgotText}>Quên mật khẩu?</Text>
+              <Text style={styles.forgotText}>{t('auth.forgotPassword')}</Text>
             </Pressable>
 
             <Pressable
@@ -104,12 +108,12 @@ export const LoginScreen = () => {
                 disabled={loading}
             >
               <LinearGradient
-                  colors={[COLORS.accent, COLORS.accentAlt]}
+                  colors={[themeColors.accent, themeColors.accentAlt]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.loginBtnGradient}
               >
-                <Text style={styles.loginText}>{loading ? 'Đang đăng nhập...' : 'Đăng nhập'}</Text>
+                <Text style={styles.loginText}>{loading ? t('screens.login.loading') : t('auth.login')}</Text>
               </LinearGradient>
             </Pressable>
 
@@ -118,8 +122,8 @@ export const LoginScreen = () => {
                 onPress={() => navigation.navigate('RegisterOptions')}
             >
               <Text style={styles.registerText}>
-                Chưa có tài khoản?{'  '}
-                <Text style={styles.registerLink}>Đăng ký ngay</Text>
+                {t('auth.dontHaveAccount')}{'  '}
+                <Text style={styles.registerLink}>{t('auth.signup')}</Text>
               </Text>
             </Pressable>
           </View>
@@ -128,22 +132,22 @@ export const LoginScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   gradientTop: { paddingHorizontal: 24, paddingBottom: 36 },
   logoRow: { alignItems: 'center', marginTop: 20, marginBottom: 20 },
   logoRing: {
     width: 80, height: 80, borderRadius: 40,
-    backgroundColor: COLORS.glass06,
+    backgroundColor: colors.glass06,
     borderWidth: 1.5,
-    borderColor: COLORS.accentBorder40,
+    borderColor: colors.accentBorder40,
     alignItems: 'center', justifyContent: 'center',
   },
-  title: { color: COLORS.white, fontSize: 30, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
-  subtitle: { color: COLORS.glass45, fontSize: 15, textAlign: 'center' },
+  title: { color: colors.white, fontSize: 30, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
+  subtitle: { color: colors.glass45, fontSize: 15, textAlign: 'center' },
   form: { paddingHorizontal: 24, paddingTop: 8 },
   fieldLabel: {
-    color: COLORS.glass40,
+    color: colors.glass40,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -152,31 +156,31 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   input: {
-    backgroundColor: COLORS.glass06,
+    backgroundColor: colors.glass06,
     borderWidth: 1,
-    borderColor: COLORS.glass10,
+    borderColor: colors.glass10,
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 15,
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 15,
   },
   pwWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.glass06,
+    backgroundColor: colors.glass06,
     borderWidth: 1,
-    borderColor: COLORS.glass10,
+    borderColor: colors.glass10,
     borderRadius: 14,
   },
-  pwInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 15, color: COLORS.white, fontSize: 15 },
+  pwInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 15, color: colors.white, fontSize: 15 },
   eyeBtn: { paddingHorizontal: 14 },
   forgotRow: { alignSelf: 'flex-end', marginTop: 10, marginBottom: 6 },
-  forgotText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
+  forgotText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
   loginBtn: { borderRadius: 999, overflow: 'hidden', marginTop: 20 },
   loginBtnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
-  loginText: { color: COLORS.white, fontWeight: '800', fontSize: 16 },
+  loginText: { color: colors.white, fontWeight: '800', fontSize: 16 },
   registerRow: { alignItems: 'center', paddingTop: 22 },
-  registerText: { color: COLORS.glass40, fontSize: 14 },
-  registerLink: { color: COLORS.accent, fontWeight: '700' },
+  registerText: { color: colors.glass40, fontSize: 14 },
+  registerLink: { color: colors.accent, fontWeight: '700' },
 });

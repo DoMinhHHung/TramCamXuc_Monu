@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
         paddingVertical: 7,
         borderRadius: 20,
     },
-    discoverBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
+    discoverBtnText: { color: COLORS.white, fontWeight: '600', fontSize: 13 },
     title:  { color: COLORS.white, fontSize: 22, fontWeight: '800', marginTop: 16, marginBottom: 4 },
     sub:    { color: COLORS.glass50, fontSize: 13 },
     row: {
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     emptyTitle:  { color: COLORS.glass60, fontSize: 17, fontWeight: '600' },
     emptyHint:   { color: COLORS.glass35, fontSize: 13 },
     exploreBtn:  { marginTop: 12, backgroundColor: COLORS.accentDim, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
-    exploreBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+    exploreBtnText: { color: COLORS.white, fontWeight: '600', fontSize: 14 },
 });
 
 export const FollowedArtistsScreen = FollowingScreen;

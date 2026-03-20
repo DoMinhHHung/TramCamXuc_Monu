@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,10 +19,12 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AntDesign, Fontisto, MaterialIcons } from '@expo/vector-icons';
 
-import { COLORS } from '../config/colors';
+import { ColorScheme, useThemeColors } from '../config/colors';
+import { MOOD_EMOJIS, MUSIC_EMOJIS } from '../config/emojis';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
 import { useDownload } from '../context/DownloadContext';
+import { useTranslation } from '../context/LocalizationContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { RecommendationSection } from '../components/RecommendationSection';
 import { SongSection } from '../components/SongSection';
@@ -40,8 +42,22 @@ import { FeedbackType, RecommendedSong } from '../services/recommendation';
 import { getSongShareQr } from '../services/social';
 import { Genre } from '../types/favorites';
 import { useHomeData } from '../hooks/useHomeData';
+import { useHomeStats } from '../hooks/useHomeStats';
+import { AlbumCard } from '../components/AlbumCard';
+import { ArtistCardEnhanced } from '../components/ArtistCardEnhanced';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
+const TOP_ARTIST_CARD_STEP = 292;
+
+const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
+  const hex = backgroundColor.replace('#', '');
+  if (hex.length !== 6) return 'light';
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  return luminance > 0.6 ? 'dark' : 'light';
+};
 
 const toSong = (r: RecommendedSong): Song => ({
   id: r.songId,
@@ -56,13 +72,6 @@ const toSong = (r: RecommendedSong): Song => ({
   createdAt: '',
   updatedAt: '',
 });
-
-const quickActions = [
-  { title: 'Nhạc chữa lành', emoji: '🌙', color: [COLORS.cardHealingFrom, COLORS.gradPurple] as const },
-  { title: 'Top Trending', emoji: '🔥', color: [COLORS.cardTrendingFrom, COLORS.cardTrendingTo] as const },
-  { title: 'Acoustic', emoji: '🎸', color: [COLORS.cardAcousticFrom, COLORS.cardAcousticTo] as const },
-  { title: 'Lofi Focus', emoji: '🎧', color: [COLORS.cardLofiFrom, COLORS.cardLofiTo] as const },
-];
 
 const buildGenreSectionsFromPool = (
   genres: Genre[],
@@ -94,6 +103,8 @@ export const HomeScreen = () => {
   const { playSong, currentSong, isPlaying } = usePlayer();
   const insets = useSafeAreaInsets();
   const { startDownload, isDownloaded, getJobStatus } = useDownload();
+  const { t } = useTranslation();
+  const themeColors = useThemeColors();
 
   const {
     rec,
@@ -101,6 +112,10 @@ export const HomeScreen = () => {
     loading,
     refresh,
   } = useHomeData();
+
+  const { data: homeStats, loading: statsLoading, error: statsError } = useHomeStats();
+
+  const styles = useMemo(() => getStyles(themeColors), [themeColors]);
 
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedRecSong, setSelectedRecSong] = useState<RecommendedSong | null>(null);
@@ -119,6 +134,9 @@ export const HomeScreen = () => {
     loading: boolean;
   }>>({});
   const [legacyLoading, setLegacyLoading] = useState(false);
+  const topArtistsScrollRef = useRef<ScrollView | null>(null);
+  const topArtistsPausedRef = useRef(false);
+  const topArtistIndexRef = useRef(0);
 
   const playRec = useCallback((r: RecommendedSong, queue: RecommendedSong[]) => {
     playSong(toSong(r), queue.map(toSong));
@@ -137,6 +155,40 @@ export const HomeScreen = () => {
   const handlePressSong = useCallback((song: Song, queue: Song[]) => {
     playSong(song, queue);
   }, [playSong]);
+
+  const handleOpenProfile = useCallback(() => {
+    const parentNavigation = navigation.getParent();
+    const rootNavigation = parentNavigation?.getParent?.();
+
+    if (rootNavigation && 'navigate' in rootNavigation) {
+      (rootNavigation as { navigate: (route: 'Profile') => void }).navigate('Profile');
+      return;
+    }
+
+    if (parentNavigation && 'navigate' in parentNavigation) {
+      (parentNavigation as { navigate: (route: 'Profile') => void }).navigate('Profile');
+      return;
+    }
+
+    (navigation as unknown as { navigate: (route: 'Profile') => void }).navigate('Profile');
+  }, [navigation]);
+
+  const handleOpenSearch = useCallback(() => {
+    const parentNavigation = navigation.getParent();
+    const rootNavigation = parentNavigation?.getParent?.();
+
+    if (rootNavigation && 'navigate' in rootNavigation) {
+      (rootNavigation as { navigate: (route: 'Search') => void }).navigate('Search');
+      return;
+    }
+
+    if (parentNavigation && 'navigate' in parentNavigation) {
+      (parentNavigation as { navigate: (route: 'Search') => void }).navigate('Search');
+      return;
+    }
+
+    (navigation as unknown as { navigate: (route: 'Search') => void }).navigate('Search');
+  }, [navigation]);
 
   const handleFeedback = useCallback((songId: string, feedback: FeedbackType) => {
     void rec.sendFeedback(songId, feedback, 'home');
@@ -257,6 +309,24 @@ export const HomeScreen = () => {
     return () => clearInterval(intervalId);
   }, [fetchLegacySections]);
 
+  useEffect(() => {
+    const artistsCount = homeStats?.topArtists?.length ?? 0;
+    if (artistsCount < 2) return;
+
+    const intervalId = setInterval(() => {
+      if (topArtistsPausedRef.current || !topArtistsScrollRef.current) return;
+
+      topArtistIndexRef.current = (topArtistIndexRef.current + 1) % artistsCount;
+      topArtistsScrollRef.current.scrollTo({
+        x: topArtistIndexRef.current * TOP_ARTIST_CARD_STEP,
+        y: 0,
+        animated: true,
+      });
+    }, 3200);
+
+    return () => clearInterval(intervalId);
+  }, [homeStats?.topArtists]);
+
   const handleSeeMoreGenre = useCallback(async (genreId: string) => {
     const section = genreSections[genreId];
     if (!section) return;
@@ -336,23 +406,10 @@ export const HomeScreen = () => {
     })()
     : undefined;
 
-  // const emptyTrendingText = rec.error
-  //   ? 'Không tải được trending. Kéo xuống để thử lại.'
-  //   : 'Chưa có dữ liệu trending lúc này.';
-  //
-  // const emptyNewReleaseText = rec.error
-  //   ? 'Không tải được bài mới phát hành. Kéo xuống để thử lại.'
-  //   : 'Hiện chưa có bài mới phát hành.';
-  //
-  // const emptySocialText = !authSession
-  //   ? 'Đăng nhập để xem đề xuất cộng đồng.'
-  //   : rec.error
-  //     ? 'Không tải được đề xuất cộng đồng. Kéo xuống để thử lại.'
-  //     : 'Chưa có dữ liệu đề xuất cộng đồng.';
 
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style={getStatusBarStyle(themeColors.bg)} />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -361,15 +418,19 @@ export const HomeScreen = () => {
           <RefreshControl
             refreshing={loading}
             onRefresh={handleRefresh}
-            tintColor={COLORS.accent}
+            tintColor={themeColors.accent}
           />
         )}
       >
         <LinearGradient
-          colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]}
+          colors={[themeColors.gradPurple, themeColors.gradIndigo, themeColors.bg]}
           style={[styles.header, { paddingTop: insets.top + 16 }]}
         >
-          <Pressable style={styles.headerTop} onPress={() => navigation.navigate('Profile')}>
+          <Pressable
+            style={styles.headerTop}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            onPressIn={handleOpenProfile}
+          >
             <View>
               <Text style={styles.greeting}>{getGreeting()},</Text>
               <Text style={styles.name}>{displayName} 👋</Text>
@@ -378,37 +439,102 @@ export const HomeScreen = () => {
               )}
             </View>
             <View style={styles.avatarCircle}>
-              <Fontisto name="person" color="#3B82F6" size={24} />
+              <Fontisto name="person" color={themeColors.accent} size={24} />
             </View>
           </Pressable>
 
           <Pressable
-            onPress={() => navigation.navigate('Search')}
+            onPressIn={handleOpenSearch}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
             style={styles.searchBar}
           >
-            <MaterialIcons name="saved-search" color="#2563EB" size={26} />
-            <Text style={styles.searchPlaceholder}>Tìm bài hát, nghệ sĩ...</Text>
+            <MaterialIcons name="saved-search" color={themeColors.accent} size={26} />
+            <Text style={styles.searchPlaceholder}>{t('screens.home.searchPlaceholder')}</Text>
           </Pressable>
         </LinearGradient>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Phát nhanh</Text>
-          <View style={styles.grid}>
-            {quickActions.map((item) => (
-              <Pressable key={item.title} style={styles.quickCard}>
-                <LinearGradient colors={item.color} style={styles.quickGradient}>
-                  <Text style={styles.cardEmoji}>{item.emoji}</Text>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                </LinearGradient>
-              </Pressable>
-            ))}
+        {/* Dynamic Home Sections */}
+        {statsLoading && !homeStats ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={themeColors.accent} />
+            <Text style={styles.loadingText}>{t('homeScreen.noDataAvailable')}</Text>
           </View>
-        </View>
+        ) : homeStats ? (
+          <>
+            {/* Albums from Followed Artists */}
+            {homeStats.followedArtistAlbums.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>💿 {t('homeScreen.followedArtistsAlbums')}</Text>
+                <View style={{ paddingHorizontal: 20 }}>
+                  {homeStats.followedArtistAlbums.map((album) => (
+                    <AlbumCard
+                      key={album.id}
+                      album={album}
+                      onPress={() => {
+                        navigation.navigate('AlbumDetail', {
+                          albumId: album.id,
+                        });
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Top Artists */}
+            {homeStats.topArtists.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>🎤 {t('homeScreen.topArtists')}</Text>
+                <ScrollView
+                  ref={topArtistsScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.artistHorizontalList}
+                  onTouchStart={() => {
+                    topArtistsPausedRef.current = true;
+                  }}
+                  onTouchEnd={() => {
+                    topArtistsPausedRef.current = false;
+                  }}
+                  onScrollEndDrag={() => {
+                    topArtistsPausedRef.current = false;
+                  }}
+                  onMomentumScrollEnd={() => {
+                    topArtistsPausedRef.current = false;
+                  }}
+                  onScroll={(e) => {
+                    const x = e.nativeEvent.contentOffset.x;
+                    topArtistIndexRef.current = Math.max(0, Math.round(x / TOP_ARTIST_CARD_STEP));
+                  }}
+                  scrollEventThrottle={16}
+                >
+                  {homeStats.topArtists.map((artist) => (
+                    <ArtistCardEnhanced
+                      key={artist.id}
+                      artist={artist}
+                      style={styles.artistHorizontalCard}
+                      onPress={() => {
+                        navigation.navigate('ArtistProfile', {
+                          artistId: artist.id,
+                        });
+                      }}
+                      onFollowPress={(artistId, isFollowing) => {
+                        // TODO: Call follow/unfollow API
+                        console.log('Toggle follow for artist:', artistId, isFollowing);
+                      }}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+          </>
+        ) : null}
 
         {loading && !rec.homeFeed && !rec.globalTrending.length && (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={COLORS.accent} />
-            <Text style={styles.loadingText}>Đang tải gợi ý nhạc...</Text>
+            <ActivityIndicator size="large" color={themeColors.accent} />
+            <Text style={styles.loadingText}>{t('screens.home.loadingRecommendations')}</Text>
           </View>
         )}
 
@@ -421,7 +547,7 @@ export const HomeScreen = () => {
         {authSession && (
           <RecommendationSection
             icon="✨"
-            title="Gợi ý cho bạn"
+            title={t('screens.home.recommendForYou')}
             subtitle={updatedLabel}
             songs={rec.homeFeed?.forYou ?? []}
             activeSongId={currentSong?.id}
@@ -435,7 +561,7 @@ export const HomeScreen = () => {
 
 
         <SongSection
-            title="✨ Mới phát hành"
+          title={`✨ ${t('screens.home.newReleases')}`}
             songs={legacyNewestSongs}
             currentSong={currentSong}
             isPlaying={isPlaying}
@@ -446,7 +572,7 @@ export const HomeScreen = () => {
 
         <RecommendationSection
           icon="🔥"
-          title="Đang hot"
+          title={t('screens.home.trendingNow')}
           songs={rec.globalTrending}
           activeSongId={currentSong?.id}
           loading={rec.loading && !rec.globalTrending.length}
@@ -459,7 +585,7 @@ export const HomeScreen = () => {
         {authSession && (
           <RecommendationSection
             icon="👥"
-            title="Bạn bè đang nghe"
+            title={t('screens.home.friendsAreListening')}
             songs={rec.homeFeed?.friendsAreListening ?? []}
             activeSongId={currentSong?.id}
             loading={rec.loading && !rec.homeFeed}
@@ -472,7 +598,7 @@ export const HomeScreen = () => {
         {authSession && (
           <RecommendationSection
             icon="🎤"
-            title="Từ nghệ sĩ bạn follow"
+            title={t('screens.home.fromFollowedArtists')}
             songs={rec.homeFeed?.fromArtists ?? []}
             activeSongId={currentSong?.id}
             loading={rec.loading && !rec.homeFeed}
@@ -483,8 +609,8 @@ export const HomeScreen = () => {
 
         <RecommendationSection
           icon="🌐"
-          title="Đề xuất cho bạn"
-          subtitle="Dựa trên cộng đồng âm nhạc"
+          title={t('screens.home.socialRecommendations')}
+          subtitle={t('screens.home.socialRecommendationsSubtitle')}
           songs={rec.socialRecs}
           activeSongId={currentSong?.id}
           loading={rec.loading && !rec.socialRecs.length}
@@ -499,13 +625,13 @@ export const HomeScreen = () => {
           && !legacyNewestSongs.length
           && !genres.length && (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="small" color={COLORS.accent} />
-            <Text style={styles.loadingText}>Đang tải mục nhạc mở rộng...</Text>
+            <ActivityIndicator size="small" color={themeColors.accent} />
+            <Text style={styles.loadingText}>{t('screens.home.loadingExpandedSections')}</Text>
           </View>
         )}
 
         <SongSection
-          title="🔥 Trending"
+          title={`🔥 ${t('screens.home.trending')}`}
           songs={legacyTrendingSongs}
           currentSong={currentSong}
           isPlaying={isPlaying}
@@ -515,7 +641,7 @@ export const HomeScreen = () => {
         />
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎶 Nhạc theo thể loại</Text>
+          <Text style={styles.sectionTitle}>🎶 {t('screens.home.expandedSections')}</Text>
         </View>
 
         {genres.map((genre) => {
@@ -533,13 +659,13 @@ export const HomeScreen = () => {
                 <Text style={styles.genreSectionTitle}># {genre.name}</Text>
                 {showSeeMore && (
                   <Pressable onPress={() => { void handleSeeMoreGenre(genre.id); }} hitSlop={8}>
-                    <Text style={styles.seeMoreText}>{section?.expanded ? 'Thu gọn' : 'Xem thêm'}</Text>
+                    <Text style={styles.seeMoreText}>{section?.expanded ? t('screens.home.showLess') : t('screens.home.showMore')}</Text>
                   </Pressable>
                 )}
               </View>
 
               {section?.loading && (
-                <ActivityIndicator color={COLORS.accent} style={{ marginTop: 10 }} />
+                <ActivityIndicator color={themeColors.accent} style={{ marginTop: 10 }} />
               )}
 
               <SongSection
@@ -576,7 +702,7 @@ export const HomeScreen = () => {
             },
           },
           {
-            icon: <AntDesign name="appstore-add" size={20} color="#fff" />,
+            icon: <AntDesign name="appstore-add" size={20} color={themeColors.text} />,
             label: 'Thêm vào playlist',
             onPress: () => {
               if (!selectedSong) return;
@@ -586,10 +712,10 @@ export const HomeScreen = () => {
           },
           {
             icon: isDownloaded(selectedSong?.id ?? '')
-              ? <AntDesign name="check-circle" size={20} color="#4ade80" />
+              ? <AntDesign name="check-circle" size={20} color={themeColors.success} />
               : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <AntDesign name="download" size={20} color="#fff" />,
+                ? <ActivityIndicator size="small" color={themeColors.text} />
+                : <AntDesign name="download" size={20} color={themeColors.text} />,
             label: isDownloaded(selectedSong?.id ?? '')
               ? 'Đã tải xuống'
               : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
@@ -609,7 +735,7 @@ export const HomeScreen = () => {
             ]
             : []),
           {
-            icon: <AntDesign name="flag" size={20} color={COLORS.error} />,
+            icon: <AntDesign name="flag" size={20} color={themeColors.error} />,
             label: 'Báo cáo bài hát',
             separator: true,
             destructive: true,
@@ -657,7 +783,7 @@ export const HomeScreen = () => {
               value={newPlaylistName}
               onChangeText={setNewPlaylistName}
               placeholder="Tạo playlist mới"
-              placeholderTextColor={COLORS.glass45}
+              placeholderTextColor={themeColors.glass45}
             />
             <Pressable onPress={() => { void handleCreateAndAdd(); }}>
               <Text style={styles.modalItemAccent}>+ Tạo mới và thêm</Text>
@@ -690,8 +816,8 @@ export const HomeScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const getStyles = (colors: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   header: { paddingHorizontal: 20, paddingBottom: 20 },
   headerTop: {
     flexDirection: 'row',
@@ -699,36 +825,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  greeting: { color: COLORS.glass50, fontSize: 14 },
-  name: { color: COLORS.white, fontSize: 26, fontWeight: '800' },
-  updatedLabel: { color: COLORS.glass30, fontSize: 11, marginTop: 2 },
+  greeting: { color: colors.textSecondary, fontSize: 14 },
+  name: { color: colors.text, fontSize: 26, fontWeight: '800' },
+  updatedLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
   avatarCircle: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: COLORS.glass10,
+    backgroundColor: colors.surfaceMid,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.glass08,
+    backgroundColor: colors.surfaceLow,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 11,
     gap: 10,
     borderWidth: 1,
-    borderColor: COLORS.glass12,
+    borderColor: colors.border,
   },
-  searchPlaceholder: { color: COLORS.glass40, fontSize: 14, flex: 1 },
+  searchPlaceholder: { color: colors.muted, fontSize: 14, flex: 1 },
   section: { paddingHorizontal: 20, marginTop: 24 },
-  sectionTitle: { color: COLORS.white, fontSize: 20, fontWeight: '800', marginBottom: 14 },
+  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 14 },
+  artistHorizontalList: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  artistHorizontalCard: {
+    width: 280,
+    marginBottom: 0,
+  },
+  genreChipCloud: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    paddingHorizontal: 20,
+  },
+  genreChip: {
+    borderWidth: 1,
+    borderColor: colors.accentBorder25,
+    backgroundColor: colors.surfaceLow,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  genreChipActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accentFill20,
+  },
+  genreChipText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  genreChipTextActive: {
+    color: colors.accent,
+  },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   quickCard: { width: '47%', borderRadius: 14, overflow: 'hidden' },
   quickGradient: { padding: 16, minHeight: 90, justifyContent: 'space-between' },
   cardEmoji: { fontSize: 26 },
-  cardTitle: { color: COLORS.white, fontWeight: '700' },
+  cardTitle: { color: colors.text, fontWeight: '700' },
   genreHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -737,37 +897,37 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 8,
   },
-  genreSectionTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
-  seeMoreText: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
+  genreSectionTitle: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  seeMoreText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
   loadingWrap: { alignItems: 'center', paddingVertical: 32 },
-  loadingText: { color: COLORS.glass35, fontSize: 13, marginTop: 10 },
+  loadingText: { color: colors.textSecondary, fontSize: 13, marginTop: 10 },
   errorWrap: {
     marginHorizontal: 20,
     marginTop: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.error,
-    backgroundColor: COLORS.warningDim,
+    borderColor: colors.error,
+    backgroundColor: colors.surfaceDim,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  errorText: { color: COLORS.error, fontSize: 12, fontWeight: '600' },
+  errorText: { color: colors.error, fontSize: 12, fontWeight: '600' },
   backdrop: {
     flex: 1,
-    backgroundColor: COLORS.scrim,
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   modalCard: {
     width: '100%',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: COLORS.glass10,
+    borderColor: colors.border,
   },
-  modalTitle: { color: COLORS.white, fontSize: 17, fontWeight: '800', marginBottom: 10 },
+  modalTitle: { color: colors.text, fontSize: 17, fontWeight: '800', marginBottom: 10 },
   modalClose: {
     position: 'absolute',
     top: 10,
@@ -775,18 +935,18 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: COLORS.glass10,
+    backgroundColor: colors.surfaceMid,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
-  modalCloseIcon: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  modalItem: { color: COLORS.glass85, fontSize: 14, marginTop: 8 },
-  modalItemAccent: { color: COLORS.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
+  modalCloseIcon: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  modalItem: { color: colors.textSecondary, fontSize: 14, marginTop: 8 },
+  modalItemAccent: { color: colors.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
   playlistInput: {
-    color: COLORS.white,
+    color: colors.text,
     borderWidth: 1,
-    borderColor: COLORS.glass20,
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,

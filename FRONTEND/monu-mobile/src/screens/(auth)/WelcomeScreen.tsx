@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -6,7 +6,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 
-import { COLORS } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
+import { useTranslation } from '../../context/LocalizationContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
@@ -14,13 +15,16 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 export const WelcomeScreen = () => {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   return (
       <View style={styles.root}>
         <StatusBar style="light" />
 
         <LinearGradient
-            colors={[COLORS.gradViolet, COLORS.gradPurple, COLORS.bg]}
+            colors={[themeColors.gradViolet, themeColors.gradPurple, themeColors.bg]}
             locations={[0, 0.45, 1]}
             style={[styles.heroGradient, { paddingTop: insets.top + 20 }]}
         >
@@ -34,7 +38,7 @@ export const WelcomeScreen = () => {
             </View>
             <Text style={styles.brand}>Monu</Text>
             <Text style={styles.tagline}>
-              Tận hưởng không gian riêng của bạn.{'\n'}Âm nhạc chữa lành cảm xúc.
+              {t('screens.welcome.tagline')}
             </Text>
           </View>
 
@@ -47,19 +51,19 @@ export const WelcomeScreen = () => {
               ))}
             </View>
 
-            <Text style={styles.ctaLabel}>Bắt đầu ngay hôm nay</Text>
+            <Text style={styles.ctaLabel}>{t('screens.welcome.ctaToday')}</Text>
 
             <Pressable
                 style={styles.primaryBtn}
                 onPress={() => navigation.navigate('RegisterOptions')}
             >
               <LinearGradient
-                  colors={[COLORS.accent, COLORS.accentAlt]}
+                  colors={[themeColors.accent, themeColors.accentAlt]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.btnGradient}
               >
-                <Text style={styles.primaryText}>Đăng ký miễn phí</Text>
+                <Text style={styles.primaryText}>{t('screens.welcome.registerFree')}</Text>
               </LinearGradient>
             </Pressable>
 
@@ -67,11 +71,11 @@ export const WelcomeScreen = () => {
                 style={styles.secondaryBtn}
                 onPress={() => navigation.navigate('LoginOptions')}
             >
-              <Text style={styles.secondaryText}>Tôi đã có tài khoản</Text>
+              <Text style={styles.secondaryText}>{t('screens.welcome.haveAccount')}</Text>
             </Pressable>
 
             <Text style={styles.legalNote}>
-              Bằng cách tiếp tục, bạn đồng ý với Điều khoản sử dụng và Chính sách quyền riêng tư.
+              {t('screens.welcome.legalNote')}
             </Text>
           </View>
         </LinearGradient>
@@ -79,8 +83,8 @@ export const WelcomeScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   heroGradient: { flex: 1, paddingHorizontal: 24 },
   ringOuter: {
     position: 'absolute',
@@ -88,7 +92,7 @@ const styles = StyleSheet.create({
     height: 300,
     borderRadius: 150,
     borderWidth: 1,
-    borderColor: COLORS.accentBorder12,
+    borderColor: colors.accentBorder12,
     top: -100,
     right: -100,
   },
@@ -98,7 +102,7 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 100,
     borderWidth: 1,
-    borderColor: COLORS.accentBorder25,
+    borderColor: colors.accentBorder25,
     top: -50,
     right: -50,
   },
@@ -107,13 +111,13 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: COLORS.accent,
+    borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
-    shadowColor: COLORS.accentDeep,
+    shadowColor: colors.accentDeep,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 20,
@@ -122,19 +126,19 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 48,
     fontWeight: '800',
-    color: COLORS.white,
+    color: colors.white,
     letterSpacing: 2,
     marginBottom: 16,
   },
   tagline: {
     fontSize: 18,
-    color: COLORS.glass65,
+    color: colors.glass65,
     textAlign: 'center',
     lineHeight: 28,
     marginBottom: 40,
   },
   bottomSheet: {
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     paddingHorizontal: 24,
@@ -150,15 +154,15 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: COLORS.glass06,
+    backgroundColor: colors.glass06,
     borderWidth: 1,
-    borderColor: COLORS.glass10,
+    borderColor: colors.glass10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pillEmoji: { fontSize: 24 },
   ctaLabel: {
-    color: COLORS.glass40,
+    color: colors.glass40,
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
@@ -168,18 +172,18 @@ const styles = StyleSheet.create({
   },
   primaryBtn: { borderRadius: 999, overflow: 'hidden', marginBottom: 16 },
   btnGradient: { minHeight: 60, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: COLORS.white, fontSize: 18, fontWeight: '800' },
+  primaryText: { color: colors.white, fontSize: 18, fontWeight: '800' },
   secondaryBtn: {
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: COLORS.glass20,
+    borderColor: colors.glass20,
     minHeight: 60,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryText: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
+  secondaryText: { color: colors.white, fontSize: 18, fontWeight: '700' },
   legalNote: {
-    color: COLORS.glass30,
+    color: colors.glass30,
     fontSize: 12,
     textAlign: 'center',
     marginTop: 24,
