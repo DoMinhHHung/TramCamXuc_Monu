@@ -1,20 +1,27 @@
 FROM python:3.11-slim
 
-# Cài build tools cho implicit (cần BLAS/LAPACK để ALS chạy nhanh)
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libopenblas-dev \
+    liblapack-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy requirements trước (tận dụng Docker layer cache)
+RUN useradd -m -s /bin/bash appuser
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Port 8771 — không qua Eureka, Spring service gọi trực tiếp qua ml.service.url
-EXPOSE 8771
+RUN chown -R appuser:appuser /app
+USER appuser
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8771", "--workers", "2"]
+EXPOSE 8770
+
+CMD ["uvicorn", "app.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8771", \
+     "--workers", "2", \
+     "--timeout-keep-alive", "30"]
