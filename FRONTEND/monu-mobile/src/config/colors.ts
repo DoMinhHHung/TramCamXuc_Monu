@@ -1,3 +1,6 @@
+import React, { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
+
 /**
  * ─────────────────────────────────────────────────────────────────────────────
  * Monu – Design System Color Tokens
@@ -93,6 +96,7 @@ export const COLORS = {
   // ── Text ──────────────────────────────────────────────────────────────────
   white: '#FFFFFF',
   text:  '#F3F0FF',
+  textSecondary: '#B9B3D1',
   muted: '#7B7591',
 
   // ── Semantic ──────────────────────────────────────────────────────────────
@@ -148,4 +152,36 @@ export const COLORS = {
 
 } as const;
 
-export type ColorScheme = typeof COLORS;
+export type ColorScheme = typeof COLORS & {
+  textSecondary: string;
+  divider: string;
+  [key: string]: string;
+};
+
+// Hook: merge current theme palette with base tokens so legacy styles respond to theme switch.
+export const useThemeColors = (): ColorScheme => {
+  const { colors } = useTheme();
+
+  return useMemo(
+    () => ({
+      ...COLORS,
+      ...colors,
+      text: colors.text ?? COLORS.text,
+      textSecondary: (colors as any).textSecondary ?? (COLORS as any).textSecondary ?? COLORS.text,
+      muted: colors.muted ?? COLORS.muted,
+      accent: colors.accent ?? COLORS.accent,
+      accentFill20: (colors as any).accentFill20 ?? COLORS.accentFill20,
+      accentFill25: (colors as any).accentFill25 ?? (COLORS as any).accentFill25 ?? COLORS.accentFill25,
+      accentBorder25: (colors as any).accentBorder25 ?? COLORS.accentBorder25,
+      accentBorder35: (colors as any).accentBorder35 ?? (COLORS as any).accentBorder35 ?? COLORS.accentBorder35,
+      border: colors.border ?? COLORS.border,
+      divider: (colors as any).divider ?? (COLORS as any).divider ?? COLORS.border,
+      success: colors.success ?? COLORS.success,
+      error: colors.error ?? COLORS.error,
+      warning: colors.warning ?? COLORS.warning,
+      info: colors.info ?? COLORS.info,
+      white: (colors as any).white ?? COLORS.white,
+    } as ColorScheme),
+    [colors],
+  );
+};

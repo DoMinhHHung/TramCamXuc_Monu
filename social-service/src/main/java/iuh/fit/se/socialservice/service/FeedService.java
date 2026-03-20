@@ -32,4 +32,6 @@ public interface FeedService {
     void unlikePost(UUID userId, String postId);
 
     void createFromEvent(FeedContentEvent event);
+        // Global public feed
+        Page<FeedPostResponse> getPublicFeed(Pageable pageable);
 }

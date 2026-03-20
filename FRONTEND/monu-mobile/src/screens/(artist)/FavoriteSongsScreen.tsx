@@ -22,7 +22,7 @@ interface FavoriteSongItem extends HeartResponse {
 export const FavoriteSongsScreen = () => {
     const navigation = useNavigation<any>();
     const insets     = useSafeAreaInsets();
-    const { play }   = usePlayer();
+    const { playSong } = usePlayer();
     const [items, setItems]           = useState<FavoriteSongItem[]>([]);
     const [loading, setLoading]       = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -78,7 +78,7 @@ export const FavoriteSongsScreen = () => {
 
     const handlePlay = (item: FavoriteSongItem) => {
         if (item.songDetail) {
-            play(item.songDetail, items.map(i => i.songDetail).filter((s): s is Song => !!s));
+            playSong(item.songDetail, items.map(i => i.songDetail).filter((s): s is Song => !!s));
         }
     };
 
@@ -135,7 +135,7 @@ export const FavoriteSongsScreen = () => {
                                     onPress={() => handleUnheart(item.songId)}
                                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 >
-                                    <Text style={{ fontSize: 22, color: '#ff4081' }}>♥</Text>
+                                    <Text style={{ fontSize: 22, color: COLORS.accent }}>♥</Text>
                                 </Pressable>
                             </Pressable>
                         );

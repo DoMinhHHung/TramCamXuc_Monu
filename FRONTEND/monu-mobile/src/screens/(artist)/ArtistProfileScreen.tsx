@@ -380,7 +380,7 @@ export const ArtistProfileScreen = () => {
                         <BackButton onPress={() => navigation.goBack()} />
                         {isOwnProfile && (
                             <Pressable style={styles.editBtn} onPress={openEdit}>
-                                <Text style={styles.editBtnText}><FontAwesome name="edit" color="#ff7e5f" size={18} /> Chỉnh sửa</Text>
+                                <Text style={styles.editBtnText}><FontAwesome name="edit" color={COLORS.accentAlt} size={18} /> Chỉnh sửa</Text>
                             </Pressable>
                         )}
                     </View>

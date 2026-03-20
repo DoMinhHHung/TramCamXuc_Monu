@@ -21,8 +21,9 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome, Ionicons, AntDesign, Fontisto } from '@expo/vector-icons';
 
-import { COLORS } from '../../config/colors';
+import { COLORS, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import {
   Comment,
   createFeedPost,
@@ -50,16 +51,18 @@ interface OwnerInfo {
   artistId: string | null;
   avatarUrl?: string;
 }
+let tr = (key: string, fallback?: string) => fallback ?? key;
+let rc = COLORS;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const timeAgo = (iso: string): string => {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.max(1, Math.floor(diffMs / 60_000));
-  if (mins < 60) return `${mins} phút`;
+  if (mins < 60) return `${mins} ${tr('screens.history.minutesAgoSuffix', 'min ago')}`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} giờ`;
-  return `${Math.floor(hours / 24)} ngày`;
+  if (hours < 24) return `${hours} ${tr('screens.history.hoursAgoSuffix', 'hours ago')}`;
+  return `${Math.floor(hours / 24)} ${tr('screens.history.daysAgoSuffix', 'days ago')}`;
 };
 
 const getAvatarColors = (id: string): [string, string] => {
@@ -414,14 +417,14 @@ const CommentSheet = ({
 
   const replyingToLabel = replyingTo
       ? replyingTo.userId === currentUserId
-          ? myDisplayName || 'Bạn'
+          ? myDisplayName || tr('screens.profile.myProfile', 'You')
           : commentAuthorCache[replyingTo.userId] || replyingTo.userId.slice(0, 8)
       : null;
 
   const renderCommentNode = useCallback((comment: Comment, depth = 0): React.ReactNode => {
     const isOwn = comment.userId === currentUserId;
     const displayName = isOwn
-        ? myDisplayName || 'Bạn'
+        ? myDisplayName || tr('screens.profile.myProfile', 'You')
         : commentAuthorCache[comment.userId] || comment.userId.slice(0, 8);
 
     const childReplies = replies[comment.id] ?? [];
@@ -624,7 +627,7 @@ const CommentSheet = ({
                   onPress={handleSend}
                   disabled={!text.trim() || sending}
               >
-                <Ionicons name="send-sharp" color="#000" size={24} />
+                <Ionicons name="send-sharp" color={rc.bg} size={24} />
               </Pressable>
             </View>
           </View>
@@ -678,9 +681,9 @@ const PostCard = ({
   const { playSong } = usePlayer();
 
   const visibilityBadge = (() => {
-    if (post.visibility === 'PRIVATE') return { icon: '🔒', label: 'Riêng tư' };
-    if (post.visibility === 'FOLLOWERS_ONLY') return { icon: '👥', label: 'Người theo dõi' };
-    return { icon: '🌐', label: 'Công khai' };
+    if (post.visibility === 'PRIVATE') return { icon: '🔒', label: tr('screens.discover.private', 'Private') };
+    if (post.visibility === 'FOLLOWERS_ONLY') return { icon: '👥', label: tr('screens.discover.followersOnly', 'Followers only') };
+    return { icon: '🌐', label: tr('screens.discover.public', 'Public') };
   })();
 
   const handleNamePress = async () => {
@@ -761,9 +764,9 @@ const PostCard = ({
                   }}
               >
                 <Text style={styles.postMenuItemIcon}>
-                  <FontAwesome name="edit" color="#ff7e5f" size={18} />
+                  <FontAwesome name="edit" color={COLORS.accentAlt} size={18} />
                 </Text>
-                <Text style={styles.postMenuItemText}>Chỉnh sửa bài viết</Text>
+                <Text style={styles.postMenuItemText}>{tr('screens.discover.editPost', 'Edit post')}</Text>
               </Pressable>
               <View style={styles.postMenuDivider} />
               <Pressable
@@ -774,10 +777,10 @@ const PostCard = ({
                   }}
               >
                 <Text style={styles.postMenuItemIcon}>
-                  <AntDesign name="delete" color="#fff" size={18} />
+                  <AntDesign name="delete" color={COLORS.white} size={18} />
                 </Text>
                 <Text style={[styles.postMenuItemText, { color: COLORS.error }]}>
-                  Xoá bài viết
+                  {tr('screens.discover.deletePost', 'Delete post')}
                 </Text>
               </Pressable>
             </View>
@@ -809,8 +812,8 @@ const PostCard = ({
                         <Text style={styles.contentSubtitle}>{contentInfo.subtitle}</Text>
                     ) : null}
                     <Text style={styles.contentBadge}>
-                      {contentInfo.type === 'SONG' ? 'Bài hát' : contentInfo.type === 'ALBUM' ? 'Album' : 'Playlist'}
-                      {contentInfo.totalCount ? ` · ${contentInfo.totalCount} bài` : ''}
+                      {contentInfo.type === 'SONG' ? tr('labels.song', 'Song') : contentInfo.type === 'ALBUM' ? tr('labels.album', 'Album') : tr('labels.playlist', 'Playlist')}
+                      {contentInfo.totalCount ? ` · ${contentInfo.totalCount} ${tr('screens.library.songsSuffix', 'songs')}` : ''}
                     </Text>
                   </View>
                 </View>
@@ -828,13 +831,13 @@ const PostCard = ({
                           >
                             <View style={styles.trackInfo}>
                               <Text style={styles.trackTitle} numberOfLines={1}>{s.title}</Text>
-                              <Text style={styles.trackArtist} numberOfLines={1}>{s.primaryArtist?.stageName ?? 'Nghệ sĩ'}</Text>
+                              <Text style={styles.trackArtist} numberOfLines={1}>{s.primaryArtist?.stageName ?? tr('labels.artist', 'Artist')}</Text>
                             </View>
                             {contentInfo.type !== 'PLAYLIST' && contentInfo.type !== 'ALBUM' && <Text style={styles.trackPlay}>▶</Text>}
                           </Pressable>
                       ))}
                       {(contentInfo.type === 'ALBUM' || contentInfo.type === 'PLAYLIST') && contentInfo.totalCount && contentInfo.totalCount > 3 ? (
-                          <Text style={styles.trackMore}>+ {contentInfo.totalCount - 3} bài khác</Text>
+                          <Text style={styles.trackMore}>+ {contentInfo.totalCount - 3} {tr('screens.discover.moreSongs', 'more songs')}</Text>
                       ) : null}
                     </View>
                 ) : null}
@@ -853,7 +856,7 @@ const PostCard = ({
                   </View>
               )}
               {post.commentCount > 0 && (
-                  <Text style={styles.postStatText}>{post.commentCount} bình luận</Text>
+                  <Text style={styles.postStatText}>{post.commentCount} {tr('screens.discover.comments', 'comments')}</Text>
               )}
             </View>
         )}
@@ -925,7 +928,7 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
               <Pressable onPress={onClose} style={styles.composeCancelBtn}>
                 <Text style={styles.composeCancelText}>Huỷ</Text>
               </Pressable>
-              <Text style={styles.composeHeaderTitle}>Chỉnh sửa bài viết</Text>
+              <Text style={styles.composeHeaderTitle}>{tr('screens.discover.editPost', 'Edit post')}</Text>
               <Pressable
                   style={[styles.composePostBtn, saving && styles.composePostBtnDisabled]}
                   onPress={handleSave}
@@ -1014,7 +1017,7 @@ const SharedContentDetailModal = ({ visible, content, onClose }: SharedContentDe
             <Text style={styles.detailTitle}>{content.title}</Text>
             <Text style={styles.detailType}>
               {content.type === 'ALBUM' ? 'Album' : 'Playlist'}
-              {content.totalCount ? ` · ${content.totalCount} bài` : ''}
+              {content.totalCount ? ` · ${content.totalCount} ${tr('screens.library.songsSuffix', 'songs')}` : ''}
             </Text>
             {content.subtitle ? <Text style={styles.detailSubtitle}>{content.subtitle}</Text> : null}
 
@@ -1033,7 +1036,7 @@ const SharedContentDetailModal = ({ visible, content, onClose }: SharedContentDe
                           <Text style={[styles.detailTrackTitle, isCurrentSongPlaying && styles.detailTrackTitleActive]} numberOfLines={1}>
                             {song.title}
                           </Text>
-                          <Text style={styles.detailTrackArtist} numberOfLines={1}>{song.primaryArtist?.stageName ?? 'Nghệ sĩ'}</Text>
+                          <Text style={styles.detailTrackArtist} numberOfLines={1}>{song.primaryArtist?.stageName ?? tr('labels.artist', 'Artist')}</Text>
                         </View>
                         <Ionicons name={isCurrentSongPlaying ? 'pause' : 'play'} size={18} color={isCurrentSongPlaying ? COLORS.accent : COLORS.glass60} />
                         </Pressable>
@@ -1041,7 +1044,7 @@ const SharedContentDetailModal = ({ visible, content, onClose }: SharedContentDe
                   })}
                 </View>
             ) : (
-                <Text style={styles.trackEmpty}>Không có bài hát để phát</Text>
+                <Text style={styles.trackEmpty}>{tr('screens.discover.noSongsToPlay', 'No songs to play')}</Text>
             )}
           </ScrollView>
         </View>
@@ -1054,6 +1057,10 @@ const SharedContentDetailModal = ({ visible, content, onClose }: SharedContentDe
 export const DiscoverScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
+  const themeColors = useThemeColors();
+  tr = t;
+  rc = themeColors;
   const { authSession } = useAuth();
   const currentUserId = authSession?.profile?.id ?? null;
   const myDisplayName = authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
@@ -1212,7 +1219,7 @@ export const DiscoverScreen = () => {
           songs = playlistSongs.map((s) => ({
             id: s.songId || s.playlistSongId,
             title: s.title,
-            primaryArtist: { artistId: s.artistId || '', stageName: s.artistStageName || 'Nghệ sĩ' },
+            primaryArtist: { artistId: s.artistId || '', stageName: s.artistStageName || tr('labels.artist', 'Artist') },
             genres: [],
             durationSeconds: s.durationSeconds || 0,
             playCount: s.playCount || 0,
@@ -1238,8 +1245,8 @@ export const DiscoverScreen = () => {
         return;
       }
     } catch (err) {
-      console.warn('Không tải được nội dung bài chia sẻ', { postId: post.id, err });
-      setContentCache((prev) => ({ ...prev, [key]: { type: post.contentType as any, id: post.contentId ?? key, title: post.title ?? 'Nội dung đã xoá', songs: [] } }));
+      console.warn(tr('screens.discover.sharedContentLoadFailed', 'Unable to load shared content'), { postId: post.id, err });
+      setContentCache((prev) => ({ ...prev, [key]: { type: post.contentType as any, id: post.contentId ?? key, title: post.title ?? tr('screens.discover.contentDeleted', 'Content deleted'), songs: [] } }));
     } finally {
       contentLoadingRef.current.delete(key);
     }
@@ -1271,21 +1278,16 @@ export const DiscoverScreen = () => {
       [contentCache]
   );
 
+
+
+  const { getPublicFeed } = require('../../services/social');
   const loadFeed = async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
     try {
       if (mode === 'initial') setLoading(true);
       if (mode === 'refresh') setRefreshing(true);
 
-      const data = await getTimeline({ page: 0, size: 30 });
-      const newPosts = (data.content ?? []).filter((p) => {
-        if (p.visibility === 'PRIVATE') return p.ownerId === currentUserId;
-        if (p.visibility === 'FOLLOWERS_ONLY') {
-          if (p.ownerId === currentUserId) return true;
-          if (p.ownerType === 'ARTIST') return followedArtistIds.has(p.ownerId);
-          return false;
-        }
-        return true; // PUBLIC
-      });
+      const data = await getPublicFeed({ page: 0, size: 30 });
+      const newPosts = data.content ?? [];
 
       setPosts(newPosts);
       void fetchOwnerInfos(newPosts);
@@ -1351,9 +1353,9 @@ export const DiscoverScreen = () => {
 
   const handleDelete = (post: FeedPost) => {
     Alert.alert('Xoá bài viết?', 'Hành động này không thể hoàn tác.', [
-      { text: 'Huỷ', style: 'cancel' },
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Xoá',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -1361,7 +1363,7 @@ export const DiscoverScreen = () => {
             setPosts((prev) => prev.filter((p) => p.id !== post.id));
             await loadFeed('silent');
           } catch (err: any) {
-            Alert.alert('Không thể xoá bài viết', err?.response?.data?.message || err?.message || 'Vui lòng thử lại.');
+            Alert.alert(t('screens.discover.cannotDeletePost', 'Cannot delete post'), err?.response?.data?.message || err?.message || t('errors.tryAgain', 'Please try again.'));
           }
         },
       },
@@ -1436,22 +1438,22 @@ export const DiscoverScreen = () => {
             contentContainerStyle={{ paddingBottom: 100 }}
         >
           <LinearGradient
-              colors={[COLORS.gradNavy, COLORS.bg]}
+              colors={[themeColors.gradNavy, themeColors.bg]}
               style={[styles.header, { paddingTop: insets.top + 16 }]}
           >
             <View style={styles.headerRow}>
-              <Text style={styles.headerTitle}>Khám phá</Text>
+              <Text style={styles.headerTitle}>{t('screens.discover.title', 'Discover')}</Text>
               <View style={styles.headerBadge}>
-                <Text style={styles.headerBadgeText}>LIVE</Text>
+                <Text style={styles.headerBadgeText}>{t('screens.discover.liveBadge', 'LIVE')}</Text>
               </View>
             </View>
-            <Text style={styles.headerSub}>Cộng đồng âm nhạc · {posts.length} bài đăng</Text>
+            <Text style={styles.headerSub}>{t('screens.discover.communityLabel', 'Music community')} · {posts.length} {t('screens.discover.posts', 'posts')}</Text>
           </LinearGradient>
 
           <View style={styles.composerBar}>
             <Avatar id={myDisplayName ?? 'guest'} displayName={myDisplayName ?? 'guest'} avatarUrl={myAvatarUrl} size={40} />
             <Pressable style={styles.composerInput} onPress={() => setComposeOpen(true)}>
-              <Text style={styles.composerPlaceholder}>Bạn đang nghĩ gì về âm nhạc?</Text>
+              <Text style={styles.composerPlaceholder}>{t('screens.discover.composerPlaceholder', 'What are you thinking about music today?')}</Text>
             </Pressable>
             <Pressable style={styles.composerIconBtn} onPress={() => setComposeOpen(true)}>
               <Text style={styles.composerIconBtnText}>🎵</Text>
@@ -1467,10 +1469,10 @@ export const DiscoverScreen = () => {
           ) : posts.length === 0 ? (
               <View style={styles.emptyWrap}>
                 <Text style={styles.emptyEmoji}>🎵</Text>
-                <Text style={styles.emptyTitle}>Chưa có bài đăng nào</Text>
-                <Text style={styles.emptySub}>Hãy là người đầu tiên chia sẻ!</Text>
+                <Text style={styles.emptyTitle}>{t('screens.discover.noPosts', 'No posts yet')}</Text>
+                <Text style={styles.emptySub}>{t('screens.discover.beFirstToShare', 'Be the first to share!')}</Text>
                 <Pressable style={styles.emptyBtn} onPress={() => setComposeOpen(true)}>
-                  <Text style={styles.emptyBtnText}>Tạo bài viết</Text>
+                  <Text style={styles.emptyBtnText}>{t('screens.discover.createPost', 'Create post')}</Text>
                 </Pressable>
               </View>
           ) : (

@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
     Animated, Pressable, StyleSheet, Text, View,
 } from 'react-native';
-import { COLORS } from '../config/colors';
+import { useThemeColors } from '../config/colors';
 import { VoiceSearchState } from '../hooks/useVoiceSearch';
 
 interface VoiceSearchButtonProps {
@@ -14,6 +14,8 @@ interface VoiceSearchButtonProps {
 export const VoiceSearchButton = ({
     state, onPressIn, onPressOut,
 }: VoiceSearchButtonProps) => {
+    const colors = useThemeColors();
+    const styles = useMemo(() => getStyles(colors), [colors]);
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const pulseLoop = useRef<Animated.CompositeAnimation | null>(null);
 
@@ -67,16 +69,16 @@ export const VoiceSearchButton = ({
 
 const SIZE = 40;
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
     btn: {
         width: SIZE, height: SIZE, borderRadius: SIZE / 2,
-        backgroundColor: COLORS.surface,
-        borderWidth: 1, borderColor: COLORS.border,
+        backgroundColor: colors.surface,
+        borderWidth: 1, borderColor: colors.border,
         alignItems: 'center', justifyContent: 'center',
     },
     btnRecording: {
-        backgroundColor: COLORS.accentDim,
-        borderColor:     COLORS.accent,
+        backgroundColor: colors.accentDim,
+        borderColor:     colors.accent,
     },
     btnProcessing: {
         opacity: 0.6,
@@ -84,7 +86,7 @@ const styles = StyleSheet.create({
     pulse: {
         position: 'absolute',
         width: SIZE, height: SIZE, borderRadius: SIZE / 2,
-        backgroundColor: COLORS.accent,
+        backgroundColor: colors.accent,
         opacity: 0.25,
         alignSelf: 'center',
     },

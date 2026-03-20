@@ -20,12 +20,14 @@ import { registerUser } from '../../services/auth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { COLORS } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
+import { useTranslation } from '../../context/LocalizationContext';
 
 type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
 export default function RegisterScreen() {
     const navigation = useNavigation<Nav>();
+    const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
@@ -47,19 +49,19 @@ export default function RegisterScreen() {
     };
 
     const validate = () => {
-        if (!fullName.trim()) return 'Vui lòng nhập họ tên.';
-        if (!email.trim()) return 'Vui lòng nhập email.';
-        if (!password) return 'Vui lòng nhập mật khẩu.';
-        if (!dob) return 'Vui lòng nhập ngày sinh đúng định dạng (DD/MM/YYYY).';
+        if (!fullName.trim()) return t('screens.authRegister.validation.fullName', 'Please enter your full name.');
+        if (!email.trim()) return t('screens.authRegister.validation.email', 'Please enter your email.');
+        if (!password) return t('screens.authRegister.validation.password', 'Please enter your password.');
+        if (!dob) return t('screens.authRegister.validation.dob', 'Please enter your date of birth in DD/MM/YYYY format.');
         if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password))
-            return 'Mật khẩu cần ≥ 8 ký tự, có chữ hoa, thường, số và ký tự đặc biệt.';
+            return t('screens.authRegister.validation.passwordPolicy', 'Password must be at least 8 characters with uppercase, lowercase, number, and special character.');
         return null;
     };
 
     const handleRegister = async () => {
         const err = validate();
         if (err) {
-            Alert.alert('Thông tin không hợp lệ', err);
+            Alert.alert(t('screens.authRegister.invalidInfoTitle', 'Invalid information'), err);
             return;
         }
         setLoading(true);
@@ -73,7 +75,7 @@ export default function RegisterScreen() {
             });
             navigation.navigate('VerifyOtp', { email: email.trim() });
         } catch (e: any) {
-            Alert.alert('Lỗi', e?.message || 'Đăng ký thất bại, vui lòng thử lại.');
+            Alert.alert(t('common.error'), e?.message || t('screens.authRegister.registerFailed', 'Registration failed, please try again.'));
         } finally {
             setLoading(false);
         }
@@ -82,10 +84,10 @@ export default function RegisterScreen() {
     const pwStrength = !password
         ? null
         : /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password)
-            ? { label: 'Mạnh 💪', color: COLORS.success, width: '100%' }
+            ? { label: t('screens.authRegister.passwordStrength.strong', 'Strong 💪'), color: COLORS.success, width: '100%' as const }
             : password.length >= 6
-                ? { label: 'Trung bình', color: COLORS.warningMid, width: '60%' }
-                : { label: 'Yếu', color: COLORS.error, width: '30%' };
+                ? { label: t('screens.authRegister.passwordStrength.medium', 'Medium'), color: COLORS.warningMid, width: '60%' as const }
+                : { label: t('screens.authRegister.passwordStrength.weak', 'Weak'), color: COLORS.error, width: '30%' as const };
 
     return (
         <KeyboardAvoidingView
@@ -102,23 +104,23 @@ export default function RegisterScreen() {
 
                     <View style={styles.heroText}>
                         <Text style={styles.heroEmoji}>✨</Text>
-                        <Text style={styles.title}>Tạo tài khoản</Text>
-                        <Text style={styles.subtitle}>Hãy bắt đầu hành trình âm nhạc của bạn</Text>
+                        <Text style={styles.title}>{t('auth.createAccount')}</Text>
+                        <Text style={styles.subtitle}>{t('screens.authRegister.subtitle', 'Start your music journey')}</Text>
                     </View>
                 </LinearGradient>
 
                 <View style={[styles.form, { paddingBottom: insets.bottom + 32 }]}>
-                    <Text style={styles.fieldLabel}>Họ và tên</Text>
+                    <Text style={styles.fieldLabel}>{t('auth.name')}</Text>
                     <TextInput
                         style={styles.input}
                         value={fullName}
                         onChangeText={setFullName}
-                        placeholder="Nguyễn Văn A"
+                        placeholder={t('screens.authRegister.fullNamePlaceholder', 'Your full name')}
                         placeholderTextColor={COLORS.glass25}
                         autoCapitalize="words"
                     />
 
-                    <Text style={styles.fieldLabel}>Email</Text>
+                    <Text style={styles.fieldLabel}>{t('auth.email')}</Text>
                     <TextInput
                         style={styles.input}
                         value={email}
@@ -129,7 +131,7 @@ export default function RegisterScreen() {
                         autoCapitalize="none"
                     />
 
-                    <Text style={styles.fieldLabel}>Mật khẩu</Text>
+                    <Text style={styles.fieldLabel}>{t('auth.password')}</Text>
                     <View style={styles.pwWrap}>
                         <TextInput
                             secureTextEntry={!showPw}
@@ -160,7 +162,7 @@ export default function RegisterScreen() {
                         </View>
                     )}
 
-                    <Text style={styles.fieldLabel}>Ngày sinh (DD/MM/YYYY)</Text>
+                    <Text style={styles.fieldLabel}>{t('screens.authRegister.dobLabel', 'Date of birth (DD/MM/YYYY)')}</Text>
                     <TextInput
                         style={styles.input}
                         value={dobDisplay}
@@ -171,7 +173,7 @@ export default function RegisterScreen() {
                         maxLength={10}
                     />
 
-                    <Text style={styles.fieldLabel}>Giới tính</Text>
+                    <Text style={styles.fieldLabel}>{t('screens.authRegister.genderLabel', 'Gender')}</Text>
                     <View style={styles.genderRow}>
                         {(['MALE', 'FEMALE', 'OTHER'] as Gender[]).map(g => (
                             <Pressable
@@ -188,7 +190,7 @@ export default function RegisterScreen() {
                                         gender === g && styles.genderTextActive,
                                     ]}
                                 >
-                                    {g === 'MALE' ? 'Nam' : g === 'FEMALE' ? 'Nữ' : 'Khác'}
+                                    {g === 'MALE' ? t('screens.authRegister.gender.male', 'Male') : g === 'FEMALE' ? t('screens.authRegister.gender.female', 'Female') : t('screens.authRegister.gender.other', 'Other')}
                                 </Text>
                             </Pressable>
                         ))}
@@ -210,7 +212,7 @@ export default function RegisterScreen() {
                             style={styles.btnGradient}
                         >
                             <Text style={styles.btnText}>
-                                {loading ? 'Đang đăng ký...' : 'Đăng ký'}
+                                {loading ? t('screens.authRegister.registering', 'Registering...') : t('auth.register')}
                             </Text>
                         </LinearGradient>
                     </Pressable>
@@ -220,7 +222,7 @@ export default function RegisterScreen() {
                         onPress={() => navigation.navigate('LoginOptions')}
                     >
                         <Text style={styles.linkText}>
-                            Đã có tài khoản? <Text style={styles.linkAccent}>Đăng nhập</Text>
+                            {t('auth.alreadyHaveAccount')} <Text style={styles.linkAccent}>{t('auth.login')}</Text>
                         </Text>
                     </Pressable>
                 </View>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator, Alert, Pressable,
   ScrollView, StyleSheet, Text, View,
@@ -11,9 +11,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ArtistCard } from '../../components/ArtistCard';
 import { BackButton } from '../../components/BackButton';
-import { COLORS } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import { ONBOARDING_EMOJIS } from '../../config/emojis';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { getPopularArtists, updateMyFavorites } from '../../services/favorites';
 import { Artist } from '../../types/favorites';
@@ -26,7 +27,10 @@ const MAX_ARTISTS = 3;
 export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenreIds: string[] } } }) => {
   const navigation = useNavigation<Nav>();
   const { refreshProfile } = useAuth();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const selectedGenres = route.params?.selectedGenreIds ?? [];
 
   const [loading, setLoading] = useState(true);
@@ -41,32 +45,38 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
       setLoading(true);
       setArtists(await getPopularArtists(20));
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể tải dữ liệu nghệ sĩ.');
+      Alert.alert(t('common.error'), error?.message || t('errors.loadingFailed'));
     } finally { setLoading(false); }
   };
 
   const toggleArtist = (id: string) => {
     if (selectedArtists.includes(id)) { setSelectedArtists(selectedArtists.filter(a => a !== id)); return; }
-    if (selectedArtists.length >= MAX_ARTISTS) { Alert.alert('Giới hạn', `Tối đa ${MAX_ARTISTS} nghệ sĩ.`); return; }
+    if (selectedArtists.length >= MAX_ARTISTS) {
+      Alert.alert(t('screens.onboarding.limitTitle'), t('screens.onboarding.maxArtists').replace('{max}', String(MAX_ARTISTS)));
+      return;
+    }
     setSelectedArtists([...selectedArtists, id]);
   };
 
   const handleFinish = async () => {
-    if (selectedArtists.length < MIN_ARTISTS) { Alert.alert('Lỗi', `Vui lòng chọn ít nhất ${MIN_ARTISTS} nghệ sĩ.`); return; }
+    if (selectedArtists.length < MIN_ARTISTS) {
+      Alert.alert(t('common.error'), t('screens.onboarding.minArtists').replace('{min}', String(MIN_ARTISTS)));
+      return;
+    }
     try {
       setSubmitting(true);
       await updateMyFavorites({ favoriteGenreIds: selectedGenres, favoriteArtistIds: selectedArtists });
       await refreshProfile();
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể lưu sở thích của bạn.');
+      Alert.alert(t('common.error'), error?.message || t('errors.somethingWentWrong'));
     } finally { setSubmitting(false); }
   };
 
   if (loading) {
     return (
         <View style={[styles.root, { alignItems: 'center', justifyContent: 'center' }]}>
-          <ActivityIndicator size="large" color={COLORS.accent} />
-          <Text style={styles.loadingText}>Đang tải nghệ sĩ...</Text>
+          <ActivityIndicator size="large" color={themeColors.accent} />
+          <Text style={styles.loadingText}>{t('screens.onboarding.loadingArtists')}</Text>
         </View>
     );
   }
@@ -76,7 +86,7 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
         <StatusBar style="light" />
         <ScrollView showsVerticalScrollIndicator={false}>
           <LinearGradient
-              colors={[COLORS.gradIndigo, COLORS.bg]}
+              colors={[themeColors.gradIndigo, themeColors.bg]}
               style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
           >
             <BackButton onPress={() => navigation.goBack()} />
@@ -87,15 +97,15 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
             </View>
 
             <Text style={styles.emoji}>{ONBOARDING_EMOJIS.artist}</Text>
-            <Text style={styles.title}>Nghệ sĩ bạn{'\n'}yêu thích</Text>
-            <Text style={styles.subtitle}>Playlist của bạn sẽ được cá nhân hóa theo lựa chọn này</Text>
+            <Text style={styles.title}>{t('onboarding.selectArtistsTitle')}</Text>
+            <Text style={styles.subtitle}>{t('onboarding.selectArtistsSubtitle')}</Text>
           </LinearGradient>
 
           <View style={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
             <View style={styles.countRow}>
-              <Text style={styles.countLabel}>Chọn {MIN_ARTISTS}–{MAX_ARTISTS} nghệ sĩ</Text>
+              <Text style={styles.countLabel}>{t('onboarding.selectCount').replace('{min}', String(MIN_ARTISTS)).replace('{max}', String(MAX_ARTISTS))}</Text>
               <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{selectedArtists.length}/{MAX_ARTISTS}</Text>
+                <Text style={styles.countBadgeText}>{t('onboarding.selected').replace('{count}', String(selectedArtists.length)).replace('{max}', String(MAX_ARTISTS))}</Text>
               </View>
             </View>
 
@@ -119,13 +129,13 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
                 disabled={submitting}
             >
               <LinearGradient
-                  colors={[COLORS.accent, COLORS.accentAlt]}
+                  colors={[themeColors.accent, themeColors.accentAlt]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={styles.btnGradient}
               >
                 {submitting
-                    ? <ActivityIndicator color={COLORS.white} />
-                    : <Text style={styles.finishBtnText}>Hoàn tất ✓</Text>
+                    ? <ActivityIndicator color={themeColors.white} />
+                    : <Text style={styles.finishBtnText}>{t('screens.onboarding.finish')} ✓</Text>
                 }
               </LinearGradient>
             </Pressable>
@@ -135,19 +145,19 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
   );
 };
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-  loadingText: { color: 'COLORS.glass40', marginTop: 12 },
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  loadingText: { color: colors.glass40, marginTop: 12 },
 
   gradientTop: { paddingHorizontal: 24, paddingBottom: 32 },
 
   stepRow: { flexDirection: 'row', gap: 8, marginTop: 20, marginBottom: 24 },
-  stepDotActive: { width: 24, height: 8, borderRadius: 4, backgroundColor: COLORS.accent },
-  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: 'COLORS.glass20' },
+  stepDotActive: { width: 24, height: 8, borderRadius: 4, backgroundColor: colors.accent },
+  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.glass20 },
 
   emoji: { fontSize: 44, marginBottom: 14 },
-  title: { color: COLORS.white, fontSize: 30, fontWeight: '800', lineHeight: 38, marginBottom: 10 },
-  subtitle: { color: 'COLORS.glass50', fontSize: 15, lineHeight: 22 },
+  title: { color: colors.white, fontSize: 30, fontWeight: '800', lineHeight: 38, marginBottom: 10 },
+  subtitle: { color: colors.glass50, fontSize: 15, lineHeight: 22 },
 
   body: { paddingHorizontal: 20, paddingTop: 24 },
 
@@ -157,16 +167,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  countLabel: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  countLabel: { color: colors.white, fontSize: 16, fontWeight: '700' },
   countBadge: {
-    backgroundColor: 'COLORS.accentFill25',
+    backgroundColor: colors.accentFill25,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: 'COLORS.accentBorder30',
+    borderColor: colors.accentBorder30,
   },
-  countBadgeText: { color: COLORS.accent, fontWeight: '700', fontSize: 13 },
+  countBadgeText: { color: colors.accent, fontWeight: '700', fontSize: 13 },
 
   artistGrid: {
     flexDirection: 'row',
@@ -178,5 +188,5 @@ const styles = StyleSheet.create({
   finishBtn: { borderRadius: 999, overflow: 'hidden' },
   btnDisabled: { opacity: 0.5 },
   btnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
-  finishBtnText: { color: COLORS.white, fontWeight: '800', fontSize: 16 },
+  finishBtnText: { color: colors.white, fontWeight: '800', fontSize: 16 },
 });

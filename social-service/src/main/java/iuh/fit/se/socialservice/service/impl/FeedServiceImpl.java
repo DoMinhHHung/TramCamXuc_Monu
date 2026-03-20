@@ -31,9 +31,9 @@ public class FeedServiceImpl implements FeedService {
     private static final int  TIMELINE_DAYS = 30;
     private final FeedPostRepository feedPostRepository;
     private final FeedPostLikeRepository feedPostLikeRepository;
-        private final CommentRepository commentRepository;
-    private final FollowRepository       followRepository;
-    private final UserFollowRepository   userFollowRepository;
+    private final CommentRepository commentRepository;
+    private final FollowRepository followRepository;
+    private final UserFollowRepository userFollowRepository;
     private final MongoTemplate mongoTemplate;
     private final RedisTemplate<String, Object> redisTemplate;
     private static final int  FAMOUS_THRESHOLD = 500;
@@ -104,6 +104,18 @@ public class FeedServiceImpl implements FeedService {
         return feedPostRepository
                 .findByOwnerFiltered(ownerId, allowed, pageable)
                 .map(p -> toResponse(p, viewerId));
+    }
+
+    @Override
+    public Page<FeedPostResponse> getPublicFeed(Pageable pageable) {
+        List<String> vis = List.of("PUBLIC");
+        Instant since = Instant.now().minus(Duration.ofDays(90));
+        long total = feedPostRepository.countPublicFeed(vis, since);
+        List<FeedPost> posts = feedPostRepository.findPublicFeed(vis, since, pageable);
+
+        return new PageImpl<>(
+                posts.stream().map(p -> toResponse(p, null)).collect(Collectors.toList()),
+                pageable, total);
     }
 
     // ── CRUD ─────────────────────────────────────────────────────────────────

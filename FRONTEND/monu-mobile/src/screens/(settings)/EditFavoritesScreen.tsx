@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,7 +28,8 @@ import {
 
 import { Artist, Genre } from '../../types/favorites';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { COLORS } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
+import { useTranslation } from '../../context/LocalizationContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'EditFavorites'>;
 
@@ -41,6 +42,9 @@ const MAX_ARTISTS = 3;
 export const EditFavoritesScreen = () => {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -74,7 +78,7 @@ export const EditFavoritesScreen = () => {
       if (favoritesData.favoriteArtistIds)
         setSelectedArtists(favoritesData.favoriteArtistIds);
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể tải dữ liệu.');
+      Alert.alert(t('common.error'), error?.message || t('screens.editFavorites.loadError'));
     } finally {
       setLoading(false);
     }
@@ -87,7 +91,7 @@ export const EditFavoritesScreen = () => {
     }
 
     if (selectedGenres.length >= MAX_GENRES) {
-      Alert.alert('Giới hạn', `Tối đa ${MAX_GENRES} thể loại.`);
+      Alert.alert(t('screens.editFavorites.limitTitle'), `${t('screens.editFavorites.maxGenresPrefix')} ${MAX_GENRES} ${t('screens.editFavorites.maxGenresSuffix')}`);
       return;
     }
 
@@ -101,7 +105,7 @@ export const EditFavoritesScreen = () => {
     }
 
     if (selectedArtists.length >= MAX_ARTISTS) {
-      Alert.alert('Giới hạn', `Tối đa ${MAX_ARTISTS} nghệ sĩ.`);
+      Alert.alert(t('screens.editFavorites.limitTitle'), `${t('screens.editFavorites.maxArtistsPrefix')} ${MAX_ARTISTS} ${t('screens.editFavorites.maxArtistsSuffix')}`);
       return;
     }
 
@@ -110,12 +114,12 @@ export const EditFavoritesScreen = () => {
 
   const handleSubmit = async () => {
     if (selectedGenres.length < MIN_GENRES) {
-      Alert.alert('Lỗi', `Chọn ít nhất ${MIN_GENRES} thể loại.`);
+      Alert.alert(t('common.error'), `${t('screens.editFavorites.minGenresPrefix')} ${MIN_GENRES} ${t('screens.editFavorites.minGenresSuffix')}`);
       return;
     }
 
     if (selectedArtists.length < MIN_ARTISTS) {
-      Alert.alert('Lỗi', `Chọn ít nhất ${MIN_ARTISTS} nghệ sĩ.`);
+      Alert.alert(t('common.error'), `${t('screens.editFavorites.minArtistsPrefix')} ${MIN_ARTISTS} ${t('screens.editFavorites.minArtistsSuffix')}`);
       return;
     }
 
@@ -127,11 +131,11 @@ export const EditFavoritesScreen = () => {
         favoriteArtistIds: selectedArtists,
       });
 
-      Alert.alert('Thành công', 'Sở thích đã được cập nhật!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+      Alert.alert(t('common.success'), t('screens.editFavorites.updatedSuccess'), [
+        { text: t('common.done'), onPress: () => navigation.goBack() },
       ]);
     } catch (error: any) {
-      Alert.alert('Lỗi', error?.message || 'Không thể lưu sở thích.');
+      Alert.alert(t('common.error'), error?.message || t('screens.editFavorites.saveError'));
     } finally {
       setSubmitting(false);
     }
@@ -144,7 +148,7 @@ export const EditFavoritesScreen = () => {
   if (loading) {
     return (
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color={COLORS.accent} />
+          <ActivityIndicator size="large" color={themeColors.accent} />
         </View>
     );
   }
@@ -154,14 +158,14 @@ export const EditFavoritesScreen = () => {
         <StatusBar style="light" />
 
         <LinearGradient
-            colors={[COLORS.gradSlate, COLORS.bg]}
+            colors={[themeColors.gradSlate, themeColors.bg]}
             style={[styles.topBar, { paddingTop: insets.top + 12 }]}
         >
           <Pressable onPress={() => navigation.goBack()}>
-            <Text style={styles.backBtn}>← Quay lại</Text>
+            <Text style={styles.backBtn}>← {t('screens.editFavorites.back')}</Text>
           </Pressable>
 
-          <Text style={styles.title}>Chỉnh sửa sở thích</Text>
+          <Text style={styles.title}>{t('screens.editFavorites.title')}</Text>
 
           <View style={{ width: 70 }} />
         </LinearGradient>
@@ -177,7 +181,7 @@ export const EditFavoritesScreen = () => {
 
           <View style={styles.section}>
             <View style={styles.sectionRow}>
-              <Text style={styles.sectionTitle}>Thể loại yêu thích</Text>
+              <Text style={styles.sectionTitle}>{t('screens.editFavorites.favoriteGenres')}</Text>
 
               <Text style={styles.counter}>
                 {selectedGenres.length}/{MAX_GENRES}
@@ -200,7 +204,7 @@ export const EditFavoritesScreen = () => {
 
           <View style={styles.section}>
             <View style={styles.sectionRow}>
-              <Text style={styles.sectionTitle}>Nghệ sĩ yêu thích</Text>
+              <Text style={styles.sectionTitle}>{t('screens.editFavorites.favoriteArtists')}</Text>
 
               <Text style={styles.counter}>
                 {selectedArtists.length}/{MAX_ARTISTS}
@@ -233,13 +237,13 @@ export const EditFavoritesScreen = () => {
               disabled={!canSubmit || submitting}
           >
             <LinearGradient
-                colors={[COLORS.accent, COLORS.accentAlt]}
+                colors={[themeColors.accent, themeColors.accentAlt]}
                 style={styles.saveBtnGradient}
             >
               {submitting ? (
-                  <ActivityIndicator size="small" color={COLORS.white} />
+                  <ActivityIndicator size="small" color={themeColors.white} />
               ) : (
-                  <Text style={styles.saveText}>Lưu thay đổi</Text>
+                  <Text style={styles.saveText}>{t('screens.editFavorites.saveChanges')}</Text>
               )}
             </LinearGradient>
           </Pressable>
@@ -251,24 +255,24 @@ export const EditFavoritesScreen = () => {
               ]}
               onPress={() => navigation.goBack()}
           >
-            <Text style={styles.cancelText}>Hủy</Text>
+            <Text style={styles.cancelText}>{t('common.cancel')}</Text>
           </Pressable>
         </ScrollView>
       </View>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
   },
 
   loading: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
   },
 
   topBar: {
@@ -279,12 +283,12 @@ const styles = StyleSheet.create({
   },
 
   backBtn: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontWeight: '600',
   },
 
   title: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 17,
   },
@@ -305,13 +309,13 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 16,
   },
 
   counter: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontWeight: '700',
   },
 
@@ -337,7 +341,7 @@ const styles = StyleSheet.create({
   },
 
   saveText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
     fontSize: 16,
   },
@@ -348,6 +352,6 @@ const styles = StyleSheet.create({
   },
 
   cancelText: {
-    color: COLORS.glass45,
+    color: colors.glass45,
   },
 });

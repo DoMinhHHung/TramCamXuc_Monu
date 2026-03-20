@@ -7,6 +7,10 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { getPopularArtists, getPopularGenres } from '../services/favorites';
+import { getAlbumById, getMyPlaylists, getPublicAlbums, searchSongs } from '../services/music';
+import { getListeningInsights } from '../services/recommendation';
+import { getArtistStats, getMyFollowedArtists, getMyListenHistory } from '../services/social';
 
 export interface PlaylistStats {
   id: string;
@@ -49,6 +53,7 @@ export interface GenreStats {
 interface HomeStatsData {
   mostPlayedPlaylists: PlaylistStats[];
   favoriteAlbums: AlbumStats[];
+  followedArtistAlbums: AlbumStats[];
   topArtists: ArtistStats[];
   trendingGenres: GenreStats[];
 }
@@ -64,10 +69,16 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 let cachedData: HomeStatsData | null = null;
 let cacheTimestamp: number = 0;
 
-/**
- * Mock implementation for home stats API calls
- * Replace with actual API calls when backend is ready
- */
+const LISTEN_HISTORY_LIMIT = 200;
+
+const normalizeId = (value?: string | null): string | null => {
+  if (!value) return null;
+  if (value.length >= 24 && value.startsWith('ObjectId(')) {
+    return value.substring(9, value.length - 2);
+  }
+  return value;
+};
+
 const fetchHomeStats = async (): Promise<HomeStatsData> => {
   // Check cache first
   const now = Date.now();
@@ -76,143 +87,207 @@ const fetchHomeStats = async (): Promise<HomeStatsData> => {
   }
 
   try {
-    // Mock API responses - replace with actual API calls
-    // Simulating: GET /users/me/stats/most-played-playlists
-    const mostPlayedPlaylists: PlaylistStats[] = [
-      {
-        id: 'playlist_1',
-        name: 'Chill Vibes',
-        description: 'Your personal chill collection',
-        songCount: 45,
-        coverImageUrl: undefined,
-        playCount: 320,
-        avgPlayTime: 28,
-      },
-      {
-        id: 'playlist_2',
-        name: 'Workout Mix',
-        description: 'High energy tracks for workouts',
-        songCount: 38,
-        coverImageUrl: undefined,
-        playCount: 250,
-        avgPlayTime: 45,
-      },
-      {
-        id: 'playlist_3',
-        name: 'Late Night Drives',
-        description: 'Perfect for late night drives',
-        songCount: 52,
-        coverImageUrl: undefined,
-        playCount: 180,
-        avgPlayTime: 35,
-      },
-    ];
+    const [listenHistoryPage, playlistsPage, insights, popularGenres, popularArtists, followedArtistsPage] = await Promise.all([
+      getMyListenHistory({ page: 1, size: LISTEN_HISTORY_LIMIT }),
+      getMyPlaylists({ page: 1, size: 100 }),
+      getListeningInsights(30),
+      getPopularGenres(8),
+      getPopularArtists(8),
+      getMyFollowedArtists({ page: 1, size: 100 }),
+    ]);
 
-    // Simulating: GET /users/me/stats/favorite-albums
-    const favoriteAlbums: AlbumStats[] = [
-      {
-        id: 'album_1',
-        title: 'Midnight Dreams',
-        artist: 'The Nocturnes',
-        coverImageUrl: undefined,
-        releaseDate: '2024-01-15',
-        songCount: 12,
-        playCount: 500,
-        userPlayCount: 125,
-      },
-      {
-        id: 'album_2',
-        title: 'Electric Soul',
-        artist: 'Luna Echo',
-        coverImageUrl: undefined,
-        releaseDate: '2023-09-20',
-        songCount: 14,
-        playCount: 450,
-        userPlayCount: 98,
-      },
-      {
-        id: 'album_3',
-        title: 'Acoustic Journey',
-        artist: 'The Wanderers',
-        coverImageUrl: undefined,
-        releaseDate: '2024-02-10',
-        songCount: 11,
-        playCount: 320,
-        userPlayCount: 75,
-      },
-    ];
+    const listenHistory = listenHistoryPage.content ?? [];
+    const playlists = playlistsPage.content ?? [];
 
-    // Simulating: GET /users/me/stats/top-artists
-    const topArtists: ArtistStats[] = [
-      {
-        id: 'artist_1',
-        name: 'The Nocturnes',
-        avatarUrl: undefined,
-        followerCount: 45600,
-        playCount: 850,
-        isFollowing: true,
-      },
-      {
-        id: 'artist_2',
-        name: 'Luna Echo',
-        avatarUrl: undefined,
-        followerCount: 32400,
-        playCount: 720,
-        isFollowing: true,
-      },
-      {
-        id: 'artist_3',
-        name: 'Sonic Dreamers',
-        avatarUrl: undefined,
-        followerCount: 28900,
-        playCount: 650,
-        isFollowing: false,
-      },
-      {
-        id: 'artist_4',
-        name: 'The Wanderers',
-        avatarUrl: undefined,
-        followerCount: 19200,
-        playCount: 580,
-        isFollowing: true,
-      },
-    ];
+    const followedArtistIds = new Set((followedArtistsPage.content ?? []).map((f) => normalizeId(f.artistId)).filter((id): id is string => !!id));
 
-    // Simulating: GET /genres/trending
-    const trendingGenres: GenreStats[] = [
-      {
-        id: 'genre_1',
-        name: 'Lo-fi Hip Hop',
-        iconUrl: undefined,
-        trendingRank: 1,
-        topSongsCount: 45,
-      },
-      {
-        id: 'genre_2',
-        name: 'Indie Pop',
-        iconUrl: undefined,
-        trendingRank: 2,
-        topSongsCount: 38,
-      },
-      {
-        id: 'genre_3',
-        name: 'Synthwave',
-        iconUrl: undefined,
-        trendingRank: 3,
-        topSongsCount: 32,
-      },
-      {
-        id: 'genre_4',
-        name: 'Ambient',
-        iconUrl: undefined,
-        trendingRank: 4,
-        topSongsCount: 28,
-      },
-    ];
+    const playlistAgg = new Map<string, { playCount: number; totalDuration: number }>();
+    const albumAgg = new Map<string, { playCount: number; totalDuration: number }>();
+
+    listenHistory.forEach((item) => {
+      const playlistId = normalizeId(item.playlistId);
+      if (playlistId) {
+        const current = playlistAgg.get(playlistId) ?? { playCount: 0, totalDuration: 0 };
+        playlistAgg.set(playlistId, {
+          playCount: current.playCount + 1,
+          totalDuration: current.totalDuration + (item.durationSeconds ?? 0),
+        });
+      }
+
+      const albumId = normalizeId(item.albumId);
+      if (albumId) {
+        const current = albumAgg.get(albumId) ?? { playCount: 0, totalDuration: 0 };
+        albumAgg.set(albumId, {
+          playCount: current.playCount + 1,
+          totalDuration: current.totalDuration + (item.durationSeconds ?? 0),
+        });
+      }
+    });
+
+    const mostPlayedPlaylists: PlaylistStats[] = playlists
+      .map((playlist) => {
+        const stat = playlistAgg.get(playlist.id);
+        const playCount = stat?.playCount ?? 0;
+        const avgPlayTime = stat?.playCount
+          ? Math.round((stat.totalDuration / stat.playCount) / 60)
+          : undefined;
+
+        return {
+          id: playlist.id,
+          name: playlist.name,
+          description: playlist.description,
+          songCount: playlist.totalSongs ?? playlist.songs?.length ?? 0,
+          coverImageUrl: playlist.coverUrl,
+          playCount,
+          avgPlayTime,
+        };
+      })
+      .sort((a, b) => {
+        if (b.playCount !== a.playCount) return b.playCount - a.playCount;
+        return (b.songCount ?? 0) - (a.songCount ?? 0);
+      })
+      .slice(0, 5);
+
+    const albumIds = Array.from(albumAgg.keys()).slice(0, 20);
+    const albumDetailResults = await Promise.allSettled(
+      albumIds.map((albumId) => getAlbumById(albumId)),
+    );
+
+    const mappedFavoriteAlbums: Array<AlbumStats | null> = albumDetailResults
+      .map((result, index) => {
+        if (result.status !== 'fulfilled') return null;
+        const album = result.value;
+
+        const albumId = albumIds[index];
+        const stats = albumAgg.get(albumId);
+
+        return {
+          id: album.id,
+          title: album.title,
+          artist: album.ownerStageName ?? 'Unknown artist',
+          coverImageUrl: album.coverUrl,
+          releaseDate: album.releaseDate,
+          songCount: album.totalSongs ?? 0,
+          playCount: Math.max(0, Math.round((stats?.totalDuration ?? 0) / 60)),
+          userPlayCount: stats?.playCount ?? 0,
+        };
+      });
+
+    let favoriteAlbums: AlbumStats[] = mappedFavoriteAlbums
+      .filter((album): album is AlbumStats => album !== null)
+      .sort((a, b) => (b.userPlayCount ?? 0) - (a.userPlayCount ?? 0))
+      .slice(0, 5);
+
+    if (favoriteAlbums.length === 0) {
+      const publicAlbumsPage = await getPublicAlbums({ page: 1, size: 5 });
+      favoriteAlbums = (publicAlbumsPage.content ?? []).map((album) => ({
+        id: album.id,
+        title: album.title,
+        artist: album.ownerStageName ?? 'Unknown artist',
+        coverImageUrl: album.coverUrl,
+        releaseDate: album.releaseDate,
+        songCount: album.totalSongs ?? 0,
+        playCount: 0,
+        userPlayCount: 0,
+      }));
+    }
+
+    const topArtistRows = insights.topArtists ?? [];
+    const artistStatResults = await Promise.allSettled(
+      topArtistRows.map((artist) => getArtistStats(artist.artistId)),
+    );
+
+    let topArtists: ArtistStats[] = topArtistRows.map((artist, index) => {
+      const artistStats = artistStatResults[index].status === 'fulfilled'
+        ? artistStatResults[index].value
+        : null;
+
+      return {
+        id: artist.artistId,
+        name: artist.artistStageName,
+        avatarUrl: artist.artistAvatarUrl,
+        followerCount: artistStats?.followerCount ?? 0,
+        playCount: artist.playCount,
+        isFollowing: followedArtistIds.has(artist.artistId),
+      };
+    });
+
+    if (topArtists.length === 0) {
+      const popularArtistStats = await Promise.allSettled(
+        popularArtists.map((artist) => getArtistStats(artist.id)),
+      );
+
+      topArtists = popularArtists.map((artist, index) => {
+        const stats = popularArtistStats[index].status === 'fulfilled'
+          ? popularArtistStats[index].value
+          : null;
+
+        return {
+          id: artist.id,
+          name: artist.stageName,
+          avatarUrl: artist.avatarUrl,
+          followerCount: stats?.followerCount ?? 0,
+          playCount: stats?.totalListens ?? 0,
+          isFollowing: followedArtistIds.has(artist.id),
+        };
+      }).slice(0, 5);
+    }
+
+    const genreSongCounts = await Promise.allSettled(
+      popularGenres.map((genre) => searchSongs({ genreId: genre.id, page: 1, size: 1 })),
+    );
+
+    const trendingGenres: GenreStats[] = popularGenres.map((genre, index) => ({
+      id: genre.id,
+      name: genre.name,
+      iconUrl: undefined,
+      trendingRank: index + 1,
+      topSongsCount: genreSongCounts[index].status === 'fulfilled'
+        ? genreSongCounts[index].value.totalElements ?? 0
+        : 0,
+    }));
+
+    const followedArtistAlbumsResults = await Promise.allSettled(
+      Array.from(followedArtistIds)
+        .slice(0, 20)
+        .map((artistId) => getPublicAlbums({ page: 1, size: 4, artistId })),
+    );
+
+    const followedArtistAlbumsMap = new Map<string, AlbumStats>();
+
+    followedArtistAlbumsResults.forEach((result) => {
+      if (result.status !== 'fulfilled') return;
+
+      (result.value.content ?? [])
+        .filter((album) => album.status === 'PUBLIC')
+        .forEach((album) => {
+          if (!album.id || followedArtistAlbumsMap.has(album.id)) return;
+
+          followedArtistAlbumsMap.set(album.id, {
+            id: album.id,
+            title: album.title,
+            artist: album.ownerStageName ?? 'Unknown artist',
+            coverImageUrl: album.coverUrl,
+            releaseDate: album.releaseDate,
+            songCount: album.totalSongs ?? 0,
+            playCount: 0,
+            userPlayCount: 0,
+          });
+        });
+    });
+
+    const followedArtistAlbums = Array.from(followedArtistAlbumsMap.values())
+      .sort((a, b) => {
+        const aTime = a.releaseDate ? new Date(a.releaseDate).getTime() : 0;
+        const bTime = b.releaseDate ? new Date(b.releaseDate).getTime() : 0;
+        return bTime - aTime;
+      })
+      .slice(0, 8);
 
     const data: HomeStatsData = {
       mostPlayedPlaylists,
       favoriteAlbums,
+      followedArtistAlbums,
       topArtists,
       trendingGenres,
     };

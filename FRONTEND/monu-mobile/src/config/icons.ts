@@ -185,7 +185,6 @@ export const ICON_LIBRARY = {
   [ACTION_ICONS.download]: 'MaterialIcons',
   [ACTION_ICONS.settings]: 'MaterialIcons',
   [ACTION_ICONS.share]: 'MaterialIcons',
-  [ACTION_ICONS.add]: 'MaterialIcons',
   [ACTION_ICONS.back]: 'MaterialIcons',
   [ACTION_ICONS.profile]: 'MaterialIcons',
   [ACTION_ICONS.info]: 'MaterialIcons',
@@ -218,7 +217,6 @@ export const ICON_LIBRARY = {
   
   [AUDIO_ICONS.volume]: 'MaterialIcons',
   [AUDIO_ICONS.volumeMute]: 'MaterialIcons',
-  [AUDIO_ICONS.microphone]: 'MaterialIcons',
   [AUDIO_ICONS.headphones]: 'MaterialIcons',
   [AUDIO_ICONS.speaker]: 'MaterialIcons',
   [AUDIO_ICONS.equalizer]: 'MaterialIcons',

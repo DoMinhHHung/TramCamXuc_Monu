@@ -23,13 +23,13 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { COLORS } from '../config/colors';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { usePlayer } from '../context/PlayerContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Song } from '../services/music';
 import { SongSection } from '../components/SongSection';
+import { BackButton } from '../components/BackButton';
 import themeUtils from '../config/themeUtils';
 
 type GenreDetailNavigationProp = NativeStackNavigationProp<RootStackParamList, 'GenreDetail'>;
@@ -71,7 +71,7 @@ export const GenreDetailScreen = () => {
       const mockSongs: Song[] = Array.from({ length: 12 }, (_, i) => ({
         id: `song_${i}`,
         title: `${genreName} Track ${i + 1}`,
-        primaryArtist: { stageName: 'Artist Name' },
+        primaryArtist: { artistId: `artist_${i}`, stageName: 'Artist Name' },
         genres: [{ id: genreId, name: genreName }],
         durationSeconds: 180 + Math.random() * 120,
         playCount: 1000 + Math.random() * 10000,
@@ -115,6 +115,10 @@ export const GenreDetailScreen = () => {
       paddingHorizontal: themeUtils.spacing.lg,
       paddingBottom: themeUtils.spacing.lg,
     },
+    headerTop: {
+      marginBottom: themeUtils.spacing.md,
+      alignItems: 'flex-start',
+    },
     headerContent: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -151,12 +155,14 @@ export const GenreDetailScreen = () => {
       justifyContent: 'flex-start',
     },
     filterButton: {
+      minWidth: 92,
       paddingHorizontal: themeUtils.spacing.md,
       paddingVertical: themeUtils.spacing.sm,
-      borderRadius: themeUtils.borderRadius.full,
+      borderRadius: themeUtils.borderRadius.lg,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.surface,
+      alignItems: 'center',
     },
     filterButtonActive: {
       backgroundColor: colors.accentFill20,
@@ -222,6 +228,10 @@ export const GenreDetailScreen = () => {
           colors={[colors.gradPurple, colors.gradIndigo, colors.bg]}
           style={[styles.header, { paddingTop: insets.top + themeUtils.spacing.md }]}
         >
+          <View style={styles.headerTop}>
+            <BackButton onPress={() => navigation.goBack()} />
+          </View>
+
           <View style={styles.headerContent}>
             <View style={styles.iconContainer}>
               <MaterialCommunityIcons
@@ -253,7 +263,7 @@ export const GenreDetailScreen = () => {
                   sortBy === sort && styles.filterButtonTextActive,
                 ]}
               >
-                {sort.charAt(0).toUpperCase() + sort.slice(1)}
+                {sort === 'trending' ? 'Trending' : sort === 'newest' ? 'Newest' : 'Popular'}
               </Text>
             </Pressable>
           ))}

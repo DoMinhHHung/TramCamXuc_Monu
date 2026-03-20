@@ -120,11 +120,13 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
     path === '/playlists/my-playlists'
     || path === '/songs/my-songs'
     || path === '/albums/my'
+    || path === '/social/listen-history/my'
+    || path === '/recommendations/insights'
     || path === '/social/hearts/my'
     || path === '/social/follows/my-artists'
     || /^\/social\/artists\/[^/]+\/followers$/i.test(path)
   ) {
-    return 45000;
+    return 300000;
   }
 
   if (
@@ -153,10 +155,6 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
 
   if (path === '/songs' || path === '/artists') {
     return 90000;
-  }
-
-  if (path === '/recommendations/insights') {
-    return 1800000;
   }
 
   return DEFAULT_GET_CACHE_TTL_MS;

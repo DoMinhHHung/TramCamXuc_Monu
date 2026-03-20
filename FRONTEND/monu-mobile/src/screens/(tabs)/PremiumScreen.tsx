@@ -6,21 +6,25 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { COLORS } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import  PremiumCard  from "../../components/PremiumCard";
 import { getActiveSubscriptionPlans, getMySubscriptionHistory, purchaseSubscription, SubscriptionPlan, getMySubscription, UserSubscription } from '../../services/payment';
 import { useAuth } from '../../context/AuthContext';
+import { useTranslation } from '../../context/LocalizationContext';
 
 const PERKS = [
-    { icon: '🎵', title: 'Nghe không giới hạn', desc: 'Không bị gián đoạn bởi quảng cáo' },
-    { icon: '⬇️', title: 'Tải nhạc nghe offline', desc: 'Nghe mọi lúc, không cần internet' },
-    { icon: '🎧', title: 'Chất lượng âm thanh cao', desc: 'Lên đến 320kbps crystal clear' },
-    { icon: '🎯', title: 'Playlist AI cá nhân hóa', desc: 'Gợi ý nhạc thông minh theo cảm xúc' },
+    { icon: '🎵', titleKey: 'screens.premium.perkUnlimitedTitle', descKey: 'screens.premium.perkUnlimitedDesc' },
+    { icon: '⬇️', titleKey: 'screens.premium.perkOfflineTitle', descKey: 'screens.premium.perkOfflineDesc' },
+    { icon: '🎧', titleKey: 'screens.premium.perkQualityTitle', descKey: 'screens.premium.perkQualityDesc' },
+    { icon: '🎯', titleKey: 'screens.premium.perkAiTitle', descKey: 'screens.premium.perkAiDesc' },
 ];
 
 export const PremiumScreen = () => {
     const insets = useSafeAreaInsets();
     const { authSession } = useAuth();
+    const { t } = useTranslation();
+    const themeColors = useThemeColors();
+    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
     const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
@@ -72,7 +76,7 @@ export const PremiumScreen = () => {
             }
         } catch (error: any) {
             console.error('Error fetching plans:', error);
-            Alert.alert('Lỗi', error.message || 'Không thể tải thông tin gói cước');
+            Alert.alert(t('common.error'), error.message || t('errors.loadingFailed'));
         } finally {
             if (!silent) setLoading(false);
         }
@@ -97,19 +101,19 @@ export const PremiumScreen = () => {
 
     const handlePurchase = async (planOverride?: SubscriptionPlan) => {
         if (!authSession) {
-            Alert.alert('Chưa đăng nhập', 'Vui lòng đăng nhập để mua gói Premium');
+            Alert.alert(t('auth.login'), t('screens.premium.loginToPurchase'));
             return;
         }
 
         const planToBuy = planOverride ?? selectedPlan;
 
         if (!planToBuy) {
-            Alert.alert('Lỗi', 'Vui lòng chọn một gói cước trả phí');
+            Alert.alert(t('common.error'), t('screens.premium.selectPaidPlan'));
             return;
         }
 
         if (!isPurchasablePlan(planToBuy)) {
-            Alert.alert('Không hợp lệ', 'Không thể thanh toán gói Free/Basic. Vui lòng chọn gói Premium khác.');
+            Alert.alert(t('common.error'), t('screens.premium.invalidFreePlan'));
             return;
         }
 
@@ -120,25 +124,25 @@ export const PremiumScreen = () => {
             const opened = await openCheckoutUrl(response.checkoutUrl);
             if (!opened) {
                 Alert.alert(
-                    'Không thể mở link thanh toán',
-                    `Vui lòng mở thủ công đường dẫn sau:\n${response.checkoutUrl}`
+                    t('screens.premium.cannotOpenCheckout'),
+                    `${t('screens.premium.openCheckoutManual')}\n${response.checkoutUrl}`
                 );
                 return;
             }
 
             Alert.alert(
-                'Thanh toán',
-                'Vui lòng hoàn tất thanh toán trong trình duyệt. Sau khi thanh toán thành công, quay lại ứng dụng, hệ thống sẽ tự làm mới token và cập nhật quyền Premium.',
+                t('screens.premium.paymentTitle'),
+                t('screens.premium.paymentMessage'),
                 [
                     {
-                        text: 'Đã hiểu',
+                        text: t('common.done'),
                         onPress: () => fetchData(), // Refresh data after payment
                     },
                 ]
             );
         } catch (error: any) {
             console.error('Purchase error:', error);
-            Alert.alert('Lỗi', error.message || 'Không thể tạo thanh toán. Vui lòng thử lại.');
+            Alert.alert(t('common.error'), error.message || t('errors.somethingWentWrong'));
         } finally {
             setPurchasing(false);
         }
@@ -179,8 +183,8 @@ export const PremiumScreen = () => {
     if (loading) {
         return (
             <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={COLORS.accent} />
-                <Text style={[styles.heroSub, { marginTop: 16 }]}>Đang tải...</Text>
+                <ActivityIndicator size="large" color={themeColors.accent} />
+                <Text style={[styles.heroSub, { marginTop: 16 }]}>{t('common.loading')}</Text>
             </View>
         );
     }
@@ -190,7 +194,7 @@ export const PremiumScreen = () => {
             <StatusBar style="light" />
             <ScrollView showsVerticalScrollIndicator={false}>
                 <LinearGradient
-                    colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]}
+                    colors={[themeColors.gradPurple, themeColors.gradIndigo, themeColors.bg]}
                     locations={[0, 0.5, 1]}
                     style={[styles.hero, { paddingTop: insets.top + 20 }]}
                 >
@@ -198,19 +202,19 @@ export const PremiumScreen = () => {
                         <Text style={{ fontSize: 44 }}>👑</Text>
                     </View>
                     <Text style={styles.heroTitle}>Monu Premium</Text>
-                    <Text style={styles.heroSub}>Trải nghiệm âm nhạc đỉnh cao</Text>
+                    <Text style={styles.heroSub}>{t('screens.premium.heroSubtitle')}</Text>
 
                     {currentSubscription && currentSubscription.status === 'ACTIVE' ? (
                         <View style={styles.activeSubscriptionCard}>
-                            <Text style={styles.activeLabel}>✨ Đang kích hoạt</Text>
+                            <Text style={styles.activeLabel}>✨ {t('screens.premium.active')}</Text>
                             <Text style={styles.activePlan}>{currentSubscription.plan.subsName}</Text>
                             <Text style={styles.activeExpiry}>
-                                Hết hạn: {formatDate(currentSubscription.expiresAt)}
+                                {t('screens.premium.expiresAt')}: {formatDate(currentSubscription.expiresAt)}
                             </Text>
                         </View>
                     ) : selectedPlan ? (
                         <View style={styles.priceCard}>
-                            <Text style={styles.priceLabel}>CHỈ TỪ</Text>
+                            <Text style={styles.priceLabel}>{t('screens.premium.startingFrom')}</Text>
                             <Text style={styles.price}>
                                 {formatPrice(selectedPlan.price)} <Text style={styles.pricePer}>đ/{selectedPlan.durationDays} ngày</Text>
                             </Text>
@@ -218,20 +222,12 @@ export const PremiumScreen = () => {
                     ) : null}
                 </LinearGradient>
 
-
                 <View style={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
-                    {authSession && (
-                        <View style={styles.paymentStatusCard}>
-                            <Text style={styles.paymentStatusTitle}>Trạng thái thanh toán trong app</Text>
-                            <Text style={styles.paymentStatusText}>Gói hiện tại: {currentSubscription?.plan?.subsName ?? 'Chưa có'}</Text>
-                            <Text style={styles.paymentStatusText}>Còn lại: {remainingDays} ngày</Text>
-                            <Text style={styles.paymentStatusText}>Trạng thái: {latestPaymentStatus}</Text>
-                        </View>
-                    )}
+                
                     {/* Available Plans */}
                     {plans.length > 0 && (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Các gói cước</Text>
+                            <Text style={styles.sectionTitle}>{t('screens.premium.plans')}</Text>
                             {plans.map((plan) => (
                                 <PremiumCard
                                     key={plan.id}
@@ -256,15 +252,15 @@ export const PremiumScreen = () => {
 
                     {/* Perks */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Tính năng</Text>
+                        <Text style={styles.sectionTitle}>{t('screens.premium.features')}</Text>
                         {PERKS.map((perk, i) => (
                             <View key={i} style={styles.perkRow}>
-                                <LinearGradient colors={[COLORS.surface, COLORS.surfaceLow]} style={styles.perkIcon}>
+                                <LinearGradient colors={[themeColors.surface, themeColors.surfaceLow]} style={styles.perkIcon}>
                                     <Text style={{ fontSize: 22 }}>{perk.icon}</Text>
                                 </LinearGradient>
                                 <View style={styles.perkInfo}>
-                                    <Text style={styles.perkTitle}>{perk.title}</Text>
-                                    <Text style={styles.perkDesc}>{perk.desc}</Text>
+                                    <Text style={styles.perkTitle}>{t(perk.titleKey)}</Text>
+                                    <Text style={styles.perkDesc}>{t(perk.descKey)}</Text>
                                 </View>
                                 <Text style={styles.checkmark}>✓</Text>
                             </View>
@@ -280,27 +276,27 @@ export const PremiumScreen = () => {
                                     pressed && { opacity: 0.85 },
                                     purchasing && { opacity: 0.6 },
                                 ]}
-                                onPress={handlePurchase}
+                                onPress={() => void handlePurchase()}
                                 disabled={purchasing || !selectedPlan || !isPurchasablePlan(selectedPlan)}
                             >
                                 <LinearGradient
-                                    colors={[COLORS.warning, COLORS.error]}
+                                    colors={[themeColors.warning, themeColors.error]}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 0 }}
                                     style={styles.upgradeBtnGradient}
                                 >
                                     {purchasing ? (
-                                        <ActivityIndicator color={COLORS.white} />
+                                        <ActivityIndicator color={themeColors.white} />
                                     ) : (
                                         <Text style={styles.upgradeBtnText}>
-                                            👑  {selectedPlan ? `Mua ngay ${formatPrice(selectedPlan.price)}đ` : 'Chọn gói trả phí'}
+                                            👑  {selectedPlan ? `${t('screens.premium.buyNow')} ${formatPrice(selectedPlan.price)}đ` : t('screens.premium.selectPaidPlan')}
                                         </Text>
                                     )}
                                 </LinearGradient>
                             </Pressable>
 
                             <Text style={styles.trial}>
-                                Thanh toán qua PayOS. Hủy bất cứ lúc nào.
+                                {t('screens.premium.trialHint')}
                             </Text>
                         </>
                     )}
@@ -310,71 +306,71 @@ export const PremiumScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: colors.bg },
 
     hero: { paddingHorizontal: 24, paddingBottom: 32, alignItems: 'center' },
     crownWrap: {
         width: 90,
         height: 90,
         borderRadius: 45,
-        backgroundColor: 'COLORS.warningDim',
+        backgroundColor: colors.warningDim,
         borderWidth: 1.5,
-        borderColor: 'COLORS.warningBorder',
+        borderColor: colors.warningBorder,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 18,
     },
-    heroTitle: { color: COLORS.white, fontSize: 30, fontWeight: '800', marginBottom: 8 },
-    heroSub: { color: 'COLORS.glass50', fontSize: 15, marginBottom: 22 },
+    heroTitle: { color: colors.white, fontSize: 30, fontWeight: '800', marginBottom: 8 },
+    heroSub: { color: colors.glass50, fontSize: 15, marginBottom: 22 },
 
     priceCard: {
-        backgroundColor: 'COLORS.glass07',
+        backgroundColor: colors.glass07,
         borderRadius: 14,
         paddingVertical: 14,
         paddingHorizontal: 28,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'COLORS.glass12',
+        borderColor: colors.glass12,
     },
     priceLabel: {
-        color: 'COLORS.glass40',
+        color: colors.glass40,
         fontSize: 11,
         fontWeight: '700',
         letterSpacing: 1.5,
     },
-    price: { color: COLORS.white, fontSize: 28, fontWeight: '800', marginTop: 4 },
-    pricePer: { fontSize: 15, fontWeight: '500', color: 'COLORS.glass50' },
+    price: { color: colors.white, fontSize: 28, fontWeight: '800', marginTop: 4 },
+    pricePer: { fontSize: 15, fontWeight: '500', color: colors.glass50 },
 
     activeSubscriptionCard: {
-        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        backgroundColor: colors.glass07,
         borderRadius: 14,
         paddingVertical: 14,
         paddingHorizontal: 28,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(34, 197, 94, 0.3)',
+        borderColor: colors.success,
     },
     activeLabel: {
-        color: '#22c55e',
+        color: colors.success,
         fontSize: 11,
         fontWeight: '700',
         letterSpacing: 1.5,
     },
-    activePlan: { color: COLORS.white, fontSize: 24, fontWeight: '800', marginTop: 4 },
-    activeExpiry: { fontSize: 13, fontWeight: '500', color: '#86efac', marginTop: 4 },
+    activePlan: { color: colors.white, fontSize: 24, fontWeight: '800', marginTop: 4 },
+    activeExpiry: { fontSize: 13, fontWeight: '500', color: colors.successAlt, marginTop: 4 },
 
     body: { paddingHorizontal: 20, paddingTop: 24 },
 
-    paymentStatusCard: { backgroundColor: COLORS.glass07, borderWidth: 1, borderColor: COLORS.glass15, borderRadius: 12, padding: 12, marginBottom: 16 },
-    paymentStatusTitle: { color: COLORS.white, fontWeight: '800', marginBottom: 8 },
-    paymentStatusText: { color: COLORS.glass80, fontSize: 13, marginBottom: 4 },
+    paymentStatusCard: { backgroundColor: colors.glass07, borderWidth: 1, borderColor: colors.glass15, borderRadius: 12, padding: 12, marginBottom: 16 },
+    paymentStatusTitle: { color: colors.white, fontWeight: '800', marginBottom: 8 },
+    paymentStatusText: { color: colors.glass80, fontSize: 13, marginBottom: 4 },
 
     section: { marginBottom: 24 },
-    sectionTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700', marginBottom: 12 },
+    sectionTitle: { color: colors.white, fontSize: 18, fontWeight: '700', marginBottom: 12 },
 
     planCard: {
-        backgroundColor: COLORS.surface,
+        backgroundColor: colors.surface,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
@@ -382,11 +378,11 @@ const styles = StyleSheet.create({
         borderColor: 'transparent',
     },
     planCardSelected: {
-        borderColor: COLORS.accent,
-        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+        borderColor: colors.accent,
+        backgroundColor: colors.accentFill20,
     },
     planCardFree: {
-        borderColor: COLORS.glass20,
+        borderColor: colors.glass20,
         opacity: 0.7,
     },
     planHeader: {
@@ -395,19 +391,19 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         marginBottom: 8,
     },
-    planName: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-    planDesc: { color: COLORS.muted, fontSize: 13, marginTop: 4 },
-    planPrice: { color: COLORS.accent, fontSize: 18, fontWeight: '800' },
-    planDuration: { color: COLORS.muted, fontSize: 12 },
+    planName: { color: colors.white, fontSize: 16, fontWeight: '700' },
+    planDesc: { color: colors.muted, fontSize: 13, marginTop: 4 },
+    planPrice: { color: colors.accent, fontSize: 18, fontWeight: '800' },
+    planDuration: { color: colors.muted, fontSize: 12 },
 
     freeBadge: {
-        backgroundColor: COLORS.glass15,
+        backgroundColor: colors.glass15,
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 6,
     },
     freeBadgeText: {
-        color: COLORS.glass60,
+        color: colors.glass60,
         fontSize: 10,
         fontWeight: '700',
     },
@@ -417,7 +413,7 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     featureItem: {
-        color: COLORS.glass50,
+        color: colors.glass50,
         fontSize: 12,
         lineHeight: 18,
     },
@@ -433,9 +429,9 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     perkInfo: { flex: 1 },
-    perkTitle: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
-    perkDesc: { color: 'COLORS.glass40', fontSize: 13, marginTop: 2 },
-    checkmark: { color: COLORS.success, fontSize: 20, fontWeight: '800' },
+    perkTitle: { color: colors.white, fontSize: 15, fontWeight: '700' },
+    perkDesc: { color: colors.glass40, fontSize: 13, marginTop: 2 },
+    checkmark: { color: colors.success, fontSize: 20, fontWeight: '800' },
 
     upgradeBtn: { borderRadius: 999, overflow: 'hidden', marginTop: 24, marginBottom: 14 },
     upgradeBtnGradient: {
@@ -444,7 +440,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderRadius: 999,
     },
-    upgradeBtnText: { color: COLORS.white, fontWeight: '800', fontSize: 16 },
+    upgradeBtnText: { color: colors.white, fontWeight: '800', fontSize: 16 },
 
-    trial: { color: 'COLORS.glass30', textAlign: 'center', fontSize: 12 },
+    trial: { color: colors.glass30, textAlign: 'center', fontSize: 12 },
 });

@@ -6,9 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS }                 from '../config/colors';
-import { NAV_ICONS }              from '../config/icons';
 import { useAuth }                from '../context/AuthContext';
-import { useTranslation }         from '../context/LocalizationContext';
 import { usePlayer }              from '../context/PlayerContext';
 import { UploadProvider }         from '../context/UploadContext';
 
@@ -36,11 +34,11 @@ import { SearchScreen }           from '../screens/(tabs)/SearchScreen';
 import { DiscoverScreen }         from '../screens/(tabs)/DiscoverScreen';
 import { EditFavoritesScreen }    from '../screens/(settings)/EditFavoritesScreen';
 import { HistoryScreen }          from '../screens/(settings)/HistoryScreen';
+import { SettingsScreen }         from '../screens/SettingsScreen';
+import { InsightsScreen }         from '../screens/InsightsScreen';
 import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
 import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
 import { GenreDetailScreen }      from '../screens/GenreDetailScreen';
-import { InsightsScreen }         from '../screens/InsightsScreen';
-import { SettingsScreen }         from '../screens/SettingsScreen';
 
 // ─── Artist screens ───────────────────────────────────────────────────────────
 import { ArtistProfileScreen }    from '../screens/(artist)/ArtistProfileScreen';
@@ -66,15 +64,16 @@ export type RootStackParamList = {
     MainTabs:        undefined;
     EditFavorites:   undefined;
     History:         undefined;
+    Settings:        undefined;
+    Insights:        undefined;
     Profile:         undefined;
     Search:          undefined;
     PlaylistDetail:  { slug: string };
     AlbumDetail:     { albumId: string };
     GenreDetail:     { genreId: string; genreName: string };
-    Insights:       undefined;
-    Settings:       undefined;
-    ArtistProfile:  { artistId: string };
-    RegisterArtist: undefined;
+    // Artist
+    ArtistProfile:   { artistId: string };
+    RegisterArtist:  undefined;
     ArtistTerms:     undefined;
     FavoriteSongs:    undefined;
     Following:        undefined;
@@ -96,11 +95,11 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab   = createBottomTabNavigator<MainTabParamList>();
 
 const tabMeta: Record<keyof MainTabParamList, { label: string; icon: string }> = {
-    Home:     { label: 'Trang chủ', icon: NAV_ICONS.home          },
-    Discover: { label: 'Khám phá',  icon: NAV_ICONS.discover       },
-    Create:   { label: 'Tạo',       icon: NAV_ICONS.create         },
-    Library:  { label: 'Thư viện',  icon: NAV_ICONS.library        },
-    Premium:  { label: 'Premium',   icon: NAV_ICONS.premium        },
+    Home:     { label: 'Trang chủ', icon: 'home'          },
+    Discover: { label: 'Khám phá',  icon: 'explore'       },
+    Create:   { label: 'Tạo',       icon: 'add'           },
+    Library:  { label: 'Thư viện',  icon: 'library-music' },
+    Premium:  { label: 'Premium',   icon: 'redeem'        },
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
@@ -108,29 +107,14 @@ const linking: LinkingOptions<RootStackParamList> = {
     config: { screens: { MainTabs: 'home' } },
 };
 
-const MainTabNavigator = () => {
-    const { t } = useTranslation();
-    
-    // Build labels dynamically with translations
-    const getTabLabel = (routeName: keyof MainTabParamList): string => {
-        const labelKeys: Record<keyof MainTabParamList, string> = {
-            Home: 'navigation.home',
-            Discover: 'navigation.discover',
-            Create: 'navigation.create',
-            Library: 'navigation.library',
-            Premium: 'navigation.premium',
-        };
-        return t(labelKeys[routeName]);
-    };
-    
-    return (
+const MainTabNavigator = () => (
     <Tab.Navigator
         screenOptions={({ route }: any) => {
             const meta     = tabMeta[route.name as keyof MainTabParamList];
             const isCreate = route.name === 'Create';
             return {
                 headerShown: false,
-                tabBarLabel: getTabLabel(route.name as keyof MainTabParamList),
+                tabBarLabel: meta.label,
                 tabBarStyle: {
                     backgroundColor: COLORS.surface,
                     borderTopColor:  COLORS.border,
@@ -158,8 +142,7 @@ const MainTabNavigator = () => {
         <Tab.Screen name="Library"  component={LibraryScreen}  />
         <Tab.Screen name="Premium"  component={PremiumScreen}  />
     </Tab.Navigator>
-    );
-};
+);
 
 const GlobalOverlays = () => {
     const { pendingAd, dismissAd, currentSong } = usePlayer();
@@ -200,11 +183,11 @@ export const AppNavigator = () => {
                         ) : (
                             <>
                                 <Stack.Screen name="MainTabs"       component={MainTabNavigator}    />
-                                <Stack.Screen name="Insights"  component={InsightsScreen}       options={{ headerShown: false }}/>
-                                <Stack.Screen name="Settings"  component={SettingsScreen}       options={{ headerShown: false }}/>
                                 <Stack.Screen name="Search"         component={SearchScreen}        />
                                 <Stack.Screen name="EditFavorites"  component={EditFavoritesScreen} />
                                 <Stack.Screen name="History"        component={HistoryScreen}       />
+                                <Stack.Screen name="Settings"       component={SettingsScreen}      />
+                                <Stack.Screen name="Insights"       component={InsightsScreen}      />
                                 <Stack.Screen name="Profile"        component={ProfileScreen}       />
                                 <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen}/>
                                 <Stack.Screen name="AlbumDetail"    component={AlbumDetailScreen}   />

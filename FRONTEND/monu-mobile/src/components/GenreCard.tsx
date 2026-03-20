@@ -1,18 +1,11 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
  * GenreCard – Displays genre with trending rank and top songs count
- * Shows genre name, trending position, and indicators of popular songs in genre
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import React from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../context/ThemeContext';
@@ -26,11 +19,9 @@ interface GenreCardProps {
   style?: ViewStyle;
 }
 
-export const GenreCard: React.FC<GenreCardProps> = ({
-  genre,
-  onPress,
-  style,
-}) => {
+type McIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+export const GenreCard: React.FC<GenreCardProps> = ({ genre, onPress, style }) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
@@ -99,39 +90,30 @@ export const GenreCard: React.FC<GenreCardProps> = ({
       fontWeight: '600',
       color: colors.accent,
     },
-    songCount: {
-      fontSize: themeUtils.fontSize.md,
-      fontWeight: '600',
-      color: colors.accent,
-    },
-    songCountLabel: {
-      fontSize: themeUtils.fontSize.xs,
-      color: colors.muted,
-    },
   });
 
-  const getTrendingIcon = (rank?: number) => {
-    if (!rank) return 'star-outline';
-    if (rank === 1) return 'fire';
-    if (rank <= 3) return 'trending-up';
-    return 'star-outline';
+  const getTrendingIcon = (rank?: number): McIconName => {
+    if (!rank) return 'star-outline' as McIconName;
+    if (rank === 1) return 'fire' as McIconName;
+    if (rank <= 3) return 'trending-up' as McIconName;
+    return 'star-outline' as McIconName;
   };
 
-  const genreIcons: Record<string, string> = {
-    'Lo-fi Hip Hop': 'music-note-quarter',
-    'Indie Pop': 'music-box-outline',
-    'Synthwave': 'synthesizer',
-    'Ambient': 'meditation',
-    'Rock': 'guitar-electric',
-    'Pop': 'music-note',
-    'Hip Hop': 'microphone-outline',
-    'R&B': 'music-note-heart-outline',
-    'EDM': 'pulse',
-    'Jazz': 'saxophone',
+  const genreIcons: Record<string, McIconName> = {
+    'Lo-fi Hip Hop': 'music-note-quarter' as McIconName,
+    'Indie Pop': 'music-box-outline' as McIconName,
+    Synthwave: 'synthesizer' as McIconName,
+    Ambient: 'meditation' as McIconName,
+    Rock: 'guitar-electric' as McIconName,
+    Pop: 'music-note' as McIconName,
+    'Hip Hop': 'microphone-outline' as McIconName,
+    'R&B': 'music-note-heart-outline' as McIconName,
+    EDM: 'pulse' as McIconName,
+    Jazz: 'saxophone' as McIconName,
   };
 
-  const getGenreIcon = (name: string) => {
-    return genreIcons[name] || 'music-note';
+  const getGenreIcon = (name: string): McIconName => {
+    return genreIcons[name] || ('music-note' as McIconName);
   };
 
   return (
@@ -149,11 +131,7 @@ export const GenreCard: React.FC<GenreCardProps> = ({
         >
           <View style={styles.leftContent}>
             <View style={styles.iconContainer}>
-              <MaterialCommunityIcons
-                name={getGenreIcon(genre.name)}
-                size={28}
-                color={colors.accent}
-              />
+              <MaterialCommunityIcons name={getGenreIcon(genre.name)} size={28} color={colors.accent} />
             </View>
             <View style={styles.genreInfo}>
               <Text style={styles.genreName} numberOfLines={1}>{genre.name}</Text>
@@ -165,9 +143,7 @@ export const GenreCard: React.FC<GenreCardProps> = ({
                       size={14}
                       color={genre.trendingRank === 1 ? '#FF6B6B' : colors.accent}
                     />
-                    <Text style={styles.genreSubtitle}>
-                      #{genre.trendingRank} Trending
-                    </Text>
+                    <Text style={styles.genreSubtitle}>#{genre.trendingRank} {t('screens.discover.trending', 'Trending')}</Text>
                   </>
                 )}
               </View>
@@ -176,15 +152,9 @@ export const GenreCard: React.FC<GenreCardProps> = ({
 
           <View style={styles.rightContent}>
             <View style={styles.trendingBadge}>
-              <Text style={styles.trendingText}>
-                {genre.topSongsCount} songs
-              </Text>
+              <Text style={styles.trendingText}>{genre.topSongsCount} {t('playlistDetails.songs', 'songs')}</Text>
             </View>
-            <MaterialCommunityIcons
-              name="chevron-right"
-              size={24}
-              color={colors.muted}
-            />
+            <MaterialCommunityIcons name="chevron-right" size={24} color={colors.muted} />
           </View>
         </LinearGradient>
       </View>

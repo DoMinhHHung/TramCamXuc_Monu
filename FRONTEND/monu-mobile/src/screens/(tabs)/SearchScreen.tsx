@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator, Animated, FlatList, Pressable,
     StyleSheet, Text, TextInput, View,
@@ -10,8 +10,9 @@ import { AntDesign } from '@expo/vector-icons';
 
 import { BackButton } from '../../components/BackButton';
 import { VoiceSearchButton } from '../../components/VoiceSearchButton';
-import { COLORS } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import { usePlayer } from '../../context/PlayerContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import {
     Artist, getSongsByArtist, searchArtists, searchSongs, Song,
@@ -27,6 +28,9 @@ export const SearchScreen = () => {
     const insets     = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const { playSong } = usePlayer();
+    const { t } = useTranslation();
+    const themeColors = useThemeColors();
+    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
     const [query,          setQuery]          = useState('');
     const [tab,            setTab]            = useState<Tab>('songs');
@@ -180,7 +184,7 @@ export const SearchScreen = () => {
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.resultSub}   numberOfLines={1}>{item.primaryArtist.stageName}</Text>
             </View>
-            <AntDesign name="play-circle" size={26} color="#fff" />
+            <AntDesign name="play-circle" size={26} color={themeColors.white} />
         </Pressable>
     );
 
@@ -191,7 +195,7 @@ export const SearchScreen = () => {
             </View>
             <View style={styles.resultInfo}>
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.stageName}</Text>
-                <Text style={styles.resultSub}>Nghệ sĩ</Text>
+                <Text style={styles.resultSub}>{t('screens.search.artistType')}</Text>
             </View>
             <Text style={styles.playIcon}>›</Text>
         </Pressable>
@@ -199,9 +203,9 @@ export const SearchScreen = () => {
 
     // ── Voice state label ─────────────────────────────────────────────────────
     const voiceStateLabel = voice.state === 'recording'
-        ? '🔴  Đang ghi âm... thả để tìm kiếm'
+        ? `🔴  ${t('screens.search.voiceRecording')}`
         : voice.state === 'processing'
-            ? '⏳  Đang nhận dạng giọng nói...'
+            ? `⏳  ${t('screens.search.voiceProcessing')}`
             : voice.errorMessage ?? '';
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -216,8 +220,8 @@ export const SearchScreen = () => {
                 <TextInput
                     ref={inputRef}
                     style={styles.input}
-                    placeholder="Tìm bài hát, nghệ sĩ..."
-                    placeholderTextColor={COLORS.glass35}
+                    placeholder={t('screens.search.inputPlaceholder')}
+                    placeholderTextColor={themeColors.glass35}
                     value={query}
                     onChangeText={handleQueryChange}
                     onSubmitEditing={handleSubmit}
@@ -268,7 +272,7 @@ export const SearchScreen = () => {
             >
                 <Text style={[
                     styles.voiceBannerText,
-                    voice.state === 'error' && { color: COLORS.error },
+                    voice.state === 'error' && { color: themeColors.error },
                 ]}>
                     {voiceStateLabel}
                 </Text>
@@ -287,14 +291,14 @@ export const SearchScreen = () => {
             {/* ── Tabs (chỉ hiện khi có query) ── */}
             {!showHistory && (
                 <View style={styles.tabs}>
-                    {(['songs', 'artists'] as Tab[]).map(t => (
+                    {(['songs', 'artists'] as Tab[]).map(tabKey => (
                         <Pressable
-                            key={t}
-                            style={[styles.tabBtn, tab === t && styles.tabBtnActive]}
-                            onPress={() => handleTabChange(t)}
+                            key={tabKey}
+                            style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
+                            onPress={() => handleTabChange(tabKey)}
                         >
-                            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                                {t === 'songs' ? '🎵 Bài hát' : '🎤 Nghệ sĩ'}
+                            <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
+                                {tabKey === 'songs' ? t('screens.search.tabSongs') : t('screens.search.tabArtists')}
                             </Text>
                         </Pressable>
                     ))}
@@ -304,7 +308,7 @@ export const SearchScreen = () => {
             {/* ── Loading ── */}
             {loading && (
                 <View style={styles.center}>
-                    <ActivityIndicator color={COLORS.accent} />
+                    <ActivityIndicator color={themeColors.accent} />
                 </View>
             )}
 
@@ -314,9 +318,9 @@ export const SearchScreen = () => {
                     {history.length > 0 ? (
                         <>
                             <View style={styles.historyHeader}>
-                                <Text style={styles.historyTitle}>Lịch sử tìm kiếm</Text>
+                                <Text style={styles.historyTitle}>{t('screens.search.historyTitle')}</Text>
                                 <Pressable onPress={handleClearHistory} hitSlop={8}>
-                                    <Text style={styles.historyClearAll}>Xóa tất cả</Text>
+                                    <Text style={styles.historyClearAll}>{t('screens.search.clearAll')}</Text>
                                 </Pressable>
                             </View>
                             <FlatList
@@ -345,12 +349,12 @@ export const SearchScreen = () => {
                         <View style={styles.center}>
                             <View style={styles.voiceHintBox}>
                                 <Text style={styles.voiceHintIcon}>🎙</Text>
-                                <Text style={styles.voiceHintTitle}>Tìm kiếm bằng giọng nói</Text>
+                                <Text style={styles.voiceHintTitle}>{t('screens.search.voiceHintTitle')}</Text>
                                 <Text style={styles.voiceHintDesc}>
-                                    Nhấn và giữ nút 🎤 ở góc phải để nói tên bài hát hoặc nghệ sĩ
+                                    {t('screens.search.voiceHintDesc')}
                                 </Text>
                             </View>
-                            <Text style={styles.hintText}>Hoặc nhập từ khóa vào ô tìm kiếm</Text>
+                            <Text style={styles.hintText}>{t('screens.search.voiceHintInput')}</Text>
                         </View>
                     )}
                 </View>
@@ -359,7 +363,7 @@ export const SearchScreen = () => {
             {/* ── Empty ── */}
             {!loading && showEmpty && (
                 <View style={styles.center}>
-                    <Text style={styles.emptyText}>Không tìm thấy kết quả cho "{query}"</Text>
+                    <Text style={styles.emptyText}>{`${t('screens.search.noResultsPrefix')} "${query}"`}</Text>
                 </View>
             )}
 
@@ -370,7 +374,7 @@ export const SearchScreen = () => {
                         <Pressable onPress={() => setArtistDetail(null)}>
                             <Text style={styles.backToArtistsText}>‹ {artistDetail.artist.stageName}</Text>
                         </Pressable>
-                        <Text style={styles.artistDetailSub}>{artistDetail.songs.length} bài hát</Text>
+                        <Text style={styles.artistDetailSub}>{`${artistDetail.songs.length} ${t('screens.search.songCountSuffix')}`}</Text>
                     </View>
                     <FlatList
                         data={artistDetail.songs}
@@ -420,30 +424,30 @@ export const SearchScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    root:   { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
+    root:   { flex: 1, backgroundColor: colors.bg },
 
     // ── Header ──────────────────────────────────────────────────────────────
     header: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingBottom: 12, gap: 8,
-        borderBottomWidth: 1, borderBottomColor: COLORS.border,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
     },
     input: {
-        flex: 1, color: COLORS.white, fontSize: 16, paddingVertical: 8,
+        flex: 1, color: colors.white, fontSize: 16, paddingVertical: 8,
     },
-    clearIcon: { color: COLORS.glass40, fontSize: 18, paddingHorizontal: 2 },
+    clearIcon: { color: colors.glass40, fontSize: 18, paddingHorizontal: 2 },
 
     // ── Voice banner ─────────────────────────────────────────────────────────
     voiceBanner: {
-        backgroundColor: COLORS.accentFill20,
+        backgroundColor: colors.accentFill20,
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.accentBorder25,
+        borderBottomColor: colors.accentBorder25,
         paddingHorizontal: 20,
         paddingVertical: 9,
     },
     voiceBannerText: {
-        color: COLORS.accent,
+        color: colors.accent,
         fontSize: 13,
         fontWeight: '600',
         textAlign: 'center',
@@ -460,42 +464,42 @@ const styles = StyleSheet.create({
     },
     errorBannerText: {
         flex: 1,
-        color: COLORS.error,
+        color: colors.error,
         fontSize: 13,
     },
     errorBannerDismiss: {
-        color: COLORS.error,
+        color: colors.error,
         fontSize: 16,
         fontWeight: '700',
     },
 
     // ── Tabs ─────────────────────────────────────────────────────────────────
     tabs:          { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-    tabBtn:        { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border },
-    tabBtnActive:  { backgroundColor: COLORS.accentDim, borderColor: COLORS.accentDim },
-    tabText:       { color: COLORS.muted, fontWeight: '600', fontSize: 13 },
-    tabTextActive: { color: COLORS.white },
+    tabBtn:        { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border },
+    tabBtnActive:  { backgroundColor: colors.accentDim, borderColor: colors.accentDim },
+    tabText:       { color: colors.muted, fontWeight: '600', fontSize: 13 },
+    tabTextActive: { color: colors.white },
 
     // ── Common ────────────────────────────────────────────────────────────────
     center:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-    emptyText: { color: COLORS.glass35, textAlign: 'center', fontSize: 14, lineHeight: 22 },
-    hintText:  { color: COLORS.glass25, textAlign: 'center', fontSize: 13, marginTop: 12 },
+    emptyText: { color: colors.glass35, textAlign: 'center', fontSize: 14, lineHeight: 22 },
+    hintText:  { color: colors.glass25, textAlign: 'center', fontSize: 13, marginTop: 12 },
 
 
     voiceHintBox: {
         alignItems: 'center',
-        backgroundColor: COLORS.surface,
+        backgroundColor: colors.surface,
         borderRadius: 18,
         borderWidth: 1,
-        borderColor: COLORS.accentBorder25,
+        borderColor: colors.accentBorder25,
         padding: 24,
         marginBottom: 20,
         width: '100%',
     },
     voiceHintIcon:  { fontSize: 42, marginBottom: 10 },
-    voiceHintTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
+    voiceHintTitle: { color: colors.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
     voiceHintDesc:  {
-        color: COLORS.glass50, fontSize: 13, textAlign: 'center', lineHeight: 20,
+        color: colors.glass50, fontSize: 13, textAlign: 'center', lineHeight: 20,
     },
 
     // ── History ───────────────────────────────────────────────────────────────
@@ -503,39 +507,39 @@ const styles = StyleSheet.create({
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
     },
-    historyTitle:    { color: COLORS.white, fontSize: 15, fontWeight: '700' },
-    historyClearAll: { color: COLORS.accent, fontSize: 13, fontWeight: '600' },
+    historyTitle:    { color: colors.white, fontSize: 15, fontWeight: '700' },
+    historyClearAll: { color: colors.accent, fontSize: 13, fontWeight: '600' },
     historyRow: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 13,
-        borderBottomWidth: 1, borderBottomColor: COLORS.glass06,
+        borderBottomWidth: 1, borderBottomColor: colors.glass06,
         gap: 12,
     },
     historyIcon:       { fontSize: 15, opacity: 0.5 },
-    historyText:       { flex: 1, color: COLORS.glass70, fontSize: 14 },
+    historyText:       { flex: 1, color: colors.glass70, fontSize: 14 },
     historyRemoveBtn:  { padding: 4 },
-    historyRemoveIcon: { color: COLORS.glass30, fontSize: 14 },
+    historyRemoveIcon: { color: colors.glass30, fontSize: 14 },
 
     // ── Results ───────────────────────────────────────────────────────────────
     resultRow: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
-        borderBottomWidth: 1, borderBottomColor: COLORS.glass06, gap: 12,
+        borderBottomWidth: 1, borderBottomColor: colors.glass06, gap: 12,
     },
-    resultIndex:    { width: 32, height: 32, borderRadius: 8, backgroundColor: COLORS.glass06, alignItems: 'center', justifyContent: 'center' },
-    artistIconWrap: { backgroundColor: COLORS.accentFill20 },
-    resultIndexText: { color: COLORS.glass40, fontSize: 12, fontWeight: '600' },
+    resultIndex:    { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.glass06, alignItems: 'center', justifyContent: 'center' },
+    artistIconWrap: { backgroundColor: colors.accentFill20 },
+    resultIndexText: { color: colors.glass40, fontSize: 12, fontWeight: '600' },
     resultInfo:     { flex: 1 },
-    resultTitle:    { color: COLORS.white, fontSize: 14, fontWeight: '600' },
-    resultSub:      { color: COLORS.muted, fontSize: 12, marginTop: 2 },
-    playIcon:       { color: COLORS.glass30, fontSize: 18 },
+    resultTitle:    { color: colors.white, fontSize: 14, fontWeight: '600' },
+    resultSub:      { color: colors.muted, fontSize: 12, marginTop: 2 },
+    playIcon:       { color: colors.glass30, fontSize: 18 },
 
     // ── Artist detail ─────────────────────────────────────────────────────────
     artistDetailHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 10,
-        borderBottomWidth: 1, borderBottomColor: COLORS.border,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
     },
-    backToArtistsText: { color: COLORS.accent, fontSize: 15, fontWeight: '600' },
-    artistDetailSub:   { color: COLORS.glass35, fontSize: 12 },
+    backToArtistsText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
+    artistDetailSub:   { color: colors.glass35, fontSize: 12 },
 });

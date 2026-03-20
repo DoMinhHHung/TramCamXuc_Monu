@@ -198,6 +198,17 @@ export interface ArtistStatsResponse {
   totalShares: number;
 }
 
+export interface ListenHistoryItem {
+  id: string;
+  userId: string;
+  songId: string;
+  artistId?: string;
+  playlistId?: string;
+  albumId?: string;
+  durationSeconds: number;
+  listenedAt: string;
+}
+
 export const followArtist = async (artistId: string): Promise<FollowResponse> => {
   const response = await apiClient.post<FollowResponse>('/social/follows', { artistId });
   return response.data;
@@ -227,6 +238,11 @@ export const getArtistStats = async (artistId: string): Promise<ArtistStatsRespo
   return response.data;
 };
 
+export const getMyListenHistory = async (params?: { page?: number; size?: number }): Promise<PageResponse<ListenHistoryItem>> => {
+  const response = await apiClient.get<PageResponse<ListenHistoryItem>>('/social/listen-history/my', { params });
+  return response.data;
+};
+
 export const getArtistByUserId = async (
     userId: string,
 ): Promise<{ id: string; stageName: string; avatarUrl?: string } | null> => {
@@ -238,4 +254,9 @@ export const getArtistByUserId = async (
   } catch {
     return null;
   }
+};
+
+export const getPublicFeed = async (params?: { page?: number; size?: number }): Promise<PageResponse<FeedPost>> => {
+  const response = await apiClient.get<PageResponse<FeedPost>>('/social/feed/public', { params });
+  return response.data;
 };

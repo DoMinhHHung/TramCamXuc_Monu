@@ -14,9 +14,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 
-import { COLORS } from '../../config/colors';
+import { COLORS, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useUpload, UploadStage } from '../../context/UploadContext';
+import { useTranslation } from '../../context/LocalizationContext';
 import { apiClient } from '../../services/api';
 import { Genre } from '../../services/music';
 import { getPopularGenres } from '../../services/favorites';
@@ -34,13 +35,13 @@ type ArtistProfile = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const UPLOAD_STAGE_HINT: Partial<Record<UploadStage, string>> = {
-  requesting: 'Đang kết nối server...',
-  uploading:  'Upload đang chạy nền — bạn có thể dùng app bình thường.',
-  confirming: 'Gần xong rồi...',
-  done:       'Bài hát đã được gửi lên. Hệ thống sẽ xử lý trong vài phút.',
-  error:      'Upload thất bại. Kiểm tra kết nối và thử lại.',
-};
+const getUploadStageHint = (t: (key: string, fallback?: string) => string): Partial<Record<UploadStage, string>> => ({
+  requesting: t('screens.create.uploadHintRequesting', 'Connecting to server...'),
+  uploading:  t('screens.create.uploadHintUploading', 'Upload is running in background — you can continue using the app.'),
+  confirming: t('screens.create.uploadHintConfirming', 'Almost done...'),
+  done:       t('screens.create.uploadHintDone', 'Song uploaded. The system will process it in a few minutes.'),
+  error:      t('screens.create.uploadHintError', 'Upload failed. Check your connection and try again.'),
+});
 
 // Debug function for development-only logs
 const debugCreateUpload = (event: string, payload?: Record<string, unknown>) => {
@@ -59,6 +60,9 @@ export const CreateScreen = () => {
   const insets     = useSafeAreaInsets();
   const { authSession } = useAuth();
   const { job, startUpload } = useUpload();
+  const { t } = useTranslation();
+  const themeColors = useThemeColors();
+  const UPLOAD_STAGE_HINT = getUploadStageHint(t);
   const publishAttemptRef = useRef(0);
   const lastProgressBucketRef = useRef<number>(-1);
 
@@ -169,8 +173,8 @@ export const CreateScreen = () => {
         allowed: ALLOWED_EXTENSIONS.join(','),
       });
       Alert.alert(
-          'Định dạng không hỗ trợ',
-          `Chỉ chấp nhận: ${ALLOWED_EXTENSIONS.join(', ')}`
+          t('screens.create.unsupportedFormatTitle', 'Unsupported format'),
+          `${t('screens.create.allowedFormatsPrefix', 'Only allowed')}: ${ALLOWED_EXTENSIONS.join(', ')}`
       );
       return;
     }
@@ -196,17 +200,17 @@ export const CreateScreen = () => {
 
     if (!title.trim()) {
       debugCreateUpload('publish_blocked_missing_title', { attemptId });
-      Alert.alert('Thiếu thông tin', 'Nhập tên bài hát.');
+      Alert.alert(t('screens.create.missingInfoTitle', 'Missing information'), t('screens.create.missingTitle', 'Enter song title.'));
       return;
     }
     if (selectedGenreIds.length === 0) {
       debugCreateUpload('publish_blocked_missing_genre', { attemptId });
-      Alert.alert('Thiếu thông tin', 'Chọn ít nhất 1 thể loại.');
+      Alert.alert(t('screens.create.missingInfoTitle', 'Missing information'), t('screens.create.missingGenre', 'Select at least 1 genre.'));
       return;
     }
     if (!pickedFile) {
       debugCreateUpload('publish_blocked_missing_file', { attemptId });
-      Alert.alert('Chưa chọn file', 'Chọn file nhạc trước khi đăng.');
+      Alert.alert(t('screens.create.noFileTitle', 'No file selected'), t('screens.create.noFileMessage', 'Choose a music file before publishing.'));
       return;
     }
     if (isUploadActive) {
@@ -246,7 +250,7 @@ export const CreateScreen = () => {
 
   const handleRegisterArtist = async () => {
     if (!stageName.trim()) {
-      Alert.alert('Thiếu thông tin', 'Nhập nghệ danh.');
+      Alert.alert(t('screens.create.missingInfoTitle', 'Missing information'), t('screens.create.missingStageName', 'Enter your stage name.'));
       return;
     }
     setRegisterLoading(true);
@@ -255,11 +259,11 @@ export const CreateScreen = () => {
         stageName: stageName.trim(),
         bio: 'Artist from Monu',
       });
-      Alert.alert('Đã gửi đăng ký', 'Hệ thống đang xét duyệt. Refresh lại để kiểm tra.');
+      Alert.alert(t('screens.create.artistRegisterSentTitle', 'Registration submitted'), t('screens.create.artistRegisterSentMessage', 'Your request is under review. Refresh to check status.'));
       setStageName('');
       await loadPageData();
     } catch (err: any) {
-      Alert.alert('Lỗi', err?.message ?? 'Không thể đăng ký artist.');
+      Alert.alert(t('common.error'), err?.message ?? t('screens.create.artistRegisterFailed', 'Cannot register as artist.'));
     } finally {
       setRegisterLoading(false);
     }
@@ -285,7 +289,7 @@ export const CreateScreen = () => {
     return (
         <View style={styles.centerFull}>
           <Text style={styles.gateEmoji}>🔒</Text>
-          <Text style={styles.gateTitle}>Đăng nhập để tạo nội dung</Text>
+          <Text style={styles.gateTitle}>{t('screens.create.loginToCreate', 'Login to create content')}</Text>
         </View>
     );
   }
@@ -295,8 +299,8 @@ export const CreateScreen = () => {
     return (
         <View style={styles.centerFull}>
           <Text style={styles.gateEmoji}>🚫</Text>
-          <Text style={styles.gateTitle}>Tài khoản bị hạn chế</Text>
-          <Text style={styles.gateSub}>Liên hệ hỗ trợ để biết thêm chi tiết.</Text>
+          <Text style={styles.gateTitle}>{t('screens.create.accountRestricted', 'Account is restricted')}</Text>
+          <Text style={styles.gateSub}>{t('screens.create.contactSupport', 'Contact support for more details.')}</Text>
         </View>
     );
   }
@@ -311,18 +315,18 @@ export const CreateScreen = () => {
         >
           {/* ── Hero header ──────────────────────────────────────────── */}
           <LinearGradient
-              colors={[COLORS.gradNavy, COLORS.bg]}
+              colors={[themeColors.gradNavy, themeColors.bg]}
               style={[styles.hero, { paddingTop: insets.top + 20 }]}
           >
             <Text style={styles.heroEmoji}>🎼</Text>
-            <Text style={styles.heroTitle}>Creator Studio</Text>
+            <Text style={styles.heroTitle}>{t('screens.create.creatorStudio', 'Creator Studio')}</Text>
             <Text style={styles.heroSub}>
               {canUpload
-                  ? `Xin chào, ${artistProfile?.stageName} 👋`
+                  ? `${t('screens.create.greetingPrefix', 'Hello')}, ${artistProfile?.stageName} 👋`
                   : isArtist && !hasActiveSub
-                      ? 'Gói cước đã hết hạn — gia hạn để tiếp tục upload'
+                      ? t('screens.create.subscriptionExpired', 'Subscription expired — renew to continue uploading')
                       : !isArtist
-                          ? 'Đăng ký artist để bắt đầu upload nhạc'
+                          ? t('screens.create.registerArtistToStart', 'Register as an artist to start uploading music')
                           : ''}
             </Text>
           </LinearGradient>
@@ -337,9 +341,9 @@ export const CreateScreen = () => {
                   job.stage === 'done'   && { borderColor: COLORS.success },
                 ]}>
                   <Text style={styles.statusTitle}>
-                    {job.stage === 'done'  ? '✓ Upload hoàn tất' :
-                        job.stage === 'error' ? '✕ Upload thất bại' :
-                            '↑  Đang upload...'}
+                    {job.stage === 'done'  ? t('screens.create.uploadDoneTitle', '✓ Upload completed') :
+                      job.stage === 'error' ? t('screens.create.uploadFailedTitle', '✕ Upload failed') :
+                        t('screens.create.uploadingTitle', '↑ Uploading...')}
                   </Text>
                   <Text style={styles.statusSong} numberOfLines={1}>
                     {job.title}
@@ -366,11 +370,11 @@ export const CreateScreen = () => {
             {/* ── Chưa là artist: register form ───────────────────── */}
             {!isArtist && (
                 <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Trở thành Artist</Text>
+                  <Text style={styles.cardTitle}>{t('screens.create.becomeArtist', 'Become an Artist')}</Text>
                   <Text style={styles.cardDesc}>
-                    Bạn cần gói cước có tính năng{' '}
-                    <Text style={{ color: COLORS.accent }}>đăng ký artist</Text>
-                    {' '}để upload nhạc.
+                    {t('screens.create.needPlanPrefix', 'You need a plan with')}{' '}
+                    <Text style={{ color: themeColors.accent }}>{t('screens.create.artistRegisterFeature', 'artist registration')}</Text>
+                    {' '}{t('screens.create.needPlanSuffix', 'to upload music.')}
                   </Text>
 
                   {hasActiveSub ? (
@@ -379,7 +383,7 @@ export const CreateScreen = () => {
                             style={styles.input}
                             value={stageName}
                             onChangeText={setStageName}
-                            placeholder="Nghệ danh của bạn"
+                            placeholder={t('screens.create.stageNamePlaceholder', 'Your stage name')}
                             placeholderTextColor={COLORS.glass35}
                         />
                         <Pressable
@@ -390,15 +394,15 @@ export const CreateScreen = () => {
                         >
                           {registerLoading
                               ? <ActivityIndicator color={COLORS.white} />
-                              : <Text style={styles.primaryBtnText}>Đăng ký Artist</Text>
+                              : <Text style={styles.primaryBtnText}>{t('screens.create.registerArtistButton', 'Register Artist')}</Text>
                           }
                         </Pressable>
                       </>
                   ) : (
                       <Text style={styles.cardDesc}>
-                        Nâng cấp lên gói Premium trong tab{' '}
-                        <Text style={{ color: COLORS.accent }}>Premium</Text>
-                        {' '}để mở khoá.
+                        {t('screens.create.upgradePremiumPrefix', 'Upgrade to')}{' '}
+                        <Text style={{ color: themeColors.accent }}>{t('navigation.premium', 'Premium')}</Text>
+                        {' '}{t('screens.create.upgradePremiumSuffix', 'to unlock this feature.')}
                       </Text>
                   )}
                 </View>
@@ -407,11 +411,11 @@ export const CreateScreen = () => {
             {/* ── Artist nhưng hết sub ─────────────────────────────── */}
             {isArtist && !hasActiveSub && (
                 <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Gia hạn gói cước</Text>
+                  <Text style={styles.cardTitle}>{t('screens.create.renewSubscription', 'Renew subscription')}</Text>
                   <Text style={styles.cardDesc}>
-                    Gói cước của bạn đã hết hạn. Vào tab{' '}
-                    <Text style={{ color: COLORS.accent }}>Premium</Text>
-                    {' '}để gia hạn và tiếp tục upload nhạc.
+                    {t('screens.create.subscriptionExpiredMessagePrefix', 'Your subscription has expired. Go to')}{' '}
+                    <Text style={{ color: themeColors.accent }}>{t('navigation.premium', 'Premium')}</Text>
+                    {' '}{t('screens.create.subscriptionExpiredMessageSuffix', 'to renew and continue uploading music.')}
                   </Text>
                 </View>
             )}
@@ -419,21 +423,21 @@ export const CreateScreen = () => {
             {/* ── Upload form (chỉ khi canUpload) ─────────────────── */}
             {canUpload && (
                 <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Đăng bài hát mới</Text>
+                  <Text style={styles.cardTitle}>{t('screens.create.publishNewSong', 'Publish new song')}</Text>
 
                   {/* Tên bài hát */}
-                  <Text style={styles.fieldLabel}>Tên bài hát</Text>
+                  <Text style={styles.fieldLabel}>{t('screens.create.songTitleLabel', 'Song title')}</Text>
                   <TextInput
                       style={styles.input}
                       value={title}
                       onChangeText={setTitle}
-                      placeholder="Nhập tên bài hát..."
+                        placeholder={t('screens.create.songTitlePlaceholder', 'Enter song title...')}
                       placeholderTextColor={COLORS.glass35}
                       editable={!isUploadActive}
                   />
 
                   {/* Chọn file nhạc */}
-                  <Text style={styles.fieldLabel}>File nhạc</Text>
+                  <Text style={styles.fieldLabel}>{t('screens.create.musicFileLabel', 'Music file')}</Text>
                   <Pressable
                       style={[
                         styles.filePicker,
@@ -458,13 +462,13 @@ export const CreateScreen = () => {
                               {pickedFile.name.split('.').pop()?.toUpperCase()}
                             </Text>
                           </View>
-                          <Text style={styles.fileChange}>Đổi</Text>
+                          <Text style={styles.fileChange}>{t('screens.create.changeFile', 'Change')}</Text>
                         </View>
                     ) : (
                         <View style={styles.filePickerEmpty}>
                           <Text style={styles.filePickerPlus}>+</Text>
                           <Text style={styles.filePickerHint}>
-                            Chọn file nhạc
+                            {t('screens.create.chooseFile', 'Choose music file')}
                           </Text>
                           <Text style={styles.filePickerFormats}>
                             {ALLOWED_EXTENSIONS.join('  ·  ').toUpperCase()}
@@ -475,7 +479,7 @@ export const CreateScreen = () => {
 
                   {/* Thể loại */}
                   <Text style={styles.fieldLabel}>
-                    Thể loại
+                    {t('labels.genre', 'Genre')}
                     {selectedGenreIds.length > 0 &&
                         <Text style={{ color: COLORS.accent }}>
                           {' '}({selectedGenreIds.length})
@@ -516,7 +520,7 @@ export const CreateScreen = () => {
                       disabled={isUploadActive}
                   >
                     <LinearGradient
-                        colors={[COLORS.accent, COLORS.accentAlt]}
+                        colors={[themeColors.accent, themeColors.accentAlt]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                         style={styles.publishBtnGradient}
@@ -525,21 +529,19 @@ export const CreateScreen = () => {
                           <View style={styles.publishBtnRow}>
                             <ActivityIndicator color={COLORS.white} size="small" />
                             <Text style={styles.publishBtnText}>
-                              Đang upload nền...
+                              {t('screens.create.uploadingBackground', 'Uploading in background...')}
                             </Text>
                           </View>
                       ) : (
                           <Text style={styles.publishBtnText}>
-                            Đăng bài ↑
+                            {t('screens.create.publishButton', 'Publish ↑')}
                           </Text>
                       )}
                     </LinearGradient>
                   </Pressable>
 
                   <Text style={styles.publishNote}>
-                    Sau khi đăng, bạn có thể rời màn hình này. Upload
-                    sẽ tiếp tục chạy trong nền và hiển thị ở thanh
-                    trạng thái phía dưới.
+                    {t('screens.create.publishNote', 'After publishing, you can leave this screen. Upload will continue in the background and show in the status card below.')}
                   </Text>
                 </View>
             )}

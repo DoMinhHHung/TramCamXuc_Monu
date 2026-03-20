@@ -60,11 +60,16 @@ export interface Playlist {
 export interface Album {
   id: string;
   title: string;
+  slug?: string;
   description?: string;
   coverUrl?: string;
+  releaseDate?: string;
   status: 'DRAFT' | 'PUBLIC' | 'PRIVATE';
   totalSongs?: number;
   totalDurationSeconds?: number;
+  ownerArtistId?: string;
+  ownerStageName?: string;
+  ownerAvatarUrl?: string;
   songs: Song[];
   createdAt: string;
   updatedAt: string;
@@ -188,6 +193,11 @@ export const confirmUploadSong = async (songId: string): Promise<void> => {
 
 export const getMyAlbums = async (params?: { page?: number; size?: number }): Promise<PageResponse<Album>> => {
   const response = await apiClient.get<PageResponse<Album>>('/albums/my', { params });
+  return unwrap<PageResponse<Album>>(response.data);
+};
+
+export const getPublicAlbums = async (params?: { page?: number; size?: number; artistId?: string }): Promise<PageResponse<Album>> => {
+  const response = await apiClient.get<PageResponse<Album>>('/albums', { params });
   return unwrap<PageResponse<Album>>(response.data);
 };
 

@@ -168,7 +168,7 @@ export const lightTheme: ThemeColors = {
   cardLofiTo: '#BFDBFE',
 
   // Legacy
-  white: '#FFFFFF',
+  white: '#1A1A24',
   accentTint8: 'rgba(139, 92, 246, 0.08)',
   accentLowTint: 'rgba(139, 92, 246, 0.12)',
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import {
     View,
     Text,
@@ -13,21 +13,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons, AntDesign } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
-import { COLORS } from '../config/colors';
-import { useTheme, ThemeType } from '../context/ThemeContext';
+import { ColorScheme, useThemeColors } from '../config/colors';
+import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
-import { THEMES } from '../config/themes';
+import { THEMES, ThemeName } from '../config/themes';
 import { BackButton } from '../components/BackButton';
 
 const LANGUAGE_OPTIONS = [
-    { code: 'vi', label: 'Tiếng Việt', flag: '🇻🇳' },
-    { code: 'en', label: 'English', flag: '🇺🇸' },
-];
-
-const THEME_OPTIONS: { id: ThemeType; label: string; emoji: string }[] = [
-    { id: 'dark', label: 'Tối (Mặc định)', emoji: '🌙' },
-    { id: 'light', label: 'Sáng', emoji: '☀️' },
-    { id: 'classic', label: 'Classic', emoji: '✨' },
+    { code: 'vi', labelKey: 'screens.settings.languages.vi', flag: '🇻🇳' },
+    { code: 'en', labelKey: 'screens.settings.languages.en', flag: '🇺🇸' },
 ];
 
 export const SettingsScreen = () => {
@@ -35,9 +29,18 @@ export const SettingsScreen = () => {
     const insets = useSafeAreaInsets();
     const { theme, setTheme, followSystem } = useTheme();
     const { language, setLanguage, t } = useTranslation();
+    const themeColors = useThemeColors();
+    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
     const deviceColorScheme = useColorScheme();
 
-    const [showThemePreview, setShowThemePreview] = useState(false);
+    const THEME_OPTIONS: { id: ThemeName; label: string; emoji: string }[] = useMemo(() => [
+        { id: 'dark', label: t('themes.dark'), emoji: '🌙' },
+        { id: 'light', label: t('themes.light'), emoji: '☀️' },
+        { id: 'classic', label: t('themes.classic'), emoji: '✨' },
+    ], [t]);
+
+    const resolveTheme = (themeId: ThemeName) => THEMES[themeId] ?? THEMES.dark;
+    const activeTheme = resolveTheme(theme);
 
     return (
         <View style={styles.root}>
@@ -73,10 +76,8 @@ export const SettingsScreen = () => {
                                     style={[
                                         styles.themePreviewBox,
                                         {
-                                            backgroundColor:
-                                                THEMES[themeOption.id].colors.surface,
-                                            borderColor:
-                                                THEMES[themeOption.id].colors.primary,
+                                            backgroundColor: resolveTheme(themeOption.id).surface,
+                                            borderColor: resolveTheme(themeOption.id).accent,
                                         },
                                     ]}
                                 >
@@ -87,7 +88,7 @@ export const SettingsScreen = () => {
                                     <View style={styles.checkmark}>
                                         <MaterialIcons
                                             name="check-circle"
-                                            color={COLORS.accent}
+                                            color={themeColors.accent}
                                             size={20}
                                         />
                                     </View>
@@ -117,10 +118,10 @@ export const SettingsScreen = () => {
                                 }
                             }}
                             trackColor={{
-                                false: COLORS.glass15,
-                                true: COLORS.accent + '40',
+                                false: themeColors.glass15,
+                                true: themeColors.accentBorder40,
                             }}
-                            thumbColor={followSystem ? COLORS.accent : COLORS.glass25}
+                            thumbColor={followSystem ? themeColors.accent : themeColors.glass25}
                         />
                     </View>
                 </View>
@@ -143,13 +144,13 @@ export const SettingsScreen = () => {
                             >
                                 <Text style={styles.flagEmoji}>{lang.flag}</Text>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.languageLabel}>{lang.label}</Text>
+                                    <Text style={styles.languageLabel}>{t(lang.labelKey)}</Text>
                                     <Text style={styles.languageCode}>({lang.code})</Text>
                                 </View>
                                 {language === lang.code && (
                                     <MaterialIcons
                                         name="check-circle"
-                                        color={COLORS.accent}
+                                        color={themeColors.accent}
                                         size={24}
                                     />
                                 )}
@@ -189,8 +190,8 @@ export const SettingsScreen = () => {
                         style={[
                             styles.settingsPreview,
                             {
-                                backgroundColor: THEMES[theme].colors.surface,
-                                borderColor: THEMES[theme].colors.primary,
+                                backgroundColor: activeTheme.surface,
+                                borderColor: activeTheme.accent,
                             },
                         ]}
                     >
@@ -201,7 +202,7 @@ export const SettingsScreen = () => {
                             <Text
                                 style={[
                                     styles.previewValue,
-                                    { color: THEMES[theme].colors.primary },
+                                    { color: activeTheme.accent },
                                 ]}
                             >
                                 {THEME_OPTIONS.find((t) => t.id === theme)?.label}
@@ -215,10 +216,12 @@ export const SettingsScreen = () => {
                             <Text
                                 style={[
                                     styles.previewValue,
-                                    { color: THEMES[theme].colors.primary },
+                                    { color: activeTheme.accent },
                                 ]}
                             >
-                                {LANGUAGE_OPTIONS.find((l) => l.code === language)?.label}
+                                {LANGUAGE_OPTIONS.find((l) => l.code === language)
+                                    ? t(LANGUAGE_OPTIONS.find((l) => l.code === language)!.labelKey)
+                                    : ''}
                             </Text>
                         </View>
                     </View>
@@ -228,10 +231,10 @@ export const SettingsScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: COLORS.bg,
+        backgroundColor: colors.bg,
     },
     header: {
         flexDirection: 'row',
@@ -243,7 +246,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: '700',
-        color: COLORS.white,
+        color: colors.white,
         textAlign: 'center',
         flex: 1,
     },
@@ -254,7 +257,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         marginBottom: 12,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
@@ -268,13 +271,13 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 14,
         borderRadius: 12,
-        backgroundColor: COLORS.surface,
+        backgroundColor: colors.surface,
         borderWidth: 2,
-        borderColor: COLORS.glass15,
+        borderColor: colors.glass15,
     },
     themeOptionActive: {
-        borderColor: COLORS.accent,
-        backgroundColor: COLORS.surface,
+        borderColor: colors.accent,
+        backgroundColor: colors.surface,
     },
     themePreviewBox: {
         width: 50,
@@ -291,7 +294,7 @@ const styles = StyleSheet.create({
     themeLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.white,
+        color: colors.white,
         flex: 1,
     },
     checkmark: {
@@ -303,13 +306,13 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         paddingHorizontal: 14,
         borderRadius: 12,
-        backgroundColor: COLORS.surface,
+        backgroundColor: colors.surface,
         borderWidth: 2,
-        borderColor: COLORS.glass15,
+        borderColor: colors.glass15,
     },
     languageOptionActive: {
-        borderColor: COLORS.accent,
-        backgroundColor: COLORS.surface,
+        borderColor: colors.accent,
+        backgroundColor: colors.surface,
     },
     flagEmoji: {
         fontSize: 28,
@@ -318,11 +321,11 @@ const styles = StyleSheet.create({
     languageLabel: {
         fontSize: 15,
         fontWeight: '600',
-        color: COLORS.white,
+        color: colors.white,
     },
     languageCode: {
         fontSize: 12,
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         marginTop: 2,
     },
     toggleRow: {
@@ -332,20 +335,20 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         paddingHorizontal: 14,
         borderRadius: 12,
-        backgroundColor: COLORS.surface,
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: COLORS.glass15,
+        borderColor: colors.glass15,
         marginTop: 12,
     },
     toggleLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.white,
+        color: colors.white,
         marginBottom: 2,
     },
     toggleDesc: {
         fontSize: 12,
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
         marginTop: 4,
     },
     infoRow: {
@@ -355,20 +358,20 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 14,
         borderRadius: 12,
-        backgroundColor: COLORS.surface,
+        backgroundColor: colors.surface,
         borderWidth: 1,
-        borderColor: COLORS.glass15,
+        borderColor: colors.glass15,
         marginBottom: 10,
     },
     infoLabel: {
         fontSize: 14,
         fontWeight: '500',
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
     },
     infoValue: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.white,
+        color: colors.white,
     },
     settingsPreview: {
         paddingVertical: 16,
@@ -385,7 +388,7 @@ const styles = StyleSheet.create({
     previewLabel: {
         fontSize: 13,
         fontWeight: '500',
-        color: COLORS.textSecondary,
+        color: colors.textSecondary,
     },
     previewValue: {
         fontSize: 13,
