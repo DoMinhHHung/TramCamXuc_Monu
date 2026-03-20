@@ -1230,6 +1230,8 @@ export const LibraryScreen = () => {
   const navigation = useNavigation<any>();
   const { authSession } = useAuth();
   const { playSong, currentSong, isPlaying } = usePlayer();
+  const { COLORS: themeColors } = useTheme();
+  const { t } = useTranslation();
 
   const [activeTab, setActiveTab] = useState<Tab>('playlists');
   const [loading, setLoading]     = useState(true);
