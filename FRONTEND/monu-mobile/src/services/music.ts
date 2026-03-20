@@ -244,6 +244,13 @@ export const removeSongFromPlaylist = async (playlistId: string, songId: string)
   await apiClient.delete(`/playlists/${playlistId}/songs/${songId}`);
 };
 
+/**
+ * Reorder user's playlists
+ * @param playlistIds Array of playlist IDs in the desired order
+ */
+export const reorderPlaylists = async (playlistIds: string[]): Promise<void> => {
+  await apiClient.patch('/playlists/reorder', { playlistIds });
+};
 
 export const reportSong = async (songId: string, payload: { reason: 'COPYRIGHT_VIOLATION' | 'EXPLICIT_CONTENT' | 'HATE_SPEECH' | 'SPAM' | 'MISINFORMATION' | 'OTHER'; description?: string }): Promise<void> => {
   await apiClient.post(`/songs/${songId}/report`, payload);

@@ -36,6 +36,7 @@ import {
   getMyPlaylists,
   getMySongs,
   Playlist,
+  reorderPlaylists,
   Song,
   updatePlaylist,
 } from '../../services/music';
@@ -49,6 +50,7 @@ import {
   getSongShareQr,
 } from '../../services/social';
 import { apiClient } from '../../services/api';
+import { DraggablePlaylistList, PlaylistItem } from '../../components/DraggablePlaylistList';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1245,6 +1247,7 @@ export const LibraryScreen = () => {
   const [detailAlbumId, setDetailAlbumId]     = useState<string | null>(null);
   const [editPlaylist, setEditPlaylist]        = useState<Playlist | null>(null);
   const [editPlaylistName, setEditPlaylistName] = useState('');
+  const [reorderMode, setReorderMode] = useState(false);
 
   // Share flow
   const [shareOptionsItem, setShareOptionsItem] = useState<{ type: ShareItemType; id: string; title: string } | null>(null);
@@ -1358,6 +1361,16 @@ export const LibraryScreen = () => {
     }
   };
 
+  const handleReorderPlaylists = async (reorderedIds: string[]) => {
+    try {
+      await reorderPlaylists(reorderedIds);
+      await load(true);
+    } catch (e: any) {
+      console.error('Failed to reorder playlists:', e);
+      throw e;
+    }
+  };
+
   // ── Album actions ─────────────────────────────────────────────────────────
   const handleCreateAlbum = async (title: string) => {
     try {
@@ -1427,7 +1440,15 @@ export const LibraryScreen = () => {
   };
 
   // ── Render content by tab ─────────────────────────────────────────────────
-  const renderPlaylists = () => (
+  const renderPlaylists = () => {
+    const playlistItems: PlaylistItem[] = playlists.map(p => ({
+      id: p.id,
+      name: p.name,
+      songCount: p.totalSongs ?? 0,
+      coverUrl: p.coverUrl,
+    }));
+
+    return (
       <>
         <Pressable
             style={styles.createBtn}
@@ -1439,7 +1460,30 @@ export const LibraryScreen = () => {
           </View>
         </Pressable>
 
-        {playlists.length === 0 ? (
+        {playlists.length > 0 && (
+          <Pressable
+              style={[styles.createBtn, { marginTop: 8 }]}
+              onPress={() => setReorderMode(!reorderMode)}
+          >
+            <View style={styles.createBtnInner}>
+              <Text style={styles.createBtnIcon}>{reorderMode ? '✓' : '≡'}</Text>
+              <Text style={styles.createBtnText}>
+                {reorderMode ? 'Hoàn tất sắp xếp' : 'Sắp xếp playlist'}
+              </Text>
+            </View>
+          </Pressable>
+        )}
+
+        {reorderMode ? (
+          <DraggablePlaylistList
+            playlists={playlistItems}
+            onReorder={handleReorderPlaylists}
+            onPlaylistPress={(id) => {
+              const p = playlists.find(pl => pl.id === id);
+              if (p) navigation.navigate('PlaylistDetail', { slug: p.slug });
+            }}
+          />
+        ) : playlists.length === 0 ? (
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}><Fontisto name="play-list" color="#A855F7" size={14} /></Text>
               <Text style={styles.emptyTitle}>Chưa có playlist nào</Text>
@@ -1478,7 +1522,8 @@ export const LibraryScreen = () => {
             </Pressable>
         ))}
       </>
-  );
+    );
+  };
 
   const renderSongs = () => (
       <>

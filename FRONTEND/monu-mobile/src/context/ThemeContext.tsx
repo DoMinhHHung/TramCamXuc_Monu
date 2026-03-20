@@ -69,8 +69,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // Use device appearance
           const initialTheme = getInitialTheme(systemDarkMode);
           setThemeState(initialTheme);
-        } else if (savedTheme && (savedTheme === 'dark' || savedTheme === 'light' || savedTheme === 'classic')) {
-          setThemeState(savedTheme);
+        } else if (savedTheme && (savedTheme === 'dark' || savedTheme === 'light' || savedTheme === 'classic' || savedTheme === 'sunset' || savedTheme === 'ocean' || savedTheme === 'neonGen')) {
+          setThemeState(savedTheme as any);
         } else {
           // Default
           setThemeState('dark');
@@ -119,7 +119,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   const colors = THEMES[theme];
-  const availableThemes: ThemeName[] = ['dark', 'light', 'classic'];
+  const availableThemes: ThemeName[] = ['dark', 'light', 'classic', 'sunset', 'ocean', 'neonGen'];
 
   return (
     <ThemeContext.Provider

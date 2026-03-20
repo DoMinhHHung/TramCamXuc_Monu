@@ -42,6 +42,11 @@ import { FeedbackType, RecommendedSong } from '../services/recommendation';
 import { getSongShareQr } from '../services/social';
 import { Genre } from '../types/favorites';
 import { useHomeData } from '../hooks/useHomeData';
+import { useHomeStats } from '../hooks/useHomeStats';
+import { PlaylistCard } from '../components/PlaylistCard';
+import { AlbumCard } from '../components/AlbumCard';
+import { ArtistCardEnhanced } from '../components/ArtistCardEnhanced';
+import { GenreCard } from '../components/GenreCard';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
@@ -104,6 +109,8 @@ export const HomeScreen = () => {
     loading,
     refresh,
   } = useHomeData();
+
+  const { data: homeStats, loading: statsLoading, error: statsError } = useHomeStats();
 
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedRecSong, setSelectedRecSong] = useState<RecommendedSong | null>(null);
@@ -394,19 +401,100 @@ export const HomeScreen = () => {
           </Pressable>
         </LinearGradient>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('screens.home.quickActions')}</Text>
-          <View style={styles.grid}>
-            {quickActions.map((item) => (
-              <Pressable key={item.title} style={styles.quickCard}>
-                <LinearGradient colors={item.color} style={styles.quickGradient}>
-                  <Text style={styles.cardEmoji}>{item.emoji}</Text>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                </LinearGradient>
-              </Pressable>
-            ))}
+        {/* Dynamic Home Sections */}
+        {statsLoading && !homeStats ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={COLORS.accent} />
+            <Text style={styles.loadingText}>{t('homeScreen.noDataAvailable')}</Text>
           </View>
-        </View>
+        ) : homeStats ? (
+          <>
+            {/* Most Played Playlists */}
+            {homeStats.mostPlayedPlaylists.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>🎵 {t('homeScreen.mostPlayedPlaylists')}</Text>
+                <View style={{ paddingHorizontal: 20 }}>
+                  {homeStats.mostPlayedPlaylists.map((playlist) => (
+                    <PlaylistCard
+                      key={playlist.id}
+                      playlist={playlist}
+                      onPress={() => {
+                        navigation.navigate('PlaylistDetail', {
+                          slug: playlist.id,
+                        });
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Favorite Albums */}
+            {homeStats.favoriteAlbums.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>💿 {t('homeScreen.favoriteAlbums')}</Text>
+                <View style={{ paddingHorizontal: 20 }}>
+                  {homeStats.favoriteAlbums.map((album) => (
+                    <AlbumCard
+                      key={album.id}
+                      album={album}
+                      onPress={() => {
+                        navigation.navigate('AlbumDetail', {
+                          albumId: album.id,
+                        });
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Top Artists */}
+            {homeStats.topArtists.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>🎤 {t('homeScreen.topArtists')}</Text>
+                <View style={{ paddingHorizontal: 20 }}>
+                  {homeStats.topArtists.map((artist) => (
+                    <ArtistCardEnhanced
+                      key={artist.id}
+                      artist={artist}
+                      onPress={() => {
+                        navigation.navigate('ArtistProfile', {
+                          artistId: artist.id,
+                        });
+                      }}
+                      onFollowPress={(artistId, isFollowing) => {
+                        // TODO: Call follow/unfollow API
+                        console.log('Toggle follow for artist:', artistId, isFollowing);
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Trending Genres */}
+            {homeStats.trendingGenres.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>🔥 {t('homeScreen.trendingGenres')}</Text>
+                <View style={{ paddingHorizontal: 20 }}>
+                  {homeStats.trendingGenres.map((genre) => (
+                    <GenreCard
+                      key={genre.id}
+                      genre={genre}
+                      onPress={() => {
+                        navigation.navigate('GenreDetail', {
+                          genreId: genre.id,
+                          genreName: genre.name,
+                        });
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+          </>
+        ) : null}
 
         {loading && !rec.homeFeed && !rec.globalTrending.length && (
           <View style={styles.loadingWrap}>

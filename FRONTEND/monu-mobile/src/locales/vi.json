@@ -188,5 +188,77 @@
     "selectArtistsSubtitle": "Playlist của bạn sẽ được cá nhân hóa theo lựa chọn này",
     "selectCount": "Chọn {min}–{max}",
     "selected": "{count}/{max}"
+  },
+  "homeScreen": {
+    "mostPlayedPlaylists": "Playlist Phổ Biến Nhất",
+    "favoriteAlbums": "Album Yêu Thích",
+    "topArtists": "Nghệ Sĩ Hàng Đầu",
+    "trendingGenres": "Thể Loại Thịnh Hành",
+    "recommendedForYou": "Đề Xuất Cho Bạn",
+    "viewAll": "Xem Tất Cả",
+    "listeningTime": "Thời Gian Nghe",
+    "songs": "Bài Hát",
+    "followers": "Người Theo Dõi",
+    "topSongs": "Bài Hát Hàng Đầu",
+    "moreFromGenre": "Thêm từ thể loại này",
+    "noDataAvailable": "Chưa có dữ liệu"
+  },
+  "playlistDetails": {
+    "songs": "bài hát",
+    "totalDuration": "Tổng Thời Lượng",
+    "lastUpdated": "Cập nhật lần cuối",
+    "curated": "Được Lựa Chọn",
+    "playlistEmpty": "Playlist này trống",
+    "addSongsToGetStarted": "Thêm bài hát để bắt đầu"
+  },
+  "albumDetails": {
+    "songs": "bài hát",
+    "artist": "Nghệ Sĩ",
+    "releaseDate": "Ngày Phát Hành",
+    "totalListeners": "Tổng Lượt Nghe",
+    "yoursPlayCount": "Bạn đã nghe",
+    "times": "lần",
+    "similar": "Album Tương Tự"
+  },
+  "artistProfile": {
+    "followers": "người theo dõi",
+    "following": "đang theo dõi",
+    "topSongs": "Bài Hát Hàng Đầu",
+    "relatedArtists": "Nghệ Sĩ Liên Quan",
+    "aboutArtist": "Về Nghệ Sĩ",
+    "averageListeners": "Lượt Nghe Trung Bình"
+  },
+  "genreDetail": {
+    "songs": "bài hát",
+    "trendingNow": "Thịnh Hành Ngay Bây Giờ",
+    "popularInGenre": "Phổ Biến trong {genre}",
+    "exploreMore": "Khám Phá Thêm",
+    "topGenreArtists": "Nghệ Sĩ Hàng Đầu",
+    "subgenres": "Thể Loại Con"
+  },
+  "libraryPlaylist": {
+    "dragToReorder": "Kéo để sắp xếp lại playlist",
+    "reorderingFailed": "Không thể lưu thứ tự playlist",
+    "reorderingSuccess": "Thứ tự playlist được cập nhật",
+    "undoReorder": "Hoàn Tác",
+    "savingOrder": "Đang lưu thứ tự..."
+  },
+  "themes": {
+    "dark": "Tối",
+    "light": "Sáng",
+    "sunset": "Hoàng Hôn",
+    "ocean": "Đại Dương",
+    "neonGen": "Neon Gen Z",
+    "classic": "Cổ Điển"
+  },
+  "accessibility": {
+    "loading": "Đang tải",
+    "playing": "Đang phát",
+    "paused": "Tạm dừng",
+    "addToFavorites": "Thêm vào yêu thích",
+    "removeFromFavorites": "Xóa khỏi yêu thích",
+    "openMenu": "Mở menu tùy chọn",
+    "closeModal": "Đóng hộp thoại",
+    "navigateBack": "Quay lại"
   }
 }

@@ -188,5 +188,77 @@
     "selectArtistsSubtitle": "Your playlists will be personalized based on your choices",
     "selectCount": "Select {min}–{max}",
     "selected": "{count}/{max}"
+  },
+  "homeScreen": {
+    "mostPlayedPlaylists": "Most Played Playlists",
+    "favoriteAlbums": "Favorite Albums",
+    "topArtists": "Top Artists",
+    "trendingGenres": "Trending Genres",
+    "recommendedForYou": "Recommended for You",
+    "viewAll": "View All",
+    "listeningTime": "Listening Time",
+    "songs": "Songs",
+    "followers": "Followers",
+    "topSongs": "Top Songs",
+    "moreFromGenre": "More from this genre",
+    "noDataAvailable": "No data available yet"
+  },
+  "playlistDetails": {
+    "songs": "songs",
+    "totalDuration": "Total Duration",
+    "lastUpdated": "Last updated",
+    "curated": "Curated",
+    "playlistEmpty": "This playlist is empty",
+    "addSongsToGetStarted": "Add songs to get started"
+  },
+  "albumDetails": {
+    "songs": "songs",
+    "artist": "Artist",
+    "releaseDate": "Release Date",
+    "totalListeners": "Total Listeners",
+    "yoursPlayCount": "You've played",
+    "times": "times",
+    "similar": "Similar Albums"
+  },
+  "artistProfile": {
+    "followers": "followers",
+    "following": "following",
+    "topSongs": "Top Songs",
+    "relatedArtists": "Related Artists",
+    "aboutArtist": "About Artist",
+    "averageListeners": "Average Listeners"
+  },
+  "genreDetail": {
+    "songs": "songs",
+    "trendingNow": "Trending Now",
+    "popularInGenre": "Popular in {genre}",
+    "exploreMore": "Explore More",
+    "topGenreArtists": "Top Artists",
+    "subgenres": "Subgenres"
+  },
+  "libraryPlaylist": {
+    "dragToReorder": "Drag to reorder your playlists",
+    "reorderingFailed": "Failed to save playlist order",
+    "reorderingSuccess": "Playlist order updated",
+    "undoReorder": "Undo",
+    "savingOrder": "Saving order..."
+  },
+  "themes": {
+    "dark": "Dark",
+    "light": "Light",
+    "sunset": "Sunset",
+    "ocean": "Ocean",
+    "neonGen": "Neon Gen Z",
+    "classic": "Classic"
+  },
+  "accessibility": {
+    "loading": "Loading",
+    "playing": "Playing",
+    "paused": "Paused",
+    "addToFavorites": "Add to favorites",
+    "removeFromFavorites": "Remove from favorites",
+    "openMenu": "Open options menu",
+    "closeModal": "Close dialog",
+    "navigateBack": "Navigate back"
   }
 }
