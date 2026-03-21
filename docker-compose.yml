@@ -61,6 +61,7 @@ services:
       - tramcamxuc-net
 
   mongodb:
+    profiles: ["local-mongo"]
     image: mongo:7
     container_name: tramcamxuc-mongodb
     ports:
@@ -350,8 +351,6 @@ services:
       <<: *app-env
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     depends_on:
-      mongodb:
-        condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
