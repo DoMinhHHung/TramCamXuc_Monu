@@ -21,7 +21,15 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
 eureka:
+  instance:
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:discovery-server}
   client:
     register-with-eureka: false
     fetch-registry: false
+    service-url:
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://${EUREKA_INSTANCE_HOSTNAME:discovery-server}:8761/eureka/}
+  server:
+    enable-self-preservation: false
+    wait-time-in-ms-when-sync-empty: 0
