@@ -8,160 +8,228 @@ volumes:
   prometheus_data:
   grafana_data:
 
-x-extra-hosts: &extra-hosts
-  extra_hosts:
-    - "host.docker.internal:host-gateway"
-
+# ════════════════════════════════════════════════════════════════
+# SHARED ENV ANCHORS
+# ════════════════════════════════════════════════════════════════
 x-infra: &infra
   REDIS_HOST: host.docker.internal
-  REDIS_PORT: ${REDIS_PORT:-6379}
+  REDIS_PORT: 6379
   RABBITMQ_HOST: host.docker.internal
   RABBITMQ_PORT: 5672
-  RABBITMQ_USERNAME: guest
-  RABBITMQ_PASSWORD: guest
-  ZIPKIN_URL: http://zipkin:9411
+  RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+  RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
 
 x-db: &db
   DB_USERNAME: ${DB_USERNAME}
   DB_PASSWORD: ${DB_PASSWORD}
 
+x-gateway: &gateway
+  GATEWAY_URL: ${GATEWAY_URL:-https://phazelsound.oopsgolden.id.vn}
+  JWT_SECRET: ${JWT_SECRET}
+
 x-minio: &minio
-  MINIO_ENDPOINT: http://host.docker.internal:9000
-  MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+  MINIO_ENDPOINT: ${MINIO_ENDPOINT}
   MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
   MINIO_SECRET: ${MINIO_SECRET}
 
+x-java-env: &java-env
+  JAVA_OPTS: "-Xmx256m -Xms128m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -Djava.security.egd=file:/dev/./urandom"
+
+x-spring-limits: &spring-limits
+  deploy:
+    resources:
+      limits:
+        memory: 380M
+        cpus: '0.4'
+
+# ════════════════════════════════════════════════════════════════
+# SERVICES
+# ════════════════════════════════════════════════════════════════
 services:
 
+  # ─── OBSERVABILITY ───────────────────────────
   zipkin:
     image: openzipkin/zipkin:3.3
-    ports:
-      - "9411:9411"
-    networks:
-      - tramcamxuc-net
+    container_name: zipkin
+    profiles: ["monitor"]
+    deploy: { resources: { limits: { memory: 250M, cpus: '0.3' } } }
+    ports: ["9411:9411"]
+    networks: ["tramcamxuc-net"]
 
   prometheus:
     image: prom/prometheus:v2.51.0
-    ports:
-      - "9090:9090"
+    container_name: prometheus
+    profiles: ["monitor"]
+    deploy: { resources: { limits: { memory: 200M, cpus: '0.2' } } }
     volumes:
       - prometheus_data:/prometheus
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    networks:
-      - tramcamxuc-net
+    networks: ["tramcamxuc-net"]
 
   grafana:
     image: grafana/grafana:10.4.0
-    ports:
-      - "3000:3000"
-    volumes:
-      - grafana_data:/var/lib/grafana
-    networks:
-      - tramcamxuc-net
+    container_name: grafana
+    profiles: ["monitor"]
+    deploy: { resources: { limits: { memory: 200M, cpus: '0.2' } } }
+    volumes: ["grafana_data:/var/lib/grafana"]
+    networks: ["tramcamxuc-net"]
 
+  # ─── CORE SERVICES ──────────────────────────────────────────
   discovery-server:
-    build:
-      context: .
-      dockerfile: discovery-server/Dockerfile
+    <<: *spring-limits
+    build: { context: ., dockerfile: discovery-server/Dockerfile }
+    container_name: discovery-server
+    env_file:
+      - .env
     ports:
       - "8761:8761"
-    environment:
-      ZIPKIN_URL: http://zipkin:9411
-    depends_on:
-      - zipkin
-    <<: *extra-hosts
-    networks:
-      - tramcamxuc-net
+    environment: { <<: *java-env }
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
 
   api-gateway:
-    build:
-      context: .
-      dockerfile: api-gateway/Dockerfile
+    <<: *spring-limits
+    build: { context: ., dockerfile: api-gateway/Dockerfile }
+    container_name: api-gateway
+    env_file:
+      - .env
     ports:
       - "8080:8080"
-    environment:
-      <<: *infra
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET}
-    depends_on:
-      - discovery-server
-    <<: *extra-hosts
-    networks:
-      - tramcamxuc-net
+    environment: { <<: [*infra, *gateway, *java-env] }
+    depends_on: ["discovery-server"]
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
 
   identity-service:
-    build:
-      context: .
-      dockerfile: identity-service/Dockerfile
-    ports:
-      - "8762:8762"
+    <<: *spring-limits
+    build: { context: ., dockerfile: identity-service/Dockerfile }
+    container_name: identity-service
+    env_file:
+      - .env
     environment:
-      <<: [*infra, *db]
-      DB_URL_IDENTITY: jdbc:postgresql://host.docker.internal:5432/identity_db
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET}
-    depends_on:
-      - discovery-server
-    <<: *extra-hosts
-    networks:
-      - tramcamxuc-net
+      <<: [*infra, *db, *gateway, *java-env]
+      DB_URL_IDENTITY: ${DB_URL_IDENTITY}
+      CLOUDINARY_NAME: ${CLOUDINARY_NAME}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      CLOUDINARY_SECRET: ${CLOUDINARY_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID}
+    depends_on: ["discovery-server"]
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  social-service:
+    <<: *spring-limits
+    build: { context: ., dockerfile: social-service/Dockerfile }
+    container_name: social-service
+    env_file:
+      - .env
+    environment:
+      <<: [*infra, *gateway, *java-env, *minio]
+      SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
+      MONGODB_URI: ${MONGODB_URI}
+      MINIO_AI_BUCKET: ${MINIO_AI_BUCKET}
+    depends_on: ["discovery-server"]
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
 
   music-service:
-    build:
-      context: .
-      dockerfile: music-service/Dockerfile
-    ports:
-      - "8764:8764"
+    <<: *spring-limits
+    build: { context: ., dockerfile: music-service/Dockerfile }
+    container_name: music-service
+    env_file:
+      - .env
     environment:
-      <<: [*infra, *db, *minio]
-      DB_URL_MUSIC: jdbc:postgresql://host.docker.internal:5432/music_db
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET}
-    depends_on:
-      - discovery-server
-    <<: *extra-hosts
-    networks:
-      - tramcamxuc-net
+      <<: [*infra, *db, *gateway, *java-env, *minio]
+      DB_URL_MUSIC: ${DB_URL_MUSIC}
+      JAMENDO_CLIENT_ID: ${JAMENDO_CLIENT_ID}
+    depends_on: ["discovery-server"]
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
 
   payment-service:
-    build:
-      context: .
-      dockerfile: payment-service/Dockerfile
-    ports:
-      - "8765:8765"
+    <<: *spring-limits
+    build: { context: ., dockerfile: payment-service/Dockerfile }
+    container_name: payment-service
+    env_file:
+      - .env
     environment:
-      <<: [*infra, *db]
-      DB_URL_PAYMENT: jdbc:postgresql://host.docker.internal:5432/payment_db
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET}
-    depends_on:
-      - discovery-server
-    <<: *extra-hosts
-    networks:
-      - tramcamxuc-net
+      <<: [*infra, *db, *gateway, *java-env]
+      DB_URL_PAYMENT: ${DB_URL_PAYMENT}
+      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID}
+      PAYOS_API_KEY: ${PAYOS_API_KEY}
+      PAYOS_CHECK_SUM: ${PAYOS_CHECK_SUM}
+    depends_on: ["discovery-server"]
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  integration-service:
+    <<: *spring-limits
+    build: { context: ., dockerfile: integration-service/Dockerfile }
+    container_name: integration-service
+    env_file:
+      - .env
+    environment:
+      <<: [*infra, *java-env]
+      SPRING_MAIL_HOST: ${MAIL_HOST}
+      SPRING_MAIL_PORT: ${MAIL_PORT}
+      SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
+    depends_on: ["discovery-server"]
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  transcode-service:
+    <<: *spring-limits
+    build: { context: ., dockerfile: transcode-service/Dockerfile }
+    container_name: transcode-service
+    env_file:
+      - .env
+    environment: { <<: [*infra, *minio, *java-env] }
+    depends_on: ["discovery-server"]
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
+  ads-service:
+    <<: *spring-limits
+    build: { context: ., dockerfile: ads-service/Dockerfile }
+    container_name: ads-service
+    env_file:
+      - .env
+    environment:
+      <<: [*infra, *db, *gateway, *java-env, *minio]
+      DB_URL_ADS: ${DB_URL_ADS}
+    depends_on: ["discovery-server"]
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
 
   recommendation-service:
-    build:
-      context: .
-      dockerfile: recommendation-service/Dockerfile
-    ports:
-      - "8769:8769"
+    <<: *spring-limits
+    build: { context: ., dockerfile: recommendation-service/Dockerfile }
+    container_name: recommendation-service
+    env_file:
+      - .env
     environment:
-      <<: *infra
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+      <<: [*infra, *gateway, *java-env]
       ML_SERVICE_URL: http://recommendation-ml:8771
-    depends_on:
-      - discovery-server
-      - recommendation-ml
-    <<: *extra-hosts
-    networks:
-      - tramcamxuc-net
+      SOCIAL_SERVICE_URL: http://social-service:8767
+    depends_on: ["discovery-server", "recommendation-ml"]
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
 
   recommendation-ml:
-    build:
-      context: ./recommendation-ml
-    ports:
-      - "8771:8771"
-    <<: *extra-hosts
-    networks:
-      - tramcamxuc-net
+    build: { context: ./recommendation-ml }
+    container_name: recommendation-ml
+    env_file:
+      - .env
+    deploy: { resources: { limits: { memory: 500M, cpus: '0.6' } } }
+    environment:
+      REDIS_HOST: host.docker.internal
+      MINIO_ENDPOINT: host.docker.internal:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET}
+    networks: ["tramcamxuc-net"]
+    extra_hosts: ["host.docker.internal:host-gateway"]
