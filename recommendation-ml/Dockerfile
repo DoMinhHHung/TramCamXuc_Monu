@@ -18,7 +18,7 @@ COPY . .
 RUN chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 8770
+EXPOSE 8771
 
 CMD ["uvicorn", "app.main:app", \
      "--host", "0.0.0.0", \
