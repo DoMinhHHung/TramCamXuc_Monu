@@ -13,18 +13,6 @@ spring:
         # Production nên đặt 0.1 (10%) để không ngốm bandwidth
         probability: 1.0
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health, info, prometheus, metrics
-  endpoint:
-    health:
-      show-details: always
-  metrics:
-    tags:
-      application: ${spring.application.name}
-
   datasource:
     url: ${DB_URL_MUSIC}
     username: ${DB_USERNAME}
@@ -91,3 +79,15 @@ open:
     version: 1.0.0
     server-url: ${GATEWAY_URL:http://localhost:8080}/service-music
     server-description: API Gateway
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
