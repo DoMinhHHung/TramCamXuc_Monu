@@ -145,7 +145,7 @@ class JamendoDownloadWorkerTest {
         verify(channel, never()).basicAck(anyLong(), anyBoolean());
         verify(storageService, never()).uploadRawBytes(anyString(), any(), anyString());
         verify(songRepository, never()).save(any(Song.class));
-        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), any());
+        verify(rabbitTemplate, never()).convertAndSend(anyString(), anyString(), Optional.ofNullable(any()));
     }
 
     @Test

@@ -1,16 +1,3 @@
-# ══════════════════════════════════════════════════════════════════
-# TramCamXuc — Docker Compose (All-in-one)
-# Bao gồm: Microservices + Monitoring (Prometheus, Grafana, Zipkin)
-#
-# Infrastructure chạy LOCAL (không containerize):
-#   PostgreSQL, MongoDB, Redis, RabbitMQ, MinIO
-#
-# Windows/macOS: host.docker.internal tự trỏ về máy host
-# Linux        : extra_hosts "host-gateway" đã được thêm sẵn
-#
-# Chạy: docker compose --env-file .env up -d
-# ══════════════════════════════════════════════════════════════════
-
 version: "3.9"
 
 networks:
@@ -20,8 +7,6 @@ networks:
 volumes:
   prometheus_data:
   grafana_data:
-
-# ── YAML Anchors ───────────────────────────────────────────────────────────────
 
 x-extra-hosts: &extra-hosts
   extra_hosts:
@@ -36,418 +21,147 @@ x-infra: &infra
   RABBITMQ_PASSWORD: guest
   ZIPKIN_URL: http://zipkin:9411
 
-# PostgreSQL local
 x-db: &db
   DB_USERNAME: ${DB_USERNAME}
   DB_PASSWORD: ${DB_PASSWORD}
 
-# MinIO local
 x-minio: &minio
   MINIO_ENDPOINT: http://host.docker.internal:9000
   MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
   MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
   MINIO_SECRET: ${MINIO_SECRET}
 
-# ══════════════════════════════════════════════════════════════════
-# MONITORING
-# ══════════════════════════════════════════════════════════════════
-
 services:
 
-  # ── Zipkin (distributed tracing) ──────────────────────────────
   zipkin:
     image: openzipkin/zipkin:3.3
-    container_name: tramcamxuc-zipkin
-    restart: unless-stopped
     ports:
       - "9411:9411"
     networks:
       - tramcamxuc-net
-    environment:
-      STORAGE_TYPE: mem
-      JAVA_OPTS: "-Xmx512m"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:9411/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
 
-  # ── Prometheus (metrics collector) ────────────────────────────
   prometheus:
     image: prom/prometheus:v2.51.0
-    container_name: tramcamxuc-prometheus
-    restart: unless-stopped
     ports:
       - "9090:9090"
     volumes:
       - prometheus_data:/prometheus
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=15d'
-      - '--web.enable-lifecycle'
     networks:
       - tramcamxuc-net
 
-  # ── Node Exporter (host metrics) ────────────────────────────
-  node-exporter:
-    image: prom/node-exporter:v1.7.0
-    container_name: tramcamxuc-node-exporter
-    restart: unless-stopped
-    ports:
-      - "9100:9100"
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-    networks:
-      - tramcamxuc-net
-
-  # ── cAdvisor (Docker container metrics) ────────────────────────
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
-    container_name: tramcamxuc-cadvisor
-    restart: unless-stopped
-    ports:
-      - "8090:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    networks:
-      - tramcamxuc-net
-    privileged: true
-
-  # ── Grafana (visualization) ────────────────────────────────────
   grafana:
     image: grafana/grafana:10.4.0
-    container_name: tramcamxuc-grafana
-    restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin123}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SECURITY_ALLOW_EMBEDDING: "true"
     networks:
       - tramcamxuc-net
-    depends_on:
-      - prometheus
-      - zipkin
 
-  # ══════════════════════════════════════════════════════════════════
-  # MICROSERVICES
-  # ══════════════════════════════════════════════════════════════════
-
-  # ── Discovery Server (Eureka) ──────────────────────────────────
   discovery-server:
     build:
-      context: ./discovery-server
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-discovery
-    restart: unless-stopped
+      context: .
+      dockerfile: discovery-server/Dockerfile
     ports:
       - "8761:8761"
     environment:
       ZIPKIN_URL: http://zipkin:9411
-    <<: *extra-hosts
     depends_on:
-      zipkin:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
+      - zipkin
+    <<: *extra-hosts
     networks:
       - tramcamxuc-net
 
-  # ── API Gateway ─────────────────────────────────────────────────
   api-gateway:
     build:
-      context: ./api-gateway
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-gateway
-    restart: unless-stopped
+      context: .
+      dockerfile: api-gateway/Dockerfile
     ports:
       - "8080:8080"
     environment:
       <<: *infra
-      EUREKA_URL: http://discovery-server:8761/eureka/
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
       JWT_SECRET: ${JWT_SECRET}
-      GATEWAY_URL: ${BACKEND_URL:-http://localhost:8080}
-    <<: *extra-hosts
     depends_on:
-      discovery-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 90s
+      - discovery-server
+    <<: *extra-hosts
     networks:
       - tramcamxuc-net
 
-  # ── Identity Service ────────────────────────────────────────────
   identity-service:
     build:
-      context: ./identity-service
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-identity
-    restart: unless-stopped
+      context: .
+      dockerfile: identity-service/Dockerfile
     ports:
       - "8762:8762"
     environment:
       <<: [*infra, *db]
       DB_URL_IDENTITY: jdbc:postgresql://host.docker.internal:5432/identity_db
-      EUREKA_URL: http://discovery-server:8761/eureka/
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
       JWT_SECRET: ${JWT_SECRET}
-      ADMIN_EMAIL: ${ADMIN_EMAIL}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      CLOUDINARY_NAME: ${CLOUDINARY_NAME}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
-      CLOUDINARY_SECRET: ${CLOUDINARY_SECRET}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID}
-      OAUTH_CALLBACK_BASE_URL: ${OAUTH_CALLBACK_BASE_URL}
-      GATEWAY_URL: ${BACKEND_URL:-http://localhost:8080}
-    <<: *extra-hosts
     depends_on:
-      discovery-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8762/actuator/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 90s
+      - discovery-server
+    <<: *extra-hosts
     networks:
       - tramcamxuc-net
 
-  # ── Integration Service (Email) ─────────────────────────────────
-  integration-service:
-    build:
-      context: ./integration-service
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-integration
-    restart: unless-stopped
-    ports:
-      - "8763:8763"
-    environment:
-      <<: *infra
-      EUREKA_URL: http://discovery-server:8761/eureka/
-      MAIL_HOST: ${MAIL_HOST}
-      MAIL_PORT: ${MAIL_PORT}
-      MAIL_USERNAME: ${MAIL_USERNAME}
-      MAIL_PASSWORD: ${MAIL_PASSWORD}
-    <<: *extra-hosts
-    depends_on:
-      discovery-server:
-        condition: service_healthy
-    networks:
-      - tramcamxuc-net
-
-  # ── Music Service ───────────────────────────────────────────────
   music-service:
     build:
-      context: ./music-service
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-music
-    restart: unless-stopped
+      context: .
+      dockerfile: music-service/Dockerfile
     ports:
       - "8764:8764"
     environment:
       <<: [*infra, *db, *minio]
       DB_URL_MUSIC: jdbc:postgresql://host.docker.internal:5432/music_db
-      EUREKA_URL: http://discovery-server:8761/eureka/
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
       JWT_SECRET: ${JWT_SECRET}
-      MINIO_RAW_BUCKET: ${MINIO_BUCKET:-music}
-      MINIO_PUBLIC_BUCKET: public-songs
-      JAMENDO_CLIENT_ID: ${JAMENDO_CLIENT_ID}
-      GATEWAY_URL: ${BACKEND_URL:-http://localhost:8080}
-    <<: *extra-hosts
     depends_on:
-      discovery-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8764/actuator/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 90s
+      - discovery-server
+    <<: *extra-hosts
     networks:
       - tramcamxuc-net
 
-  # ── Payment Service ─────────────────────────────────────────────
   payment-service:
     build:
-      context: ./payment-service
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-payment
-    restart: unless-stopped
+      context: .
+      dockerfile: payment-service/Dockerfile
     ports:
       - "8765:8765"
     environment:
       <<: [*infra, *db]
       DB_URL_PAYMENT: jdbc:postgresql://host.docker.internal:5432/payment_db
-      EUREKA_URL: http://discovery-server:8761/eureka/
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
       JWT_SECRET: ${JWT_SECRET}
-      PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID}
-      PAYOS_API_KEY: ${PAYOS_API_KEY}
-      PAYOS_CHECK_SUM: ${PAYOS_CHECK_SUM}
-      PAYOS_RETURN_URL: ${PAYOS_RETURN_URL}
-      PAYOS_CANCEL_URL: ${PAYOS_CANCEL_URL}
-      FRONTEND_URL: ${BACKEND_URL:-http://localhost:3000}
-      GATEWAY_URL: ${BACKEND_URL:-http://localhost:8080}
-    <<: *extra-hosts
     depends_on:
-      discovery-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8765/actuator/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 90s
+      - discovery-server
+    <<: *extra-hosts
     networks:
       - tramcamxuc-net
 
-  # ── Transcode Service ───────────────────────────────────────────
-  transcode-service:
-    build:
-      context: ./transcode-service
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-transcode
-    restart: unless-stopped
-    ports:
-      - "8766:8766"
-    environment:
-      <<: [*infra, *minio]
-      EUREKA_URL: http://discovery-server:8761/eureka/
-      MINIO_RAW_BUCKET: ${MINIO_BUCKET:-music}
-      MINIO_PUBLIC_BUCKET: public-songs
-    <<: *extra-hosts
-    depends_on:
-      discovery-server:
-        condition: service_healthy
-    networks:
-      - tramcamxuc-net
-
-  # ── Social Service ──────────────────────────────────────────────
-  social-service:
-    build:
-      context: ./social-service
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-social
-    restart: unless-stopped
-    ports:
-      - "8767:8767"
-    environment:
-      <<: [*infra, *minio]
-      MONGODB_URI: ${MONGODB_URI}
-      EUREKA_URL: http://discovery-server:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET}
-      MINIO_AI_BUCKET: ai-training-data
-      FRONTEND_URL: ${BACKEND_URL:-http://localhost:3000}
-      GATEWAY_URL: ${BACKEND_URL:-http://localhost:8080}
-    <<: *extra-hosts
-    depends_on:
-      discovery-server:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8767/actuator/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 90s
-    networks:
-      - tramcamxuc-net
-
-  # ── Ads Service ─────────────────────────────────────────────────
-  ads-service:
-    build:
-      context: ./ads-service
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-ads
-    restart: unless-stopped
-    ports:
-      - "8768:8768"
-    environment:
-      <<: [*infra, *db, *minio]
-      DB_URL_ADS: jdbc:postgresql://host.docker.internal:5432/ads_db
-      EUREKA_URL: http://discovery-server:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET}
-      MINIO_ADS_BUCKET: ads-audio
-      GATEWAY_URL: ${BACKEND_URL:-http://localhost:8080}
-    <<: *extra-hosts
-    depends_on:
-      discovery-server:
-        condition: service_healthy
-    networks:
-      - tramcamxuc-net
-
-  # ── Recommendation Service (Java) ───────────────────────────────
   recommendation-service:
     build:
-      context: ./recommendation-service
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-recommendation
-    restart: unless-stopped
+      context: .
+      dockerfile: recommendation-service/Dockerfile
     ports:
       - "8769:8769"
     environment:
       <<: *infra
-      EUREKA_URL: http://discovery-server:8761/eureka/
-      JWT_SECRET: ${JWT_SECRET}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
       ML_SERVICE_URL: http://recommendation-ml:8771
-      SOCIAL_SERVICE_URL: http://social-service:8767
-      GATEWAY_URL: ${BACKEND_URL:-http://localhost:8080}
-    <<: *extra-hosts
     depends_on:
-      discovery-server:
-        condition: service_healthy
+      - discovery-server
+      - recommendation-ml
+    <<: *extra-hosts
     networks:
       - tramcamxuc-net
 
-  # ── Recommendation ML (Python / FastAPI) ────────────────────────
   recommendation-ml:
     build:
       context: ./recommendation-ml
-      dockerfile: Dockerfile
-    container_name: tramcamxuc-ml
-    restart: unless-stopped
     ports:
       - "8771:8771"
-    environment:
-      REDIS_HOST: host.docker.internal
-      REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_DB: 0
-      MINIO_ENDPOINT: host.docker.internal:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET}
-      MINIO_SECURE: "false"
-      MINIO_BUCKET: ml-models
-      SOCIAL_SERVICE_URL: http://social-service:8767
-      MUSIC_SERVICE_URL: http://music-service:8764
     <<: *extra-hosts
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8771/health"]
-      interval: 20s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
     networks:
       - tramcamxuc-net
