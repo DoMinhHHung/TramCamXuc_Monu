@@ -34,7 +34,11 @@ x-minio: &minio
   MINIO_SECRET: ${MINIO_SECRET}
 
 x-java-env: &java-env
-  JAVA_OPTS: "-Xmx256m -Xms128m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -Djava.security.egd=file:/dev/./urandom"
+  JAVA_OPTS: >-
+    -Xmx256m -Xms128m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m 
+    -Djava.security.egd=file:/dev/./urandom
+  MANAGEMENT_TRACING_ENABLED: "false"
+  MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ""
 
 x-spring-limits: &spring-limits
   deploy:
@@ -48,7 +52,7 @@ x-spring-limits: &spring-limits
 # ════════════════════════════════════════════════════════════════
 services:
 
-  # ─── OBSERVABILITY ───────────────────────────
+  # ─── OBSERVABILITY (Profiles: monitor - Tắt mặc định) ───────
   zipkin:
     image: openzipkin/zipkin:3.3
     container_name: zipkin

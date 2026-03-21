@@ -16,13 +16,6 @@ spring:
         # 1.0 = trace 100% request (chỉ dùng khi debug)
         # Production nên đặt 0.1 (10%) để không ngốm bandwidth
         probability: 1.0
-management:
-  tracing:
-    sampling:
-      probability: 1.0
-  zipkin:
-    tracing:
-      endpoint: ${ZIPKIN_URL:http://zipkin:9411}/api/v2/spans
 
   cloud:
     gateway:
@@ -533,3 +526,11 @@ springdoc:
         url: /service-recommendation/v3/api-docs
   api-docs:
     enabled: true
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_URL:http://zipkin:9411}/api/v2/spans
