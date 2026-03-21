@@ -3,6 +3,24 @@ server:
 spring:
   application:
     name: discovery-server
+
+  zipkin:
+    base-url: ${ZIPKIN_URL:http://zipkin:9411}
+    sleuth:
+      sampler:
+        probability: 1.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
 eureka:
   client:
     register-with-eureka: false

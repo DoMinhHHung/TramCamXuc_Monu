@@ -5,6 +5,14 @@ spring:
   application:
     name: transcoder-service
 
+  zipkin:
+    base-url: ${ZIPKIN_URL:http://zipkin:9411}
+    sleuth:
+      sampler:
+        # 1.0 = trace 100% request (chỉ dùng khi debug)
+        # Production nên đặt 0.1 (10%) để không ngốm bandwidth
+        probability: 1.0
+
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
@@ -31,4 +39,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health, info, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}

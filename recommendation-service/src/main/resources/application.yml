@@ -5,6 +5,24 @@ spring:
   application:
     name: recommendation-service
 
+  zipkin:
+    base-url: ${ZIPKIN_URL:http://zipkin:9411}
+    sleuth:
+      sampler:
+        probability: 1.0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus, metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
