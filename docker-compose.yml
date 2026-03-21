@@ -192,6 +192,7 @@ services:
       - "8761:8761"
     environment:
       <<: *app-env
+      EUREKA_INSTANCE_HOSTNAME: discovery-server
     depends_on:
       zipkin:
         condition: service_started
