@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config/colors';
-import { AudioQuality, usePlayer } from '../context/PlayerContext';
+import { AudioQuality, RepeatMode, usePlayer } from '../context/PlayerContext';
 import { addSongToPlaylist, createPlaylist, getMyPlaylists, Playlist, reportSong } from '../services/music';
 import { getSongShareQr } from '../services/social';
 import { SongActionSheet } from './SongActionSheet';
@@ -28,6 +28,13 @@ const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
     { value: 320, label: '320k' },
 ];
 
+// ─── Repeat mode icon ─────────────────────────────────────────────────────────
+const repeatLabel = (mode: RepeatMode): string => {
+    if (mode === 'one') return '🔂';
+    if (mode === 'all') return '🔁';
+    return '➡️'; // none
+};
+
 export const FullPlayerModal = () => {
     const insets = useSafeAreaInsets();
     const [menuOpen, setMenuOpen] = useState(false);
@@ -41,9 +48,10 @@ export const FullPlayerModal = () => {
         isPlaying, isLoaded, currentTime, duration,
         togglePlay, seekTo, playNext, playPrev, stopPlayer,
         selectedQuality, maxQuality, setQuality,
+        repeatMode, isShuffled, cycleRepeatMode, toggleShuffle,
     } = usePlayer();
 
-    // ── Seek bar: ref-based để tránh stale closure ────────────────────────────
+    // ── Seek bar ──────────────────────────────────────────────────────────────
     const barWidthRef = useRef(1);
     const durationRef = useRef(0);
     React.useEffect(() => { durationRef.current = duration; }, [duration]);
@@ -63,7 +71,7 @@ export const FullPlayerModal = () => {
         }),
     ).current;
 
-    // ── Swipe down / left → dismiss + stop ───────────────────────────────────
+    // ── Swipe down / left → dismiss ────────────────────────────────────────────
     const translateY = useRef(new Animated.Value(0)).current;
     const translateX = useRef(new Animated.Value(0)).current;
 
@@ -113,15 +121,11 @@ export const FullPlayerModal = () => {
             try {
                 const data = await getMyPlaylists({ page: 1, size: 50 });
                 setPlaylists(data.content ?? []);
-            } catch {
-                setPlaylists([]);
-            }
+            } catch { setPlaylists([]); }
         })();
     }, [isFullScreen, currentSong?.id]);
 
-    const openPlaylistPicker = () => {
-        setPlaylistPickerOpen(true);
-    };
+    const openPlaylistPicker = () => setPlaylistPickerOpen(true);
 
     if (!currentSong) return null;
 
@@ -147,14 +151,18 @@ export const FullPlayerModal = () => {
                             <Text style={styles.chevron}>⌄</Text>
                         </Pressable>
                         <Text style={styles.headerTitle}>Đang phát</Text>
-                        <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}><Text style={styles.moreBtn}>⋯</Text></Pressable>
+                        <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}>
+                            <Text style={styles.moreBtn}>⋯</Text>
+                        </Pressable>
                     </View>
 
                     {/* Artwork */}
                     <View style={styles.artworkSection}>
                         {currentSong.thumbnailUrl
                             ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.artwork} />
-                            : <View style={[styles.artwork, styles.artworkPlaceholder]}><Text style={styles.artworkIcon}>🎵</Text></View>
+                            : <View style={[styles.artwork, styles.artworkPlaceholder]}>
+                                <Text style={styles.artworkIcon}>🎵</Text>
+                            </View>
                         }
                     </View>
 
@@ -173,7 +181,7 @@ export const FullPlayerModal = () => {
                         )}
                     </View>
 
-                    {/* Seek bar — seekPan chỉ bọc phần seekTouchArea, không tranh với dismissPan */}
+                    {/* Seek bar */}
                     <View style={styles.progressSection}>
                         <View
                             style={styles.seekTouchArea}
@@ -191,19 +199,56 @@ export const FullPlayerModal = () => {
                         </View>
                     </View>
 
-                    {/* Controls */}
+                    {/* Controls row: shuffle | prev | play/pause | next | repeat */}
                     <View style={styles.controls}>
+                        {/* Shuffle */}
+                        <Pressable style={styles.sideBtn} onPress={toggleShuffle} hitSlop={8}>
+                            <Text style={[styles.modeIcon, isShuffled && styles.modeIconActive]}>
+                                🔀
+                            </Text>
+                            {isShuffled && <View style={styles.modeDot} />}
+                        </Pressable>
+
+                        {/* Previous */}
                         <Pressable style={styles.sideBtn} onPress={playPrev}>
                             <Text style={styles.sideBtnIcon}>⏮</Text>
                         </Pressable>
+
+                        {/* Play / pause */}
                         <Pressable style={styles.playBtn} onPress={togglePlay}>
                             <LinearGradient colors={[COLORS.accent, COLORS.accentAlt]} style={styles.playBtnGradient}>
                                 <Text style={styles.playBtnIcon}>{!isLoaded ? '⏳' : isPlaying ? '⏸' : '▶'}</Text>
                             </LinearGradient>
                         </Pressable>
+
+                        {/* Next */}
                         <Pressable style={styles.sideBtn} onPress={playNext}>
                             <Text style={styles.sideBtnIcon}>⏭</Text>
                         </Pressable>
+
+                        {/* Repeat */}
+                        <Pressable style={styles.sideBtn} onPress={cycleRepeatMode} hitSlop={8}>
+                            <Text style={[
+                                styles.modeIcon,
+                                repeatMode !== 'none' && styles.modeIconActive,
+                            ]}>
+                                {repeatLabel(repeatMode)}
+                            </Text>
+                            {repeatMode !== 'none' && <View style={styles.modeDot} />}
+                        </Pressable>
+                    </View>
+
+                    {/* Mode label */}
+                    <View style={styles.modeLabels}>
+                        {isShuffled && (
+                            <Text style={styles.modeLabelText}>🔀 Phát ngẫu nhiên</Text>
+                        )}
+                        {repeatMode === 'one' && (
+                            <Text style={styles.modeLabelText}>🔂 Lặp bài này</Text>
+                        )}
+                        {repeatMode === 'all' && (
+                            <Text style={styles.modeLabelText}>🔁 Lặp danh sách</Text>
+                        )}
                     </View>
 
                     {/* Quality selector */}
@@ -244,7 +289,7 @@ export const FullPlayerModal = () => {
                         </Text>
                     </View>
 
-
+                    {/* Action sheet */}
                     <SongActionSheet
                         visible={menuOpen}
                         title={currentSong.title}
@@ -263,9 +308,7 @@ export const FullPlayerModal = () => {
                             {
                                 icon: '➕',
                                 label: 'Thêm vào playlist',
-                                onPress: () => {
-                                    openPlaylistPicker();
-                                },
+                                onPress: () => openPlaylistPicker(),
                             },
                             {
                                 icon: '🚩',
@@ -279,6 +322,7 @@ export const FullPlayerModal = () => {
                         ]}
                     />
 
+                    {/* Playlist picker */}
                     <Modal visible={playlistPickerOpen} transparent animationType="slide" onRequestClose={() => setPlaylistPickerOpen(false)}>
                         <Pressable style={styles.menuBackdrop} onPress={() => setPlaylistPickerOpen(false)}>
                             <View style={styles.menuSheet}>
@@ -316,12 +360,15 @@ export const FullPlayerModal = () => {
                         </Pressable>
                     </Modal>
 
-
+                    {/* QR share */}
                     <Modal visible={!!shareQr} transparent animationType="fade" onRequestClose={() => setShareQr(null)}>
                         <Pressable style={styles.menuBackdrop} onPress={() => setShareQr(null)}>
                             <View style={styles.menuSheet}>
                                 <Text style={styles.menuTitle}>QR Share</Text>
-                                {shareQr ? <Image source={{ uri: shareQr }} style={{ width: 220, height: 220, borderRadius: 10, alignSelf: 'center' }} /> : <Text style={styles.menuItem}>Không tạo được QR</Text>}
+                                {shareQr
+                                    ? <Image source={{ uri: shareQr }} style={{ width: 220, height: 220, borderRadius: 10, alignSelf: 'center' }} />
+                                    : <Text style={styles.menuItem}>Không tạo được QR</Text>
+                                }
                             </View>
                         </Pressable>
                     </Modal>
@@ -363,12 +410,22 @@ const styles = StyleSheet.create({
     seekThumb:          { position: 'absolute', top: '50%', marginTop: -THUMB_RADIUS, width: THUMB_RADIUS * 2, height: THUMB_RADIUS * 2, borderRadius: THUMB_RADIUS, backgroundColor: COLORS.white, shadowColor: COLORS.accentDeep, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 4, elevation: 4 },
     timeRow:            { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
     timeText:           { color: COLORS.glass40, fontSize: 12, fontWeight: '500' },
-    controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 32, marginBottom: 18 },
-    sideBtn:            { width: 52, height: 52, alignItems: 'center', justifyContent: 'center' },
+
+    // Controls: shuffle | prev | play | next | repeat
+    controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 4 },
+    sideBtn:            { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
     sideBtnIcon:        { fontSize: 28, color: COLORS.glass70 },
     playBtn:            { borderRadius: 36, overflow: 'hidden', shadowColor: COLORS.accentDeep, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 8 },
     playBtnGradient:    { width: 72, height: 72, alignItems: 'center', justifyContent: 'center' },
     playBtnIcon:        { fontSize: 28, color: COLORS.white },
+
+    // Mode icons (shuffle / repeat)
+    modeIcon:           { fontSize: 22, color: COLORS.glass35 },
+    modeIconActive:     { color: COLORS.accent },
+    modeDot:            { width: 5, height: 5, borderRadius: 3, backgroundColor: COLORS.accent, marginTop: 2 },
+    modeLabels:         { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 14, minHeight: 18 },
+    modeLabelText:      { color: COLORS.glass45, fontSize: 11, fontWeight: '600' },
+
     qualitySection:         { marginBottom: 14 },
     qualityLabel:           { color: COLORS.glass40, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
     qualityRow:             { flexDirection: 'row', gap: 8, marginBottom: 8 },
@@ -379,6 +436,7 @@ const styles = StyleSheet.create({
     qualityBtnTextActive:   { color: COLORS.accent },
     qualityBtnTextLocked:   { color: COLORS.glass25 },
     qualityHint:            { color: COLORS.glass30, fontSize: 11, lineHeight: 16 },
+
     menuBackdrop:       { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
     menuSheet:          { backgroundColor: COLORS.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, gap: 10 },
     menuTitle:          { color: COLORS.white, fontSize: 16, fontWeight: '800', marginBottom: 6 },
