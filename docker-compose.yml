@@ -4,10 +4,6 @@ networks:
   tramcamxuc-net:
     driver: bridge
 
-volumes:
-  prometheus_data:
-  grafana_data:
-
 # ════════════════════════════════════════════════════════════════
 # SHARED ENV ANCHORS
 # ════════════════════════════════════════════════════════════════
@@ -33,210 +29,276 @@ x-minio: &minio
   MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
   MINIO_SECRET: ${MINIO_SECRET}
 
+x-internal: &internal
+  INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+  GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:-}
+
 x-java-env: &java-env
   JAVA_OPTS: >-
-    -Xmx256m -Xms128m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m 
+    -Xmx256m -Xms64m
+    -XX:+UseG1GC
+    -XX:MaxGCPauseMillis=200
+    -XX:GCTimeRatio=4
+    -XX:AdaptiveSizePolicyWeight=90
+    -XX:+UseStringDeduplication
+    -XX:MaxMetaspaceSize=96m
+    -XX:TieredStopAtLevel=1
+    -XX:CICompilerCount=2
     -Djava.security.egd=file:/dev/./urandom
+    -Dspring.jmx.enabled=false
+    -Dspring.main.lazy-initialization=true
   MANAGEMENT_TRACING_ENABLED: "false"
   MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ""
 
-x-spring-limits: &spring-limits
+x-limits: &limits
   deploy:
     resources:
       limits:
+        cpus: '1.5'
         memory: 380M
-        cpus: '0.4'
+      reservations:
+        cpus: '0.1'
+        memory: 64M
 
-x-internal: &internal
-  INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+x-common: &common
+  env_file: [ .env ]
+  networks: [ tramcamxuc-net ]
+  extra_hosts: [ "host.docker.internal:host-gateway" ]
+  restart: on-failure
 
 # ════════════════════════════════════════════════════════════════
 # SERVICES
 # ════════════════════════════════════════════════════════════════
 services:
 
-  # ─── OBSERVABILITY (Profiles: monitor - Tắt mặc định) ───────
-  zipkin:
-    image: openzipkin/zipkin:3.3
-    container_name: zipkin
-    profiles: ["monitor"]
-    deploy: { resources: { limits: { memory: 250M, cpus: '0.3' } } }
-    ports: ["9411:9411"]
-    networks: ["tramcamxuc-net"]
-
-  prometheus:
-    image: prom/prometheus:v2.51.0
-    container_name: prometheus
-    profiles: ["monitor"]
-    deploy: { resources: { limits: { memory: 200M, cpus: '0.2' } } }
-    volumes:
-      - prometheus_data:/prometheus
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    networks: ["tramcamxuc-net"]
-
-  grafana:
-    image: grafana/grafana:10.4.0
-    container_name: grafana
-    profiles: ["monitor"]
-    deploy: { resources: { limits: { memory: 200M, cpus: '0.2' } } }
-    volumes: ["grafana_data:/var/lib/grafana"]
-    networks: ["tramcamxuc-net"]
-
-  # ─── CORE SERVICES ──────────────────────────────────────────
+  # ─── 1. DISCOVERY (phải healthy trước tất cả) ───────────────
   discovery-server:
-    <<: *spring-limits
+    <<: [ *common, *limits ]
     build: { context: ., dockerfile: discovery-server/Dockerfile }
     container_name: discovery-server
-    env_file:
-      - .env
-    ports:
-      - "8761:8761"
-    environment: { <<: *java-env }
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: [ "8761:8761" ]
+    environment:
+      <<: *java-env
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8761/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
 
+  # ─── 2. API GATEWAY ─────────────────────────────────────────
   api-gateway:
-    <<: *spring-limits
+    <<: [ *common, *limits ]
     build: { context: ., dockerfile: api-gateway/Dockerfile }
     container_name: api-gateway
-    env_file:
-      - .env
-    ports:
-      - "8080:8080"
-    environment: { <<: [*infra, *gateway, *java-env] }
-    depends_on: ["discovery-server"]
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
+    ports: [ "8080:8080" ]
+    environment:
+      <<: [ *infra, *gateway, *java-env ]
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8080/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
+  # ─── 3. IDENTITY SERVICE ────────────────────────────────────
   identity-service:
-    <<: *spring-limits
+    <<: [ *common, *limits ]
     build: { context: ., dockerfile: identity-service/Dockerfile }
     container_name: identity-service
-    env_file:
-      - .env
     environment:
-      <<: [*infra, *db, *gateway, *java-env, *internal]
+      <<: [ *infra, *db, *gateway, *java-env, *internal ]
       DB_URL_IDENTITY: ${DB_URL_IDENTITY}
       CLOUDINARY_NAME: ${CLOUDINARY_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_SECRET: ${CLOUDINARY_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID}
-    depends_on: ["discovery-server"]
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
+      OAUTH_CALLBACK_BASE_URL: ${OAUTH_CALLBACK_BASE_URL:-https://phazelsound.oopsgolden.id.vn}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8762/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 80s
 
-  social-service:
-    <<: *spring-limits
-    build: { context: ., dockerfile: social-service/Dockerfile }
-    container_name: social-service
-    env_file:
-      - .env
-    environment:
-      <<: [*infra, *gateway, *java-env, *minio, *internal]
-      SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
-      MONGODB_URI: ${MONGODB_URI}
-      MINIO_AI_BUCKET: ${MINIO_AI_BUCKET}
-    depends_on: ["discovery-server"]
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
-
+  # ─── 4. MUSIC SERVICE ───────────────────────────────────────
   music-service:
-    <<: *spring-limits
+    <<: [ *common, *limits ]
     build: { context: ., dockerfile: music-service/Dockerfile }
     container_name: music-service
-    env_file:
-      - .env
     environment:
-      <<: [*infra, *db, *gateway, *java-env, *minio, *internal]
+      <<: [ *infra, *db, *gateway, *java-env, *minio, *internal ]
       DB_URL_MUSIC: ${DB_URL_MUSIC}
       JAMENDO_CLIENT_ID: ${JAMENDO_CLIENT_ID}
-    depends_on: ["discovery-server"]
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      MINIO_RAW_BUCKET: ${MINIO_RAW_BUCKET:-music}
+      MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET:-public-songs}
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8764/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 80s
 
+  # ─── 5. PAYMENT SERVICE ─────────────────────────────────────
   payment-service:
-    <<: *spring-limits
+    <<: [ *common, *limits ]
     build: { context: ., dockerfile: payment-service/Dockerfile }
     container_name: payment-service
-    env_file:
-      - .env
     environment:
-      <<: [*infra, *db, *java-env, *internal]
+      <<: [ *infra, *db, *java-env, *internal ]
       DB_URL_PAYMENT: ${DB_URL_PAYMENT}
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID}
       PAYOS_API_KEY: ${PAYOS_API_KEY}
       PAYOS_CHECK_SUM: ${PAYOS_CHECK_SUM}
-    depends_on: ["discovery-server"]
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
+      FRONTEND_URL: ${FRONTEND_URL:-https://phazelsound.oopsgolden.id.vn}
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8765/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 80s
 
+  # ─── 6. ADS SERVICE ─────────────────────────────────────────
+  ads-service:
+    <<: [ *common, *limits ]
+    build: { context: ., dockerfile: ads-service/Dockerfile }
+    container_name: ads-service
+    environment:
+      <<: [ *infra, *db, *java-env, *minio, *internal ]
+      DB_URL_ADS: ${DB_URL_ADS}
+      MINIO_ADS_BUCKET: ${MINIO_ADS_BUCKET:-ads-audio}
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8768/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 80s
+
+  # ─── 7. INTEGRATION SERVICE ─────────────────────────────────
   integration-service:
-    <<: *spring-limits
+    <<: [ *common, *limits ]
     build: { context: ., dockerfile: integration-service/Dockerfile }
     container_name: integration-service
-    env_file:
-      - .env
     environment:
-      <<: [*infra, *java-env]
+      <<: [ *infra, *java-env ]
       SPRING_MAIL_HOST: ${MAIL_HOST}
       SPRING_MAIL_PORT: ${MAIL_PORT}
       SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
       SPRING_MAIL_PASSWORD: ${MAIL_PASSWORD}
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: "true"
       SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: "true"
-    depends_on: ["discovery-server"]
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8763/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 80s
 
+  # ─── 8. TRANSCODE SERVICE ───────────────────────────────────
   transcode-service:
-    <<: *spring-limits
+    <<: [ *common, *limits ]
     build: { context: ., dockerfile: transcode-service/Dockerfile }
     container_name: transcode-service
-    env_file:
-      - .env
-    environment: { <<: [*infra, *minio, *java-env] }
-    depends_on: ["discovery-server"]
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
-
-  ads-service:
-    <<: *spring-limits
-    build: { context: ., dockerfile: ads-service/Dockerfile }
-    container_name: ads-service
-    env_file:
-      - .env
     environment:
-      <<: [*infra, *db, *java-env, *minio, *internal]
-      DB_URL_ADS: ${DB_URL_ADS}
-    depends_on: ["discovery-server"]
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
+      <<: [ *infra, *minio, *java-env ]
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      MINIO_RAW_BUCKET: ${MINIO_RAW_BUCKET:-music}
+      MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET:-public-songs}
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8766/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 80s
 
-  recommendation-service:
-    <<: *spring-limits
-    build: { context: ., dockerfile: recommendation-service/Dockerfile }
-    container_name: recommendation-service
-    env_file:
-      - .env
+  # ─── 9. SOCIAL SERVICE ──────────────────────────────────────
+  social-service:
+    <<: [ *common, *limits ]
+    build: { context: ., dockerfile: social-service/Dockerfile }
+    container_name: social-service
     environment:
-      <<: [*infra, *java-env]
-      ML_SERVICE_URL: http://recommendation-ml:8771
-      SOCIAL_SERVICE_URL: http://social-service:8767
-    depends_on: ["discovery-server", "recommendation-ml"]
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
+      <<: [ *infra, *gateway, *java-env, *minio, *internal ]
+      SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
+      MONGODB_URI: ${MONGODB_URI}
+      MINIO_AI_BUCKET: ${MINIO_AI_BUCKET:-ai-training-data}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8767/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 80s
 
+  # ─── 10. RECOMMENDATION ML (Python) ─────────────────────────
   recommendation-ml:
+    <<: *common
     build: { context: ./recommendation-ml }
     container_name: recommendation-ml
-    env_file:
-      - .env
-    deploy: { resources: { limits: { memory: 500M, cpus: '0.6' } } }
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 500M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
     environment:
       REDIS_HOST: host.docker.internal
       MINIO_ENDPOINT: host.docker.internal:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET}
-    networks: ["tramcamxuc-net"]
-    extra_hosts: ["host.docker.internal:host-gateway"]
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8771/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 80s
+
+  # ─── 11. RECOMMENDATION SERVICE ─────────────────────────────
+  recommendation-service:
+    <<: [ *common, *limits ]
+    build: { context: ., dockerfile: recommendation-service/Dockerfile }
+    container_name: recommendation-service
+    environment:
+      <<: [ *infra, *java-env ]
+      ML_SERVICE_URL: http://recommendation-ml:8771
+      SOCIAL_SERVICE_URL: http://social-service:8767
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+      recommendation-ml:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8769/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 80s

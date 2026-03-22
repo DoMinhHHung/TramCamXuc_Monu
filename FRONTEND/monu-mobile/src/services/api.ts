@@ -29,6 +29,7 @@ interface QueuedRequest {
 
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
+  _retryCount?: number;
 }
 
 interface CachedEntry {
@@ -39,6 +40,18 @@ interface CachedEntry {
 const REFRESH_ENDPOINT = '/auth/refresh';
 const DEFAULT_GET_CACHE_TTL_MS = 15000;
 const DISABLE_CACHE_TTL_MS = 0;
+
+// ─── Retry config ──────────────────────────────────────────────────────────────
+const MAX_RETRY_COUNT = 2;
+const RETRY_DELAY_MS  = 1200; // tăng dần theo số lần retry
+
+const isRetryableError = (error: AxiosError): boolean => {
+  // Timeout hoặc network error (không phải 4xx/5xx)
+  if (!error.response) return true;
+  // 502, 503, 504 gateway errors cũng có thể retry
+  const status = error.response.status;
+  return status === 502 || status === 503 || status === 504;
+};
 
 let accessTokenInMemory: string | null = null;
 let refreshTokenGetter: (() => Promise<string | null>) | null = null;
@@ -56,10 +69,8 @@ const processQueue = (error: unknown, token: string | null) => {
       queuedRequest.reject(error ?? new Error('Unable to refresh access token.'));
       return;
     }
-
     queuedRequest.resolve(token);
   });
-
   failedQueue = [];
 };
 
@@ -68,7 +79,6 @@ const setAuthorizationHeader = (request: AxiosRequestConfig, token: string) => {
     request.headers.set('Authorization', `Bearer ${token}`);
     return;
   }
-
   request.headers = {
     ...(request.headers ?? {}),
     Authorization: `Bearer ${token}`,
@@ -108,54 +118,40 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
   if (path.startsWith('/social/comments')) return 15000;
 
   if (
-    path === '/songs/trending'
-    || path === '/songs/newest'
-    || path === '/artists/popular'
-    || path === '/genres/popular'
-  ) {
-    return 120000;
-  }
+      path === '/songs/trending' ||
+      path === '/songs/newest' ||
+      path === '/artists/popular' ||
+      path === '/genres/popular'
+  ) return 120000;
 
   if (
-    path === '/playlists/my-playlists'
-    || path === '/songs/my-songs'
-    || path === '/albums/my'
-    || path === '/social/listen-history/my'
-    || path === '/recommendations/insights'
-    || path === '/social/hearts/my'
-    || path === '/social/follows/my-artists'
-    || /^\/social\/artists\/[^/]+\/followers$/i.test(path)
-  ) {
-    return 300000;
-  }
+      path === '/playlists/my-playlists' ||
+      path === '/songs/my-songs' ||
+      path === '/albums/my' ||
+      path === '/social/listen-history/my' ||
+      path === '/recommendations/insights' ||
+      path === '/social/hearts/my' ||
+      path === '/social/follows/my-artists' ||
+      /^\/social\/artists\/[^/]+\/followers$/i.test(path)
+  ) return 300000;
+
+  if (path === '/subscriptions/plans') return 300000;
 
   if (
-    path === '/subscriptions/plans'
-  ) {
-    return 300000;
-  }
+      path === '/subscriptions/my' ||
+      path === '/subscriptions/my/history'
+  ) return 30000;
 
   if (
-    path === '/subscriptions/my'
-    || path === '/subscriptions/my/history'
-  ) {
-    return 30000;
-  }
+      /^\/songs\/[^/]+$/i.test(path) ||
+      /^\/albums\/(my\/)?[^/]+$/i.test(path) ||
+      /^\/playlists\/(id\/)?[^/]+$/i.test(path) ||
+      /^\/artists\/[^/]+$/i.test(path) ||
+      path === '/artists/me' ||
+      /^\/social\/artists\/[^/]+\/stats$/i.test(path)
+  ) return 180000;
 
-  if (
-    /^\/songs\/[^/]+$/i.test(path)
-    || /^\/albums\/(my\/)?[^/]+$/i.test(path)
-    || /^\/playlists\/(id\/)?[^/]+$/i.test(path)
-    || /^\/artists\/[^/]+$/i.test(path)
-    || path === '/artists/me'
-    || /^\/social\/artists\/[^/]+\/stats$/i.test(path)
-  ) {
-    return 180000;
-  }
-
-  if (path === '/songs' || path === '/artists') {
-    return 90000;
-  }
+  if (path === '/songs' || path === '/artists') return 90000;
 
   return DEFAULT_GET_CACHE_TTL_MS;
 };
@@ -163,15 +159,16 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
 const refreshClient: AxiosInstance = axios.create({
   baseURL: env.apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10000,
+  timeout: 12000,
 });
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: env.apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10000,
+  timeout: 15000, // tăng lên 15s để bớt timeout giả
 });
 
+// ─── Request interceptor ────────────────────────────────────────────────────────
 apiClient.interceptors.request.use((config) => {
   if (accessTokenInMemory) setAuthorizationHeader(config, accessTokenInMemory);
 
@@ -193,101 +190,125 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// ─── Response interceptor ────────────────────────────────────────────────────────
 apiClient.interceptors.response.use(
-  (response) => {
-    if (response.data && typeof response.data === 'object' && 'result' in response.data) {
-      response.data = (response.data as ApiResponse<unknown>).result;
-    }
-
-    const method = (response.config.method ?? 'get').toLowerCase();
-    if (method === 'get') {
-      const key = buildCacheKey(response.config as InternalAxiosRequestConfig);
-      const ttlMs = resolveGetCacheTtlMs(response.config as InternalAxiosRequestConfig);
-      if (ttlMs <= 0) return response;
-
-      getCacheStore.set(key, {
-        expiresAt: Date.now() + ttlMs,
-        response,
-      });
-    }
-
-    return response;
-  },
-  async (error: AxiosError) => {
-    const originalRequest = error.config as RetryableRequestConfig | undefined;
-    const status = error.response?.status;
-    const requestUrl = originalRequest?.url ?? '';
-    const isRefreshRequest = requestUrl.includes(REFRESH_ENDPOINT);
-
-    if (status === 429) {
-      const retryAfter = error.response?.headers?.['retry-after'];
-      const backendMessage = (error.response?.data as { message?: string } | undefined)?.message;
-      error.message = backendMessage
-        ?? (retryAfter
-          ? `Bạn thao tác quá nhanh. Vui lòng thử lại sau ${retryAfter} giây.`
-          : 'Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.');
-      return Promise.reject(error);
-    }
-
-    if (!originalRequest || status !== 401 || originalRequest._retry || isRefreshRequest) {
-      const backendMessage = (error.response?.data as { message?: string } | undefined)?.message;
-      if (backendMessage) error.message = backendMessage;
-      return Promise.reject(error);
-    }
-
-    originalRequest._retry = true;
-
-    if (isRefreshing) {
-      return new Promise((resolve, reject) => {
-        failedQueue.push({
-          resolve: (newToken: string) => {
-            setAuthorizationHeader(originalRequest, newToken);
-            resolve(apiClient(originalRequest));
-          },
-          reject,
-        });
-      });
-    }
-
-    isRefreshing = true;
-
-    try {
-      const currentRefreshToken = await refreshTokenGetter?.();
-      if (!currentRefreshToken) throw new Error('Missing refresh token.');
-
-      const refreshResponse = await refreshClient.post<ApiResponse<RefreshResponse>>(
-        REFRESH_ENDPOINT,
-        { refreshToken: currentRefreshToken },
-      );
-
-      const refreshedTokens =
-        refreshResponse.data && 'result' in refreshResponse.data
-          ? refreshResponse.data.result
-          : (refreshResponse.data as unknown as RefreshResponse);
-
-      if (!refreshedTokens?.accessToken || !refreshedTokens?.refreshToken) {
-        throw new Error('Invalid refresh response.');
+    (response) => {
+      if (response.data && typeof response.data === 'object' && 'result' in response.data) {
+        response.data = (response.data as ApiResponse<unknown>).result;
       }
 
-      accessTokenInMemory = refreshedTokens.accessToken;
-      await persistTokensHandler?.({ accessToken: refreshedTokens.accessToken, refreshToken: refreshedTokens.refreshToken });
-      attachAccessToken(refreshedTokens.accessToken);
+      const method = (response.config.method ?? 'get').toLowerCase();
+      if (method === 'get') {
+        const key = buildCacheKey(response.config as InternalAxiosRequestConfig);
+        const ttlMs = resolveGetCacheTtlMs(response.config as InternalAxiosRequestConfig);
+        if (ttlMs > 0) {
+          getCacheStore.set(key, {
+            expiresAt: Date.now() + ttlMs,
+            response,
+          });
+        }
+      }
 
-      clearGetCache();
-      processQueue(null, refreshedTokens.accessToken);
-      setAuthorizationHeader(originalRequest, refreshedTokens.accessToken);
+      return response;
+    },
+    async (error: AxiosError) => {
+      const originalRequest = error.config as RetryableRequestConfig | undefined;
+      const status = error.response?.status;
+      const requestUrl = originalRequest?.url ?? '';
+      const isRefreshRequest = requestUrl.includes(REFRESH_ENDPOINT);
 
-      return apiClient(originalRequest);
-    } catch (refreshError) {
-      processQueue(refreshError, null);
-      attachAccessToken(null);
-      clearGetCache();
-      await logoutHandler?.();
-      return Promise.reject(refreshError);
-    } finally {
-      isRefreshing = false;
-    }
-  },
+      // ── Retry logic cho timeout / network error ────────────────────────────────
+      if (originalRequest && !isRefreshRequest && isRetryableError(error)) {
+        const retryCount = originalRequest._retryCount ?? 0;
+        if (retryCount < MAX_RETRY_COUNT) {
+          originalRequest._retryCount = retryCount + 1;
+          const delay = RETRY_DELAY_MS * (retryCount + 1); // 1.2s, 2.4s
+          console.warn(
+              `[API] Retry ${retryCount + 1}/${MAX_RETRY_COUNT} sau ${delay}ms — ${requestUrl}`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return apiClient(originalRequest);
+        }
+        // Đã retry đủ lần → đặt thông báo thân thiện
+        error.message = `Kết nối tới máy chủ thất bại sau ${MAX_RETRY_COUNT} lần thử. Vui lòng kiểm tra mạng.`;
+        return Promise.reject(error);
+      }
+
+      // ── Rate limit ──────────────────────────────────────────────────────────────
+      if (status === 429) {
+        const retryAfter = error.response?.headers?.['retry-after'];
+        const backendMessage = (error.response?.data as { message?: string } | undefined)?.message;
+        error.message =
+            backendMessage ??
+            (retryAfter
+                ? `Bạn thao tác quá nhanh. Vui lòng thử lại sau ${retryAfter} giây.`
+                : 'Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.');
+        return Promise.reject(error);
+      }
+
+      // ── 401 → refresh token ─────────────────────────────────────────────────────
+      if (!originalRequest || status !== 401 || originalRequest._retry || isRefreshRequest) {
+        const backendMessage = (error.response?.data as { message?: string } | undefined)?.message;
+        if (backendMessage) error.message = backendMessage;
+        return Promise.reject(error);
+      }
+
+      originalRequest._retry = true;
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({
+            resolve: (newToken: string) => {
+              setAuthorizationHeader(originalRequest, newToken);
+              resolve(apiClient(originalRequest));
+            },
+            reject,
+          });
+        });
+      }
+
+      isRefreshing = true;
+
+      try {
+        const currentRefreshToken = await refreshTokenGetter?.();
+        if (!currentRefreshToken) throw new Error('Missing refresh token.');
+
+        const refreshResponse = await refreshClient.post<ApiResponse<RefreshResponse>>(
+            REFRESH_ENDPOINT,
+            { refreshToken: currentRefreshToken },
+        );
+
+        const refreshedTokens =
+            refreshResponse.data && 'result' in refreshResponse.data
+                ? refreshResponse.data.result
+                : (refreshResponse.data as unknown as RefreshResponse);
+
+        if (!refreshedTokens?.accessToken || !refreshedTokens?.refreshToken) {
+          throw new Error('Invalid refresh response.');
+        }
+
+        accessTokenInMemory = refreshedTokens.accessToken;
+        await persistTokensHandler?.({
+          accessToken: refreshedTokens.accessToken,
+          refreshToken: refreshedTokens.refreshToken,
+        });
+        attachAccessToken(refreshedTokens.accessToken);
+
+        clearGetCache();
+        processQueue(null, refreshedTokens.accessToken);
+        setAuthorizationHeader(originalRequest, refreshedTokens.accessToken);
+
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        attachAccessToken(null);
+        clearGetCache();
+        await logoutHandler?.();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    },
 );
 
 export const attachAccessToken = (token: string | null): void => {

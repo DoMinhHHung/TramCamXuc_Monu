@@ -18,6 +18,7 @@ import { addListenHistory } from '../utils/listenHistory';
 // ─── Quality ──────────────────────────────────────────────────────────────────
 
 export type AudioQuality = 64 | 128 | 256 | 320;
+export type RepeatMode = 'none' | 'one' | 'all';
 
 const QUALITY_STREAM: Record<AudioQuality, string> = {
     64:  'stream_64k.m3u8',
@@ -47,6 +48,16 @@ function parseMaxQuality(features: Record<string, any>): AudioQuality {
     return 128;
 }
 
+/** Fisher-Yates shuffle không thay đổi mảng gốc */
+function shuffleArray<T>(arr: T[]): T[] {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+}
+
 // ─── Context types ────────────────────────────────────────────────────────────
 
 interface PlayerContextValue {
@@ -67,12 +78,14 @@ interface PlayerContextValue {
     selectedQuality: AudioQuality;
     maxQuality:      AudioQuality;
     setQuality:      (q: AudioQuality) => void;
+    // ── Repeat / Shuffle ──────────────────────────────────────────────────────
+    repeatMode:      RepeatMode;
+    isShuffled:      boolean;
+    cycleRepeatMode: () => void;
+    toggleShuffle:   () => void;
     // ── Ads ──────────────────────────────────────────────────────────────────
-    /** Quảng cáo đang chờ phát — null nếu không có */
-    pendingAd:  AdDelivery | null;
-    /** true khi đang block player để phát quảng cáo */
+    pendingAd:   AdDelivery | null;
     isPlayingAd: boolean;
-    /** Gọi từ AdPlayerModal khi quảng cáo kết thúc → resume nhạc */
     dismissAd:   () => void;
 }
 
@@ -86,6 +99,36 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const [queueIndex,   setQueueIndex]   = useState(0);
     const [isFullScreen, setFullScreen]   = useState(false);
 
+    // ── Repeat / Shuffle ───────────────────────────────────────────────────────
+    const [repeatMode,  setRepeatMode]  = useState<RepeatMode>('none');
+    const [isShuffled,  setIsShuffled]  = useState(false);
+    // Ref để dùng trong closures (tránh stale)
+    const repeatModeRef  = useRef<RepeatMode>('none');
+    const isShuffledRef  = useRef(false);
+    const queueRef       = useRef<Song[]>([]);
+    const queueIndexRef  = useRef(0);
+
+    useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
+    useEffect(() => { isShuffledRef.current = isShuffled; }, [isShuffled]);
+    useEffect(() => { queueRef.current = queue; }, [queue]);
+    useEffect(() => { queueIndexRef.current = queueIndex; }, [queueIndex]);
+
+    const cycleRepeatMode = useCallback(() => {
+        setRepeatMode(prev => {
+            const next: RepeatMode =
+                prev === 'none' ? 'one' : prev === 'one' ? 'all' : 'none';
+            repeatModeRef.current = next;
+            return next;
+        });
+    }, []);
+
+    const toggleShuffle = useCallback(() => {
+        setIsShuffled(prev => {
+            isShuffledRef.current = !prev;
+            return !prev;
+        });
+    }, []);
+
     // ── Quality ────────────────────────────────────────────────────────────────
     const [maxQuality,       setMaxQuality]      = useState<AudioQuality>(128);
     const [selectedQuality,  setSelectedQuality] = useState<AudioQuality>(128);
@@ -95,9 +138,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     // ── Ads ────────────────────────────────────────────────────────────────────
     const [pendingAd,   setPendingAd]   = useState<AdDelivery | null>(null);
     const [isPlayingAd, setIsPlayingAd] = useState(false);
-    /** true = user có gói no_ads → không bao giờ hiện quảng cáo */
-    const noAdsRef   = useRef(false);
-    /** Tránh check ads khi đang check rồi */
+    const noAdsRef      = useRef(false);
     const checkingAdRef = useRef(false);
 
     // ── Player ─────────────────────────────────────────────────────────────────
@@ -116,27 +157,22 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
     useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
 
-    // ── Load subscription → maxQuality + noAds flag ────────────────────────────
+    // ── Load subscription ──────────────────────────────────────────────────────
     useEffect(() => {
         getMySubscription()
             .then((sub) => {
                 if (sub?.plan?.features) {
                     const features = sub.plan.features;
-
-                    // No-ads flag
                     noAdsRef.current = Boolean(features.no_ads);
-
-                    // Max quality
                     const max = parseMaxQuality(features);
                     setMaxQuality(max);
                     setSelectedQuality((prev) => (prev > max ? max : prev) as AudioQuality);
                     selectedQualityRef.current = Math.min(
-                        selectedQualityRef.current,
-                        max,
+                        selectedQualityRef.current, max,
                     ) as AudioQuality;
                 }
             })
-            .catch(() => { /* free user — defaults */ });
+            .catch(() => {});
     }, []);
 
     // ── Audio session ──────────────────────────────────────────────────────────
@@ -153,38 +189,36 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     }, [status.isLoaded]);
 
     // ── Check & show ads ───────────────────────────────────────────────────────
-    const checkForAd = useCallback(async (): Promise<void> => {
-        if (noAdsRef.current) return;          // premium user
-        if (checkingAdRef.current) return;     // đang check rồi
-        if (isPlayingAd) return;              // đang phát ad
+    const checkForAd = useCallback(async (): Promise<boolean> => {
+        if (noAdsRef.current) return false;
+        if (checkingAdRef.current) return false;
+        if (isPlayingAd) return false;
 
         checkingAdRef.current = true;
         try {
             const ad = await getNextAd();
-            if (!ad) return;
-
-            // Có ad → pause nhạc, set pending ad
+            if (!ad) return false;
             player.pause();
             setPendingAd(ad);
             setIsPlayingAd(true);
+            return true;
         } catch {
-            // Silent fail — không block nhạc
+            return false;
         } finally {
             checkingAdRef.current = false;
         }
     }, [player, isPlayingAd]);
 
-    // ── Dismiss ad (gọi từ AdPlayerModal) ─────────────────────────────────────
+    // ── Dismiss ad ─────────────────────────────────────────────────────────────
     const dismissAd = useCallback((): void => {
         setPendingAd(null);
         setIsPlayingAd(false);
-        // Resume nhạc nếu còn bài đang chờ
         if (currentSongRef.current) {
             player.play();
         }
     }, [player]);
 
-    // ── Theo dõi play/pause — tích lũy thời gian + timer 30s ──────────────────
+    // ── Listen tracking ────────────────────────────────────────────────────────
     useEffect(() => {
         if (status.playing) {
             if (playSegmentStartRef.current === null) {
@@ -197,20 +231,16 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     if (listenFiredRef.current) return;
                     const song = currentSongRef.current;
                     if (!song) return;
-
                     listenFiredRef.current = true;
-
                     const dur = status.duration    ?? 0;
                     const pos = status.currentTime ?? 0;
                     const completed = dur > 0 && pos >= dur * 0.9;
-
                     recordListen(song.id, {
                         durationSeconds: 30,
                         completed,
                         artistId:  song.primaryArtist?.artistId,
                         genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
                     }).then(() => addListenHistory(song)).catch(() => {});
-
                     if (completed) completionFiredRef.current = true;
                 }, remaining);
             }
@@ -226,7 +256,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         }
     }, [status.playing]);
 
-    // ── Phát hiện bài kết thúc tự nhiên ───────────────────────────────────────
+    // ── Phát hiện bài kết thúc + auto advance ─────────────────────────────────
     useEffect(() => {
         const wasPlaying = prevPlayingRef.current;
         prevPlayingRef.current = status.playing;
@@ -248,7 +278,6 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         if (playSegmentStartRef.current !== null) {
             totalMs += Date.now() - playSegmentStartRef.current;
         }
-
         completionFiredRef.current = true;
 
         recordListen(song.id, {
@@ -258,11 +287,68 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
         }).then(() => addListenHistory(song)).catch(() => {});
 
-        // Check ad sau khi bài kết thúc tự nhiên
-        void checkForAd();
+        // Auto advance theo repeatMode
+        void (async () => {
+            const adShown = await checkForAd();
+            if (adShown) return;
+
+            const curQueue = queueRef.current;
+            const curIdx   = queueIndexRef.current;
+            const repeat   = repeatModeRef.current;
+            const shuffle  = isShuffledRef.current;
+
+            if (repeat === 'one') {
+                const currentS = currentSongRef.current;
+                if (currentS) {
+                    resetListenTracking();
+                    shouldAutoPlayRef.current = true;
+                    player.replace({ uri: buildHlsUrl(currentS, selectedQualityRef.current) });
+                    recordPlay(currentS.id).catch(() => {});
+                }
+                return;
+            }
+
+            if (curQueue.length === 0) return;
+
+            let nextIdx: number;
+            if (shuffle) {
+                const others = curQueue.map((_, i) => i).filter(i => i !== curIdx);
+                if (others.length === 0) {
+                    nextIdx = 0;
+                } else {
+                    nextIdx = others[Math.floor(Math.random() * others.length)];
+                }
+            } else {
+                nextIdx = curIdx + 1;
+            }
+
+            if (nextIdx >= curQueue.length) {
+                if (repeat === 'all') {
+                    nextIdx = 0;
+                } else {
+                    return;
+                }
+            }
+
+            const nextSong = curQueue[nextIdx];
+            if (!nextSong) return;
+
+            setQueueIndex(nextIdx);
+            resetListenTracking();
+            shouldAutoPlayRef.current = true;
+            try {
+                const localUri = await isSongDownloaded(nextSong.id);
+                const uri = localUri ?? buildHlsUrl(nextSong, selectedQualityRef.current);
+                player.replace({ uri });
+            } catch {
+                player.replace({ uri: buildHlsUrl(nextSong, selectedQualityRef.current) });
+            }
+            setCurrentSong(nextSong);
+            recordPlay(nextSong.id).catch(() => {});
+        })();
     }, [status.playing, checkForAd]);
 
-    // ── Reset tracking khi đổi bài ─────────────────────────────────────────────
+    // ── Reset tracking ─────────────────────────────────────────────────────────
     const resetListenTracking = useCallback(() => {
         if (listenTimerRef.current) clearTimeout(listenTimerRef.current);
         listenTimerRef.current      = null;
@@ -277,19 +363,14 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
     const playSong = useCallback(
         async (song: Song, newQueue?: Song[]) => {
-            // Không phát nhạc khi đang phát quảng cáo
             if (isPlayingAd) return;
 
             const quality = selectedQualityRef.current;
-
-            // Ưu tiên file offline nếu có
             let uri: string;
             try {
                 const localUri = await isSongDownloaded(song.id);
                 uri = localUri ?? buildHlsUrl(song, quality);
-                if (localUri) {
-                    console.log('[Player] Offline playback:', song.title);
-                }
+                if (localUri) console.log('[Player] Offline playback:', song.title);
             } catch {
                 uri = buildHlsUrl(song, quality);
             }
@@ -301,7 +382,8 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
             if (newQueue) {
                 setQueue(newQueue);
-                setQueueIndex(newQueue.findIndex((s) => s.id === song.id));
+                const idx = newQueue.findIndex((s) => s.id === song.id);
+                setQueueIndex(idx >= 0 ? idx : 0);
             }
 
             recordPlay(song.id).catch(() => {});
@@ -330,21 +412,43 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     }, [player, resetListenTracking]);
 
     const playNext = useCallback(() => {
-        if (!queue.length || isPlayingAd) return;
-        const next = (queueIndex + 1) % queue.length;
+        if (!queueRef.current.length || isPlayingAd) return;
+        const curQueue = queueRef.current;
+        const curIdx   = queueIndexRef.current;
+
+        if (repeatModeRef.current === 'one') {
+            const s = currentSongRef.current;
+            if (s) void playSong(s, curQueue);
+            return;
+        }
+
+        let next: number;
+        if (isShuffledRef.current) {
+            const others = curQueue.map((_, i) => i).filter(i => i !== curIdx);
+            next = others.length > 0
+                ? others[Math.floor(Math.random() * others.length)]
+                : 0;
+        } else {
+            next = (curIdx + 1) % curQueue.length;
+            if (next === 0 && repeatModeRef.current === 'none') return;
+        }
+
         setQueueIndex(next);
-        void playSong(queue[next], queue);
+        void playSong(curQueue[next], curQueue);
         void checkForAd();
-    }, [queue, queueIndex, isPlayingAd, playSong, checkForAd]);
+    }, [isPlayingAd, playSong, checkForAd]);
 
     const playPrev = useCallback(() => {
-        if (!queue.length || isPlayingAd) return;
+        if (!queueRef.current.length || isPlayingAd) return;
+        const curQueue = queueRef.current;
+        const curIdx   = queueIndexRef.current;
+
         if (status.currentTime > 3) { seekTo(0); return; }
-        const prev = (queueIndex - 1 + queue.length) % queue.length;
+        const prev = (curIdx - 1 + curQueue.length) % curQueue.length;
         setQueueIndex(prev);
-        void playSong(queue[prev], queue);
+        void playSong(curQueue[prev], curQueue);
         void checkForAd();
-    }, [queue, queueIndex, status.currentTime, isPlayingAd, seekTo, playSong, checkForAd]);
+    }, [isPlayingAd, status.currentTime, seekTo, playSong, checkForAd]);
 
     const setQuality = useCallback((q: AudioQuality) => {
         if (q > maxQuality || isPlayingAd) return;
@@ -377,6 +481,10 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         selectedQuality,
         maxQuality,
         setQuality,
+        repeatMode,
+        isShuffled,
+        cycleRepeatMode,
+        toggleShuffle,
         pendingAd,
         isPlayingAd,
         dismissAd,

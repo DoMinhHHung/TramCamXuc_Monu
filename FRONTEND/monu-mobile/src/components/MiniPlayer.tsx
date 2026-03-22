@@ -17,6 +17,7 @@ export const MiniPlayer = () => {
         currentSong, isPlaying, isLoaded,
         currentTime, duration,
         togglePlay, playNext, setFullScreen, stopPlayer,
+        repeatMode, isShuffled,
     } = usePlayer();
 
     const translateY = useRef(new Animated.Value(0)).current;
@@ -66,24 +67,47 @@ export const MiniPlayer = () => {
 
     if (!currentSong) return null;
 
+    // Màu progress bar theo mode
+    const progressColor =
+        repeatMode === 'one' ? '#A78BFA' :
+            repeatMode === 'all' ? COLORS.success :
+                COLORS.accent;
+
     return (
         <Animated.View
             style={[styles.container, { transform: [{ translateY }, { translateX }] }]}
             {...panResponder.panHandlers}
         >
             <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${progress * 100}%` as any }]} />
+                <View style={[styles.progressFill, {
+                    width: `${progress * 100}%` as any,
+                    backgroundColor: progressColor,
+                }]} />
             </View>
 
             <Pressable style={styles.content} onPress={() => setFullScreen(true)} accessible={false}>
                 {currentSong.thumbnailUrl
                     ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.thumbnail} />
-                    : <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}><Text style={styles.thumbnailIcon}>🎵</Text></View>
+                    : <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
+                        <Text style={styles.thumbnailIcon}>🎵</Text>
+                    </View>
                 }
 
                 <View style={styles.info}>
-                    <Text style={styles.title}   numberOfLines={1}>{currentSong.title}</Text>
-                    <Text style={styles.artist}  numberOfLines={1}>{currentSong.primaryArtist?.stageName ?? ''}</Text>
+                    <Text style={styles.title} numberOfLines={1}>{currentSong.title}</Text>
+                    <View style={styles.metaRow}>
+                        <Text style={styles.artist} numberOfLines={1}>{currentSong.primaryArtist?.stageName ?? ''}</Text>
+                        {/* Mode badges */}
+                        {isShuffled && (
+                            <Text style={styles.modeBadge}>🔀</Text>
+                        )}
+                        {repeatMode === 'one' && (
+                            <Text style={styles.modeBadge}>🔂</Text>
+                        )}
+                        {repeatMode === 'all' && (
+                            <Text style={styles.modeBadge}>🔁</Text>
+                        )}
+                    </View>
                 </View>
 
                 <View style={styles.controls}>
@@ -123,16 +147,17 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3, shadowRadius: 8, elevation: 10,
     },
     progressTrack: { height: 2, backgroundColor: COLORS.glass15 },
-    progressFill:  { height: 2, backgroundColor: COLORS.accent },
+    progressFill:  { height: 2 },
     content:       { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 },
-    thumbnail:           { width: 40, height: 40, borderRadius: 8, backgroundColor: COLORS.accentFill20 },
+    thumbnail:            { width: 40, height: 40, borderRadius: 8, backgroundColor: COLORS.accentFill20 },
     thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
     thumbnailIcon:        { fontSize: 20 },
     info:    { flex: 1 },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     title:   { color: COLORS.white,   fontSize: 14, fontWeight: '700', lineHeight: 18 },
-    artist:  { color: COLORS.glass60, fontSize: 12, fontWeight: '400', lineHeight: 16 },
+    artist:  { color: COLORS.glass60, fontSize: 11, fontWeight: '400' },
+    modeBadge: { fontSize: 11, color: COLORS.glass50 },
     controls: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     iconBtn:  { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-    iconText: { fontSize: 20, color: COLORS.white },
     swipeHandle: { position: 'absolute', top: 5, alignSelf: 'center', width: 32, height: 3, borderRadius: 2, backgroundColor: COLORS.glass30 },
 });
