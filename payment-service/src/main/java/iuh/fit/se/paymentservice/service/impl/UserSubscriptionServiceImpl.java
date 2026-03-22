@@ -1,6 +1,5 @@
 package iuh.fit.se.paymentservice.service.impl;
 
-import io.jsonwebtoken.Claims;
 import iuh.fit.se.paymentservice.dto.request.PurchaseSubscriptionRequest;
 import iuh.fit.se.paymentservice.dto.response.PaymentResponse;
 import iuh.fit.se.paymentservice.dto.response.UserSubscriptionResponse;
@@ -21,6 +20,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -176,12 +177,10 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     }
 
     private String getCurrentUserEmail() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || auth.getCredentials() == null) return null;
         try {
-            // JwtAuthenticationFilter lưu toàn bộ Claims vào credentials
-            Claims claims = (Claims) auth.getCredentials();
-            return claims.get("email", String.class);
+            var attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            if (attrs == null) return null;
+            return attrs.getRequest().getHeader("X-User-Email");
         } catch (Exception e) {
             return null;
         }

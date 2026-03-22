@@ -30,6 +30,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     @Value("${jwt.signerKey:}")
     private String signerKey;
 
+    @Value("${gateway.internal-secret:}")
+    private String gatewayInternalSecret;
+
     private Key key;
 
     @PostConstruct
@@ -78,6 +81,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                                     .header("X-User-Role",       role  != null ? role  : "")
                                     .header("X-User-Email",      email != null ? email : "")
                                     .header("X-Authenticated",   "true")
+                                    .header("X-Gateway-Secret",    gatewayInternalSecret)
                     )
                     .build();
 

@@ -85,3 +85,5 @@ management:
 
 internal:
   service-secret: ${INTERNAL_SERVICE_SECRET}
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:}

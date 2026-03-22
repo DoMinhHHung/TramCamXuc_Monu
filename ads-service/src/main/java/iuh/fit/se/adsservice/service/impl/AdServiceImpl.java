@@ -321,7 +321,7 @@ public class AdServiceImpl implements AdService {
 
     private Ad findOrThrow(UUID adId) {
         return adRepository.findById(adId)
-                .orElseThrow(() -> new IllegalArgumentException("Ad not found: " + adId));
+                .orElseThrow(() -> new AppException(ErrorCode.AD_NOT_FOUND));
     }
 
     private AdResponse toResponse(Ad ad) {
