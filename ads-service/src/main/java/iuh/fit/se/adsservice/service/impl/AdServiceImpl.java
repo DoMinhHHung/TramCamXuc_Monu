@@ -9,6 +9,8 @@ import iuh.fit.se.adsservice.entity.Ad;
 import iuh.fit.se.adsservice.entity.AdClick;
 import iuh.fit.se.adsservice.entity.AdImpression;
 import iuh.fit.se.adsservice.enums.AdStatus;
+import iuh.fit.se.adsservice.exception.AppException;
+import iuh.fit.se.adsservice.exception.ErrorCode;
 import iuh.fit.se.adsservice.repository.AdClickRepository;
 import iuh.fit.se.adsservice.repository.AdImpressionRepository;
 import iuh.fit.se.adsservice.repository.AdRepository;
@@ -282,20 +284,35 @@ public class AdServiceImpl implements AdService {
     @Override
     @Transactional
     public void recordClicked(UUID adId, UUID userId) {
-        findOrThrow(adId);
-        LocalDateTime windowStart = LocalDateTime.now().minusSeconds(CLICK_WINDOW_SECONDS);
-        long recentClicks = clickRepository.countByAdIdAndUserIdAndClickedAtAfter(adId, userId, windowStart);
-        if (recentClicks >= CLICK_ANTI_SPAM_LIMIT) {
-            log.warn("Click anti-spam triggered: adId={} userId={}", adId, userId);
-            return;
+
+        Ad ad = findOrThrow(adId);
+
+        if (ad.getStatus() != AdStatus.ACTIVE) {
+            throw new AppException(ErrorCode.AD_NOT_ACTIVE);
         }
+
+        LocalDateTime windowStart = LocalDateTime.now()
+                .minusSeconds(CLICK_WINDOW_SECONDS);
+        long recentClicks = clickRepository
+                .countByAdIdAndUserIdAndClickedAtAfter(adId, userId, windowStart);
+
+        if (recentClicks >= CLICK_ANTI_SPAM_LIMIT) {
+            log.warn(
+                    "[AntSpam] Click rejected: adId={} userId={} recentClicks={}",
+                    adId, userId, recentClicks
+            );
+            throw new AppException(ErrorCode.AD_CLICK_SPAM);
+        }
+
         clickRepository.save(AdClick.builder()
                 .adId(adId)
                 .userId(userId)
                 .clickedAt(LocalDateTime.now())
                 .build());
+
         adRepository.incrementClicks(adId);
-        log.debug("Recorded click adId={} userId={}", adId, userId);
+
+        log.debug("[Click] Recorded: adId={} userId={}", adId, userId);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -304,7 +321,7 @@ public class AdServiceImpl implements AdService {
 
     private Ad findOrThrow(UUID adId) {
         return adRepository.findById(adId)
-                .orElseThrow(() -> new IllegalArgumentException("Ad not found: " + adId));
+                .orElseThrow(() -> new AppException(ErrorCode.AD_NOT_FOUND));
     }
 
     private AdResponse toResponse(Ad ad) {

@@ -64,9 +64,6 @@ eureka:
   instance:
     prefer-ip-address: true
 
-jwt:
-  signerKey: ${JWT_SECRET}
-
 minio:
   url: ${MINIO_ENDPOINT}
   access-key: ${MINIO_ACCESS_KEY}
@@ -90,3 +87,8 @@ springdoc:
 logging:
   level:
     iuh.fit.se.adsservice: DEBUG
+
+internal:
+  service-secret: ${INTERNAL_SERVICE_SECRET}
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:}

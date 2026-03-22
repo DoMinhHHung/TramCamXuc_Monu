@@ -29,9 +29,6 @@ eureka:
   instance:
     prefer-ip-address: true
 
-jwt:
-  signerKey: ${JWT_SECRET}
-
 # URL của Python ML service
 ml:
   service:
@@ -85,3 +82,8 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+internal:
+  service-secret: ${INTERNAL_SERVICE_SECRET}
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:}

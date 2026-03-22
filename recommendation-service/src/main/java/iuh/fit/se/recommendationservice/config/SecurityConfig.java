@@ -18,7 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final GatewayAuthFilter gatewayAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -29,10 +29,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/recommendations/trending").permitAll()
                         .requestMatchers(HttpMethod.GET, "/recommendations/trending/genre/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        // Tất cả endpoint khác cần auth (personalized recommendations)
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(gatewayAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

@@ -20,7 +20,17 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ApiResponse<Void>> handleAppException(AppException ex) {
         ErrorCode code = ex.getErrorCode();
-        return ResponseEntity.status(code.getStatusCode())
+
+        if (code.getStatusCode().value() == 429) {
+            log.warn("[AppException] {}: {}", code.name(), code.getMessage());
+        } else if (code.getStatusCode().value() >= 500) {
+            log.error("[AppException] {}: {}", code.name(), code.getMessage());
+        } else {
+            log.debug("[AppException] {}: {}", code.name(), code.getMessage());
+        }
+
+        return ResponseEntity
+                .status(code.getStatusCode())
                 .body(ApiResponse.<Void>builder()
                         .code(code.getCode())
                         .message(code.getMessage())

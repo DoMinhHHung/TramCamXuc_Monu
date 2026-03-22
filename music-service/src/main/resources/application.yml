@@ -57,9 +57,6 @@ eureka:
   instance:
     prefer-ip-address: true
 
-jwt:
-  signerKey: ${JWT_SECRET}
-
 minio:
   url: ${MINIO_ENDPOINT}
   public-url: ${MINIO_PUBLIC_URL}
@@ -91,3 +88,8 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+internal:
+  service-secret: ${INTERNAL_SERVICE_SECRET}
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:}

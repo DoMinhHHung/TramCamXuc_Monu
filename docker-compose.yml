@@ -47,6 +47,9 @@ x-spring-limits: &spring-limits
         memory: 380M
         cpus: '0.4'
 
+x-internal: &internal
+  INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+
 # ════════════════════════════════════════════════════════════════
 # SERVICES
 # ════════════════════════════════════════════════════════════════
@@ -112,7 +115,7 @@ services:
     env_file:
       - .env
     environment:
-      <<: [*infra, *db, *gateway, *java-env]
+      <<: [*infra, *db, *gateway, *java-env, *internal]
       DB_URL_IDENTITY: ${DB_URL_IDENTITY}
       CLOUDINARY_NAME: ${CLOUDINARY_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
@@ -130,7 +133,7 @@ services:
     env_file:
       - .env
     environment:
-      <<: [*infra, *gateway, *java-env, *minio]
+      <<: [*infra, *gateway, *java-env, *minio, *internal]
       SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
       MONGODB_URI: ${MONGODB_URI}
       MINIO_AI_BUCKET: ${MINIO_AI_BUCKET}
@@ -145,7 +148,7 @@ services:
     env_file:
       - .env
     environment:
-      <<: [*infra, *db, *gateway, *java-env, *minio]
+      <<: [*infra, *db, *gateway, *java-env, *minio, *internal]
       DB_URL_MUSIC: ${DB_URL_MUSIC}
       JAMENDO_CLIENT_ID: ${JAMENDO_CLIENT_ID}
     depends_on: ["discovery-server"]
@@ -159,7 +162,7 @@ services:
     env_file:
       - .env
     environment:
-      <<: [*infra, *db, *gateway, *java-env]
+      <<: [*infra, *db, *java-env, *internal]
       DB_URL_PAYMENT: ${DB_URL_PAYMENT}
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID}
       PAYOS_API_KEY: ${PAYOS_API_KEY}
@@ -204,7 +207,7 @@ services:
     env_file:
       - .env
     environment:
-      <<: [*infra, *db, *gateway, *java-env, *minio]
+      <<: [*infra, *db, *java-env, *minio, *internal]
       DB_URL_ADS: ${DB_URL_ADS}
     depends_on: ["discovery-server"]
     networks: ["tramcamxuc-net"]
@@ -217,7 +220,7 @@ services:
     env_file:
       - .env
     environment:
-      <<: [*infra, *gateway, *java-env]
+      <<: [*infra, *java-env]
       ML_SERVICE_URL: http://recommendation-ml:8771
       SOCIAL_SERVICE_URL: http://social-service:8767
     depends_on: ["discovery-server", "recommendation-ml"]

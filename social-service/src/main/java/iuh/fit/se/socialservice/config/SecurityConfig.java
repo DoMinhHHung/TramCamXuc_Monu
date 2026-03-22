@@ -23,7 +23,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final GatewayAuthFilter gatewayAuthFilter;
+    private final InternalRequestFilter internalRequestFilter;
 
     private static final String[] PUBLIC_GET = {
             "/social/artists/*/stats",
@@ -36,11 +37,6 @@ public class SecurityConfig {
             "/social/share/playlist/qr",
             "/social/share/album",
             "/social/share/album/qr",
-            // Internal endpoints for recommendation-service (service-to-service)
-            "/internal/social/listen-insights/**",
-            "/internal/social/listen-history/**",
-            "/internal/social/follows/**",
-            "/internal/social/reactions/**",
             "/social/feed/owner/**",
             "/social/comments/post",
             "/social/comments/post/count",
@@ -56,10 +52,14 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
+                    .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
+                    .requestMatchers("/internal/**").permitAll()
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(internalRequestFilter,
+                        UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(gatewayAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

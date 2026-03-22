@@ -1,6 +1,5 @@
 package iuh.fit.se.socialservice.controller;
 
-import io.jsonwebtoken.Claims;
 import iuh.fit.se.socialservice.dto.ApiResponse;
 import iuh.fit.se.socialservice.dto.request.FollowRequest;
 import iuh.fit.se.socialservice.dto.response.ArtistStatsResponse;

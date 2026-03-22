@@ -534,3 +534,6 @@ management:
   zipkin:
     tracing:
       endpoint: ${ZIPKIN_URL:http://zipkin:9411}/api/v2/spans
+
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:}

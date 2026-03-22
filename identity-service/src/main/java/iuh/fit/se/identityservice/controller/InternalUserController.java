@@ -3,6 +3,7 @@
 package iuh.fit.se.identityservice.controller;
 
 import iuh.fit.se.identityservice.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -18,8 +19,18 @@ public class InternalUserController {
     private final AuthService authService;
 
     @PostMapping("/{userId}/grant-artist-role")
-    public String grantArtistRoleAndIssueToken(@PathVariable UUID userId) {
-        log.info("[INTERNAL] Grant ARTIST role request for userId={}", userId);
+    public String grantArtistRoleAndIssueToken(
+            @PathVariable UUID userId,
+            HttpServletRequest request) {
+
+        log.info(
+                "[INTERNAL AUDIT] grant-artist-role: userId={}, callerIP={}",
+                userId,
+                request.getHeader("X-Forwarded-For") != null
+                        ? request.getHeader("X-Forwarded-For")
+                        : request.getRemoteAddr()
+        );
+
         return authService.grantArtistRoleAndIssueToken(userId);
     }
 }
