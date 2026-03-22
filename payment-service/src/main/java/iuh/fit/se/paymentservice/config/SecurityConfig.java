@@ -20,7 +20,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final GatewayAuthFilter gatewayAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -35,7 +35,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/subscriptions/plans").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(gatewayAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

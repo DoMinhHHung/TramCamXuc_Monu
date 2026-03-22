@@ -57,9 +57,6 @@ eureka:
   instance:
     prefer-ip-address: true
 
-jwt:
-  signerKey: ${JWT_SECRET}
-
 minio:
   url: ${MINIO_ENDPOINT}
   public-url: ${MINIO_PUBLIC_URL}

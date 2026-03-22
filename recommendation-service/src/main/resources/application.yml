@@ -29,9 +29,6 @@ eureka:
   instance:
     prefer-ip-address: true
 
-jwt:
-  signerKey: ${JWT_SECRET}
-
 # URL của Python ML service
 ml:
   service:

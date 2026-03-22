@@ -47,9 +47,6 @@ eureka:
   instance:
     prefer-ip-address: true
 
-jwt:
-  signerKey: ${JWT_SECRET}
-
 payos:
   client-id: ${PAYOS_CLIENT_ID}
   api-key: ${PAYOS_API_KEY}

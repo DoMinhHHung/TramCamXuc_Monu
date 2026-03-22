@@ -1,4 +1,6 @@
 package iuh.fit.se.recommendationservice.client;
+
+import iuh.fit.se.recommendationservice.config.InternalFeignConfig;
 import iuh.fit.se.recommendationservice.dto.ApiResponse;
 import iuh.fit.se.recommendationservice.dto.ListenHistoryItemDto;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -9,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
 import java.util.UUID;
 
-@FeignClient(name = "social-service", path = "/internal/social")
+@FeignClient(name = "social-service", path = "/internal/social", configuration = InternalFeignConfig.class)
 public interface SocialInternalClient {
 
     /**

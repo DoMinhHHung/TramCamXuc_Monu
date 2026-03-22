@@ -1,5 +1,6 @@
 package iuh.fit.se.adsservice.controller;
 
+import iuh.fit.se.adsservice.dto.ApiResponse;
 import iuh.fit.se.adsservice.dto.request.RecordPlayedRequest;
 import iuh.fit.se.adsservice.dto.response.AdDeliveryResponse;
 import iuh.fit.se.adsservice.service.AdService;
@@ -26,14 +27,23 @@ public class AdController {
      * The client should call this after every song.
      */
     @GetMapping("/next")
-    @Operation(summary = "Get next ad for current user (null = no ad due)")
-    public ResponseEntity<AdDeliveryResponse> getNextAd(Authentication auth) {
+    @Operation(summary = "Get next ad for current user")
+    public ResponseEntity<ApiResponse<AdDeliveryResponse>> getNextAd(
+            Authentication auth) {
+
         UUID userId = extractUserId(auth);
         AdDeliveryResponse ad = adService.getNextAd(userId);
+
         if (ad == null) {
-            return ResponseEntity.noContent().build(); // 204
+            return ResponseEntity.noContent().build();
         }
-        return ResponseEntity.ok(ad);
+
+        return ResponseEntity.ok(
+                ApiResponse.<AdDeliveryResponse>builder()
+                        .code(1000)
+                        .result(ad)
+                        .build()
+        );
     }
 
     /**
@@ -42,16 +52,25 @@ public class AdController {
      */
     @PostMapping("/{adId}/played")
     @Operation(summary = "Record that the user played an ad")
-    public ResponseEntity<Void> recordPlayed(
+    public ResponseEntity<ApiResponse<Void>> recordPlayed(
             @PathVariable UUID adId,
             @RequestBody(required = false) RecordPlayedRequest body,
             Authentication auth) {
+
         UUID userId    = extractUserId(auth);
         UUID songId    = body != null ? body.getSongId() : null;
         boolean completed = body == null || body.isCompleted();
+
         adService.recordPlayed(adId, userId, songId, completed);
-        return ResponseEntity.ok().build();
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .code(1000)
+                        .message("Play recorded")
+                        .build()
+        );
     }
+
 
     /**
      * POST /ads/{adId}/clicked
@@ -60,12 +79,19 @@ public class AdController {
      */
     @PostMapping("/{adId}/clicked")
     @Operation(summary = "Record that the user clicked an ad")
-    public ResponseEntity<Void> recordClicked(
+    public ResponseEntity<ApiResponse<Void>> recordClicked(
             @PathVariable UUID adId,
             Authentication auth) {
+
         UUID userId = extractUserId(auth);
         adService.recordClicked(adId, userId);
-        return ResponseEntity.ok().build();
+
+        return ResponseEntity.ok(
+                ApiResponse.<Void>builder()
+                        .code(1000)
+                        .message("Click recorded")
+                        .build()
+        );
     }
 
     private UUID extractUserId(Authentication auth) {

@@ -36,9 +36,6 @@ eureka:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${server.port}
 
-jwt:
-  signerKey: ${JWT_SECRET}
-
 app:
   frontend:
     url: ${FRONTEND_URL:http://localhost:3000}
@@ -77,3 +74,6 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+internal:
+  service-secret: ${INTERNAL_SERVICE_SECRET}
