@@ -37,11 +37,6 @@ public class SecurityConfig {
             "/social/share/playlist/qr",
             "/social/share/album",
             "/social/share/album/qr",
-            // Internal endpoints for recommendation-service (service-to-service)
-            "/internal/social/listen-insights/**",
-            "/internal/social/listen-history/**",
-            "/internal/social/follows/**",
-            "/internal/social/reactions/**",
             "/social/feed/owner/**",
             "/social/comments/post",
             "/social/comments/post/count",

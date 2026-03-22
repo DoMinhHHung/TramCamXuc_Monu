@@ -88,3 +88,6 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+internal:
+  service-secret: ${INTERNAL_SERVICE_SECRET}

@@ -162,7 +162,7 @@ services:
     env_file:
       - .env
     environment:
-      <<: [*infra, *db, *java-env]
+      <<: [*infra, *db, *java-env, *internal]
       DB_URL_PAYMENT: ${DB_URL_PAYMENT}
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID}
       PAYOS_API_KEY: ${PAYOS_API_KEY}
@@ -207,7 +207,7 @@ services:
     env_file:
       - .env
     environment:
-      <<: [*infra, *db, *java-env, *minio]
+      <<: [*infra, *db, *java-env, *minio, *internal]
       DB_URL_ADS: ${DB_URL_ADS}
     depends_on: ["discovery-server"]
     networks: ["tramcamxuc-net"]
