@@ -20,6 +20,7 @@ import iuh.fit.se.musicservice.repository.GenreRepository;
 import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.SongService;
+import iuh.fit.se.musicservice.util.RestPage;
 import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +59,9 @@ public class SongServiceImpl implements SongService {
     // ── Cache constants (recommendation-service internal) ──────────────────────
     private static final String   CACHE_BATCH_PREFIX  = "rec:songs:batch:";
     private static final String   CACHE_ARTIST_PREFIX = "rec:artist:songs:";
+    private static final String   CACHE_TRENDING = "rec:trending:songs";
+    private static final String   CACHE_NEWEST   = "rec:newest:songs";
+    private static final Duration CACHE_TTL    = Duration.ofMinutes(5);
     private static final Duration CACHE_BATCH_TTL     = Duration.ofMinutes(10);
     private static final Duration CACHE_ARTIST_TTL    = Duration.ofMinutes(15);
 
@@ -383,16 +387,73 @@ public class SongServiceImpl implements SongService {
                 .map(songMapper::toResponse);
     }
 
+//    @Override
+//    @Transactional(readOnly = true)
+//    public Page<SongResponse> getTrending(Pageable pageable) {
+//        return songRepository.findTrending(pageable).map(songMapper::toResponse);
+//    }
     @Override
     @Transactional(readOnly = true)
     public Page<SongResponse> getTrending(Pageable pageable) {
-        return songRepository.findTrending(pageable).map(songMapper::toResponse);
+        String cacheKey = CACHE_TRENDING + ":" + pageable.getPageNumber()
+                + ":" + pageable.getPageSize();
+
+        try {
+            String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                return objectMapper.readValue(cached,
+                        new TypeReference<RestPage<SongResponse>>() {});
+            }
+        } catch (Exception e) {
+        }
+
+        Page<SongResponse> result = songRepository.findTrending(pageable)
+                .map(songMapper::toResponse);
+
+        try {
+            stringRedisTemplate.opsForValue().set(
+                    cacheKey,
+                    objectMapper.writeValueAsString(result),
+                    CACHE_TTL
+            );
+        } catch (Exception e) {
+            log.warn("Cache write failed: {}", e.getMessage());
+        }
+
+        return result;
     }
+
+//    @Override
+//    @Transactional(readOnly = true)
+//    public Page<SongResponse> getNewest(Pageable pageable) {
+//        return songRepository.findNewest(pageable).map(songMapper::toResponse);
+//    }
 
     @Override
     @Transactional(readOnly = true)
     public Page<SongResponse> getNewest(Pageable pageable) {
-        return songRepository.findNewest(pageable).map(songMapper::toResponse);
+        String cacheKey = CACHE_NEWEST + ":" + pageable.getPageNumber()
+                + ":" + pageable.getPageSize();
+        try {
+            String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                return objectMapper.readValue(cached,
+                        new TypeReference<RestPage<SongResponse>>() {});
+            }
+        } catch (Exception ignored) {}
+
+        Page<SongResponse> result = songRepository.findNewest(pageable)
+                .map(songMapper::toResponse);
+
+        try {
+            stringRedisTemplate.opsForValue().set(
+                    cacheKey,
+                    objectMapper.writeValueAsString(result),
+                    Duration.ofMinutes(3)
+            );
+        } catch (Exception ignored) {}
+
+        return result;
     }
 
     @Override

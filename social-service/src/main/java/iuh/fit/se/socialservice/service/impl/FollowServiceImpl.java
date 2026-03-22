@@ -1,5 +1,6 @@
 package iuh.fit.se.socialservice.service.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.socialservice.document.Follow;
 import iuh.fit.se.socialservice.dto.response.ArtistStatsResponse;
 import iuh.fit.se.socialservice.dto.response.FollowResponse;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,6 +34,7 @@ public class FollowServiceImpl implements FollowService {
     private final ReactionRepository reactionRepository;
     private final SongShareRepository songShareRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     private static final int    FAMOUS_THRESHOLD  = 500;
     private static final String FAMOUS_ARTISTS_KEY = "social:famous:artists";
@@ -121,17 +124,26 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     public ArtistStatsResponse getArtistStats(UUID artistId) {
-        long followers    = followRepository.countByArtistId(artistId);
-        long totalListens = listenHistoryRepository.countByArtistId(artistId);
-        long totalLikes   = reactionRepository.countByArtistIdAndType(artistId, ReactionType.LIKE);
-        long totalShares  = songShareRepository.countByArtistId(artistId);
-        return ArtistStatsResponse.builder()
+        String cacheKey = "social:stats:artist:" + artistId;
+
+        try {
+            Object cached = redisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                return objectMapper.convertValue(cached, ArtistStatsResponse.class);
+            }
+        } catch (Exception ignored) {}
+
+        ArtistStatsResponse stats = ArtistStatsResponse.builder()
                 .artistId(artistId)
-                .followerCount(followers)
-                .totalListens(totalListens)
-                .totalLikes(totalLikes)
-                .totalShares(totalShares)
+                .followerCount(followRepository.countByArtistId(artistId))
+                .totalListens(listenHistoryRepository.countByArtistId(artistId))
+                .totalLikes(reactionRepository.countByArtistIdAndType(artistId, ReactionType.LIKE))
+                .totalShares(songShareRepository.countByArtistId(artistId))
                 .build();
+
+        redisTemplate.opsForValue().set(cacheKey, stats, Duration.ofMinutes(2));
+
+        return stats;
     }
 
     private FollowResponse toResponse(Follow follow) {
