@@ -10,11 +10,18 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-timeout: 30000
+      idle-timeout: 300000
+      max-lifetime: 600000
+      leak-detection-threshold: 30000
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -31,19 +38,16 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    cache:
+      connection:
+        mode: channel
+      channel:
+        size: 5
 
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
-
-  zipkin:
-    base-url: ${ZIPKIN_URL:http://zipkin:9411}
-    sleuth:
-      sampler:
-        # 1.0 = trace 100% request (chỉ dùng khi debug)
-        # Production nên đặt 0.1 (10%) để không ngốm bandwidth
-        probability: 1.0
 
 management:
   endpoints:
@@ -52,17 +56,20 @@ management:
         include: health, info, prometheus, metrics
   endpoint:
     health:
-      show-details: always
+      show-details: never
   metrics:
     tags:
       application: ${spring.application.name}
 
 eureka:
   client:
+    registry-fetch-interval-seconds: 5
     service-url:
       defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 20
 
 minio:
   url: ${MINIO_ENDPOINT}
@@ -86,7 +93,7 @@ springdoc:
 
 logging:
   level:
-    iuh.fit.se.adsservice: DEBUG
+    iuh.fit.se.adsservice: INFO
 
 internal:
   service-secret: ${INTERNAL_SERVICE_SECRET}

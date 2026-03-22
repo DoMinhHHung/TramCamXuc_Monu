@@ -5,27 +5,26 @@ spring:
   application:
     name: identity-service
 
-  zipkin:
-    base-url: ${ZIPKIN_URL:http://zipkin:9411}
-    sleuth:
-      sampler:
-        # 1.0 = trace 100% request (chỉ dùng khi debug)
-        # Production nên đặt 0.1 (10%) để không ngốm bandwidth
-        probability: 1.0
-
   datasource:
     url: ${DB_URL_IDENTITY}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-timeout: 30000
+      idle-timeout: 300000
+      max-lifetime: 600000
+      leak-detection-threshold: 30000
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         dialect: org.hibernate.dialect.PostgreSQLDialect
     open-in-view: false
 
@@ -39,13 +38,21 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    cache:
+      connection:
+        mode: channel
+      channel:
+        size: 5
 
 eureka:
   client:
+    registry-fetch-interval-seconds: 5
     service-url:
       defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
   instance:
     prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+    lease-expiration-duration-in-seconds: 20
 
 jwt:
   signerKey: ${JWT_SECRET}
@@ -83,7 +90,7 @@ management:
         include: health, info, prometheus, metrics
   endpoint:
     health:
-      show-details: always
+      show-details: never
   metrics:
     tags:
       application: ${spring.application.name}
