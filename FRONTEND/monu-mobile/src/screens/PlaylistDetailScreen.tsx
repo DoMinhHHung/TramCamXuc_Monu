@@ -10,7 +10,7 @@ import { BackButton } from '../components/BackButton';
 import { SongCard } from '../components/SongCard';
 import { usePlayer } from '../context/PlayerContext';
 import { useTranslation } from '../context/LocalizationContext';
-import { getPlaylistBySlug, Playlist, removeSongFromPlaylist, reorderPlaylistSong, Song } from '../services/music';
+import { getPlaylistBySlug, Playlist, reorderPlaylistSong, removeSongFromPlaylist, Song } from '../services/music';
 
 export const PlaylistDetailScreen = () => {
   const route = useRoute<any>();
@@ -20,6 +20,8 @@ export const PlaylistDetailScreen = () => {
   const fallbackName = route.params?.name as string | undefined;
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loading, setLoading] = useState(true);
+  const [armedSongId, setArmedSongId] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
   const { playSong, currentSong, isPlaying } = usePlayer();
   const themeColors = useThemeColors();
   const { t } = useTranslation();
@@ -40,8 +42,8 @@ export const PlaylistDetailScreen = () => {
 
   useEffect(() => { void loadPlaylist(); }, [slug]);
 
-  const songQueue: Song[] = useMemo(() => {
-    return (playlist?.songs ?? []).map((s) => ({
+  const songQueue: Song[] = useMemo(() => (
+    (playlist?.songs ?? []).map((s) => ({
       id: s.songId,
       title: s.title,
       primaryArtist: { artistId: s.artistId || '', stageName: s.artistStageName || 'Unknown' },
@@ -53,8 +55,8 @@ export const PlaylistDetailScreen = () => {
       thumbnailUrl: s.thumbnailUrl,
       createdAt: '',
       updatedAt: '',
-    }));
-  }, [playlist?.songs]);
+    }))
+  ), [playlist?.songs]);
 
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -62,23 +64,29 @@ export const PlaylistDetailScreen = () => {
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  const moveSong = async (index: number, direction: 'up' | 'down') => {
+  const reorderToIndex = async (fromIndex: number, toIndex: number) => {
     if (!playlist?.songs || !playlist.id) return;
     const songs = playlist.songs;
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === songs.length - 1) return;
+    if (fromIndex === toIndex) return;
+    const dragged = songs[fromIndex];
+    const movingDown = toIndex > fromIndex;
+    const prev = movingDown ? songs[toIndex] : songs[toIndex - 1] ?? null;
+    const next = movingDown ? songs[toIndex + 1] ?? null : songs[toIndex] ?? null;
 
-    const dragged = songs[index];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    const prev = songs[targetIndex - 1] ?? null;
-    const next = songs[targetIndex] ?? null;
-
-    await reorderPlaylistSong(playlist.id, {
-      draggedId: dragged.playlistSongId,
-      prevId: prev?.playlistSongId ?? null,
-      nextId: next?.playlistSongId ?? null,
-    });
-    await loadPlaylist();
+    setReordering(true);
+    try {
+      await reorderPlaylistSong(playlist.id, {
+        draggedId: dragged.playlistSongId,
+        prevId: prev?.playlistSongId ?? null,
+        nextId: next?.playlistSongId ?? null,
+      });
+      setArmedSongId(null);
+      await loadPlaylist();
+    } catch (error: any) {
+      Alert.alert(t('common.error'), error?.message || t('playlistDetails.reorderingFailed', 'Could not reorder songs.'));
+    } finally {
+      setReordering(false);
+    }
   };
 
   const removeSong = async (songId: string, songTitle: string) => {
@@ -108,6 +116,7 @@ export const PlaylistDetailScreen = () => {
           <View style={styles.backRow}><BackButton onPress={() => navigation.goBack()} /></View>
           <Text style={styles.title}>{playlist?.name || fallbackName || t('labels.title')}</Text>
           <Text style={styles.sub}>{playlist?.totalSongs ?? playlist?.songs?.length ?? 0} {t('playlistDetails.songs')}</Text>
+          <Text style={styles.hint}>↕️ Giữ nút kéo ở mép phải để chọn bài, rồi chạm vào vị trí mới để sắp xếp.</Text>
         </LinearGradient>
 
         <View style={styles.body}>
@@ -118,23 +127,57 @@ export const PlaylistDetailScreen = () => {
 
           {songQueue.map((song, index) => {
             const node = playlist?.songs?.[index];
+            const isArmed = armedSongId === node?.playlistSongId;
             return (
-              <View key={node?.playlistSongId || song.id} style={styles.card}>
+              <Pressable
+                key={node?.playlistSongId || song.id}
+                style={[styles.card, isArmed && styles.cardActive]}
+                disabled={reordering}
+                onPress={() => {
+                  if (!node) return;
+                  if (armedSongId && armedSongId !== node.playlistSongId) {
+                    const fromIndex = playlist?.songs?.findIndex((item) => item.playlistSongId === armedSongId) ?? -1;
+                    if (fromIndex >= 0) {
+                      void reorderToIndex(fromIndex, index);
+                    }
+                    return;
+                  }
+                  playSong(song, songQueue);
+                }}
+              >
                 <SongCard
                   song={song}
                   isActive={currentSong?.id === song.id}
                   isPlaying={currentSong?.id === song.id && isPlaying}
-                  onPress={() => playSong(song, songQueue)}
+                  onPress={() => {
+                    if (!armedSongId) {
+                      playSong(song, songQueue);
+                    }
+                  }}
                   formatDuration={formatDuration}
                 />
                 <View style={styles.row}>
-                  <Pressable onPress={() => void moveSong(index, 'up')}><Text style={styles.action}>↑</Text></Pressable>
-                  <Pressable onPress={() => void moveSong(index, 'down')}><Text style={styles.action}>↓</Text></Pressable>
-                  <Pressable onPress={() => void removeSong(song.id, song.title)}><Text style={styles.actionDelete}>✕</Text></Pressable>
+                  <Pressable
+                    style={[styles.dragHandle, isArmed && styles.dragHandleActive]}
+                    onLongPress={() => setArmedSongId(isArmed ? null : node?.playlistSongId ?? null)}
+                    delayLongPress={180}
+                  >
+                    <Text style={styles.dragHandleText}>{isArmed ? '✅ Đang kéo' : '↕️ Kéo'}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => void removeSong(song.id, song.title)}><Text style={styles.actionDelete}>🗑️</Text></Pressable>
                 </View>
-              </View>
+              </Pressable>
             );
           })}
+
+          {armedSongId && playlist?.songs?.length ? (
+            <View style={styles.dropFooter}>
+              <Text style={styles.dropFooterText}>Chạm vào bài muốn đặt vị trí trước nó, hoặc huỷ để tiếp tục nghe nhạc.</Text>
+              <Pressable style={styles.cancelDragBtn} onPress={() => setArmedSongId(null)}>
+                <Text style={styles.cancelDragText}>Huỷ sắp xếp</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
     </View>
@@ -149,10 +192,18 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
   center: { justifyContent: 'center', alignItems: 'center', paddingTop: 28 },
   title: { color: colors.white, fontSize: 28, fontWeight: '800' },
   sub: { color: colors.glass60, marginTop: 6 },
-  card: { marginBottom: 8 },
-  row: { flexDirection: 'row', gap: 18, marginTop: 4, marginLeft: 8 },
-  action: { color: colors.accent, fontSize: 16, fontWeight: '700' },
-  actionDelete: { color: colors.error, fontSize: 16, fontWeight: '700' },
+  hint: { color: colors.glass45, marginTop: 10, fontSize: 13, lineHeight: 18 },
+  card: { marginBottom: 10, borderRadius: 14 },
+  cardActive: { backgroundColor: colors.accentFill20, borderWidth: 1, borderColor: colors.accentBorder25, paddingBottom: 8 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, marginHorizontal: 8 },
+  dragHandle: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.glass15 },
+  dragHandleActive: { backgroundColor: colors.accentFill20, borderColor: colors.accentBorder25 },
+  dragHandleText: { color: colors.white, fontSize: 12, fontWeight: '800' },
+  actionDelete: { color: colors.error, fontSize: 18, fontWeight: '700' },
   emptyCard: { borderRadius: 12, borderWidth: 1, borderColor: colors.glass10, padding: 14, backgroundColor: colors.surface },
   emptyText: { color: colors.glass60 },
+  dropFooter: { marginTop: 12, padding: 14, borderRadius: 14, backgroundColor: colors.surface },
+  dropFooterText: { color: colors.glass60, lineHeight: 18, marginBottom: 10 },
+  cancelDragBtn: { alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.glass08 },
+  cancelDragText: { color: colors.white, fontWeight: '700' },
 });

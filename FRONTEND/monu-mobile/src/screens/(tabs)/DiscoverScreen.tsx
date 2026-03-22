@@ -43,7 +43,7 @@ import {
   getArtistByUserId,
   getMyFollowedArtists,
 } from '../../services/social';
-import {Song, getAlbumById, getMyAlbumById, getPlaylistById, getSongById, getSongsByIds, getPlaylistBySlug} from '../../services/music';
+import {Song, getAlbumById, getMyAlbumById, getPlaylistById, getSongById, getSongsByIds, getPlaylistBySlug, createPlaylist, addSongToPlaylist, createAlbum, addSongToAlbum} from '../../services/music';
 import { usePlayer } from '../../context/PlayerContext';
 
 interface OwnerInfo {
@@ -661,6 +661,7 @@ interface PostContentInfo {
   coverUrl?: string;
   songs: Song[];
   totalCount?: number;
+  sourceLabel?: string;
 }
 
 const PostCard = ({
@@ -794,7 +795,13 @@ const PostCard = ({
                   style={styles.contentCard}
                   onPress={() => {
                     if (contentInfo.type === 'PLAYLIST' || contentInfo.type === 'ALBUM') {
-                      if (onOpenContent) onOpenContent(contentInfo);
+                      if (onOpenContent) {
+                        const sourcePrefix = contentInfo.type === 'ALBUM' ? tr('labels.artist', 'Artist') : tr('labels.user', 'User');
+                        onOpenContent({
+                          ...contentInfo,
+                          sourceLabel: `${sourcePrefix}: ${ownerInfo.displayName}`,
+                        });
+                      }
                       return;
                     }
                     const first = contentInfo.songs?.[0];
@@ -985,10 +992,12 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
 interface SharedContentDetailModalProps {
   visible: boolean;
   content: PostContentInfo | null;
+  canSaveAlbum: boolean;
+  onSave: (content: PostContentInfo) => Promise<void>;
   onClose: () => void;
 }
 
-const SharedContentDetailModal = ({ visible, content, onClose }: SharedContentDetailModalProps) => {
+const SharedContentDetailModal = ({ visible, content, canSaveAlbum, onSave, onClose }: SharedContentDetailModalProps) => {
   const insets = useSafeAreaInsets();
   const { playSong, currentSong } = usePlayer();
 
@@ -1019,7 +1028,22 @@ const SharedContentDetailModal = ({ visible, content, onClose }: SharedContentDe
               {content.type === 'ALBUM' ? 'Album' : 'Playlist'}
               {content.totalCount ? ` · ${content.totalCount} ${tr('screens.library.songsSuffix', 'songs')}` : ''}
             </Text>
+            {content.sourceLabel ? <Text style={styles.detailSource}>{content.sourceLabel}</Text> : null}
             {content.subtitle ? <Text style={styles.detailSubtitle}>{content.subtitle}</Text> : null}
+
+            <Pressable
+                style={[styles.detailSaveBtn, content.type === 'ALBUM' && !canSaveAlbum && styles.detailSaveBtnDisabled]}
+                disabled={content.type === 'ALBUM' && !canSaveAlbum}
+                onPress={() => {
+                  if (content.type === 'ALBUM' && !canSaveAlbum) {
+                    Alert.alert('Chưa thể lưu album', 'Bạn cần tài khoản artist để lưu album vào thư viện cá nhân.');
+                    return;
+                  }
+                  void onSave(content);
+                }}
+            >
+              <Text style={styles.detailSaveBtnText}>{content.type === 'ALBUM' ? '💿 Lưu album' : '📋 Lưu playlist'}</Text>
+            </Pressable>
 
             {content.songs && content.songs.length > 0 ? (
                 <View style={styles.detailTracks}>
@@ -1065,6 +1089,7 @@ export const DiscoverScreen = () => {
   const currentUserId = authSession?.profile?.id ?? null;
   const myDisplayName = authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
   const myAvatarUrl = authSession?.profile?.avatarUrl;
+  const canSaveAlbum = authSession?.profile?.role === 'ARTIST';
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -1422,6 +1447,39 @@ export const DiscoverScreen = () => {
     await reloadComments();
   };
 
+  const handleSaveSharedContent = async (content: PostContentInfo) => {
+    try {
+      if (content.type === 'PLAYLIST') {
+        const playlist = await createPlaylist({
+          name: `${content.title} • saved`,
+          description: content.sourceLabel,
+          visibility: 'PRIVATE',
+        });
+        for (const song of content.songs) {
+          await addSongToPlaylist(playlist.id, song.id);
+        }
+        Alert.alert('Đã lưu playlist', `Playlist "${content.title}" đã được lưu vào thư viện của bạn.`);
+        setOpenedContent(null);
+        return;
+      }
+
+      if (content.type === 'ALBUM') {
+        if (!canSaveAlbum) {
+          Alert.alert('Chưa thể lưu album', 'Bạn cần tài khoản artist để tạo album trong thư viện.');
+          return;
+        }
+        const album = await createAlbum({ title: `${content.title} • saved`, description: content.sourceLabel });
+        for (const song of content.songs) {
+          await addSongToAlbum(album.id, song.id);
+        }
+        Alert.alert('Đã lưu album', `Album "${content.title}" đã được lưu vào thư viện của bạn.`);
+        setOpenedContent(null);
+      }
+    } catch (error: any) {
+      Alert.alert('Không thể lưu', error?.message || 'Vui lòng thử lại sau.');
+    }
+  };
+
   return (
       <View style={styles.root}>
         <StatusBar style="light" />
@@ -1527,6 +1585,8 @@ export const DiscoverScreen = () => {
         <SharedContentDetailModal
             visible={!!openedContent}
             content={openedContent}
+            canSaveAlbum={canSaveAlbum}
+            onSave={handleSaveSharedContent}
             onClose={() => setOpenedContent(null)}
         />
       </View>

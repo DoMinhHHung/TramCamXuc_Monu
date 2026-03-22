@@ -30,4 +30,18 @@ public interface UserSubscriptionRepository extends JpaRepository<UserSubscripti
 
     @Query("SELECT us FROM UserSubscription us JOIN FETCH us.plan WHERE us.userId = :userId AND us.status = 'ACTIVE' ORDER BY us.createdAt DESC")
     List<UserSubscription> findActiveWithPlanByUserId(@Param("userId") UUID userId);
+
+    @Query("""
+            SELECT us FROM UserSubscription us
+            WHERE us.userId = :userId
+              AND us.status = :status
+              AND us.plan.id = :planId
+              AND us.createdAt > :createdAfter
+            ORDER BY us.createdAt DESC
+            """)
+    Optional<UserSubscription> findByUserIdAndStatusAndPlanIdAndCreatedAtAfter(
+            @Param("userId") UUID userId,
+            @Param("status") SubscriptionStatus status,
+            @Param("planId") UUID planId,
+            @Param("createdAfter") LocalDateTime createdAfter);
 }

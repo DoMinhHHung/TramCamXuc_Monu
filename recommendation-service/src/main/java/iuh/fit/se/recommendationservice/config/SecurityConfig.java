@@ -18,7 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final TrustedHeaderAuthFilter trustedHeaderAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -32,7 +32,7 @@ public class SecurityConfig {
                         // Tất cả endpoint khác cần auth (personalized recommendations)
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(trustedHeaderAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }

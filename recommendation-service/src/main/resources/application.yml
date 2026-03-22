@@ -85,3 +85,6 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+internal:
+  gateway-secret: ${INTERNAL_GATEWAY_SECRET:changeme-in-production}
+  service-secret: ${INTERNAL_SERVICE_SECRET:changeme-in-production}

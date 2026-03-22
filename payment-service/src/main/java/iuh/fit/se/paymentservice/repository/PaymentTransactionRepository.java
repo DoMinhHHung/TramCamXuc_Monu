@@ -3,6 +3,8 @@ package iuh.fit.se.paymentservice.repository;
 import iuh.fit.se.paymentservice.entity.PaymentTransaction;
 import iuh.fit.se.paymentservice.enums.PaymentStatus;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -20,4 +22,14 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     Page<PaymentTransaction> findAllByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
     Page<PaymentTransaction> findAllByStatus(PaymentStatus status, Pageable pageable);
+
+    @Query("""
+            SELECT t FROM PaymentTransaction t
+            WHERE t.subscription.id = :subscriptionId
+              AND t.status = :status
+            ORDER BY t.createdAt DESC
+            """)
+    Optional<PaymentTransaction> findBySubscriptionIdAndStatus(
+            @Param("subscriptionId") UUID subscriptionId,
+            @Param("status") PaymentStatus status);
 }

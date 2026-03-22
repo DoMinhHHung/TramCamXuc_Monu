@@ -23,7 +23,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final TrustedHeaderAuthFilter trustedHeaderAuthFilter;
+    private final InternalSecretFilter internalSecretFilter;
 
     private static final String[] PUBLIC_GET = {
             "/social/artists/*/stats",
@@ -56,10 +57,12 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/internal/**").permitAll()
                 .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(internalSecretFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(trustedHeaderAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

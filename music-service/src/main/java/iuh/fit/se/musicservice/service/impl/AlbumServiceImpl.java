@@ -503,12 +503,19 @@ public class AlbumServiceImpl implements AlbumService {
     @Scheduled(fixedDelay = 60_000)
     public void autoPublishScheduledAlbums() {
         Boolean acquired = stringRedisTemplate.opsForValue()
-                .setIfAbsent(LOCK_AUTO_PUBLISH, "1", Duration.ofSeconds(65));
+                .setIfAbsent(LOCK_AUTO_PUBLISH, "1", Duration.ofSeconds(55));
         if (!Boolean.TRUE.equals(acquired)) {
             log.debug("autoPublishScheduledAlbums skipped — lock held by another instance");
             return;
         }
-        doAutoPublish();
+        try {
+            doAutoPublish();
+        } catch (Exception e) {
+            log.error("autoPublishScheduledAlbums failed: {}", e.getMessage(), e);
+        } finally {
+            stringRedisTemplate.delete(LOCK_AUTO_PUBLISH);
+            log.debug("autoPublishScheduledAlbums lock released");
+        }
     }
 
     @Transactional

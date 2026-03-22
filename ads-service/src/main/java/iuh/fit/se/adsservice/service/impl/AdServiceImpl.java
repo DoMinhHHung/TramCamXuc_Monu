@@ -8,6 +8,8 @@ import iuh.fit.se.adsservice.dto.response.AdStatsResponse;
 import iuh.fit.se.adsservice.entity.Ad;
 import iuh.fit.se.adsservice.entity.AdClick;
 import iuh.fit.se.adsservice.entity.AdImpression;
+import iuh.fit.se.adsservice.exception.AppException;
+import iuh.fit.se.adsservice.exception.ErrorCode;
 import iuh.fit.se.adsservice.enums.AdStatus;
 import iuh.fit.se.adsservice.repository.AdClickRepository;
 import iuh.fit.se.adsservice.repository.AdImpressionRepository;
@@ -36,14 +38,12 @@ import java.util.concurrent.ThreadLocalRandom;
 @Slf4j
 public class AdServiceImpl implements AdService {
 
-    private static final int CLICK_ANTI_SPAM_LIMIT = 3;
-    private static final int CLICK_WINDOW_SECONDS  = 60;
-
     private final AdRepository           adRepository;
     private final AdImpressionRepository impressionRepository;
     private final AdClickRepository      clickRepository;
     private final AdSessionService       sessionService;
     private final MinioService           minioService;
+    private final iuh.fit.se.adsservice.config.AdsProperties props;
 
     // ─────────────────────────────────────────────────────────────────────────
     // ADMIN: CRUD
@@ -53,9 +53,9 @@ public class AdServiceImpl implements AdService {
     @Transactional
     public AdResponse createAd(CreateAdRequest request, MultipartFile audioFile) {
         if (audioFile == null || audioFile.isEmpty())
-            throw new IllegalArgumentException("Audio file is required");
+            throw new AppException(ErrorCode.AD_FILE_REQUIRED);
         if (!isAudioFile(audioFile))
-            throw new IllegalArgumentException("Only MP3 audio files are accepted");
+            throw new AppException(ErrorCode.AD_FILE_NOT_MP3);
 
         /*
          * FIX: Upload MinIO BEFORE saving entity to DB.
@@ -145,7 +145,7 @@ public class AdServiceImpl implements AdService {
 
         if (audioFile != null && !audioFile.isEmpty()) {
             if (!isAudioFile(audioFile))
-                throw new IllegalArgumentException("Only MP3 audio files are accepted");
+                throw new AppException(ErrorCode.AD_FILE_NOT_MP3);
             // Delete old file first, then upload new one
             minioService.deleteAudioFile(ad.getAudioFileKey());
             ad.setAudioFileKey(minioService.uploadAudioFile(audioFile, ad.getId()));
@@ -246,8 +246,16 @@ public class AdServiceImpl implements AdService {
             return null;
         }
 
-        // FIX: use ThreadLocalRandom instead of shared Random (thread-safe)
-        Ad ad = eligible.get(ThreadLocalRandom.current().nextInt(eligible.size()));
+        List<Ad> withinBudget = eligible.stream()
+                .filter(this::isWithinBudget)
+                .toList();
+        if (withinBudget.isEmpty()) {
+            log.info("All eligible ads exceeded budget for userId={}", userId);
+            sessionService.resetSession(userId);
+            return null;
+        }
+
+        Ad ad = withinBudget.get(ThreadLocalRandom.current().nextInt(withinBudget.size()));
         sessionService.resetSession(userId);
 
         String audioUrl = minioService.getPresignedUrl(ad.getAudioFileKey());
@@ -283,11 +291,11 @@ public class AdServiceImpl implements AdService {
     @Transactional
     public void recordClicked(UUID adId, UUID userId) {
         findOrThrow(adId);
-        LocalDateTime windowStart = LocalDateTime.now().minusSeconds(CLICK_WINDOW_SECONDS);
+        LocalDateTime windowStart = LocalDateTime.now()
+                .minusSeconds(props.getClick().getAntiSpamWindowSeconds());
         long recentClicks = clickRepository.countByAdIdAndUserIdAndClickedAtAfter(adId, userId, windowStart);
-        if (recentClicks >= CLICK_ANTI_SPAM_LIMIT) {
-            log.warn("Click anti-spam triggered: adId={} userId={}", adId, userId);
-            return;
+        if (recentClicks >= props.getClick().getAntiSpamLimit()) {
+            throw new AppException(ErrorCode.AD_CLICK_SPAM);
         }
         clickRepository.save(AdClick.builder()
                 .adId(adId)
@@ -304,7 +312,20 @@ public class AdServiceImpl implements AdService {
 
     private Ad findOrThrow(UUID adId) {
         return adRepository.findById(adId)
-                .orElseThrow(() -> new IllegalArgumentException("Ad not found: " + adId));
+                .orElseThrow(() -> new AppException(ErrorCode.AD_NOT_FOUND));
+    }
+
+    private boolean isWithinBudget(Ad ad) {
+        if (ad.getBudgetVnd() == null || ad.getBudgetVnd().compareTo(BigDecimal.ZERO) <= 0) {
+            return true;
+        }
+
+        BigDecimal estimatedRevenue = ad.getEstimatedRevenueVnd();
+        boolean withinBudget = estimatedRevenue.compareTo(ad.getBudgetVnd()) < 0;
+        if (!withinBudget) {
+            log.debug("Ad {} exceeded budget: revenue={} budget={}", ad.getId(), estimatedRevenue, ad.getBudgetVnd());
+        }
+        return withinBudget;
     }
 
     private AdResponse toResponse(Ad ad) {

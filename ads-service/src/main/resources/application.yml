@@ -90,3 +90,7 @@ springdoc:
 logging:
   level:
     iuh.fit.se.adsservice: DEBUG
+
+internal:
+  gateway-secret: ${INTERNAL_GATEWAY_SECRET:changeme-in-production}
+  service-secret: ${INTERNAL_SERVICE_SECRET:changeme-in-production}

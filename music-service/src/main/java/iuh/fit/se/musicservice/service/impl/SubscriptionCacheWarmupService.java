@@ -33,8 +33,13 @@ public class SubscriptionCacheWarmupService {
 
         try {
             String payload = objectMapper.writeValueAsString(features);
-            stringRedisTemplate.opsForValue().set("user:subscription:" + userId, payload, ttl);
-            log.debug("Warmed subscription cache for userId={} ttl={}s", userId, ttl.getSeconds());
+            String key = "user:subscription:" + userId;
+            Boolean set = stringRedisTemplate.opsForValue().setIfAbsent(key, payload, ttl);
+            if (Boolean.TRUE.equals(set)) {
+                log.debug("[CacheWarmup] Set subscription cache for userId={}", userId);
+            } else {
+                log.debug("[CacheWarmup] Cache already set by payment-service, skipping");
+            }
         } catch (Exception e) {
             log.warn("Failed to warm subscription cache for userId={}", userId, e);
         }

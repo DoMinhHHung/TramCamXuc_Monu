@@ -14,6 +14,7 @@ import iuh.fit.se.socialservice.service.FollowService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -72,16 +73,16 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     public FollowResponse followArtist(UUID followerId, UUID artistId) {
-        if (followRepository.existsByFollowerIdAndArtistId(followerId, artistId)) {
-            throw new AppException(ErrorCode.ALREADY_FOLLOWING);
-        }
-
         Follow follow = Follow.builder()
                 .followerId(followerId)
                 .artistId(artistId)
                 .build();
 
-        follow = followRepository.save(follow);
+        try {
+            follow = followRepository.save(follow);
+        } catch (DuplicateKeyException e) {
+            throw new AppException(ErrorCode.ALREADY_FOLLOWING);
+        }
         evictFollowCache(followerId);
         updateFamousStatus(artistId);
         return toResponse(follow);

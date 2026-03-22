@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import java.util.UUID;
 
 
-@FeignClient(name = "identity-service", path = "/internal")
+@FeignClient(name = "identity-service", path = "/internal", configuration = iuh.fit.se.musicservice.config.InternalFeignConfig.class)
 public interface IdentityClient {
 
     @PostMapping("/users/{userId}/grant-artist-role")

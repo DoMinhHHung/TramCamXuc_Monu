@@ -15,7 +15,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 @RequiredArgsConstructor
@@ -23,15 +25,24 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class AiDataLakeWorker {
 
     private static final int FLUSH_SIZE = 500;
+    private static final int MAX_BUFFER_SIZE = 5_000;
 
     private final AiDataLakeWriter aiDataLakeWriter;
     private final ObjectMapper objectMapper;
 
-    private final ConcurrentLinkedQueue<SongListenEvent> buffer = new ConcurrentLinkedQueue<>();
+    private final BlockingQueue<SongListenEvent> buffer = new LinkedBlockingQueue<>(MAX_BUFFER_SIZE);
+    private final AtomicLong droppedCount = new AtomicLong(0);
 
     @RabbitListener(queues = RabbitMQConfig.AI_DATALAKE_QUEUE)
     public void consume(SongListenEvent event) {
-        buffer.offer(event);
+        boolean accepted = buffer.offer(event);
+        if (!accepted) {
+            long dropped = droppedCount.incrementAndGet();
+            if (dropped % 1000 == 0) {
+                log.warn("[AI DataLake] Buffer full! Total dropped: {}", dropped);
+            }
+            return;
+        }
         if (buffer.size() >= FLUSH_SIZE) {
             flush();
         }
@@ -40,6 +51,10 @@ public class AiDataLakeWorker {
     @Scheduled(fixedDelay = 60_000)
     public void scheduledFlush() {
         flush();
+        long dropped = droppedCount.getAndSet(0);
+        if (dropped > 0) {
+            log.warn("[AI DataLake] Dropped {} events in last flush cycle", dropped);
+        }
     }
 
     private synchronized void flush() {
@@ -48,29 +63,38 @@ public class AiDataLakeWorker {
         }
 
         List<SongListenEvent> batch = new ArrayList<>(FLUSH_SIZE);
-        while (batch.size() < FLUSH_SIZE) {
-            SongListenEvent event = buffer.poll();
-            if (event == null) {
-                break;
-            }
-            batch.add(event);
-        }
-
-        if (batch.isEmpty()) {
+        int drained = buffer.drainTo(batch, FLUSH_SIZE);
+        if (drained == 0) {
             return;
         }
 
-        try {
-            StringBuilder jsonl = new StringBuilder();
-            for (SongListenEvent event : batch) {
-                jsonl.append(objectMapper.writeValueAsString(event)).append('\n');
+        int retryCount = 0;
+        int maxRetries = 3;
+        while (retryCount < maxRetries) {
+            try {
+                StringBuilder jsonl = new StringBuilder();
+                for (SongListenEvent event : batch) {
+                    jsonl.append(objectMapper.writeValueAsString(event)).append('\n');
+                }
+                String objectKey = buildObjectKey();
+                aiDataLakeWriter.uploadJsonl(objectKey, jsonl.toString());
+                log.info("[AI DataLake] Flushed {} events to {}", drained, objectKey);
+                return;
+            } catch (Exception e) {
+                retryCount++;
+                if (retryCount < maxRetries) {
+                    log.warn("[AI DataLake] Upload failed (attempt {}/{}): {}", retryCount, maxRetries, e.getMessage());
+                    try {
+                        Thread.sleep(1000L * retryCount);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
+                } else {
+                    log.error("[AI DataLake] Failed to upload batch after {} retries. Dropping {} events. Error: {}",
+                            maxRetries, drained, e.getMessage());
+                }
             }
-
-            String objectKey = buildObjectKey();
-            aiDataLakeWriter.uploadJsonl(objectKey, jsonl.toString());
-        } catch (Exception e) {
-            log.error("Failed to flush AI data-lake batch, restoring {} events", batch.size(), e);
-            batch.forEach(buffer::offer);
         }
     }
 

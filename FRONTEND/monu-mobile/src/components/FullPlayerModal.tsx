@@ -40,6 +40,7 @@ export const FullPlayerModal = () => {
         currentSong, isFullScreen, setFullScreen,
         isPlaying, isLoaded, currentTime, duration,
         togglePlay, seekTo, playNext, playPrev, stopPlayer,
+        isShuffleEnabled, toggleShuffle, repeatMode, cycleRepeatMode,
         selectedQuality, maxQuality, setQuality,
     } = usePlayer();
 
@@ -123,6 +124,8 @@ export const FullPlayerModal = () => {
         setPlaylistPickerOpen(true);
     };
 
+    const repeatLabel = repeatMode === 'one' ? 'Lặp 1 bài' : repeatMode === 'all' ? 'Lặp danh sách' : 'Tắt lặp';
+
     if (!currentSong) return null;
 
     return (
@@ -201,8 +204,25 @@ export const FullPlayerModal = () => {
                                 <Text style={styles.playBtnIcon}>{!isLoaded ? '⏳' : isPlaying ? '⏸' : '▶'}</Text>
                             </LinearGradient>
                         </Pressable>
-                        <Pressable style={styles.sideBtn} onPress={playNext}>
+                        <Pressable style={styles.sideBtn} onPress={() => playNext()}>
                             <Text style={styles.sideBtnIcon}>⏭</Text>
+                        </Pressable>
+                    </View>
+
+                    <View style={styles.playModesRow}>
+                        <Pressable
+                            style={[styles.modeChip, isShuffleEnabled && styles.modeChipActive]}
+                            onPress={toggleShuffle}
+                        >
+                            <Text style={styles.modeChipIcon}>🔀</Text>
+                            <Text style={[styles.modeChipText, isShuffleEnabled && styles.modeChipTextActive]}>Trộn bài</Text>
+                        </Pressable>
+                        <Pressable
+                            style={[styles.modeChip, repeatMode !== 'off' && styles.modeChipActive]}
+                            onPress={cycleRepeatMode}
+                        >
+                            <Text style={styles.modeChipIcon}>{repeatMode === 'one' ? '🔂' : '🔁'}</Text>
+                            <Text style={[styles.modeChipText, repeatMode !== 'off' && styles.modeChipTextActive]}>{repeatLabel}</Text>
                         </Pressable>
                     </View>
 

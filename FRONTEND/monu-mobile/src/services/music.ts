@@ -191,6 +191,17 @@ export const confirmUploadSong = async (songId: string): Promise<void> => {
   await apiClient.post(`/songs/${songId}/confirm`);
 };
 
+
+export const createAlbum = async (payload: { title: string; description?: string; releaseDate?: string }): Promise<Album> => {
+  const response = await apiClient.post<Album>('/albums', payload);
+  return unwrap<Album>(response.data);
+};
+
+export const addSongToAlbum = async (albumId: string, songId: string): Promise<Album> => {
+  const response = await apiClient.post<Album>(`/albums/${albumId}/songs/${songId}`);
+  return unwrap<Album>(response.data);
+};
+
 export const getMyAlbums = async (params?: { page?: number; size?: number }): Promise<PageResponse<Album>> => {
   const response = await apiClient.get<PageResponse<Album>>('/albums/my', { params });
   return unwrap<PageResponse<Album>>(response.data);

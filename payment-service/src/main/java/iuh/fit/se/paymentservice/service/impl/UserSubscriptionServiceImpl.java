@@ -5,11 +5,14 @@ import iuh.fit.se.paymentservice.dto.request.PurchaseSubscriptionRequest;
 import iuh.fit.se.paymentservice.dto.response.PaymentResponse;
 import iuh.fit.se.paymentservice.dto.response.UserSubscriptionResponse;
 import iuh.fit.se.paymentservice.entity.SubscriptionPlan;
+import iuh.fit.se.paymentservice.entity.PaymentTransaction;
 import iuh.fit.se.paymentservice.entity.UserSubscription;
+import iuh.fit.se.paymentservice.enums.PaymentStatus;
 import iuh.fit.se.paymentservice.enums.SubscriptionStatus;
 import iuh.fit.se.paymentservice.exception.AppException;
 import iuh.fit.se.paymentservice.exception.ErrorCode;
 import iuh.fit.se.paymentservice.dto.mapper.UserSubscriptionMapper;
+import iuh.fit.se.paymentservice.repository.PaymentTransactionRepository;
 import iuh.fit.se.paymentservice.repository.SubscriptionPlanRepository;
 import iuh.fit.se.paymentservice.repository.UserSubscriptionRepository;
 import iuh.fit.se.paymentservice.service.PayOSService;
@@ -36,6 +39,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     private final SubscriptionPlanRepository planRepository;
     private final UserSubscriptionMapper subscriptionMapper;
     private final PayOSService payOSService;
+    private final PaymentTransactionRepository transactionRepository;
     private final SubscriptionAuthorizationCacheService subscriptionAuthorizationCacheService;
 
     // ──────────────────────────────────────────────────────────
@@ -61,32 +65,53 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
         subscriptionRepository.findByUserIdAndStatus(userId, SubscriptionStatus.ACTIVE)
                 .ifPresent(s -> { throw new AppException(ErrorCode.USER_ALREADY_HAS_ACTIVE_SUBSCRIPTION); });
 
+        return subscriptionRepository
+                .findByUserIdAndStatusAndPlanIdAndCreatedAtAfter(
+                        userId,
+                        SubscriptionStatus.PENDING,
+                        request.getPlanId(),
+                        LocalDateTime.now().minusMinutes(15))
+                .map(existing -> {
+                    log.info("Returning existing pending subscription id={} for userId={}", existing.getId(), userId);
+                    return transactionRepository.findBySubscriptionIdAndStatus(existing.getId(), PaymentStatus.PENDING)
+                            .map(this::toExistingPaymentResponse)
+                            .orElseGet(() -> createNewPayment(userId, plan, request));
+                })
+                .orElseGet(() -> createNewPayment(userId, plan, request));
+    }
+
+
+    private PaymentResponse createNewPayment(UUID userId, SubscriptionPlan plan,
+                                             PurchaseSubscriptionRequest request) {
         UserSubscription subscription = UserSubscription.builder()
                 .userId(userId)
                 .plan(plan)
                 .status(SubscriptionStatus.PENDING)
                 .startedAt(null)
                 .expiresAt(null)
-                .autoRenew(request.getAutoRenew() != null && request.getAutoRenew())
+                .autoRenew(Boolean.TRUE.equals(request.getAutoRenew()))
                 .build();
         subscription = subscriptionRepository.save(subscription);
-
-        log.info("Created PENDING subscription id={} for userId={}, plan={}", 
-                subscription.getId(), userId, plan.getSubsName());
-
-        // Lấy email từ JWT claims để lưu vào transaction (dùng gửi email sau khi thanh toán)
+        log.info("Created PENDING subscription id={} for userId={}, plan={}", subscription.getId(), userId, plan.getSubsName());
         String userEmail = getCurrentUserEmail();
-
-        // Tạo payment link qua PayOS
-        String description = " Get plans " + plan.getSubsName();
         return payOSService.createPaymentLink(
                 userId,
                 userEmail,
                 subscription.getId(),
                 plan.getSubsName(),
                 plan.getPrice(),
-                description
+                "Get plans " + plan.getSubsName()
         );
+    }
+
+    private PaymentResponse toExistingPaymentResponse(PaymentTransaction tx) {
+        return PaymentResponse.builder()
+                .checkoutUrl(tx.getCheckoutUrl())
+                .qrCode(tx.getQrCode())
+                .referenceCode(tx.getReferenceCode())
+                .orderCode(tx.getOrderCode())
+                .message("Existing payment link returned")
+                .build();
     }
 
     // ──────────────────────────────────────────────────────────

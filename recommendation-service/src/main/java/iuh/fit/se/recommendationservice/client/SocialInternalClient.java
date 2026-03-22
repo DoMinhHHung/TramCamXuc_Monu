@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
 import java.util.UUID;
 
-@FeignClient(name = "social-service", path = "/internal/social")
+@FeignClient(name = "social-service", path = "/internal/social", configuration = iuh.fit.se.recommendationservice.config.InternalFeignConfig.class)
 public interface SocialInternalClient {
 
     /**

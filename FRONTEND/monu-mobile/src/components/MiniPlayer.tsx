@@ -12,11 +12,18 @@ const TAB_BAR_HEIGHT  = 78;
 const MINI_HEIGHT     = 64;
 const SWIPE_THRESHOLD = 60;
 
+const repeatBadge = (mode: 'off' | 'all' | 'one') => {
+    if (mode === 'one') return '🔂';
+    if (mode === 'all') return '🔁';
+    return '↻';
+};
+
 export const MiniPlayer = () => {
     const {
         currentSong, isPlaying, isLoaded,
         currentTime, duration,
         togglePlay, playNext, setFullScreen, stopPlayer,
+        repeatMode, cycleRepeatMode,
     } = usePlayer();
 
     const translateY = useRef(new Animated.Value(0)).current;
@@ -29,24 +36,17 @@ export const MiniPlayer = () => {
                 const swipeLeft = gs.dx < -8 && Math.abs(gs.dx) > Math.abs(gs.dy);
                 return swipeDown || swipeLeft;
             },
-
             onPanResponderMove: (_, gs) => {
-                if (gs.dy > 0 && Math.abs(gs.dy) >= Math.abs(gs.dx)) {
-                    translateY.setValue(gs.dy);
-                } else if (gs.dx < 0 && Math.abs(gs.dx) > Math.abs(gs.dy)) {
-                    translateX.setValue(gs.dx);
-                }
+                if (gs.dy > 0 && Math.abs(gs.dy) >= Math.abs(gs.dx)) translateY.setValue(gs.dy);
+                else if (gs.dx < 0 && Math.abs(gs.dx) > Math.abs(gs.dy)) translateX.setValue(gs.dx);
             },
-
             onPanResponderRelease: (_, gs) => {
                 const swipedDown = gs.dy >  SWIPE_THRESHOLD;
                 const swipedLeft = gs.dx < -SWIPE_THRESHOLD;
-
                 if (swipedDown || swipedLeft) {
                     const anim = swipedLeft
                         ? Animated.timing(translateX, { toValue: -500, duration: 220, useNativeDriver: true })
                         : Animated.timing(translateY, { toValue: MINI_HEIGHT + TAB_BAR_HEIGHT + 40, duration: 200, useNativeDriver: true });
-
                     anim.start(() => {
                         translateY.setValue(0);
                         translateX.setValue(0);
@@ -63,7 +63,6 @@ export const MiniPlayer = () => {
     ).current;
 
     const progress = duration > 0 ? currentTime / duration : 0;
-
     if (!currentSong) return null;
 
     return (
@@ -78,30 +77,28 @@ export const MiniPlayer = () => {
             <Pressable style={styles.content} onPress={() => setFullScreen(true)} accessible={false}>
                 {currentSong.thumbnailUrl
                     ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.thumbnail} />
-                    : <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}><Text style={styles.thumbnailIcon}>🎵</Text></View>
-                }
+                    : <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}><Text style={styles.thumbnailIcon}>🎵</Text></View>}
 
                 <View style={styles.info}>
-                    <Text style={styles.title}   numberOfLines={1}>{currentSong.title}</Text>
-                    <Text style={styles.artist}  numberOfLines={1}>{currentSong.primaryArtist?.stageName ?? ''}</Text>
+                    <Text style={styles.title} numberOfLines={1}>{currentSong.title}</Text>
+                    <Text style={styles.artist} numberOfLines={1}>{currentSong.primaryArtist?.stageName ?? ''}</Text>
                 </View>
 
                 <View style={styles.controls}>
                     <Pressable
-                        style={styles.iconBtn}
-                        hitSlop={12}
+                        style={[styles.loopBtn, repeatMode !== 'off' && styles.loopBtnActive]}
+                        hitSlop={10}
                         onPress={e => {
                             e.stopPropagation();
-                            togglePlay();
+                            cycleRepeatMode();
                         }}
                     >
-                        {!isLoaded ? (
-                            <Fold size={20} color="#fff" />
-                        ) : isPlaying ? (
+                        <Text style={styles.loopText}>{repeatBadge(repeatMode)}</Text>
+                    </Pressable>
+                    <Pressable style={styles.iconBtn} hitSlop={12} onPress={e => { e.stopPropagation(); togglePlay(); }}>
+                        {!isLoaded ? <Fold size={20} color="#fff" /> : isPlaying ? (
                             <AntDesign name="pause-circle" size={26} color="#fff" />
-                        ) : (
-                            <AntDesign name="play-circle" size={26} color="#fff" />
-                        )}
+                        ) : <AntDesign name="play-circle" size={26} color="#fff" />}
                     </Pressable>
                     <Pressable style={styles.iconBtn} hitSlop={12} onPress={e => { e.stopPropagation(); playNext(); }}>
                         <AntDesign name="step-forward" size={24} color="#fff" />
@@ -133,6 +130,11 @@ const styles = StyleSheet.create({
     artist:  { color: COLORS.glass60, fontSize: 12, fontWeight: '400', lineHeight: 16 },
     controls: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     iconBtn:  { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-    iconText: { fontSize: 20, color: COLORS.white },
+    loopBtn: {
+        minWidth: 34, height: 30, paddingHorizontal: 8, borderRadius: 999,
+        alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.glass08,
+    },
+    loopBtnActive: { backgroundColor: COLORS.accentFill20, borderWidth: 1, borderColor: COLORS.accentBorder25 },
+    loopText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
     swipeHandle: { position: 'absolute', top: 5, alignSelf: 'center', width: 32, height: 3, borderRadius: 2, backgroundColor: COLORS.glass30 },
 });

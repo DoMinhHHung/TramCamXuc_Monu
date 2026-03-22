@@ -64,6 +64,10 @@ interface PlayerContextValue {
     playNext:        () => void;
     playPrev:        () => void;
     stopPlayer:      () => void;
+    isShuffleEnabled: boolean;
+    toggleShuffle:   () => void;
+    repeatMode:      'off' | 'all' | 'one';
+    cycleRepeatMode: () => void;
     selectedQuality: AudioQuality;
     maxQuality:      AudioQuality;
     setQuality:      (q: AudioQuality) => void;
@@ -85,6 +89,8 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const [queue,        setQueue]        = useState<Song[]>([]);
     const [queueIndex,   setQueueIndex]   = useState(0);
     const [isFullScreen, setFullScreen]   = useState(false);
+    const [isShuffleEnabled, setIsShuffleEnabled] = useState(false);
+    const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('off');
 
     // ── Quality ────────────────────────────────────────────────────────────────
     const [maxQuality,       setMaxQuality]      = useState<AudioQuality>(128);
@@ -258,9 +264,8 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
         }).then(() => addListenHistory(song)).catch(() => {});
 
-        // Check ad sau khi bài kết thúc tự nhiên
-        void checkForAd();
-    }, [status.playing, checkForAd]);
+        playNext({ triggerAd: true });
+    }, [status.playing, playNext]);
 
     // ── Reset tracking khi đổi bài ─────────────────────────────────────────────
     const resetListenTracking = useCallback(() => {
@@ -274,6 +279,32 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     }, []);
 
     // ── Actions ────────────────────────────────────────────────────────────────
+
+    const resolveNextIndex = useCallback((direction: 'next' | 'prev'): number | null => {
+        if (!queue.length) return null;
+        if (queue.length === 1) return 0;
+
+        if (isShuffleEnabled) {
+            let candidate = queueIndex;
+            while (candidate === queueIndex) {
+                candidate = Math.floor(Math.random() * queue.length);
+            }
+            return candidate;
+        }
+
+        if (direction === 'next') {
+            if (queueIndex >= queue.length - 1) {
+                return repeatMode === 'all' ? 0 : null;
+            }
+            return queueIndex + 1;
+        }
+
+        if (queueIndex <= 0) {
+            return repeatMode === 'all' ? queue.length - 1 : null;
+        }
+        return queueIndex - 1;
+    }, [isShuffleEnabled, queue.length, queueIndex, repeatMode]);
+
 
     const playSong = useCallback(
         async (song: Song, newQueue?: Song[]) => {
@@ -301,7 +332,8 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
             if (newQueue) {
                 setQueue(newQueue);
-                setQueueIndex(newQueue.findIndex((s) => s.id === song.id));
+                const nextIndex = newQueue.findIndex((s) => s.id === song.id);
+                setQueueIndex(nextIndex >= 0 ? nextIndex : 0);
             }
 
             recordPlay(song.id).catch(() => {});
@@ -324,27 +356,55 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         setCurrentSong(null);
         setQueue([]);
         setQueueIndex(0);
+        setIsShuffleEnabled(false);
+        setRepeatMode('off');
         setFullScreen(false);
         setPendingAd(null);
         setIsPlayingAd(false);
     }, [player, resetListenTracking]);
 
-    const playNext = useCallback(() => {
+    const playNext = useCallback((options?: { triggerAd?: boolean }) => {
         if (!queue.length || isPlayingAd) return;
-        const next = (queueIndex + 1) % queue.length;
+
+        if (repeatMode === 'one' && currentSong) {
+            void playSong(currentSong, queue);
+            if (options?.triggerAd) {
+                void checkForAd();
+            }
+            return;
+        }
+
+        const next = resolveNextIndex('next');
+        if (next === null) {
+            stopPlayer();
+            return;
+        }
         setQueueIndex(next);
         void playSong(queue[next], queue);
-        void checkForAd();
-    }, [queue, queueIndex, isPlayingAd, playSong, checkForAd]);
+        if (options?.triggerAd) {
+            void checkForAd();
+        }
+    }, [queue, isPlayingAd, repeatMode, currentSong, playSong, checkForAd, resolveNextIndex, stopPlayer]);
 
     const playPrev = useCallback(() => {
         if (!queue.length || isPlayingAd) return;
         if (status.currentTime > 3) { seekTo(0); return; }
-        const prev = (queueIndex - 1 + queue.length) % queue.length;
+        const prev = resolveNextIndex('prev');
+        if (prev === null) {
+            seekTo(0);
+            return;
+        }
         setQueueIndex(prev);
         void playSong(queue[prev], queue);
-        void checkForAd();
-    }, [queue, queueIndex, status.currentTime, isPlayingAd, seekTo, playSong, checkForAd]);
+    }, [queue, status.currentTime, isPlayingAd, seekTo, playSong, resolveNextIndex]);
+
+    const toggleShuffle = useCallback(() => {
+        setIsShuffleEnabled((prev) => !prev);
+    }, []);
+
+    const cycleRepeatMode = useCallback(() => {
+        setRepeatMode((prev) => (prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off'));
+    }, []);
 
     const setQuality = useCallback((q: AudioQuality) => {
         if (q > maxQuality || isPlayingAd) return;
@@ -374,6 +434,10 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         playNext,
         playPrev,
         stopPlayer,
+        isShuffleEnabled,
+        toggleShuffle,
+        repeatMode,
+        cycleRepeatMode,
         selectedQuality,
         maxQuality,
         setQuality,

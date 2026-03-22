@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -62,29 +64,42 @@ public class SocialRecommendationService {
             return Collections.emptyList();
         }
 
-        // Step 2: Lấy liked songs của từng bạn, đếm tần số
-        // friendLikeCount: songId → số lượng bạn đã like
-        // firstFriendId: songId → bạn đầu tiên like (để set reasonContext)
         Map<String, Integer> friendLikeCount = new LinkedHashMap<>();
-        Map<String, String>  firstFriendId   = new HashMap<>();
+        Map<String, String> firstFriendId = new HashMap<>();
+        List<String> topFriends = friendIds.stream().limit(20).toList();
 
-        // Giới hạn 20 bạn để tránh quá nhiều Feign calls
-        List<String> topFriends = friendIds.stream().limit(20).collect(Collectors.toList());
+        List<CompletableFuture<Map.Entry<String, List<String>>>> futures = topFriends.stream()
+                .map(friendId -> CompletableFuture.supplyAsync(() -> {
+                    List<String> likedSongs = safeGet(() ->
+                            socialClient.getLikedSongIds(UUID.fromString(friendId)).getResult());
+                    return Map.entry(friendId,
+                            likedSongs != null ? likedSongs : Collections.<String>emptyList());
+                }))
+                .toList();
 
-        for (String friendId : topFriends) {
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .get(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("[Social] Friends fetch error: {}", e.getMessage());
+        }
+
+        for (CompletableFuture<Map.Entry<String, List<String>>> future : futures) {
+            if (!future.isDone()) {
+                continue;
+            }
             try {
-                List<String> likedSongs = safeGet(() ->
-                        socialClient.getLikedSongIds(UUID.fromString(friendId)).getResult());
-
-                if (CollectionUtils.isEmpty(likedSongs)) continue;
-
-                for (String songId : likedSongs) {
+                Map.Entry<String, List<String>> entry = future.getNow(null);
+                if (entry == null) {
+                    continue;
+                }
+                for (String songId : entry.getValue()) {
                     if (alreadyHeardIds.contains(songId)) continue;
                     friendLikeCount.merge(songId, 1, Integer::sum);
-                    firstFriendId.putIfAbsent(songId, friendId);
+                    firstFriendId.putIfAbsent(songId, entry.getKey());
                 }
             } catch (Exception e) {
-                log.warn("[Social] Failed to get liked songs for friend {}: {}", friendId, e.getMessage());
+                log.trace("Error processing friend result: {}", e.getMessage());
             }
         }
 

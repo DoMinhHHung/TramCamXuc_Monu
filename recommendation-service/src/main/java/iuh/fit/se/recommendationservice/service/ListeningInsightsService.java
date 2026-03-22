@@ -14,6 +14,9 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -216,38 +219,51 @@ public class ListeningInsightsService {
 
         if (CollectionUtils.isEmpty(rawArtists)) return Collections.emptyList();
 
-        // Lấy thông tin artist qua top songs của từng artist
+        List<UUID> artistIds = rawArtists.stream()
+                .limit(5)
+                .map(row -> safeUuid(row.get("artistId")))
+                .filter(Objects::nonNull)
+                .toList();
+
+        Map<String, SongDetailDto> songByArtist = new ConcurrentHashMap<>();
+        try {
+            List<CompletableFuture<Void>> fetches = artistIds.stream()
+                    .map(artistId -> CompletableFuture.runAsync(() -> {
+                        try {
+                            ApiResponse<List<SongDetailDto>> resp = musicClient.getSongsByArtist(artistId, 1);
+                            if (resp != null && !CollectionUtils.isEmpty(resp.getResult())) {
+                                songByArtist.put(artistId.toString(), resp.getResult().get(0));
+                            }
+                        } catch (Exception e) {
+                            log.trace("Artist fetch failed: {}", e.getMessage());
+                        }
+                    }))
+                    .toList();
+            CompletableFuture.allOf(fetches.toArray(new CompletableFuture[0])).get(3, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("[Insights] Parallel artist fetch error: {}", e.getMessage());
+        }
+
         return rawArtists.stream()
+                .limit(5)
                 .map(row -> {
                     String artistId = safeStr(row.get("artistId"));
-                    long   duration = toLong(row.get("totalDurationSeconds"));
-                    long   plays    = toLong(row.get("playCount"));
-
+                    SongDetailDto detail = songByArtist.get(artistId);
                     String stageName = "";
                     String avatarUrl = "";
-                    try {
-                        ApiResponse<List<SongDetailDto>> resp =
-                                musicClient.getSongsByArtist(UUID.fromString(artistId), 1);
-                        if (resp != null && !CollectionUtils.isEmpty(resp.getResult())) {
-                            SongDetailDto.ArtistInfo a = resp.getResult().get(0).getPrimaryArtist();
-                            if (a != null) {
-                                stageName = a.getStageName();
-                                avatarUrl = a.getAvatarUrl();
-                            }
-                        }
-                    } catch (Exception e) {
-                        log.trace("[Insights] Could not fetch artist {}: {}", artistId, e.getMessage());
+                    if (detail != null && detail.getPrimaryArtist() != null) {
+                        stageName = detail.getPrimaryArtist().getStageName();
+                        avatarUrl = detail.getPrimaryArtist().getAvatarUrl();
                     }
-
                     return ListeningInsightsResponse.ArtistStat.builder()
                             .artistId(artistId)
                             .artistStageName(stageName)
                             .artistAvatarUrl(avatarUrl)
-                            .playCount(plays)
-                            .totalMinutes(duration / 60)
+                            .playCount(toLong(row.get("playCount")))
+                            .totalMinutes(toLong(row.get("totalDurationSeconds")) / 60)
                             .build();
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // ─────────────────────────────────────────────────────────────────────────

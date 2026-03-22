@@ -20,7 +20,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final TrustedHeaderAuthFilter trustedHeaderAuthFilter;
+    private final InternalSecretFilter internalSecretFilter;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -38,7 +39,8 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(internalSecretFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(trustedHeaderAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

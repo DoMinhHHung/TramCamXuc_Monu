@@ -7,6 +7,7 @@ import iuh.fit.se.socialservice.exception.ErrorCode;
 import iuh.fit.se.socialservice.repository.HeartRepository;
 import iuh.fit.se.socialservice.service.HeartService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,14 +24,15 @@ public class HeartServiceImpl implements HeartService {
 
     @Override
     public HeartResponse heartSong(UUID userId, UUID songId) {
-        if (heartRepository.existsByUserIdAndSongId(userId, songId)) {
-            throw new AppException(ErrorCode.ALREADY_HEARTED);
-        }
         Heart heart = Heart.builder()
                 .userId(userId)
                 .songId(songId)
                 .build();
-        heart = heartRepository.save(heart);
+        try {
+            heart = heartRepository.save(heart);
+        } catch (DuplicateKeyException e) {
+            throw new AppException(ErrorCode.ALREADY_HEARTED);
+        }
         long total = heartRepository.countBySongId(songId);
         return toResponse(heart, total);
     }

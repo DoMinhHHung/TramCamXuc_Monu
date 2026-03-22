@@ -20,7 +20,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final TrustedHeaderAuthFilter trustedHeaderAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -34,7 +34,7 @@ public class SecurityConfig {
                 // User routes — must be authenticated
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(trustedHeaderAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
