@@ -5,13 +5,15 @@ spring:
   application:
     name: transcoder-service
 
-  zipkin:
-    base-url: ${ZIPKIN_URL:http://zipkin:9411}
-    sleuth:
-      sampler:
-        # 1.0 = trace 100% request (chỉ dùng khi debug)
-        # Production nên đặt 0.1 (10%) để không ngốm bandwidth
-        probability: 1.0
+  main:
+    lazy-initialization: true
+    banner-mode: off
+  jmx:
+    enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.admin.SpringApplicationAdminJmxAutoConfiguration
+      - org.springframework.boot.autoconfigure.jmx.JmxAutoConfiguration
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
