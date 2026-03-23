@@ -8,8 +8,9 @@ networks:
 # SHARED ENV ANCHORS
 # ════════════════════════════════════════════════════════════════
 x-infra: &infra
-  REDIS_HOST: host.docker.internal
-  REDIS_PORT: 6379
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_PORT}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
   RABBITMQ_HOST: host.docker.internal
   RABBITMQ_PORT: 5672
   RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
@@ -271,7 +272,7 @@ services:
           cpus: '0.1'
           memory: 128M
     environment:
-      REDIS_HOST: host.docker.internal
+      REDIS_HOST: ${REDIS_HOST}
       MINIO_ENDPOINT: host.docker.internal:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
       MINIO_SECRET_KEY: ${MINIO_SECRET}
