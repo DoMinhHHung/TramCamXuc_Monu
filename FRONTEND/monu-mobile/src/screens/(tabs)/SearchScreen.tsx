@@ -22,6 +22,7 @@ import {
     getSearchHistory, removeSearchHistoryItem,
 } from '../../utils/searchHistory';
 import { Octicons, MaterialIcons } from '@expo/vector-icons';
+import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
 type Tab = 'songs' | 'artists';
 
@@ -298,6 +299,11 @@ export const SearchScreen = () => {
                             style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
                             onPress={() => handleTabChange(tabKey)}
                         >
+                            <AnimatedDecorIcon active={tab === tabKey} intensity="soft">
+                                <Text style={styles.tabIcon}>
+                                    {tabKey === 'songs' ? '🎵' : '🎤'}
+                                </Text>
+                            </AnimatedDecorIcon>
                             <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
                                 {tabKey === 'songs' ? t('screens.search.tabSongs') : t('screens.search.tabArtists')}
                             </Text>
@@ -476,8 +482,9 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
 
     // ── Tabs ─────────────────────────────────────────────────────────────────
     tabs:          { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-    tabBtn:        { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border },
+    tabBtn:        { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border },
     tabBtnActive:  { backgroundColor: colors.accentDim, borderColor: colors.accentDim },
+    tabIcon:       { fontSize: 13 },
     tabText:       { color: colors.muted, fontWeight: '600', fontSize: 13 },
     tabTextActive: { color: colors.white },
 

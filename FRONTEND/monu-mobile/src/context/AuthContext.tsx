@@ -166,17 +166,26 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           profile: null,
         });
 
-        const profile = await hydrateProfileNonBlocking();
-        if (profile) {
-          setAuthSession((prevSession) => {
-            if (!prevSession) return prevSession;
-            return { ...prevSession, profile };
-          });
-          return;
-        }
+        // Unblock UI first, then hydrate profile/refresh in background.
+        setIsInitializing(false);
+        void (async () => {
+          const profile = await hydrateProfileNonBlocking();
+          if (profile) {
+            setAuthSession((prevSession) => {
+              if (!prevSession) return prevSession;
+              return { ...prevSession, profile };
+            });
+            return;
+          }
 
-        const refreshedTokens = await refreshToken({ refreshToken: refreshTokenValue });
-        await finalizeLogin(refreshedTokens);
+          try {
+            const refreshedTokens = await refreshToken({ refreshToken: refreshTokenValue });
+            await finalizeLogin(refreshedTokens);
+          } catch {
+            await logout();
+          }
+        })();
+        return;
       } catch {
         await logout();
       } finally {

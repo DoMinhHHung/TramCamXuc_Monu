@@ -106,6 +106,10 @@ class RedisKeys:
     # Song feature vectors từ CB model
     SONG_FEATURES = "ml:cb:features:{song_id}"  # JSON list[float]
 
+    # Index sets để tránh scan toàn keyspace trong request path
+    CF_ITEM_INDEX = "ml:cf:item:index"          # Redis Set[song_id]
+    CB_FEATURE_INDEX = "ml:cb:features:index"   # Redis Set[song_id]
+
     @staticmethod
     def user_vector(user_id: str) -> str:
         return f"ml:cf:user:{user_id}"
@@ -129,3 +133,11 @@ class RedisKeys:
     @staticmethod
     def song_features(song_id: str) -> str:
         return f"ml:cb:features:{song_id}"
+
+    @staticmethod
+    def cf_item_index() -> str:
+        return RedisKeys.CF_ITEM_INDEX
+
+    @staticmethod
+    def cb_feature_index() -> str:
+        return RedisKeys.CB_FEATURE_INDEX

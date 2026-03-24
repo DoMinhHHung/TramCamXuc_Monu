@@ -29,6 +29,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { RecommendationSection } from '../components/RecommendationSection';
 import { SongSection } from '../components/SongSection';
 import { SongActionSheet } from '../components/SongActionSheet';
+import { AnimatedDecorIcon } from '../components/AnimatedDecorIcon';
 import {
   addSongToPlaylist,
   createPlaylist,
@@ -95,6 +96,15 @@ const buildGenreSectionsFromPool = (
   });
 
   return nextSections;
+};
+
+const shuffleInSession = <T,>(items: T[]): T[] => {
+  const next = [...items];
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
 };
 
 export const HomeScreen = () => {
@@ -236,8 +246,9 @@ export const HomeScreen = () => {
         getPopularGenres(12),
       ]);
 
-      setLegacyTrendingSongs(trending.content ?? []);
-      setLegacyNewestSongs(newest.content ?? []);
+      // Non-personalized sections are randomized once per app session.
+      setLegacyTrendingSongs(shuffleInSession(trending.content ?? []));
+      setLegacyNewestSongs(shuffleInSession(newest.content ?? []));
 
       const genreList = popularGenres ?? [];
       setGenres(genreList);
@@ -246,7 +257,7 @@ export const HomeScreen = () => {
         const genreResults = await Promise.allSettled(
           genreList.map(async (genre) => {
             const res = await searchSongs({ genreId: genre.id, page: 1, size: 6 });
-            const songs = res.content ?? [];
+            const songs = shuffleInSession(res.content ?? []);
             return {
               genreId: genre.id,
               songs: songs.slice(0, 5),
@@ -302,11 +313,7 @@ export const HomeScreen = () => {
 
   useEffect(() => {
     void fetchLegacySections(false);
-    const intervalId = setInterval(() => {
-      void fetchLegacySections(true);
-    }, 90_000);
-
-    return () => clearInterval(intervalId);
+    return undefined;
   }, [fetchLegacySections]);
 
   useEffect(() => {
@@ -352,7 +359,7 @@ export const HomeScreen = () => {
 
     try {
       const res = await searchSongs({ genreId, page: 1, size: 20 });
-      const allSongs = res.content ?? [];
+      const allSongs = shuffleInSession(res.content ?? []);
 
       setGenreSections((prev) => ({
         ...prev,
@@ -377,8 +384,9 @@ export const HomeScreen = () => {
   }, [genreSections]);
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([refresh(), fetchLegacySections(true)]);
-  }, [fetchLegacySections, refresh]);
+    // Only personalized blocks are refreshed on pull-to-refresh.
+    await refresh();
+  }, [refresh]);
 
   const formatDuration = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -439,7 +447,9 @@ export const HomeScreen = () => {
               )}
             </View>
             <View style={styles.avatarCircle}>
-              <Fontisto name="person" color={themeColors.accent} size={24} />
+              <AnimatedDecorIcon intensity="medium">
+                <Fontisto name="person" color={themeColors.accent} size={24} />
+              </AnimatedDecorIcon>
             </View>
           </Pressable>
 
@@ -448,7 +458,9 @@ export const HomeScreen = () => {
             hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
             style={styles.searchBar}
           >
-            <MaterialIcons name="saved-search" color={themeColors.accent} size={26} />
+            <AnimatedDecorIcon>
+              <MaterialIcons name="saved-search" color={themeColors.accent} size={26} />
+            </AnimatedDecorIcon>
             <Text style={styles.searchPlaceholder}>{t('screens.home.searchPlaceholder')}</Text>
           </Pressable>
         </LinearGradient>

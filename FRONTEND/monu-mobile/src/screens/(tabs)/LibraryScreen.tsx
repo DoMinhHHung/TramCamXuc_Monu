@@ -48,12 +48,20 @@ import {
   getSongShareQr,
 } from '../../services/social';
 import { apiClient } from '../../services/api';
+import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
+import { getMySubscription } from '../../services/payment';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Tab = 'playlists' | 'songs' | 'albums';
 let tr = (key: string, fallback?: string) => fallback ?? key;
 let rc = COLORS;
+
+type ArtistProfile = {
+  id: string;
+  stageName?: string;
+  status?: 'ACTIVE' | 'PENDING' | 'BANNED' | 'REJECTED';
+};
 
 const getSongStatusLabel = (song: Song): { label: string; color: string; pulse: boolean } => {
   if (song.status === 'DELETED') {
@@ -101,7 +109,9 @@ const TabBar = ({
                 style={[tabStyles.tab, active === t.key && tabStyles.tabActive]}
                 onPress={() => onChange(t.key)}
             >
-              <Text style={tabStyles.icon}>{t.icon}</Text>
+              <AnimatedDecorIcon active={active === t.key} intensity="medium">
+                <Text style={tabStyles.icon}>{t.icon}</Text>
+              </AnimatedDecorIcon>
               <Text style={[tabStyles.label, active === t.key && tabStyles.labelActive]}>
                 {t.label}
               </Text>
@@ -1242,6 +1252,9 @@ export const LibraryScreen = () => {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [songs, setSongs]         = useState<Song[]>([]);
   const [albums, setAlbums]       = useState<Album[]>([]);
+  const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
+  const [hasActiveSub, setHasActiveSub] = useState(false);
+  const [canCreateAlbumByPlan, setCanCreateAlbumByPlan] = useState(false);
 
   // Modals
   const [qrData, setQrData]         = useState<{ link: string; image?: string } | null>(null);
@@ -1283,11 +1296,35 @@ export const LibraryScreen = () => {
         console.warn('Tải bài hát thất bại', { status, data: err?.response?.data, message: err?.message });
         Alert.alert(t('screens.library.loadSongsFailedTitle', 'Failed to load songs'), backendMessage || err?.message || t('errors.tryAgain', 'Please try again.'));
       }
+
+      const [artistRes, subRes] = await Promise.allSettled([
+        apiClient.get<ArtistProfile>('/artists/me'),
+        getMySubscription(),
+      ]);
+      if (artistRes.status === 'fulfilled') {
+        setArtistProfile(artistRes.value.data ?? null);
+      } else {
+        setArtistProfile(null);
+      }
+      if (subRes.status === 'fulfilled') {
+        const sub = subRes.value;
+        const active = sub?.status === 'ACTIVE' && new Date(sub.expiresAt).getTime() > Date.now();
+        const features = sub?.plan?.features ?? {};
+        const hasAlbumFeature = Boolean(features.create_album ?? features.can_become_artist);
+        setHasActiveSub(active);
+        setCanCreateAlbumByPlan(active && hasAlbumFeature);
+      } else {
+        setHasActiveSub(false);
+        setCanCreateAlbumByPlan(false);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
+
+  const isArtist = !!artistProfile?.id;
+  const canCreateAlbum = isArtist && canCreateAlbumByPlan;
 
   // ── Share helper ──────────────────────────────────────────────────────────
   const openShareOptions = (type: ShareItemType, id: string, title: string) => {
@@ -1459,7 +1496,9 @@ export const LibraryScreen = () => {
             }}
         >
           <View style={styles.createBtnInner}>
-            <Text style={styles.createBtnIcon}>+</Text>
+            <AnimatedDecorIcon intensity="medium">
+              <Text style={styles.createBtnIcon}>+</Text>
+            </AnimatedDecorIcon>
             <Text style={styles.createBtnText}>{t('screens.library.createNewPlaylist', 'Create new playlist')}</Text>
           </View>
         </Pressable>
@@ -1529,30 +1568,70 @@ export const LibraryScreen = () => {
 
   const renderAlbums = () => (
       <>
-        <Pressable style={[styles.createBtn, { marginBottom: 12 }]} onPress={() => setCreateAlbumOpen(true)}>
-          <View style={styles.createBtnInner}>
-            <Text style={styles.createBtnIcon}>+</Text>
-            <Text style={styles.createBtnText}>{t('screens.library.createNewAlbum', 'Create new album')}</Text>
-          </View>
-        </Pressable>
+        {canCreateAlbum ? (
+            <Pressable style={[styles.createBtn, { marginBottom: 12 }]} onPress={() => setCreateAlbumOpen(true)}>
+              <View style={styles.createBtnInner}>
+                <AnimatedDecorIcon intensity="medium">
+                  <Text style={styles.createBtnIcon}>+</Text>
+                </AnimatedDecorIcon>
+                <Text style={styles.createBtnText}>{t('screens.library.createNewAlbum', 'Create new album')}</Text>
+              </View>
+            </Pressable>
+        ) : (
+            <View style={styles.albumGateCard}>
+              {!isArtist ? (
+                  <>
+                    <Text style={styles.albumGateTitle}>{t('screens.create.becomeArtist', 'Become an Artist')}</Text>
+                    <Text style={styles.albumGateSub}>
+                      {t('screens.create.registerArtistToStart', 'Register as an artist to start uploading music')}
+                    </Text>
+                    <Pressable style={styles.albumGateBtn} onPress={() => navigation.navigate('Create')}>
+                      <Text style={styles.albumGateBtnText}>{t('screens.create.registerArtistButton', 'Register Artist')}</Text>
+                    </Pressable>
+                  </>
+              ) : (
+                  <>
+                    <Text style={styles.albumGateTitle}>{t('screens.create.renewSubscription', 'Renew subscription')}</Text>
+                    <Text style={styles.albumGateSub}>
+                      {t('screens.create.subscriptionExpiredMessagePrefix', 'Your subscription has expired. Go to')}{' '}
+                      <Text style={{ color: themeColors.accent }}>{t('navigation.premium', 'Premium')}</Text>
+                      {' '}{t('screens.create.subscriptionExpiredMessageSuffix', 'to renew and continue uploading music.')}
+                    </Text>
+                    {!hasActiveSub && (
+                        <Pressable style={styles.albumGateBtn} onPress={() => navigation.navigate('Premium')}>
+                          <Text style={styles.albumGateBtnText}>{t('navigation.premium', 'Premium')}</Text>
+                        </Pressable>
+                    )}
+                  </>
+              )}
+            </View>
+        )}
 
-        {albums.length === 0 ? (
+        {canCreateAlbum ? (
+            albums.length === 0 ? (
+                <View style={styles.empty}>
+                  <Text style={styles.emptyEmoji}>💿</Text>
+                  <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
+                  <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
+                </View>
+            ) : albums.map(a => (
+                <AlbumCard
+                    key={a.id}
+                    album={a}
+                    onPress={() => setDetailAlbumId(a.id)}
+                    onPublish={() => void handlePublishAlbum(a.id)}
+                    onUnpublish={() => void handleUnpublishAlbum(a.id)}
+                    onDelete={() => handleDeleteAlbum(a)}
+                    onShare={() => openShareOptions('album', a.id, a.title)}
+                />
+            ))
+        ) : (
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>💿</Text>
               <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
               <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
             </View>
-        ) : albums.map(a => (
-            <AlbumCard
-                key={a.id}
-                album={a}
-                onPress={() => setDetailAlbumId(a.id)}
-                onPublish={() => void handlePublishAlbum(a.id)}
-                onUnpublish={() => void handleUnpublishAlbum(a.id)}
-                onDelete={() => handleDeleteAlbum(a)}
-                onShare={() => openShareOptions('album', a.id, a.title)}
-            />
-        ))}
+        )}
       </>
   );
 
@@ -1761,6 +1840,27 @@ const styles = StyleSheet.create({
   },
   createBtnIcon: { color: COLORS.accent, fontSize: 20, fontWeight: '300' },
   createBtnText: { color: COLORS.accent, fontSize: 14, fontWeight: '600' },
+  albumGateCard: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.glass12,
+    backgroundColor: COLORS.surface,
+    gap: 8,
+  },
+  albumGateTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  albumGateSub: { color: COLORS.glass50, fontSize: 13, lineHeight: 20 },
+  albumGateBtn: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    backgroundColor: COLORS.accentDim,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  albumGateBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
 
   listItem: {
     flexDirection: 'row',

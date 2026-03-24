@@ -215,6 +215,7 @@ public class ListeningInsightsService {
             long totalSeconds) {
 
         if (CollectionUtils.isEmpty(rawArtists)) return Collections.emptyList();
+        Map<String, List<SongDetailDto>> songsByArtist = fetchTopSongsByArtists(rawArtists, 20);
 
         // Lấy thông tin artist qua top songs của từng artist
         return rawArtists.stream()
@@ -226,10 +227,9 @@ public class ListeningInsightsService {
                     String stageName = "";
                     String avatarUrl = "";
                     try {
-                        ApiResponse<List<SongDetailDto>> resp =
-                                musicClient.getSongsByArtist(UUID.fromString(artistId), 1);
-                        if (resp != null && !CollectionUtils.isEmpty(resp.getResult())) {
-                            SongDetailDto.ArtistInfo a = resp.getResult().get(0).getPrimaryArtist();
+                        List<SongDetailDto> artistSongs = songsByArtist.getOrDefault(artistId, Collections.emptyList());
+                        if (!CollectionUtils.isEmpty(artistSongs)) {
+                            SongDetailDto.ArtistInfo a = artistSongs.get(0).getPrimaryArtist();
                             if (a != null) {
                                 stageName = a.getStageName();
                                 avatarUrl = a.getAvatarUrl();
@@ -264,6 +264,7 @@ public class ListeningInsightsService {
         // của top 5 artists rồi tổng hợp genres.
 
         if (CollectionUtils.isEmpty(rawArtists)) return Collections.emptyList();
+        Map<String, List<SongDetailDto>> songsByArtist = fetchTopSongsByArtists(rawArtists, 20);
 
         Map<String, Long> genreDuration = new LinkedHashMap<>();
         Map<String, String> genreNames  = new HashMap<>();
@@ -273,13 +274,12 @@ public class ListeningInsightsService {
             long   perArtistD = toLong(artistRow.get("totalDurationSeconds"));
 
             try {
-                ApiResponse<List<SongDetailDto>> resp =
-                        musicClient.getSongsByArtist(UUID.fromString(artistId), 20);
-                if (resp == null || CollectionUtils.isEmpty(resp.getResult())) continue;
+                List<SongDetailDto> songs = songsByArtist.getOrDefault(artistId, Collections.emptyList());
+                if (CollectionUtils.isEmpty(songs)) continue;
 
                 // Phân bổ đều thời gian nghe của artist vào các genres của songs
-                long perSongDuration = perArtistD / resp.getResult().size();
-                for (SongDetailDto song : resp.getResult()) {
+                long perSongDuration = perArtistD / songs.size();
+                for (SongDetailDto song : songs) {
                     if (CollectionUtils.isEmpty(song.getGenres())) continue;
                     long perGenre = perSongDuration / song.getGenres().size();
                     for (SongDetailDto.GenreInfo g : song.getGenres()) {
@@ -308,6 +308,34 @@ public class ListeningInsightsService {
                         .percentageOfTotal((int) (e.getValue() * 100 / total))
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    private Map<String, List<SongDetailDto>> fetchTopSongsByArtists(
+            List<Map<String, Object>> rawArtists,
+            int perArtistLimit) {
+        if (CollectionUtils.isEmpty(rawArtists)) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, List<SongDetailDto>> result = new HashMap<>();
+        Set<String> artistIds = rawArtists.stream()
+                .limit(5)
+                .map(row -> safeStr(row.get("artistId")))
+                .filter(id -> !id.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        for (String artistId : artistIds) {
+            try {
+                ApiResponse<List<SongDetailDto>> resp =
+                        musicClient.getSongsByArtist(UUID.fromString(artistId), perArtistLimit);
+                if (resp != null && !CollectionUtils.isEmpty(resp.getResult())) {
+                    result.put(artistId, resp.getResult());
+                }
+            } catch (Exception e) {
+                log.trace("[Insights] Could not fetch songs for artist {}: {}", artistId, e.getMessage());
+            }
+        }
+        return result;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

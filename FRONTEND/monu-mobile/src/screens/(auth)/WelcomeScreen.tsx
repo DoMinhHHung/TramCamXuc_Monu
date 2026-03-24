@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useTranslation } from '../../context/LocalizationContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 
@@ -34,7 +35,9 @@ export const WelcomeScreen = () => {
 
           <View style={styles.centerContent}>
             <View style={styles.logoWrap}>
-              <Text style={styles.logoIcon}>🎧</Text>
+              <AnimatedDecorIcon intensity="medium">
+                <Text style={styles.logoIcon}>🎧</Text>
+              </AnimatedDecorIcon>
             </View>
             <Text style={styles.brand}>Monu</Text>
             <Text style={styles.tagline}>
@@ -46,7 +49,9 @@ export const WelcomeScreen = () => {
             <View style={styles.pillRow}>
               {['🎵', '🎸', '🎹', '🎤'].map((e, i) => (
                   <View key={i} style={styles.pill}>
-                    <Text style={styles.pillEmoji}>{e}</Text>
+                    <AnimatedDecorIcon intensity="soft">
+                      <Text style={styles.pillEmoji}>{e}</Text>
+                    </AnimatedDecorIcon>
                   </View>
               ))}
             </View>

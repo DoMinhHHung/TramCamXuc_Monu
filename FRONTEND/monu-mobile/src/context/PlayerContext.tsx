@@ -14,6 +14,7 @@ import { getMySubscription } from '../services/payment';
 import { getNextAd, AdDelivery } from '../services/ads';
 import { isSongDownloaded } from '../services/download';
 import { addListenHistory } from '../utils/listenHistory';
+import { useAuth } from './AuthContext';
 
 // ─── Quality ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ const PlayerContext = createContext<PlayerContextValue | null>(null);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export const PlayerProvider = ({ children }: PropsWithChildren) => {
+    const { authSession } = useAuth();
     const [currentSong,  setCurrentSong]  = useState<Song | null>(null);
     const [queue,        setQueue]        = useState<Song[]>([]);
     const [queueIndex,   setQueueIndex]   = useState(0);
@@ -159,6 +161,13 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
     // ── Load subscription ──────────────────────────────────────────────────────
     useEffect(() => {
+        if (!authSession) {
+            noAdsRef.current = false;
+            setMaxQuality(128);
+            setSelectedQuality((prev) => (prev > 128 ? 128 : prev) as AudioQuality);
+            selectedQualityRef.current = Math.min(selectedQualityRef.current, 128) as AudioQuality;
+            return;
+        }
         getMySubscription()
             .then((sub) => {
                 if (sub?.plan?.features) {
@@ -173,7 +182,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 }
             })
             .catch(() => {});
-    }, []);
+    }, [authSession]);
 
     // ── Audio session ──────────────────────────────────────────────────────────
     useEffect(() => {

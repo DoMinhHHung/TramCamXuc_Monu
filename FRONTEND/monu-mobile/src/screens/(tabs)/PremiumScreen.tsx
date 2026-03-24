@@ -31,46 +31,80 @@ import { useTranslation } from '../../context/LocalizationContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-// ─── Feature list ─────────────────────────────────────────────────────────────
+type FeatureItem = {
+    key: string;
+    icon: string;
+    label: string;
+    desc: string;
+    color: string;
+    displayValue: string;
+    enabled: boolean;
+};
 
-const FEATURES = [
-    {
-        icon: 'music-off' as const,
+const FEATURE_META: Record<string, { icon: string; label: string; desc: string; color: string }> = {
+    quality: {
+        icon: 'waveform',
+        label: 'Chất lượng âm thanh',
+        desc: 'Bitrate tối đa theo gói',
+        color: '#A78BFA',
+    },
+    no_ads: {
+        icon: 'music-off',
         label: 'Không quảng cáo',
         desc: 'Nghe nhạc liên tục, không gián đoạn',
         color: '#FF6B6B',
     },
-    {
-        icon: 'download-circle' as const,
-        label: 'Tải nhạc offline',
-        desc: 'Lưu bài yêu thích, nghe khi không có mạng',
+    offline: {
+        icon: 'download-circle',
+        label: 'Nghe offline',
+        desc: 'Phát nhạc khi mất mạng',
         color: '#4ECDC4',
     },
-    {
-        icon: 'waveform' as const,
-        label: 'Lossless / 320kbps',
-        desc: 'Chất lượng âm thanh tốt nhất hiện có',
-        color: '#A78BFA',
-    },
-    {
-        icon: 'robot-love' as const,
-        label: 'Gợi ý thông minh',
-        desc: 'Playlist cá nhân hoá theo cảm xúc của bạn',
-        color: '#F59E0B',
-    },
-    {
-        icon: 'account-music' as const,
-        label: 'Đăng ký Nghệ sĩ',
-        desc: 'Upload nhạc và chia sẻ âm nhạc của bạn',
-        color: '#34D399',
-    },
-    {
-        icon: 'infinity' as const,
-        label: 'Playlist không giới hạn',
-        desc: 'Tạo và quản lý bao nhiêu playlist tuỳ thích',
+    download: {
+        icon: 'download',
+        label: 'Tải bài hát',
+        desc: 'Lưu bài hát về thiết bị',
         color: '#60A5FA',
     },
-];
+    playlist_limit: {
+        icon: 'playlist-music',
+        label: 'Giới hạn playlist',
+        desc: 'Số playlist có thể tạo',
+        color: '#60A5FA',
+    },
+    can_become_artist: {
+        icon: 'account-music',
+        label: 'Đăng ký nghệ sĩ',
+        desc: 'Mở quyền nghệ sĩ',
+        color: '#34D399',
+    },
+    create_album: {
+        icon: 'album',
+        label: 'Tạo album',
+        desc: 'Tạo và quản lý album',
+        color: '#34D399',
+    },
+    recommendation: {
+        icon: 'robot-love',
+        label: 'Gợi ý nhạc',
+        desc: 'Mức độ cá nhân hoá đề xuất',
+        color: '#F59E0B',
+    },
+};
+
+const featureDisplay = (key: string, value: any): { value: string; enabled: boolean } => {
+    if (typeof value === 'boolean') return { value: value ? 'Có' : 'Không', enabled: value };
+    if (key === 'playlist_limit' && typeof value === 'number') {
+        return { value: value < 0 ? 'Không giới hạn' : `${value}`, enabled: true };
+    }
+    if (key === 'recommendation' && typeof value === 'string') {
+        const v = value.toLowerCase();
+        if (v === 'basic') return { value: 'Cơ bản', enabled: true };
+        if (v === 'advanced') return { value: 'Nâng cao', enabled: true };
+    }
+    if (key === 'quality' && typeof value === 'string') return { value, enabled: true };
+    return { value: String(value), enabled: true };
+};
 
 // ─── Animated star particle ───────────────────────────────────────────────────
 
@@ -233,16 +267,23 @@ const FeatureRow = ({
                         label,
                         desc,
                         color,
+                        displayValue,
+                        enabled,
                         index,
                     }: {
     icon: string;
     label: string;
     desc: string;
     color: string;
+    displayValue: string;
+    enabled: boolean;
     index: number;
 }) => {
     const translateX = useRef(new Animated.Value(-30)).current;
     const opacity = useRef(new Animated.Value(0)).current;
+    const iconScale = useRef(new Animated.Value(1)).current;
+    const iconFloat = useRef(new Animated.Value(0)).current;
+    const sparkleOpacity = useRef(new Animated.Value(0.25)).current;
 
     useEffect(() => {
         Animated.parallel([
@@ -259,30 +300,82 @@ const FeatureRow = ({
                 useNativeDriver: true,
             }),
         ]).start();
+
+        const iconLoop = Animated.loop(
+            Animated.sequence([
+                Animated.parallel([
+                    Animated.timing(iconScale, {
+                        toValue: 1.08,
+                        duration: 900,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(iconFloat, {
+                        toValue: -2,
+                        duration: 900,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(sparkleOpacity, {
+                        toValue: 0.8,
+                        duration: 900,
+                        useNativeDriver: true,
+                    }),
+                ]),
+                Animated.parallel([
+                    Animated.timing(iconScale, {
+                        toValue: 1,
+                        duration: 900,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(iconFloat, {
+                        toValue: 0,
+                        duration: 900,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(sparkleOpacity, {
+                        toValue: 0.25,
+                        duration: 900,
+                        useNativeDriver: true,
+                    }),
+                ]),
+            ]),
+        );
+        iconLoop.start();
+        return () => iconLoop.stop();
     }, []);
 
     return (
         <Animated.View
             style={[
                 styles.featureRow,
+                !enabled && styles.featureRowDisabled,
                 { opacity, transform: [{ translateX }] },
             ]}
         >
-            <LinearGradient
-                colors={[`${color}30`, `${color}15`]}
-                style={[styles.featureIconWrap, { borderColor: `${color}50` }]}
-            >
-                <MaterialCommunityIcons
-                    name={icon as any}
-                    size={22}
-                    color={color}
-                />
-            </LinearGradient>
+            <Animated.View style={{ transform: [{ scale: iconScale }, { translateY: iconFloat }] }}>
+                <LinearGradient
+                    colors={[`${color}35`, `${color}15`]}
+                    style={[styles.featureIconWrap, { borderColor: `${color}50` }]}
+                >
+                    <MaterialCommunityIcons
+                        name={icon as any}
+                        size={22}
+                        color={color}
+                    />
+                    <Animated.View style={[styles.iconSparkle, { opacity: sparkleOpacity, borderColor: `${color}90` }]} />
+                </LinearGradient>
+            </Animated.View>
             <View style={styles.featureText}>
                 <Text style={styles.featureLabel}>{label}</Text>
                 <Text style={styles.featureDesc}>{desc}</Text>
             </View>
-            <MaterialCommunityIcons name="check-circle" size={20} color={color} />
+            <View style={styles.featureValueWrap}>
+                <Text style={[styles.featureValue, !enabled && styles.featureValueDisabled]}>{displayValue}</Text>
+                <MaterialCommunityIcons
+                    name={enabled ? 'check-circle' : 'close-circle'}
+                    size={18}
+                    color={enabled ? color : 'rgba(255,255,255,0.35)'}
+                />
+            </View>
         </Animated.View>
     );
 };
@@ -301,6 +394,25 @@ export const PremiumScreen = () => {
     const [currentSub, setCurrentSub] = useState<UserSubscription | null>(null);
     const [loading, setLoading] = useState(true);
     const [purchasing, setPurchasing] = useState(false);
+    const mappedFeatures = useMemo<FeatureItem[]>(() => {
+        const raw = selectedPlan?.features ?? {};
+        const keys = Object.keys(FEATURE_META);
+        return keys
+            .filter((key) => raw[key] !== undefined)
+            .map((key) => {
+                const meta = FEATURE_META[key];
+                const { value, enabled } = featureDisplay(key, raw[key]);
+                return {
+                    key,
+                    icon: meta.icon,
+                    label: meta.label,
+                    desc: meta.desc,
+                    color: meta.color,
+                    displayValue: value,
+                    enabled,
+                };
+            });
+    }, [selectedPlan]);
 
     // Animations
     const crownScale = useRef(new Animated.Value(0.8)).current;
@@ -377,7 +489,7 @@ export const PremiumScreen = () => {
     useFocusEffect(
         useCallback(() => {
             void fetchData(true);
-            const id = setInterval(() => void fetchData(true), 12000);
+            const id = setInterval(() => void fetchData(true), 120000);
             return () => clearInterval(id);
         }, [fetchData]),
     );
@@ -539,13 +651,15 @@ export const PremiumScreen = () => {
 
                     {/* ── Feature list ── */}
                     <View style={styles.featureList}>
-                        {FEATURES.map((f, i) => (
+                        {mappedFeatures.map((f, i) => (
                             <FeatureRow
-                                key={f.label}
+                                key={f.key}
                                 icon={f.icon}
                                 label={f.label}
                                 desc={f.desc}
                                 color={f.color}
+                                displayValue={f.displayValue}
+                                enabled={f.enabled}
                                 index={i}
                             />
                         ))}
@@ -559,7 +673,6 @@ export const PremiumScreen = () => {
                         <Text style={styles.guaranteeEmoji}>🛡️</Text>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.guaranteeTitle}>Thanh toán an toàn qua PayOS</Text>
-                            <Text style={styles.guaranteeDesc}>Huỷ bất cứ lúc nào · Không ràng buộc</Text>
                         </View>
                     </LinearGradient>
 
@@ -861,6 +974,9 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.06)',
     },
+    featureRowDisabled: {
+        opacity: 0.65,
+    },
     featureIconWrap: {
         width: 46,
         height: 46,
@@ -869,6 +985,17 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         borderWidth: 1,
         flexShrink: 0,
+        position: 'relative',
+    },
+    iconSparkle: {
+        position: 'absolute',
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        right: -2,
+        top: -2,
+        borderWidth: 1.4,
+        backgroundColor: 'rgba(255,255,255,0.18)',
     },
     featureText: {
         flex: 1,
@@ -883,6 +1010,18 @@ const styles = StyleSheet.create({
         color: 'rgba(255,255,255,0.45)',
         fontSize: 12,
         lineHeight: 17,
+    },
+    featureValueWrap: {
+        alignItems: 'flex-end',
+        gap: 4,
+    },
+    featureValue: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    featureValueDisabled: {
+        color: 'rgba(255,255,255,0.5)',
     },
 
     // ── Guarantee ─────────────────────────────────────────────────────────────

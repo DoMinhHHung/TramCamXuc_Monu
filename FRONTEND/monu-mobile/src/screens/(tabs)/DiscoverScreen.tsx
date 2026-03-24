@@ -60,8 +60,10 @@ import {
   Album,
   Playlist,
 } from '../../services/music';
+import { getMySubscription } from '../../services/payment';
 import { apiClient } from '../../services/api';
 import { usePlayer } from '../../context/PlayerContext';
+import { notifyFeedUpdated, subscribeFeedUpdates } from '../../services/feedEvents';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -110,6 +112,20 @@ const getAvatarColors = (id: string): [string, string] => {
 
 const getInitials = (name: string) => name.slice(0, 2).toUpperCase();
 
+const parsePlaylistLimit = (features?: Record<string, any>): number | null => {
+  if (!features) return null;
+  const raw = features.playlist_limit;
+  if (raw == null) return null;
+  if (typeof raw === 'number') return Number.isFinite(raw) && raw > 0 ? raw : null;
+  if (typeof raw === 'string') {
+    const value = raw.trim().toLowerCase();
+    if (!value || value === 'unlimited') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+  return null;
+};
+
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
 const Avatar = ({
@@ -156,11 +172,12 @@ interface SaveContentModalProps {
   songs: Song[];
   sourceTitle: string;
   sourceOwner?: string;
+  canManageAlbums?: boolean;
   onClose: () => void;
 }
 
 const SaveContentModal: React.FC<SaveContentModalProps> = ({
-                                                             visible, songs, sourceTitle, sourceOwner, onClose,
+                                                             visible, songs, sourceTitle, sourceOwner, canManageAlbums = false, onClose,
                                                            }) => {
   const insets = useSafeAreaInsets();
 
@@ -173,6 +190,8 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
   const [savingPl, setSavingPl]       = useState<string | null>(null);
   const [newPlName, setNewPlName]     = useState('');
   const [creatingPl, setCreatingPl]   = useState(false);
+  const [playlistNameError, setPlaylistNameError] = useState<string | null>(null);
+  const [playlistLimit, setPlaylistLimit] = useState<number | null>(null);
 
   // Album state
   const [albums, setAlbums]           = useState<Album[]>([]);
@@ -183,20 +202,31 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
 
   // Load khi mở modal
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      setPlaylistLimit(null);
+      return;
+    }
     // Load playlists
     setLoadingPl(true);
     getMyPlaylists({ page: 1, size: 50 })
         .then(res => setPlaylists(res.content ?? []))
         .catch(() => setPlaylists([]))
         .finally(() => setLoadingPl(false));
+    // Load current subscription limits to align create rule with payment features.
+    getMySubscription()
+        .then(sub => setPlaylistLimit(parsePlaylistLimit(sub?.plan?.features)))
+        .catch(() => setPlaylistLimit(null));
     // Load albums của mình
     setLoadingAl(true);
     getMyAlbums({ page: 1, size: 50 })
         .then(res => setAlbums(res.content ?? []))
         .catch(() => setAlbums([]))
         .finally(() => setLoadingAl(false));
-  }, [visible]);
+    if (!canManageAlbums) setActiveTab('playlist');
+    setPlaylistNameError(null);
+    setNewPlName('');
+    setNewAlName('');
+  }, [visible, canManageAlbums]);
 
   // ── Lưu vào Playlist ─────────────────────────────────────────────────────────
   const handleSaveToPlaylist = useCallback(async (plId: string, plName: string) => {
@@ -214,16 +244,32 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
   }, [songs, sourceTitle, onClose]);
 
   const handleCreatePlaylistAndSave = useCallback(async () => {
-    if (!newPlName.trim()) return;
+    const trimmedName = newPlName.trim();
+    if (!trimmedName) {
+      setPlaylistNameError('Tên playlist không được để trống');
+      return;
+    }
+    if (trimmedName.length < 2) {
+      setPlaylistNameError('Tên playlist cần ít nhất 2 ký tự');
+      return;
+    }
+    if (playlistLimit !== null && playlists.length >= playlistLimit) {
+      Alert.alert(
+          'Đã đạt giới hạn playlist',
+          `Gói hiện tại cho phép tối đa ${playlistLimit} playlist. Vui lòng xoá bớt hoặc nâng cấp gói để tạo mới.`,
+      );
+      return;
+    }
     setCreatingPl(true);
+    setPlaylistNameError(null);
     try {
-      const pl = await createPlaylist({ name: newPlName.trim(), visibility: 'PUBLIC' });
+      const pl = await createPlaylist({ name: trimmedName, visibility: 'PUBLIC' });
       setNewPlName('');
       await handleSaveToPlaylist(pl.id, pl.name);
     } catch (e: any) {
       Alert.alert('Lỗi', e?.message ?? 'Không thể tạo playlist');
     } finally { setCreatingPl(false); }
-  }, [newPlName, handleSaveToPlaylist]);
+  }, [newPlName, handleSaveToPlaylist, playlistLimit, playlists.length]);
 
   // ── Lưu vào Album ─────────────────────────────────────────────────────────────
   const handleSaveToAlbum = useCallback(async (albumId: string, albumTitle: string) => {
@@ -287,15 +333,25 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
                 🎵 Playlist
               </Text>
             </Pressable>
-            <Pressable
-                style={[saveStyles.tab, activeTab === 'album' && saveStyles.tabActive]}
-                onPress={() => setActiveTab('album')}
-            >
-              <Text style={[saveStyles.tabText, activeTab === 'album' && saveStyles.tabTextActive]}>
-                💿 Album
-              </Text>
-            </Pressable>
+            {canManageAlbums && (
+                <Pressable
+                    style={[saveStyles.tab, activeTab === 'album' && saveStyles.tabActive]}
+                    onPress={() => setActiveTab('album')}
+                >
+                  <Text style={[saveStyles.tabText, activeTab === 'album' && saveStyles.tabTextActive]}>
+                    💿 Album
+                  </Text>
+                </Pressable>
+            )}
           </View>
+
+          {!canManageAlbums && (
+              <View style={saveStyles.lockedNotice}>
+                <Text style={saveStyles.lockedNoticeText}>
+                  Album chỉ dành cho tài khoản Nghệ sĩ. Hiện bạn vẫn có thể lưu nhanh vào Playlist.
+                </Text>
+              </View>
+          )}
 
           {/* ── Tab Playlist ── */}
           {activeTab === 'playlist' && (
@@ -330,13 +386,19 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
                 )}
 
                 {/* Tạo playlist mới */}
+                <View style={saveStyles.createSection}>
+                  <Text style={saveStyles.createLabel}>Tạo playlist mới</Text>
                 <View style={saveStyles.newRow}>
                   <TextInput
                       style={saveStyles.input}
                       value={newPlName}
-                      onChangeText={setNewPlName}
+                      onChangeText={text => {
+                        setNewPlName(text);
+                        if (playlistNameError) setPlaylistNameError(null);
+                      }}
                       placeholder="Tạo playlist mới và lưu..."
                       placeholderTextColor={COLORS.glass30}
+                      maxLength={60}
                   />
                   <Pressable
                       style={[saveStyles.newBtn, (!newPlName.trim() || creatingPl) && { opacity: 0.4 }]}
@@ -345,14 +407,21 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
                   >
                     {creatingPl
                         ? <ActivityIndicator size="small" color={COLORS.white} />
-                        : <Text style={saveStyles.newBtnText}>＋</Text>}
+                        : <Text style={saveStyles.newBtnText}>Tạo</Text>}
                   </Pressable>
+                </View>
+                  <View style={saveStyles.inputMetaRow}>
+                    <Text style={[saveStyles.inputMetaText, playlistNameError && saveStyles.inputMetaError]}>
+                      {playlistNameError ?? ' '}
+                    </Text>
+                    <Text style={saveStyles.inputMetaText}>{newPlName.trim().length}/60</Text>
+                  </View>
                 </View>
               </>
           )}
 
           {/* ── Tab Album ── */}
-          {activeTab === 'album' && (
+          {activeTab === 'album' && canManageAlbums && (
               <>
                 <Text style={saveStyles.tabHint}>
                   Chỉ album DRAFT / PRIVATE mới nhận bài mới
@@ -430,11 +499,12 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
 interface SharedContentDetailModalProps {
   visible: boolean;
   content: PostContentInfo | null;
+  canManageAlbums: boolean;
   onClose: () => void;
 }
 
 const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> = ({
-                                                                             visible, content, onClose,
+                                                                             visible, content, canManageAlbums, onClose,
                                                                            }) => {
   const insets = useSafeAreaInsets();
   const { playSong, currentSong } = usePlayer();
@@ -551,6 +621,7 @@ const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> = ({
             songs={content.songs}
             sourceTitle={content.title}
             sourceOwner={content.ownerName ?? content.subtitle}
+            canManageAlbums={canManageAlbums}
             onClose={() => setSaveOpen(false)}
         />
       </>
@@ -1001,6 +1072,7 @@ interface PostCardProps {
   currentUserId: string | null;
   ownerInfo: OwnerInfo;
   contentInfo: PostContentInfo | null;
+  likeBusy?: boolean;
   onOpenContent: (c: PostContentInfo) => void;
   onLike: (p: FeedPost) => void;
   onComment: (p: FeedPost) => void;
@@ -1012,6 +1084,7 @@ interface PostCardProps {
 
 const PostCard: React.FC<PostCardProps> = ({
                                              post, currentUserId, ownerInfo, contentInfo,
+                                             likeBusy = false,
                                              onOpenContent, onLike, onComment, onShare, onDelete, onEdit, onViewProfile,
                                            }) => {
   const isOwner = currentUserId === post.ownerId;
@@ -1170,7 +1243,7 @@ const PostCard: React.FC<PostCardProps> = ({
               icon={post.likedByCurrentUser ? '♥' : '♡'}
               label={post.likeCount}
               active={post.likedByCurrentUser}
-              onPress={() => onLike(post)}
+              onPress={() => !likeBusy && onLike(post)}
               isLikeBtn={true}
           />
           <ActionBtn
@@ -1198,11 +1271,16 @@ export const DiscoverScreen = () => {
   const currentUserId   = authSession?.profile?.id ?? null;
   const myDisplayName   = authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
   const myAvatarUrl     = authSession?.profile?.avatarUrl;
+  const [canManageAlbums, setCanManageAlbums] = useState(false);
 
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [posting, setPosting]     = useState(false);
   const [posts, setPosts]         = useState<FeedPost[]>([]);
+  const postsSignatureRef = useRef('');
+  const [likePendingIds, setLikePendingIds] = useState<Record<string, boolean>>({});
+  const likePendingRef = useRef<Set<string>>(new Set());
+  const likeSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Owner info cache
   const [ownerCache, setOwnerCache] = useState<Record<string, OwnerInfo>>({});
@@ -1226,6 +1304,22 @@ export const DiscoverScreen = () => {
     ownerCacheRef.current[currentUserId] = mine;
     setOwnerCache(p => ({ ...p, [currentUserId]: mine }));
   }, [currentUserId, myDisplayName, myAvatarUrl]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!currentUserId) {
+      setCanManageAlbums(false);
+      return;
+    }
+    getArtistByUserId(currentUserId)
+        .then(artist => {
+          if (mounted) setCanManageAlbums(!!artist?.id);
+        })
+        .catch(() => {
+          if (mounted) setCanManageAlbums(false);
+        });
+    return () => { mounted = false; };
+  }, [currentUserId]);
 
   // Fetch owner info for posts
   const fetchOwnerInfos = useCallback(async (newPosts: FeedPost[]) => {
@@ -1360,25 +1454,50 @@ export const DiscoverScreen = () => {
     try {
       if (mode === 'initial')  setLoading(true);
       if (mode === 'refresh')  setRefreshing(true);
-      const data = await getPublicFeed({ page: 0, size: 30 });
+      const data = currentUserId
+          ? await getTimeline({ page: 0, size: 30 })
+          : await getPublicFeed({ page: 0, size: 30 });
       const newPosts = data.content ?? [];
-      setPosts(newPosts);
-      void fetchOwnerInfos(newPosts);
+      const nextSignature = newPosts
+          .map(p =>
+              [
+                p.id,
+                p.visibility,
+                p.title ?? '',
+                p.caption ?? '',
+                p.likeCount ?? 0,
+                p.commentCount ?? 0,
+                p.shareCount ?? 0,
+                p.likedByCurrentUser ? '1' : '0',
+                p.createdAt ?? '',
+              ].join('|'),
+          )
+          .join('||');
+
+      if (postsSignatureRef.current !== nextSignature) {
+        postsSignatureRef.current = nextSignature;
+        setPosts(newPosts);
+        void fetchOwnerInfos(newPosts);
+      }
     } catch {
       if (mode !== 'silent') setPosts([]);
     } finally {
       if (mode === 'initial')  setLoading(false);
       if (mode === 'refresh')  setRefreshing(false);
     }
-  }, [fetchOwnerInfos]);
+  }, [fetchOwnerInfos, currentUserId]);
 
   useEffect(() => {
     loadFeed('initial');
-    const id = setInterval(() => loadFeed('silent'), 60_000);
+    const id = setInterval(() => loadFeed('silent'), 20_000);
     return () => clearInterval(id);
   }, [loadFeed]);
 
-  useFocusEffect(useCallback(() => { void loadFeed('silent'); }, [loadFeed]));
+  useFocusEffect(useCallback(() => {
+    void loadFeed('silent');
+    const unsubscribe = subscribeFeedUpdates(() => { void loadFeed('silent'); });
+    return unsubscribe;
+  }, [loadFeed]));
 
   useEffect(() => {
     posts.forEach(p => { void loadContentForPost(p); });
@@ -1391,18 +1510,87 @@ export const DiscoverScreen = () => {
       await createFeedPost({ visibility, title, caption: caption || undefined });
       setComposeOpen(false);
       await loadFeed('silent');
+      notifyFeedUpdated();
     } catch (e: any) {
       Alert.alert('Không thể đăng', e?.message ?? 'Vui lòng thử lại.');
     } finally { setPosting(false); }
   };
 
   const handleLike = async (post: FeedPost) => {
+    if (likePendingRef.current.has(post.id)) return;
+    likePendingRef.current.add(post.id);
+    setLikePendingIds(prev => ({ ...prev, [post.id]: true }));
+
+    const wasLiked = !!post.likedByCurrentUser;
+    // Optimistic toggle so heart button updates immediately.
+    setPosts(prev => prev.map(p => {
+      if (p.id !== post.id) return p;
+      const nextLiked = !wasLiked;
+      const currentCount = Number(p.likeCount ?? 0);
+      return {
+        ...p,
+        likedByCurrentUser: nextLiked,
+        likeCount: Math.max(0, currentCount + (nextLiked ? 1 : -1)),
+      };
+    }));
+
     try {
-      if (post.likedByCurrentUser) await unlikeFeedPost(post.id);
+      if (wasLiked) await unlikeFeedPost(post.id);
       else await likeFeedPost(post.id);
-      await loadFeed('silent');
-    } catch (e: any) { Alert.alert('Lỗi', e?.message); }
+    } catch (e: any) {
+      const rawMessage = String(e?.response?.data?.message || e?.message || '').toLowerCase();
+      // Backend can be slightly stale; recover by applying idempotent opposite call.
+      try {
+        if (!wasLiked && rawMessage.includes('already liked')) {
+          await unlikeFeedPost(post.id);
+          setPosts(prev => prev.map(p => p.id === post.id ? {
+            ...p,
+            likedByCurrentUser: false,
+            likeCount: Math.max(0, Number(p.likeCount ?? 0) - 1),
+          } : p));
+        } else if (wasLiked && (rawMessage.includes('not liked') || rawMessage.includes('not yet liked'))) {
+          await likeFeedPost(post.id);
+          setPosts(prev => prev.map(p => p.id === post.id ? {
+            ...p,
+            likedByCurrentUser: true,
+            likeCount: Number(p.likeCount ?? 0) + 1,
+          } : p));
+        } else {
+          throw e;
+        }
+      } catch (inner: any) {
+        // Rollback optimistic update on unrecoverable failure.
+        setPosts(prev => prev.map(p => {
+          if (p.id !== post.id) return p;
+          const currentCount = Number(p.likeCount ?? 0);
+          return {
+            ...p,
+            likedByCurrentUser: wasLiked,
+            likeCount: Math.max(0, currentCount + (wasLiked ? 1 : -1)),
+          };
+        }));
+        Alert.alert('Lỗi', inner?.response?.data?.message || inner?.message || 'Không thể cập nhật lượt thích');
+      }
+    } finally {
+      likePendingRef.current.delete(post.id);
+      setLikePendingIds(prev => {
+        const next = { ...prev };
+        delete next[post.id];
+        return next;
+      });
+      // Debounced background sync to avoid visible flicker after every tap.
+      if (likeSyncTimeoutRef.current) clearTimeout(likeSyncTimeoutRef.current);
+      likeSyncTimeoutRef.current = setTimeout(() => {
+        void loadFeed('silent');
+      }, 1200);
+    }
   };
+
+  useEffect(() => {
+    return () => {
+      if (likeSyncTimeoutRef.current) clearTimeout(likeSyncTimeoutRef.current);
+    };
+  }, []);
 
   const handleShare = (post: FeedPost) => {
     Share.share({ message: `${post.title ?? 'Bài viết âm nhạc'}\nhttps://phazelsound.oopsgolden.id.vn/feed/${post.id}` });
@@ -1417,6 +1605,7 @@ export const DiscoverScreen = () => {
           try {
             await deleteFeedPost(post.id);
             setPosts(p => p.filter(x => x.id !== post.id));
+            notifyFeedUpdated();
           } catch (e: any) {
             Alert.alert(t('screens.discover.cannotDeletePost', 'Không thể xoá'), e?.response?.data?.message || e?.message || 'Thử lại');
           }
@@ -1430,6 +1619,7 @@ export const DiscoverScreen = () => {
     await updateFeedPost(editingPost.id, { visibility, title: title.trim(), caption: caption.trim() || undefined });
     setEditingPost(null);
     await loadFeed('silent');
+    notifyFeedUpdated();
   };
 
   const openComments = async (post: FeedPost) => {
@@ -1514,6 +1704,7 @@ export const DiscoverScreen = () => {
                       currentUserId={currentUserId}
                       ownerInfo={getOwnerInfo(post)}
                       contentInfo={getContentInfo(post)}
+                      likeBusy={!!likePendingIds[post.id]}
                       onOpenContent={setOpenedContent}
                       onLike={handleLike}
                       onComment={openComments}
@@ -1567,6 +1758,7 @@ export const DiscoverScreen = () => {
         <SharedContentDetailModal
             visible={!!openedContent}
             content={openedContent}
+            canManageAlbums={canManageAlbums}
             onClose={() => setOpenedContent(null)}
         />
       </View>
@@ -1703,6 +1895,8 @@ const saveStyles = StyleSheet.create({
   title: { color: COLORS.white, fontSize: 17, fontWeight: '700', marginBottom: 10 },
   sourceBadge: { backgroundColor: COLORS.glass07, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10, borderWidth: 1, borderColor: COLORS.glass10 },
   sourceText: { color: COLORS.glass70, fontSize: 12, lineHeight: 17 },
+  lockedNotice: { backgroundColor: COLORS.glass08, borderWidth: 1, borderColor: COLORS.glass12, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
+  lockedNoticeText: { color: COLORS.glass55, fontSize: 12, lineHeight: 17 },
   // Tab bar
   tabBar: { flexDirection: 'row', backgroundColor: COLORS.surfaceLow, borderRadius: 10, padding: 3, marginBottom: 10 },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
@@ -1717,10 +1911,16 @@ const saveStyles = StyleSheet.create({
   rowCount: { color: COLORS.glass40, fontSize: 12, marginTop: 2 },
   addIcon: { color: COLORS.accent, fontSize: 22, fontWeight: '300' },
   empty: { color: COLORS.glass40, textAlign: 'center', paddingVertical: 16 },
+  createSection: { marginTop: 10, backgroundColor: COLORS.glass07, borderRadius: 12, borderWidth: 1, borderColor: COLORS.glass10, padding: 10 },
+  createLabel: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  createHint: { color: COLORS.glass45, fontSize: 11, marginTop: 2 },
   newRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   input: { flex: 1, backgroundColor: COLORS.surfaceLow, borderWidth: 1, borderColor: COLORS.glass15, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, color: COLORS.white, fontSize: 14 },
-  newBtn: { width: 44, height: 44, borderRadius: 10, backgroundColor: COLORS.accentDim, alignItems: 'center', justifyContent: 'center' },
-  newBtnText: { color: COLORS.white, fontSize: 22, fontWeight: '300' },
+  newBtn: { minWidth: 56, height: 44, borderRadius: 10, paddingHorizontal: 12, backgroundColor: COLORS.accentDim, alignItems: 'center', justifyContent: 'center' },
+  newBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  inputMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
+  inputMetaText: { color: COLORS.glass35, fontSize: 11 },
+  inputMetaError: { color: COLORS.error },
   closeBtn: { marginTop: 10, paddingVertical: 13, alignItems: 'center', borderTopWidth: 1, borderTopColor: COLORS.glass08 },
   closeBtnText: { color: COLORS.glass60, fontSize: 15 },
 });

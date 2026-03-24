@@ -100,6 +100,7 @@ class CBTrainer:
     def _save_song_features(self, redis) -> None:
         """Lưu feature vector của từng bài hát vào Redis."""
         pipe = redis.pipeline()
+        indexed_song_ids = []
         for i, song_id in enumerate(self._dataset.song_ids):
             vector = self._dataset.feature_matrix[i].tolist()
             pipe.setex(
@@ -107,11 +108,19 @@ class CBTrainer:
                 settings.redis_cb_vector_ttl,
                 json.dumps(vector),
             )
+            indexed_song_ids.append(song_id)
             # Flush mỗi 500 để tránh pipeline quá lớn
             if (i + 1) % 500 == 0:
                 pipe.execute()
                 pipe = redis.pipeline()
         pipe.execute()
+
+        # Duy trì index để serving path không cần scan keyspace
+        index_key = RedisKeys.cb_feature_index()
+        redis.delete(index_key)
+        if indexed_song_ids:
+            redis.sadd(index_key, *indexed_song_ids)
+            redis.expire(index_key, settings.redis_cb_vector_ttl)
         log.info("cb_features_saved", n_songs=len(self._dataset.song_ids))
 
     def _precompute_similar_songs(self, redis, batch_size: int = 500) -> None:
@@ -221,13 +230,13 @@ class CBTrainer:
         redis = get_sync_redis()
         exclude = exclude_ids or set()
 
-        # Lấy tất cả song feature vectors từ Redis
-        song_keys = list(redis.scan_iter("ml:cb:features:*", count=10000))
-        if not song_keys:
+        # Lấy tất cả song IDs từ index đã pre-compute trong training
+        song_ids = list(redis.smembers(RedisKeys.cb_feature_index()))
+        if not song_ids:
             log.warning("cb_no_features_in_redis")
             return []
 
-        song_ids = [k.replace("ml:cb:features:", "") for k in song_keys]
+        song_keys = [RedisKeys.song_features(song_id) for song_id in song_ids]
         pipe = redis.pipeline()
         for key in song_keys:
             pipe.get(key)
@@ -323,9 +332,11 @@ class CBTrainer:
 
         song_vec = np.array(json.loads(song_vec_raw), dtype=np.float32)
 
-        # Lấy sample (max 5000 songs) để tính similarity
-        sample_keys = list(redis.scan_iter("ml:cb:features:*", count=5000))[:5000]
-        sample_ids = [k.replace("ml:cb:features:", "") for k in sample_keys]
+        # Lấy sample (max 5000 songs) từ index, tránh scan keyspace
+        sample_ids = list(redis.smembers(RedisKeys.cb_feature_index()))[:5000]
+        if not sample_ids:
+            return []
+        sample_keys = [RedisKeys.song_features(song_id) for song_id in sample_ids]
 
         pipe = redis.pipeline()
         for key in sample_keys:

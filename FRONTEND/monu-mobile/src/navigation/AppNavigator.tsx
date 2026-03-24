@@ -9,11 +9,14 @@ import { COLORS }                 from '../config/colors';
 import { useAuth }                from '../context/AuthContext';
 import { usePlayer }              from '../context/PlayerContext';
 import { UploadProvider }         from '../context/UploadContext';
+import { useTheme }               from '../context/ThemeContext';
+import { useTranslation }         from '../context/LocalizationContext';
 
 import { MiniPlayer }             from '../components/MiniPlayer';
 import { FullPlayerModal }        from '../components/FullPlayerModal';
 import { UploadProgressBanner }   from '../components/UploadProgressBanner';
 import { AdPlayerModal }          from '../components/AdPlayerModal';
+import { AnimatedDecorIcon }      from '../components/AnimatedDecorIcon';
 
 import { HomeScreen }             from '../screens/HomeScreen';
 import { WelcomeScreen }          from '../screens/(auth)/WelcomeScreen';
@@ -39,6 +42,7 @@ import { InsightsScreen }         from '../screens/InsightsScreen';
 import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
 import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
 import { GenreDetailScreen }      from '../screens/GenreDetailScreen';
+import { MyPostsScreen }          from '../screens/MyPostsScreen';
 
 // ─── Artist screens ───────────────────────────────────────────────────────────
 import { ArtistProfileScreen }    from '../screens/(artist)/ArtistProfileScreen';
@@ -71,6 +75,7 @@ export type RootStackParamList = {
     PlaylistDetail:  { slug: string };
     AlbumDetail:     { albumId: string };
     GenreDetail:     { genreId: string; genreName: string };
+    MyPosts:        undefined;
     // Artist
     ArtistProfile:   { artistId: string };
     RegisterArtist:  undefined;
@@ -124,13 +129,15 @@ const MainTabNavigator = () => (
                 },
                 tabBarActiveTintColor:   COLORS.text,
                 tabBarInactiveTintColor: COLORS.muted,
-                tabBarIcon: ({ color }: { color: string }) => (
+                tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
                     <View style={[styles.tabIconWrap, isCreate && styles.createIconWrap]}>
-                        <MaterialIcons
-                            name={meta.icon as any}
-                            size={isCreate ? 20 : 18}
-                            color={isCreate ? COLORS.white : color}
-                        />
+                        <AnimatedDecorIcon active={focused} intensity="medium">
+                            <MaterialIcons
+                                name={meta.icon as any}
+                                size={isCreate ? 20 : 18}
+                                color={isCreate ? COLORS.white : color}
+                            />
+                        </AnimatedDecorIcon>
                     </View>
                 ),
             };
@@ -158,6 +165,8 @@ const GlobalOverlays = () => {
 
 export const AppNavigator = () => {
     const { authSession, isInitializing } = useAuth();
+    const { theme, followSystem } = useTheme();
+    const { language } = useTranslation();
 
     if (isInitializing) {
         return (
@@ -169,10 +178,11 @@ export const AppNavigator = () => {
 
     const needsOnboarding =
         authSession?.profile && !authSession.profile.pickFavorite;
+    const uiSyncKey = `${language}:${theme}:${followSystem ? 'system' : 'fixed'}`;
 
     return (
         <UploadProvider>
-            <NavigationContainer linking={linking}>
+            <NavigationContainer key={uiSyncKey} linking={linking}>
                 <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
                     {authSession ? (
                         needsOnboarding ? (
@@ -192,6 +202,7 @@ export const AppNavigator = () => {
                                 <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen}/>
                                 <Stack.Screen name="AlbumDetail"    component={AlbumDetailScreen}   />
                                 <Stack.Screen name="GenreDetail"    component={GenreDetailScreen}   />
+                                <Stack.Screen name="MyPosts"        component={MyPostsScreen}       />
                                 <Stack.Screen name="ArtistProfile"   component={ArtistProfileScreen}   />
                                 <Stack.Screen name="RegisterArtist"  component={RegisterArtistScreen}  />
                                 <Stack.Screen name="ArtistTerms"     component={ArtistTermsScreen}     />

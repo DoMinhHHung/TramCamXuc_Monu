@@ -18,6 +18,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { THEMES, ThemeName } from '../config/themes';
 import { BackButton } from '../components/BackButton';
+import { AnimatedDecorIcon } from '../components/AnimatedDecorIcon';
 
 const LANGUAGE_OPTIONS = [
     { code: 'vi', labelKey: 'screens.settings.languages.vi', flag: '🇻🇳' },
@@ -81,7 +82,9 @@ export const SettingsScreen = () => {
                                         },
                                     ]}
                                 >
-                                    <Text style={styles.themeEmoji}>{themeOption.emoji}</Text>
+                                    <AnimatedDecorIcon active={theme === themeOption.id} intensity="soft">
+                                        <Text style={styles.themeEmoji}>{themeOption.emoji}</Text>
+                                    </AnimatedDecorIcon>
                                 </View>
                                 <Text style={styles.themeLabel}>{themeOption.label}</Text>
                                 {theme === themeOption.id && (
@@ -142,7 +145,9 @@ export const SettingsScreen = () => {
                                 ]}
                                 onPress={() => setLanguage(lang.code as 'vi' | 'en')}
                             >
-                                <Text style={styles.flagEmoji}>{lang.flag}</Text>
+                                <AnimatedDecorIcon active={language === lang.code} intensity="soft">
+                                    <Text style={styles.flagEmoji}>{lang.flag}</Text>
+                                </AnimatedDecorIcon>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.languageLabel}>{t(lang.labelKey)}</Text>
                                     <Text style={styles.languageCode}>({lang.code})</Text>
