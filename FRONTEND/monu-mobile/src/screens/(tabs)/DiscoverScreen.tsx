@@ -130,12 +130,20 @@ const Avatar = ({
 );
 
 const ActionBtn = ({
-                     icon, label, active, onPress,
-                   }: { icon: string | React.ReactNode; label: string | number; active?: boolean; onPress: () => void }) => (
-    <Pressable style={styles.actionBtn} onPress={onPress} hitSlop={8}>
-      <Text style={[styles.actionIcon, active && { color: COLORS.accent }]}>{icon}</Text>
+                     icon, label, active, onPress, isLikeBtn = false,
+                   }: { icon: string | React.ReactNode; label: string | number; active?: boolean; onPress: () => void; isLikeBtn?: boolean; }) => (
+    <Pressable
+        style={[styles.actionBtn, active && isLikeBtn ? styles.likeWrapActive : styles.likeWrap]}
+        onPress={onPress}
+        hitSlop={8}
+    >
+      {typeof icon === 'string' ? (
+          <Text style={[styles.actionIcon, active && isLikeBtn && styles.likeEmoji]}>{icon}</Text>
+      ) : (
+          icon
+      )}
       {Number(label) > 0 && (
-          <Text style={[styles.actionLabel, active && { color: COLORS.accent }]}>{label}</Text>
+          <Text style={[styles.actionLabel, active && isLikeBtn && styles.labelLiked]}>{label}</Text>
       )}
     </Pressable>
 );
@@ -1163,9 +1171,10 @@ const PostCard: React.FC<PostCardProps> = ({
               label={post.likeCount}
               active={post.likedByCurrentUser}
               onPress={() => onLike(post)}
+              isLikeBtn={true}
           />
           <ActionBtn
-              icon={<FontAwesome name="commenting-o" color={COLORS.glass50} size={18} />}
+              icon={<FontAwesome name="commenting-o" color={'rgba(255,255,255,0.5)'} size={18} />}
               label={post.commentCount}
               onPress={() => onComment(post)}
           />
@@ -1625,10 +1634,37 @@ const styles = StyleSheet.create({
   likeDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
   statText: { color: COLORS.glass45, fontSize: 12 },
   postDivider: { height: 1, backgroundColor: COLORS.glass06, marginHorizontal: 16, marginBottom: 4 },
+
+  // ─── Actions patches applied ───
   postActions: { flexDirection: 'row', paddingHorizontal: 8 },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 5, borderRadius: 8 },
-  actionIcon: { color: COLORS.glass50, fontSize: 18 },
-  actionLabel: { color: COLORS.glass50, fontSize: 13, fontWeight: '500' },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    gap: 5,
+    borderRadius: 8
+  },
+  likeWrap: {},
+  likeWrapActive: {},
+  likeEmoji: {
+    fontSize: 20,
+    color: '#FF4081'
+  },
+  actionIcon: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 18
+  },
+  actionLabel: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    fontWeight: '500'
+  },
+  labelLiked: {
+    color: '#FF4081',
+    fontWeight: '700'
+  },
 });
 
 // ─── Detail modal styles ───────────────────────────────────────────────────────

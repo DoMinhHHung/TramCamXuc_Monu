@@ -161,9 +161,7 @@ export const RegisterArtistScreen = () => {
                     <View style={styles.infoCard}>
                         <Text style={styles.infoTitle}>{t('screens.registerArtist.reviewProcessTitle', '📋 Review process')}</Text>
                         {[
-                            t('screens.registerArtist.reviewStep1', 'Profile is reviewed within 1–3 business days'),
-                            t('screens.registerArtist.reviewStep2', 'Approval notification is sent via email'),
-                            t('screens.registerArtist.reviewStep3', 'After approval, you can upload songs and create albums'),
+                            t('screens.registerArtist.reviewStep3', 'You can upload songs and create albums'),
                             t('screens.registerArtist.reviewStep4', 'A Premium plan is required to activate Artist features'),
                         ].map((item, i) => (
                             <View key={i} style={styles.infoRow}>

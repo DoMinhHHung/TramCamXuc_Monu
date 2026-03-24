@@ -6,14 +6,14 @@ spring:
     name: music-service
 
   main:
-    lazy-initialization: true
+    lazy-initialization: false
     banner-mode: off
-  jmx:
-    enabled: false
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.admin.SpringApplicationAdminJmxAutoConfiguration
-      - org.springframework.boot.autoconfigure.jmx.JmxAutoConfiguration
+#  jmx:
+#    enabled: false
+#  autoconfigure:
+#    exclude:
+#      - org.springframework.boot.autoconfigure.admin.SpringApplicationAdminJmxAutoConfiguration
+#      - org.springframework.boot.autoconfigure.jmx.JmxAutoConfiguration
 
   datasource:
     url: ${DB_URL_MUSIC}
@@ -52,10 +52,11 @@ spring:
         enabled: true
 
   rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+    virtual-host: ${RABBITMQ_VHOST:/}
     cache:
       connection:
         mode: channel

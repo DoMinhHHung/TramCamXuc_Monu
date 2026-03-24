@@ -23,7 +23,9 @@ def get_async_redis() -> aioredis.Redis:
             host=settings.redis_host,
             port=settings.redis_port,
             db=settings.redis_db,
-            decode_responses=True,   # trả về str thay vì bytes
+            password=settings.redis_password,
+            ssl=settings.redis_ssl,
+            decode_responses=True,
             socket_connect_timeout=5,
             socket_timeout=5,
             retry_on_timeout=True,
@@ -38,6 +40,8 @@ def get_sync_redis() -> sync_redis.Redis:
             host=settings.redis_host,
             port=settings.redis_port,
             db=settings.redis_db,
+            password=settings.redis_password,
+            ssl=settings.redis_ssl,
             decode_responses=True,
             socket_connect_timeout=5,
             socket_timeout=30,   # training jobs cần thời gian hơn

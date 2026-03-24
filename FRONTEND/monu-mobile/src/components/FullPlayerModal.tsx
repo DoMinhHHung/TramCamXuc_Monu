@@ -18,6 +18,7 @@ const formatTime = (seconds: number): string => {
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
 };
+import { Foundation, MaterialCommunityIcons, MaterialIcons, Entypo, Feather   } from '@expo/vector-icons';
 
 const THUMB_RADIUS = 9;
 
@@ -30,9 +31,9 @@ const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
 
 // ─── Repeat mode icon ─────────────────────────────────────────────────────────
 const repeatLabel = (mode: RepeatMode): string => {
-    if (mode === 'one') return '🔂';
-    if (mode === 'all') return '🔁';
-    return '➡️'; // none
+    if (mode === 'one') return <MaterialIcons name="repeat-one" color="#fff" size={24} /> as any;
+    if (mode === 'all') return <MaterialCommunityIcons name="repeat" color="#fff" size={24} /> as any;
+    return <Entypo name="flickr" color="#fff" size={24} /> as any;
 };
 
 export const FullPlayerModal = () => {
@@ -204,14 +205,14 @@ export const FullPlayerModal = () => {
                         {/* Shuffle */}
                         <Pressable style={styles.sideBtn} onPress={toggleShuffle} hitSlop={8}>
                             <Text style={[styles.modeIcon, isShuffled && styles.modeIconActive]}>
-                                🔀
+                                <Foundation name="shuffle" color="#34D399"  size={24} />
                             </Text>
                             {isShuffled && <View style={styles.modeDot} />}
                         </Pressable>
 
                         {/* Previous */}
                         <Pressable style={styles.sideBtn} onPress={playPrev}>
-                            <Text style={styles.sideBtnIcon}>⏮</Text>
+                            <MaterialCommunityIcons name="skip-previous" color="#fff" size={30} />
                         </Pressable>
 
                         {/* Play / pause */}
@@ -223,7 +224,9 @@ export const FullPlayerModal = () => {
 
                         {/* Next */}
                         <Pressable style={styles.sideBtn} onPress={playNext}>
-                            <Text style={styles.sideBtnIcon}>⏭</Text>
+                            <Text style={styles.sideBtnIcon}>
+                                <MaterialCommunityIcons name="skip-next" color="#fff" size={30} />
+                            </Text>
                         </Pressable>
 
                         {/* Repeat */}
@@ -241,13 +244,13 @@ export const FullPlayerModal = () => {
                     {/* Mode label */}
                     <View style={styles.modeLabels}>
                         {isShuffled && (
-                            <Text style={styles.modeLabelText}>🔀 Phát ngẫu nhiên</Text>
+                            <Text style={styles.modeLabelText}><Foundation name="shuffle" color="#34D399"  size={13} /> Phát ngẫu nhiên</Text>
                         )}
                         {repeatMode === 'one' && (
-                            <Text style={styles.modeLabelText}>🔂 Lặp bài này</Text>
+                            <Text style={styles.modeLabelText}><MaterialIcons name="repeat-one" color="#fff" size={13} /> Lặp bài này</Text>
                         )}
                         {repeatMode === 'all' && (
-                            <Text style={styles.modeLabelText}>🔁 Lặp danh sách</Text>
+                            <Text style={styles.modeLabelText}><MaterialCommunityIcons name="repeat" color="#fff" size={13} /> Lặp danh sách</Text>
                         )}
                     </View>
 
@@ -274,7 +277,7 @@ export const FullPlayerModal = () => {
                                             isSelected   && styles.qualityBtnTextActive,
                                             !isAvailable && styles.qualityBtnTextLocked,
                                         ]}>
-                                            {opt.label}{!isAvailable ? ' 🔒' : ''}
+                                            {opt.label}{!isAvailable ? '🔒' : ''}
                                         </Text>
                                     </Pressable>
                                 );

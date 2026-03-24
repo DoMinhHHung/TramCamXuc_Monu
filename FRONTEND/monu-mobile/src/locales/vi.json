@@ -311,12 +311,9 @@
       "acceptSuffix": "của Monu",
       "submit": "Đăng ký Nghệ sĩ",
       "reviewProcessTitle": "📋 Quy trình xét duyệt",
-      "reviewStep1": "Hồ sơ được xem xét trong 1–3 ngày làm việc",
-      "reviewStep2": "Thông báo phê duyệt sẽ gửi qua email",
-      "reviewStep3": "Sau khi được duyệt, bạn có thể upload nhạc và tạo album",
+      "reviewStep3": "Sau khi xác thực, bạn có thể upload nhạc và tạo album",
       "reviewStep4": "Cần có gói Premium để kích hoạt tính năng Artist",
       "successTitle": "🎉 Đăng ký thành công!",
-      "successMessage": "Hồ sơ nghệ sĩ đang được xét duyệt (1–3 ngày). Bạn sẽ nhận thông báo qua email khi được phê duyệt.",
       "registerFailed": "Không thể đăng ký. Vui lòng thử lại."
     },
     "authOptions": {
@@ -336,7 +333,7 @@
       "myUploads": "Bài hát của tôi",
       "uploadInstructions": "Chọn một tệp âm thanh để tải lên",
       "uploadHintRequesting": "Đang kết nối server...",
-      "uploadHintUploading": "Upload đang chạy nền — bạn có thể dùng app bình thường.",
+      "uploadHintUploading": "Đang upload bài hát..., nghe nhạc và chờ xíu nhé!",
       "uploadHintConfirming": "Gần xong rồi...",
       "uploadHintDone": "Bài hát đã được gửi lên. Hệ thống sẽ xử lý trong vài phút.",
       "uploadHintError": "Upload thất bại. Kiểm tra kết nối và thử lại.",
