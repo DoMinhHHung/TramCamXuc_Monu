@@ -21,6 +21,7 @@ import {
     addSearchHistory, clearSearchHistory,
     getSearchHistory, removeSearchHistoryItem,
 } from '../../utils/searchHistory';
+import { Octicons, MaterialIcons } from '@expo/vector-icons';
 
 type Tab = 'songs' | 'artists';
 
@@ -191,7 +192,7 @@ export const SearchScreen = () => {
     const renderArtistItem = ({ item }: { item: Artist }) => (
         <Pressable style={styles.resultRow} onPress={() => handleArtistPress(item)}>
             <View style={[styles.resultIndex, styles.artistIconWrap]}>
-                <Text style={{ fontSize: 18 }}>🎤</Text>
+                <Text style={{ fontSize: 18 }}><MaterialIcons name="settings-voice" color="#000" size={24} /></Text>
             </View>
             <View style={styles.resultInfo}>
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.stageName}</Text>
@@ -331,7 +332,7 @@ export const SearchScreen = () => {
                                         style={styles.historyRow}
                                         onPress={() => handleHistoryItemPress(item)}
                                     >
-                                        <Text style={styles.historyIcon}>🕐</Text>
+                                        <Text style={styles.historyIcon}><Octicons name="history" color="#fff" size={24} /></Text>
                                         <Text style={styles.historyText} numberOfLines={1}>{item}</Text>
                                         <Pressable
                                             style={styles.historyRemoveBtn}

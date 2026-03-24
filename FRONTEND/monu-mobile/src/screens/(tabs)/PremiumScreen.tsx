@@ -1,190 +1,423 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, Alert, Linking, ActivityIndicator } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    Animated,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View,
+    Alert,
+    Linking,
+    ActivityIndicator,
+    Dimensions,
+} from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
-import  PremiumCard  from "../../components/PremiumCard";
-import { getActiveSubscriptionPlans, getMySubscriptionHistory, purchaseSubscription, SubscriptionPlan, getMySubscription, UserSubscription } from '../../services/payment';
+import {
+    getActiveSubscriptionPlans,
+    getMySubscription,
+    purchaseSubscription,
+    SubscriptionPlan,
+    UserSubscription,
+} from '../../services/payment';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LocalizationContext';
 
-const PERKS = [
-    { icon: '🎵', titleKey: 'screens.premium.perkUnlimitedTitle', descKey: 'screens.premium.perkUnlimitedDesc' },
-    { icon: '⬇️', titleKey: 'screens.premium.perkOfflineTitle', descKey: 'screens.premium.perkOfflineDesc' },
-    { icon: '🎧', titleKey: 'screens.premium.perkQualityTitle', descKey: 'screens.premium.perkQualityDesc' },
-    { icon: '🎯', titleKey: 'screens.premium.perkAiTitle', descKey: 'screens.premium.perkAiDesc' },
+const { width: SCREEN_W } = Dimensions.get('window');
+
+// ─── Feature list ─────────────────────────────────────────────────────────────
+
+const FEATURES = [
+    {
+        icon: 'music-off' as const,
+        label: 'Không quảng cáo',
+        desc: 'Nghe nhạc liên tục, không gián đoạn',
+        color: '#FF6B6B',
+    },
+    {
+        icon: 'download-circle' as const,
+        label: 'Tải nhạc offline',
+        desc: 'Lưu bài yêu thích, nghe khi không có mạng',
+        color: '#4ECDC4',
+    },
+    {
+        icon: 'waveform' as const,
+        label: 'Lossless / 320kbps',
+        desc: 'Chất lượng âm thanh tốt nhất hiện có',
+        color: '#A78BFA',
+    },
+    {
+        icon: 'robot-love' as const,
+        label: 'Gợi ý thông minh',
+        desc: 'Playlist cá nhân hoá theo cảm xúc của bạn',
+        color: '#F59E0B',
+    },
+    {
+        icon: 'account-music' as const,
+        label: 'Đăng ký Nghệ sĩ',
+        desc: 'Upload nhạc và chia sẻ âm nhạc của bạn',
+        color: '#34D399',
+    },
+    {
+        icon: 'infinity' as const,
+        label: 'Playlist không giới hạn',
+        desc: 'Tạo và quản lý bao nhiêu playlist tuỳ thích',
+        color: '#60A5FA',
+    },
 ];
+
+// ─── Animated star particle ───────────────────────────────────────────────────
+
+const StarParticle = ({
+                          x,
+                          y,
+                          size,
+                          delay,
+                      }: {
+    x: number;
+    y: number;
+    size: number;
+    delay: number;
+}) => {
+    const opacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.delay(delay),
+                Animated.timing(opacity, { toValue: 0.8, duration: 1200, useNativeDriver: true }),
+                Animated.timing(opacity, { toValue: 0.1, duration: 1200, useNativeDriver: true }),
+            ]),
+        );
+        loop.start();
+        return () => loop.stop();
+    }, []);
+
+    return (
+        <Animated.View
+            style={{
+                position: 'absolute',
+                left: x,
+                top: y,
+                width: size,
+                height: size,
+                borderRadius: size / 2,
+                backgroundColor: '#C084FC',
+                opacity,
+            }}
+        />
+    );
+};
+
+// ─── Plan selector card ───────────────────────────────────────────────────────
+
+const PlanCard = ({
+                      plan,
+                      isSelected,
+                      isCurrent,
+                      onSelect,
+                  }: {
+    plan: SubscriptionPlan;
+    isSelected: boolean;
+    isCurrent: boolean;
+    onSelect: () => void;
+}) => {
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+    const isFree = plan.price === 0 || plan.subsName.toLowerCase().includes('free');
+
+    const handlePress = () => {
+        Animated.sequence([
+            Animated.timing(scaleAnim, { toValue: 0.96, duration: 80, useNativeDriver: true }),
+            Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }),
+        ]).start();
+        onSelect();
+    };
+
+    const formatPrice = (p: number) => new Intl.NumberFormat('vi-VN').format(p);
+
+    return (
+        <Pressable onPress={handlePress} style={{ flex: 1 }}>
+            <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+                {isSelected && !isFree ? (
+                    <LinearGradient
+                        colors={['#7C3AED', '#C084FC', '#7C3AED']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[styles.planCard, styles.planCardSelectedGradient]}
+                    >
+                        <PlanCardContent
+                            plan={plan}
+                            isSelected={isSelected}
+                            isCurrent={isCurrent}
+                            isFree={isFree}
+                            formatPrice={formatPrice}
+                        />
+                    </LinearGradient>
+                ) : (
+                    <View
+                        style={[
+                            styles.planCard,
+                            isSelected && styles.planCardSelected,
+                            isFree && styles.planCardFree,
+                        ]}
+                    >
+                        <PlanCardContent
+                            plan={plan}
+                            isSelected={isSelected}
+                            isCurrent={isCurrent}
+                            isFree={isFree}
+                            formatPrice={formatPrice}
+                        />
+                    </View>
+                )}
+            </Animated.View>
+        </Pressable>
+    );
+};
+
+const PlanCardContent = ({
+                             plan,
+                             isSelected,
+                             isCurrent,
+                             isFree,
+                             formatPrice,
+                         }: {
+    plan: SubscriptionPlan;
+    isSelected: boolean;
+    isCurrent: boolean;
+    isFree: boolean;
+    formatPrice: (p: number) => string;
+}) => (
+    <>
+        {isCurrent && (
+            <View style={styles.currentBadge}>
+                <Text style={styles.currentBadgeText}>HIỆN TẠI</Text>
+            </View>
+        )}
+        {isSelected && !isFree && !isCurrent && (
+            <View style={styles.popularBadge}>
+                <Text style={styles.popularBadgeText}>✦ PHỔ BIẾN</Text>
+            </View>
+        )}
+
+        <Text style={[styles.planName, isSelected && !isFree && styles.planNameSelected]}>
+            {plan.subsName}
+        </Text>
+
+        {isFree ? (
+            <Text style={styles.planFreeLabel}>Miễn phí</Text>
+        ) : (
+            <>
+                <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>
+                    {formatPrice(plan.price)}
+                    <Text style={styles.planPriceCurrency}>đ</Text>
+                </Text>
+                <Text style={[styles.planDuration, isSelected && styles.planDurationSelected]}>
+                    {plan.durationDays} ngày
+                </Text>
+            </>
+        )}
+    </>
+);
+
+// ─── Feature row ──────────────────────────────────────────────────────────────
+
+const FeatureRow = ({
+                        icon,
+                        label,
+                        desc,
+                        color,
+                        index,
+                    }: {
+    icon: string;
+    label: string;
+    desc: string;
+    color: string;
+    index: number;
+}) => {
+    const translateX = useRef(new Animated.Value(-30)).current;
+    const opacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            Animated.timing(translateX, {
+                toValue: 0,
+                duration: 400,
+                delay: index * 80,
+                useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+                toValue: 1,
+                duration: 400,
+                delay: index * 80,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
+
+    return (
+        <Animated.View
+            style={[
+                styles.featureRow,
+                { opacity, transform: [{ translateX }] },
+            ]}
+        >
+            <LinearGradient
+                colors={[`${color}30`, `${color}15`]}
+                style={[styles.featureIconWrap, { borderColor: `${color}50` }]}
+            >
+                <MaterialCommunityIcons
+                    name={icon as any}
+                    size={22}
+                    color={color}
+                />
+            </LinearGradient>
+            <View style={styles.featureText}>
+                <Text style={styles.featureLabel}>{label}</Text>
+                <Text style={styles.featureDesc}>{desc}</Text>
+            </View>
+            <MaterialCommunityIcons name="check-circle" size={20} color={color} />
+        </Animated.View>
+    );
+};
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export const PremiumScreen = () => {
     const insets = useSafeAreaInsets();
     const { authSession } = useAuth();
     const { t } = useTranslation();
     const themeColors = useThemeColors();
-    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+    const styles_dynamic = useMemo(() => createDynamicStyles(themeColors), [themeColors]);
+
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
-    const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
+    const [currentSub, setCurrentSub] = useState<UserSubscription | null>(null);
     const [loading, setLoading] = useState(true);
     const [purchasing, setPurchasing] = useState(false);
-    const [subscriptionHistory, setSubscriptionHistory] = useState<UserSubscription[]>([]);
+
+    // Animations
+    const crownScale = useRef(new Animated.Value(0.8)).current;
+    const crownGlow = useRef(new Animated.Value(0)).current;
+    const btnPulse = useRef(new Animated.Value(1)).current;
+
+    // Star particles (memoized positions)
+    const stars = useMemo(
+        () =>
+            Array.from({ length: 18 }, (_, i) => ({
+                id: i,
+                x: Math.random() * SCREEN_W,
+                y: Math.random() * 260,
+                size: 1.5 + Math.random() * 3,
+                delay: Math.random() * 2000,
+            })),
+        [],
+    );
 
     useEffect(() => {
-        fetchData(false);
+        // Crown entrance
+        Animated.spring(crownScale, { toValue: 1, tension: 60, friction: 8, useNativeDriver: true }).start();
+
+        // Glow pulse
+        const glowLoop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(crownGlow, { toValue: 1, duration: 2000, useNativeDriver: true }),
+                Animated.timing(crownGlow, { toValue: 0, duration: 2000, useNativeDriver: true }),
+            ]),
+        );
+        glowLoop.start();
+
+        // Button pulse
+        const btnLoop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(btnPulse, { toValue: 1.02, duration: 1000, useNativeDriver: true }),
+                Animated.timing(btnPulse, { toValue: 1, duration: 1000, useNativeDriver: true }),
+            ]),
+        );
+        btnLoop.start();
+
+        return () => {
+            glowLoop.stop();
+            btnLoop.stop();
+        };
     }, []);
+
+    const fetchData = useCallback(async (silent = false) => {
+        try {
+            if (!silent) setLoading(true);
+            const [plansData, subData] = await Promise.allSettled([
+                getActiveSubscriptionPlans(),
+                authSession ? getMySubscription() : null,
+            ]);
+
+            if (plansData.status === 'fulfilled') {
+                setPlans(plansData.value);
+                const paid = plansData.value.filter(
+                    (p) => p.price > 0 && !p.subsName.toLowerCase().includes('free'),
+                );
+                if (paid.length > 0 && !selectedPlan) {
+                    setSelectedPlan(paid.reduce((a, b) => (a.price < b.price ? a : b)));
+                }
+            }
+            if (subData.status === 'fulfilled' && subData.value) {
+                setCurrentSub(subData.value);
+            }
+        } catch {}
+        finally { if (!silent) setLoading(false); }
+    }, [authSession, selectedPlan]);
+
+    useEffect(() => { void fetchData(); }, []);
 
     useFocusEffect(
         useCallback(() => {
             void fetchData(true);
             const id = setInterval(() => void fetchData(true), 12000);
             return () => clearInterval(id);
-        }, [authSession?.tokens.accessToken]),
+        }, [fetchData]),
     );
 
-    const fetchData = async (silent = false) => {
-        try {
-            if (!silent) setLoading(true);
-            const [plansData, subscriptionData, historyData] = await Promise.allSettled([
-                getActiveSubscriptionPlans(),
-                authSession ? getMySubscription() : null,
-                authSession ? getMySubscriptionHistory() : [],
-            ]);
-
-            if (plansData.status === 'fulfilled') {
-                setPlans(plansData.value);
-                // Auto-select cheapest paid plan (exclude Free/Basic)
-                const paidPlans = plansData.value.filter(isPurchasablePlan);
-                if (paidPlans.length > 0) {
-                    const cheapestPaid = paidPlans.reduce((prev, curr) =>
-                        curr.price < prev.price ? curr : prev
-                    );
-                    setSelectedPlan(cheapestPaid);
-                } else {
-                    setSelectedPlan(null);
-                }
-            }
-
-            if (subscriptionData.status === 'fulfilled' && subscriptionData.value) {
-                setCurrentSubscription(subscriptionData.value);
-            }
-
-            if (historyData.status === 'fulfilled') {
-                setSubscriptionHistory(historyData.value ?? []);
-            }
-        } catch (error: any) {
-            console.error('Error fetching plans:', error);
-            Alert.alert(t('common.error'), error.message || t('errors.loadingFailed'));
-        } finally {
-            if (!silent) setLoading(false);
-        }
-    };
-
-
-    const openCheckoutUrl = async (checkoutUrl: string): Promise<boolean> => {
-        try {
-            await Linking.openURL(checkoutUrl);
-            return true;
-        } catch {
-            // fallback to in-app browser if external browser cannot be opened
-        }
-
-        try {
-            const result = await WebBrowser.openBrowserAsync(checkoutUrl);
-            return result.type === 'opened' || result.type === 'cancel' || result.type === 'dismiss';
-        } catch {
-            return false;
-        }
-    };
-
-    const handlePurchase = async (planOverride?: SubscriptionPlan) => {
+    const handlePurchase = async () => {
         if (!authSession) {
-            Alert.alert(t('auth.login'), t('screens.premium.loginToPurchase'));
+            Alert.alert('Đăng nhập', 'Vui lòng đăng nhập để mua Premium.');
             return;
         }
-
-        const planToBuy = planOverride ?? selectedPlan;
-
-        if (!planToBuy) {
-            Alert.alert(t('common.error'), t('screens.premium.selectPaidPlan'));
+        if (!selectedPlan || selectedPlan.price === 0) {
+            Alert.alert('Chọn gói', 'Vui lòng chọn gói Premium trả phí.');
             return;
         }
-
-        if (!isPurchasablePlan(planToBuy)) {
-            Alert.alert(t('common.error'), t('screens.premium.invalidFreePlan'));
-            return;
-        }
-
         try {
             setPurchasing(true);
-            const response = await purchaseSubscription({ planId: planToBuy.id });
-
-            const opened = await openCheckoutUrl(response.checkoutUrl);
-            if (!opened) {
-                Alert.alert(
-                    t('screens.premium.cannotOpenCheckout'),
-                    `${t('screens.premium.openCheckoutManual')}\n${response.checkoutUrl}`
-                );
-                return;
-            }
-
+            const res = await purchaseSubscription({ planId: selectedPlan.id });
+            try { await Linking.openURL(res.checkoutUrl); }
+            catch { await WebBrowser.openBrowserAsync(res.checkoutUrl); }
             Alert.alert(
-                t('screens.premium.paymentTitle'),
-                t('screens.premium.paymentMessage'),
-                [
-                    {
-                        text: t('common.done'),
-                        onPress: () => fetchData(), // Refresh data after payment
-                    },
-                ]
+                '💳 Thanh toán',
+                'Hoàn tất thanh toán trong trình duyệt. Quay lại app sau khi hoàn thành.',
+                [{ text: 'OK', onPress: () => fetchData(true) }],
             );
-        } catch (error: any) {
-            console.error('Purchase error:', error);
-            Alert.alert(t('common.error'), error.message || t('errors.somethingWentWrong'));
-        } finally {
-            setPurchasing(false);
-        }
+        } catch (e: any) {
+            Alert.alert('Lỗi', e.message || 'Không thể khởi tạo thanh toán');
+        } finally { setPurchasing(false); }
     };
 
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('vi-VN').format(price);
-    };
+    const isActive = currentSub?.status === 'ACTIVE';
+    const remainDays = useMemo(() => {
+        if (!currentSub?.expiresAt) return 0;
+        return Math.max(0, Math.ceil((new Date(currentSub.expiresAt).getTime() - Date.now()) / 86400000));
+    }, [currentSub]);
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('vi-VN');
-    };
-
-    const isFreeOrBasic = (plan: SubscriptionPlan) => {
-        return plan.price === 0 || plan.subsName.toLowerCase().includes('free') || plan.subsName.toLowerCase().includes('basic');
-    };
-
-    const isPurchasablePlan = (plan: SubscriptionPlan) => !isFreeOrBasic(plan);
-
-    const remainingDays = useMemo(() => {
-        if (!currentSubscription?.expiresAt) return 0;
-        const diff = new Date(currentSubscription.expiresAt).getTime() - Date.now();
-        return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-    }, [currentSubscription?.expiresAt]);
-
-    const latestPaymentStatus = useMemo(() => {
-        if (subscriptionHistory.length === 0) return currentSubscription?.status ?? 'UNKNOWN';
-        return subscriptionHistory[0]?.status ?? currentSubscription?.status ?? 'UNKNOWN';
-    }, [subscriptionHistory, currentSubscription?.status]);
-
-    const renderFeatureValue = (value: any): string => {
-        if (typeof value === 'boolean') return value ? 'Có' : 'Không';
-        if (typeof value === 'number') return value.toString();
-        if (typeof value === 'string') return value;
-        return JSON.stringify(value);
-    };
+    const glowOpacity = crownGlow.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] });
 
     if (loading) {
         return (
             <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={themeColors.accent} />
-                <Text style={[styles.heroSub, { marginTop: 16 }]}>{t('common.loading')}</Text>
+                <ActivityIndicator size="large" color="#C084FC" />
             </View>
         );
     }
@@ -192,255 +425,485 @@ export const PremiumScreen = () => {
     return (
         <View style={styles.root}>
             <StatusBar style="light" />
-            <ScrollView showsVerticalScrollIndicator={false}>
-                <LinearGradient
-                    colors={[themeColors.gradPurple, themeColors.gradIndigo, themeColors.bg]}
-                    locations={[0, 0.5, 1]}
-                    style={[styles.hero, { paddingTop: insets.top + 20 }]}
-                >
-                    <View style={styles.crownWrap}>
-                        <Text style={{ fontSize: 44 }}>👑</Text>
-                    </View>
-                    <Text style={styles.heroTitle}>Monu Premium</Text>
-                    <Text style={styles.heroSub}>{t('screens.premium.heroSubtitle')}</Text>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 48 }}
+            >
+                {/* ── Hero ── */}
+                <View style={[styles.hero, { paddingTop: insets.top + 24 }]}>
+                    {/* Star particles */}
+                    {stars.map((s) => (
+                        <StarParticle key={s.id} x={s.x} y={s.y} size={s.size} delay={s.delay} />
+                    ))}
 
-                    {currentSubscription && currentSubscription.status === 'ACTIVE' ? (
-                        <View style={styles.activeSubscriptionCard}>
-                            <Text style={styles.activeLabel}>✨ {t('screens.premium.active')}</Text>
-                            <Text style={styles.activePlan}>{currentSubscription.plan.subsName}</Text>
-                            <Text style={styles.activeExpiry}>
-                                {t('screens.premium.expiresAt')}: {formatDate(currentSubscription.expiresAt)}
+                    {/* Hero gradient */}
+                    <LinearGradient
+                        colors={['#1a0040', '#2D1B69', '#0D0D14']}
+                        locations={[0, 0.55, 1]}
+                        style={StyleSheet.absoluteFill}
+                    />
+
+                    {/* Glow blob */}
+                    <Animated.View style={[styles.glowBlob, { opacity: glowOpacity }]} />
+
+                    {/* Crown */}
+                    <Animated.View style={[styles.crownWrap, { transform: [{ scale: crownScale }] }]}>
+                        <LinearGradient
+                            colors={['#F59E0B', '#FBBF24', '#F59E0B']}
+                            style={styles.crownGradient}
+                        >
+                            <Text style={styles.crownEmoji}>👑</Text>
+                        </LinearGradient>
+                    </Animated.View>
+
+                    <Text style={styles.heroTitle}>Monu Premium</Text>
+                    <Text style={styles.heroSubtitle}>Trải nghiệm âm nhạc không giới hạn</Text>
+
+                    {/* Active badge OR price teaser */}
+                    {isActive ? (
+                        <View style={styles.activeBadge}>
+                            <View style={styles.activeDot} />
+                            <Text style={styles.activeBadgeText}>
+                                Đang kích hoạt · còn {remainDays} ngày
                             </Text>
                         </View>
-                    ) : selectedPlan ? (
-                        <View style={styles.priceCard}>
-                            <Text style={styles.priceLabel}>{t('screens.premium.startingFrom')}</Text>
-                            <Text style={styles.price}>
-                                {formatPrice(selectedPlan.price)} <Text style={styles.pricePer}>đ/{selectedPlan.durationDays} ngày</Text>
+                    ) : selectedPlan && selectedPlan.price > 0 ? (
+                        <View style={styles.priceTease}>
+                            <Text style={styles.priceTeaseLabel}>CHỈ TỪ</Text>
+                            <Text style={styles.priceTeaseValue}>
+                                {new Intl.NumberFormat('vi-VN').format(selectedPlan.price)}
+                                <Text style={styles.priceTeaseCurrency}>đ</Text>
                             </Text>
+                            <Text style={styles.priceTeaseDuration}>/{selectedPlan.durationDays} ngày</Text>
                         </View>
                     ) : null}
-                </LinearGradient>
+                </View>
 
-                <View style={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
-                
-                    {/* Available Plans */}
+                <View style={styles.body}>
+
+                    {/* ── Plan selector ── */}
                     {plans.length > 0 && (
                         <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>{t('screens.premium.plans')}</Text>
-                            {plans.map((plan) => (
-                                <PremiumCard
-                                    key={plan.id}
-                                    name={plan.subsName}
-                                    price={`${formatPrice(plan.price)}đ`}
-                                    duration={`${plan.durationDays} ngày`}
-                                    features={
-                                        plan.features
-                                            ? Object.entries(plan.features).map(
-                                                ([k, v]) => `${k.replace(/_/g, ' ')}: ${renderFeatureValue(v)}`
-                                            )
-                                            : []
-                                    }
-                                    onBuy={() => {
-                                        setSelectedPlan(plan);
-                                        void handlePurchase(plan);
-                                    }}
-                                />
-                            ))}
+                            <Text style={styles.sectionHeading}>Chọn gói phù hợp</Text>
+                            <View style={styles.plansRow}>
+                                {plans.map((plan) => (
+                                    <PlanCard
+                                        key={plan.id}
+                                        plan={plan}
+                                        isSelected={selectedPlan?.id === plan.id}
+                                        isCurrent={currentSub?.plan?.id === plan.id && isActive}
+                                        onSelect={() => setSelectedPlan(plan)}
+                                    />
+                                ))}
+                            </View>
                         </View>
                     )}
 
-                    {/* Perks */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>{t('screens.premium.features')}</Text>
-                        {PERKS.map((perk, i) => (
-                            <View key={i} style={styles.perkRow}>
-                                <LinearGradient colors={[themeColors.surface, themeColors.surfaceLow]} style={styles.perkIcon}>
-                                    <Text style={{ fontSize: 22 }}>{perk.icon}</Text>
-                                </LinearGradient>
-                                <View style={styles.perkInfo}>
-                                    <Text style={styles.perkTitle}>{t(perk.titleKey)}</Text>
-                                    <Text style={styles.perkDesc}>{t(perk.descKey)}</Text>
-                                </View>
-                                <Text style={styles.checkmark}>✓</Text>
-                            </View>
-                        ))}
-                    </View>
-
-                    {/* Purchase Button */}
-                    {currentSubscription?.status !== 'ACTIVE' && (
-                        <>
+                    {/* ── CTA button ── */}
+                    {!isActive && (
+                        <Animated.View style={{ transform: [{ scale: btnPulse }] }}>
                             <Pressable
-                                style={({ pressed }) => [
-                                    styles.upgradeBtn,
-                                    pressed && { opacity: 0.85 },
-                                    purchasing && { opacity: 0.6 },
-                                ]}
-                                onPress={() => void handlePurchase()}
-                                disabled={purchasing || !selectedPlan || !isPurchasablePlan(selectedPlan)}
+                                onPress={handlePurchase}
+                                disabled={purchasing || !selectedPlan || selectedPlan.price === 0}
+                                style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.9 }]}
                             >
                                 <LinearGradient
-                                    colors={[themeColors.warning, themeColors.error]}
+                                    colors={purchasing ? ['#555', '#555'] : ['#F59E0B', '#EF4444', '#C084FC']}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 0 }}
-                                    style={styles.upgradeBtnGradient}
+                                    style={styles.ctaGradient}
                                 >
                                     {purchasing ? (
-                                        <ActivityIndicator color={themeColors.white} />
+                                        <ActivityIndicator color="#fff" />
                                     ) : (
-                                        <Text style={styles.upgradeBtnText}>
-                                            👑  {selectedPlan ? `${t('screens.premium.buyNow')} ${formatPrice(selectedPlan.price)}đ` : t('screens.premium.selectPaidPlan')}
-                                        </Text>
+                                        <>
+                                            <Text style={styles.ctaIcon}>👑</Text>
+                                            <Text style={styles.ctaText}>
+                                                {selectedPlan && selectedPlan.price > 0
+                                                    ? `Nâng cấp ngay · ${new Intl.NumberFormat('vi-VN').format(selectedPlan.price)}đ`
+                                                    : 'Chọn gói Premium'}
+                                            </Text>
+                                        </>
                                     )}
                                 </LinearGradient>
                             </Pressable>
-
-                            <Text style={styles.trial}>
-                                {t('screens.premium.trialHint')}
-                            </Text>
-                        </>
+                        </Animated.View>
                     )}
+
+                    {/* ── Divider ── */}
+                    <View style={styles.dividerRow}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerLabel}>Tính năng Premium</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* ── Feature list ── */}
+                    <View style={styles.featureList}>
+                        {FEATURES.map((f, i) => (
+                            <FeatureRow
+                                key={f.label}
+                                icon={f.icon}
+                                label={f.label}
+                                desc={f.desc}
+                                color={f.color}
+                                index={i}
+                            />
+                        ))}
+                    </View>
+
+                    {/* ── Guarantee strip ── */}
+                    <LinearGradient
+                        colors={['#1a1040', '#2D1B69']}
+                        style={styles.guaranteeCard}
+                    >
+                        <Text style={styles.guaranteeEmoji}>🛡️</Text>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.guaranteeTitle}>Thanh toán an toàn qua PayOS</Text>
+                            <Text style={styles.guaranteeDesc}>Huỷ bất cứ lúc nào · Không ràng buộc</Text>
+                        </View>
+                    </LinearGradient>
+
                 </View>
             </ScrollView>
         </View>
     );
 };
 
-const createStyles = (colors: ColorScheme) => StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-    hero: { paddingHorizontal: 24, paddingBottom: 32, alignItems: 'center' },
+const createDynamicStyles = (colors: ColorScheme) => ({});
+
+const styles = StyleSheet.create({
+    root: {
+        flex: 1,
+        backgroundColor: '#0D0D14',
+    },
+
+    // ── Hero ────────────────────────────────────────────────────────────────────
+    hero: {
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingBottom: 36,
+        overflow: 'hidden',
+        minHeight: 300,
+    },
+    glowBlob: {
+        position: 'absolute',
+        width: 280,
+        height: 280,
+        borderRadius: 140,
+        backgroundColor: '#7C3AED',
+        top: -60,
+        alignSelf: 'center',
+    },
     crownWrap: {
+        marginBottom: 20,
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 20,
+        elevation: 12,
+    },
+    crownGradient: {
         width: 90,
         height: 90,
         borderRadius: 45,
-        backgroundColor: colors.warningDim,
-        borderWidth: 1.5,
-        borderColor: colors.warningBorder,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 18,
     },
-    heroTitle: { color: colors.white, fontSize: 30, fontWeight: '800', marginBottom: 8 },
-    heroSub: { color: colors.glass50, fontSize: 15, marginBottom: 22 },
-
-    priceCard: {
-        backgroundColor: colors.glass07,
-        borderRadius: 14,
-        paddingVertical: 14,
-        paddingHorizontal: 28,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.glass12,
-    },
-    priceLabel: {
-        color: colors.glass40,
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1.5,
-    },
-    price: { color: colors.white, fontSize: 28, fontWeight: '800', marginTop: 4 },
-    pricePer: { fontSize: 15, fontWeight: '500', color: colors.glass50 },
-
-    activeSubscriptionCard: {
-        backgroundColor: colors.glass07,
-        borderRadius: 14,
-        paddingVertical: 14,
-        paddingHorizontal: 28,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: colors.success,
-    },
-    activeLabel: {
-        color: colors.success,
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1.5,
-    },
-    activePlan: { color: colors.white, fontSize: 24, fontWeight: '800', marginTop: 4 },
-    activeExpiry: { fontSize: 13, fontWeight: '500', color: colors.successAlt, marginTop: 4 },
-
-    body: { paddingHorizontal: 20, paddingTop: 24 },
-
-    paymentStatusCard: { backgroundColor: colors.glass07, borderWidth: 1, borderColor: colors.glass15, borderRadius: 12, padding: 12, marginBottom: 16 },
-    paymentStatusTitle: { color: colors.white, fontWeight: '800', marginBottom: 8 },
-    paymentStatusText: { color: colors.glass80, fontSize: 13, marginBottom: 4 },
-
-    section: { marginBottom: 24 },
-    sectionTitle: { color: colors.white, fontSize: 18, fontWeight: '700', marginBottom: 12 },
-
-    planCard: {
-        backgroundColor: colors.surface,
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 2,
-        borderColor: 'transparent',
-    },
-    planCardSelected: {
-        borderColor: colors.accent,
-        backgroundColor: colors.accentFill20,
-    },
-    planCardFree: {
-        borderColor: colors.glass20,
-        opacity: 0.7,
-    },
-    planHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
+    crownEmoji: { fontSize: 44 },
+    heroTitle: {
+        color: '#FFFFFF',
+        fontSize: 32,
+        fontWeight: '800',
+        letterSpacing: 0.5,
         marginBottom: 8,
     },
-    planName: { color: colors.white, fontSize: 16, fontWeight: '700' },
-    planDesc: { color: colors.muted, fontSize: 13, marginTop: 4 },
-    planPrice: { color: colors.accent, fontSize: 18, fontWeight: '800' },
-    planDuration: { color: colors.muted, fontSize: 12 },
-
-    freeBadge: {
-        backgroundColor: colors.glass15,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-    },
-    freeBadgeText: {
-        color: colors.glass60,
-        fontSize: 10,
-        fontWeight: '700',
+    heroSubtitle: {
+        color: 'rgba(255,255,255,0.55)',
+        fontSize: 15,
+        marginBottom: 24,
+        textAlign: 'center',
     },
 
-    featuresContainer: {
-        marginTop: 8,
-        gap: 4,
-    },
-    featureItem: {
-        color: colors.glass50,
-        fontSize: 12,
-        lineHeight: 18,
-    },
-
-    perkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-    perkIcon: {
-        width: 50,
-        height: 50,
-        borderRadius: 14,
+    // ── Active badge ─────────────────────────────────────────────────────────
+    activeBadge: {
+        flexDirection: 'row',
         alignItems: 'center',
+        gap: 8,
+        backgroundColor: 'rgba(52,211,153,0.15)',
+        borderWidth: 1,
+        borderColor: 'rgba(52,211,153,0.4)',
+        borderRadius: 999,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+    },
+    activeDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#34D399',
+    },
+    activeBadgeText: {
+        color: '#34D399',
+        fontWeight: '700',
+        fontSize: 13,
+    },
+
+    // ── Price tease ───────────────────────────────────────────────────────────
+    priceTease: {
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.07)',
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+        paddingHorizontal: 28,
+        paddingVertical: 14,
+    },
+    priceTeaseLabel: {
+        color: 'rgba(255,255,255,0.45)',
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 2,
+        marginBottom: 2,
+    },
+    priceTeaseValue: {
+        color: '#FFFFFF',
+        fontSize: 34,
+        fontWeight: '800',
+        lineHeight: 38,
+    },
+    priceTeaseCurrency: {
+        fontSize: 20,
+        fontWeight: '600',
+    },
+    priceTeaseDuration: {
+        color: 'rgba(255,255,255,0.5)',
+        fontSize: 13,
+        marginTop: 2,
+    },
+
+    // ── Body ─────────────────────────────────────────────────────────────────
+    body: {
+        paddingHorizontal: 20,
+    },
+    section: {
+        marginBottom: 20,
+    },
+    sectionHeading: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: '700',
+        marginBottom: 14,
+    },
+
+    // ── Plans ─────────────────────────────────────────────────────────────────
+    plansRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    planCard: {
+        borderRadius: 16,
+        padding: 16,
+        backgroundColor: '#1E1A38',
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.08)',
+        alignItems: 'center',
+        minHeight: 110,
         justifyContent: 'center',
-        marginRight: 14,
+        position: 'relative',
         overflow: 'hidden',
     },
-    perkInfo: { flex: 1 },
-    perkTitle: { color: colors.white, fontSize: 15, fontWeight: '700' },
-    perkDesc: { color: colors.glass40, fontSize: 13, marginTop: 2 },
-    checkmark: { color: colors.success, fontSize: 20, fontWeight: '800' },
+    planCardSelected: {
+        borderColor: '#C084FC',
+    },
+    planCardSelectedGradient: {
+        borderRadius: 16,
+        padding: 16,
+        alignItems: 'center',
+        minHeight: 110,
+        justifyContent: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        borderWidth: 0,
+    },
+    planCardFree: {
+        borderColor: 'rgba(255,255,255,0.06)',
+        opacity: 0.6,
+    },
+    currentBadge: {
+        position: 'absolute',
+        top: 6,
+        right: 6,
+        backgroundColor: 'rgba(52,211,153,0.25)',
+        borderRadius: 6,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+    },
+    currentBadgeText: {
+        color: '#34D399',
+        fontSize: 8,
+        fontWeight: '800',
+        letterSpacing: 0.5,
+    },
+    popularBadge: {
+        position: 'absolute',
+        top: 6,
+        right: 6,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        borderRadius: 6,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+    },
+    popularBadgeText: {
+        color: '#FFFFFF',
+        fontSize: 8,
+        fontWeight: '800',
+        letterSpacing: 0.5,
+    },
+    planName: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 13,
+        fontWeight: '600',
+        marginBottom: 6,
+        textAlign: 'center',
+    },
+    planNameSelected: {
+        color: '#FFFFFF',
+    },
+    planPrice: {
+        color: '#A78BFA',
+        fontSize: 22,
+        fontWeight: '800',
+        textAlign: 'center',
+        lineHeight: 26,
+    },
+    planPriceSelected: {
+        color: '#FFFFFF',
+    },
+    planPriceCurrency: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    planDuration: {
+        color: 'rgba(255,255,255,0.45)',
+        fontSize: 11,
+        textAlign: 'center',
+        marginTop: 2,
+    },
+    planDurationSelected: {
+        color: 'rgba(255,255,255,0.75)',
+    },
+    planFreeLabel: {
+        color: 'rgba(255,255,255,0.35)',
+        fontSize: 14,
+        fontWeight: '500',
+    },
 
-    upgradeBtn: { borderRadius: 999, overflow: 'hidden', marginTop: 24, marginBottom: 14 },
-    upgradeBtnGradient: {
-        minHeight: 56,
+    // ── CTA ───────────────────────────────────────────────────────────────────
+    ctaBtn: {
+        borderRadius: 999,
+        overflow: 'hidden',
+        marginBottom: 28,
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 10,
+    },
+    ctaGradient: {
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 10,
+        minHeight: 58,
         borderRadius: 999,
     },
-    upgradeBtnText: { color: colors.white, fontWeight: '800', fontSize: 16 },
+    ctaIcon: { fontSize: 20 },
+    ctaText: {
+        color: '#FFFFFF',
+        fontWeight: '800',
+        fontSize: 16,
+    },
 
-    trial: { color: colors.glass30, textAlign: 'center', fontSize: 12 },
+    // ── Divider ───────────────────────────────────────────────────────────────
+    dividerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 20,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+    },
+    dividerLabel: {
+        color: 'rgba(255,255,255,0.35)',
+        fontSize: 11,
+        fontWeight: '700',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+
+    // ── Features ──────────────────────────────────────────────────────────────
+    featureList: {
+        gap: 10,
+        marginBottom: 24,
+    },
+    featureRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        backgroundColor: 'rgba(255,255,255,0.04)',
+        borderRadius: 14,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.06)',
+    },
+    featureIconWrap: {
+        width: 46,
+        height: 46,
+        borderRadius: 13,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        flexShrink: 0,
+    },
+    featureText: {
+        flex: 1,
+        gap: 2,
+    },
+    featureLabel: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    featureDesc: {
+        color: 'rgba(255,255,255,0.45)',
+        fontSize: 12,
+        lineHeight: 17,
+    },
+
+    // ── Guarantee ─────────────────────────────────────────────────────────────
+    guaranteeCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(192,132,252,0.2)',
+    },
+    guaranteeEmoji: { fontSize: 28 },
+    guaranteeTitle: {
+        color: '#FFFFFF',
+        fontSize: 13,
+        fontWeight: '700',
+        marginBottom: 3,
+    },
+    guaranteeDesc: {
+        color: 'rgba(255,255,255,0.45)',
+        fontSize: 12,
+    },
 });

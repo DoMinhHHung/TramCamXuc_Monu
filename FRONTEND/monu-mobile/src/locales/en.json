@@ -295,12 +295,10 @@
       "acceptSuffix": "of Monu",
       "submit": "Register as Artist",
       "reviewProcessTitle": "📋 Review process",
-      "reviewStep1": "Profile is reviewed within 1–3 business days",
-      "reviewStep2": "Approval notification is sent via email",
-      "reviewStep3": "After approval, you can upload songs and create albums",
+      "reviewStep3": "After verifycation, you can upload songs and create albums",
       "reviewStep4": "A Premium plan is required to activate Artist features",
       "successTitle": "🎉 Registration successful!",
-      "successMessage": "Your artist profile is under review (1–3 days). You will receive an email notification once approved.",
+      "successMessage": "Your artist profile is registered successfully.",
       "registerFailed": "Could not register. Please try again."
     },
     "authOptions": {
@@ -320,7 +318,7 @@
       "myUploads": "My Uploads",
       "uploadInstructions": "Select an audio file to upload",
       "uploadHintRequesting": "Connecting to server...",
-      "uploadHintUploading": "Upload is running in background — you can continue using the app.",
+      "uploadHintUploading": "Upload is running in background — wait forr a few seconds.",
       "uploadHintConfirming": "Almost done...",
       "uploadHintDone": "Song uploaded. The system will process it in a few minutes.",
       "uploadHintError": "Upload failed. Check your connection and try again.",
