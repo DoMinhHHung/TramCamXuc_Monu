@@ -124,6 +124,7 @@ class CFTrainer:
 
         # Item factors: model.item_factors shape (n_items, k)
         item_factors = self._model.item_factors
+        item_ids = []
         for idx, song_id in self._dataset.idx_to_song.items():
             vector = item_factors[idx].tolist()
             key = RedisKeys.item_vector(song_id)
@@ -132,6 +133,14 @@ class CFTrainer:
                 settings.redis_cf_vector_ttl,
                 json.dumps(vector),
             )
+            item_ids.append(song_id)
+
+        # Duy trì index để serving path không cần scan keyspace
+        item_index_key = RedisKeys.cf_item_index()
+        redis.delete(item_index_key)
+        if item_ids:
+            redis.sadd(item_index_key, *item_ids)
+            redis.expire(item_index_key, settings.redis_cf_vector_ttl)
 
         # Pre-compute top-N per user và cache
         self._precompute_topn(redis)
@@ -259,22 +268,21 @@ class CFTrainer:
 
         user_vec = np.array(json.loads(user_vec_raw), dtype=np.float32)
 
-        # Lấy tất cả item vectors — dùng pipeline để giảm RTT
-        # NOTE: với 100k+ songs, cần pagination. Tạm thời dùng scan.
-        item_keys = list(redis.scan_iter("ml:cf:item:*", count=5000))
-        if not item_keys:
+        # Lấy item IDs từ index đã pre-compute trong training
+        item_ids = list(redis.smembers(RedisKeys.cf_item_index()))
+        if not item_ids:
             return []
 
+        item_keys = [RedisKeys.item_vector(song_id) for song_id in item_ids]
         pipe = redis.pipeline()
         for key in item_keys:
             pipe.get(key)
         values = pipe.execute()
 
         scores = []
-        for key, val in zip(item_keys, values):
+        for song_id, val in zip(item_ids, values):
             if val is None:
                 continue
-            song_id = key.replace("ml:cf:item:", "")
             item_vec = np.array(json.loads(val), dtype=np.float32)
             score = float(np.dot(user_vec, item_vec))
             scores.append({"songId": song_id, "score": score})

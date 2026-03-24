@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class PlaylistServiceImpl implements PlaylistService {
+    private static final int DEFAULT_PLAYLIST_LIMIT = 5;
 
     private final PlaylistRepository     playlistRepository;
     private final PlaylistSongRepository playlistSongRepository;
@@ -78,7 +79,7 @@ public class PlaylistServiceImpl implements PlaylistService {
 
     private int resolvePlaylistLimit() {
         UUID userId = currentUserIdOrNull();
-        if (userId == null) return 3;
+        if (userId == null) return DEFAULT_PLAYLIST_LIMIT;
 
         try {
             String json = stringRedisTemplate.opsForValue()
@@ -87,26 +88,37 @@ public class PlaylistServiceImpl implements PlaylistService {
                 Map<String, Object> features = objectMapper.readValue(
                         json, new TypeReference<>() {});
                 Object limitObj = features.get("playlist_limit");
-                if (limitObj instanceof Number n) return n.intValue();
-                if (limitObj instanceof String s) return Integer.parseInt(s);
+                if (limitObj instanceof Number n) {
+                    int parsed = n.intValue();
+                    if (parsed > 0) return parsed;
+                }
+                if (limitObj instanceof String s) {
+                    int parsed = Integer.parseInt(s);
+                    if (parsed > 0) return parsed;
+                }
             }
         } catch (Exception e) {
             log.warn("[Playlist] Redis read failed for userId={}: {}", userId, e.getMessage());
         }
 
-        // 2. Fallback: Feign → payment-service
         try {
             var status = paymentInternalClient.getSubscriptionStatus(userId);
             if (status != null && status.isActive() && status.getFeatures() != null) {
                 Object limitObj = status.getFeatures().get("playlist_limit");
-                if (limitObj instanceof Number n) return n.intValue();
-                if (limitObj instanceof String s) return Integer.parseInt(s);
+                if (limitObj instanceof Number n) {
+                    int parsed = n.intValue();
+                    if (parsed > 0) return parsed;
+                }
+                if (limitObj instanceof String s) {
+                    int parsed = Integer.parseInt(s);
+                    if (parsed > 0) return parsed;
+                }
             }
         } catch (Exception e) {
             log.warn("[Playlist] Feign fallback failed for userId={}: {}", userId, e.getMessage());
         }
 
-        return 3; // FREE plan default
+        return DEFAULT_PLAYLIST_LIMIT; // FREE plan default
     }
 
 

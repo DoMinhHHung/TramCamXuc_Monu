@@ -66,9 +66,10 @@ public class FeedServiceImpl implements FeedService {
                 new ArrayList<>(ownerIds), vis, since);
         List<FeedPost> posts = feedPostRepository.findTimeline(
                 new ArrayList<>(ownerIds), vis, since, pageable);
+        Set<String> likedPostIds = getLikedPostIdsByViewer(userId, posts);
 
         return new PageImpl<>(
-                posts.stream().map(p -> toResponse(p, userId)).collect(Collectors.toList()),
+                posts.stream().map(p -> toResponse(p, likedPostIds)).collect(Collectors.toList()),
                 pageable, total);
     }
 
@@ -101,9 +102,13 @@ public class FeedServiceImpl implements FeedService {
         if (isOwner || isFollowing) allowed.add("FOLLOWERS_ONLY");
         if (isOwner)                allowed.add("PRIVATE");
 
-        return feedPostRepository
-                .findByOwnerFiltered(ownerId, allowed, pageable)
-                .map(p -> toResponse(p, viewerId));
+        Page<FeedPost> postPage = feedPostRepository.findByOwnerFiltered(ownerId, allowed, pageable);
+        List<FeedPost> posts = postPage.getContent();
+        Set<String> likedPostIds = getLikedPostIdsByViewer(viewerId, posts);
+        List<FeedPostResponse> responses = posts.stream()
+                .map(p -> toResponse(p, likedPostIds))
+                .toList();
+        return new PageImpl<>(responses, pageable, postPage.getTotalElements());
     }
 
     @Override
@@ -112,9 +117,10 @@ public class FeedServiceImpl implements FeedService {
         Instant since = Instant.now().minus(Duration.ofDays(90));
         long total = feedPostRepository.countPublicFeed(vis, since);
         List<FeedPost> posts = feedPostRepository.findPublicFeed(vis, since, pageable);
+        Set<String> likedPostIds = getLikedPostIdsByViewer(null, posts);
 
         return new PageImpl<>(
-                posts.stream().map(p -> toResponse(p, null)).collect(Collectors.toList()),
+                posts.stream().map(p -> toResponse(p, likedPostIds)).collect(Collectors.toList()),
                 pageable, total);
     }
 
@@ -221,6 +227,30 @@ public class FeedServiceImpl implements FeedService {
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────
+
+    private Set<String> getLikedPostIdsByViewer(UUID viewerId, List<FeedPost> posts) {
+        if (viewerId == null || posts == null || posts.isEmpty()) {
+            return Collections.emptySet();
+        }
+        List<String> postIds = posts.stream().map(FeedPost::getId).toList();
+        return feedPostLikeRepository.findByUserIdAndPostIdIn(viewerId, postIds)
+                .stream()
+                .map(FeedPostLike::getPostId)
+                .collect(Collectors.toSet());
+    }
+
+    private FeedPostResponse toResponse(FeedPost p, Set<String> likedPostIds) {
+        boolean liked = likedPostIds != null && likedPostIds.contains(p.getId());
+        return FeedPostResponse.builder()
+                .id(p.getId()).ownerId(p.getOwnerId()).ownerType(p.getOwnerType())
+                .contentType(p.getContentType()).contentId(p.getContentId())
+                .title(p.getTitle()).caption(p.getCaption())
+                .coverImageUrl(p.getCoverImageUrl()).visibility(p.getVisibility())
+                .likeCount(p.getLikeCount()).commentCount(p.getCommentCount())
+                .shareCount(p.getShareCount()).likedByCurrentUser(liked)
+                .createdAt(p.getCreatedAt())
+                .build();
+    }
 
     private FeedPostResponse toResponse(FeedPost p, UUID viewerId) {
         boolean liked = viewerId != null &&

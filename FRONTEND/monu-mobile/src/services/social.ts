@@ -260,3 +260,11 @@ export const getPublicFeed = async (params?: { page?: number; size?: number }): 
   const response = await apiClient.get<PageResponse<FeedPost>>('/social/feed/public', { params });
   return response.data;
 };
+
+export const getOwnerFeed = async (
+  ownerId: string,
+  params?: { page?: number; size?: number },
+): Promise<PageResponse<FeedPost>> => {
+  const response = await apiClient.get<PageResponse<FeedPost>>(`/social/feed/owner/${ownerId}`, { params });
+  return response.data;
+};

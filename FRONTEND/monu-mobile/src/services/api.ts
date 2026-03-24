@@ -40,6 +40,7 @@ interface CachedEntry {
 const REFRESH_ENDPOINT = '/auth/refresh';
 const DEFAULT_GET_CACHE_TTL_MS = 15000;
 const DISABLE_CACHE_TTL_MS = 0;
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 
 // ─── Retry config ──────────────────────────────────────────────────────────────
 const MAX_RETRY_COUNT = 2;
@@ -133,14 +134,14 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
       path === '/social/hearts/my' ||
       path === '/social/follows/my-artists' ||
       /^\/social\/artists\/[^/]+\/followers$/i.test(path)
-  ) return 300000;
+  ) return SIX_HOURS_MS;
 
-  if (path === '/subscriptions/plans') return 300000;
+  if (path === '/subscriptions/plans') return SIX_HOURS_MS;
 
   if (
       path === '/subscriptions/my' ||
       path === '/subscriptions/my/history'
-  ) return 30000;
+  ) return SIX_HOURS_MS;
 
   if (
       /^\/songs\/[^/]+$/i.test(path) ||

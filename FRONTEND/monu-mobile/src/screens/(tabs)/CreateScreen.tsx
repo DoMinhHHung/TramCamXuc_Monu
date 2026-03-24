@@ -22,6 +22,7 @@ import { apiClient } from '../../services/api';
 import { Genre } from '../../services/music';
 import { getPopularGenres } from '../../services/favorites';
 import { getMySubscription } from '../../services/payment';
+import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -288,7 +289,9 @@ export const CreateScreen = () => {
   if (!authSession) {
     return (
         <View style={styles.centerFull}>
-          <Text style={styles.gateEmoji}>🔒</Text>
+          <AnimatedDecorIcon intensity="medium">
+            <Text style={styles.gateEmoji}>🔒</Text>
+          </AnimatedDecorIcon>
           <Text style={styles.gateTitle}>{t('screens.create.loginToCreate', 'Login to create content')}</Text>
         </View>
     );
@@ -298,7 +301,9 @@ export const CreateScreen = () => {
   if (isBanned) {
     return (
         <View style={styles.centerFull}>
-          <Text style={styles.gateEmoji}>🚫</Text>
+          <AnimatedDecorIcon intensity="medium">
+            <Text style={styles.gateEmoji}>🚫</Text>
+          </AnimatedDecorIcon>
           <Text style={styles.gateTitle}>{t('screens.create.accountRestricted', 'Account is restricted')}</Text>
           <Text style={styles.gateSub}>{t('screens.create.contactSupport', 'Contact support for more details.')}</Text>
         </View>
@@ -318,7 +323,9 @@ export const CreateScreen = () => {
               colors={[themeColors.gradNavy, themeColors.bg]}
               style={[styles.hero, { paddingTop: insets.top + 20 }]}
           >
-            <Text style={styles.heroEmoji}>🎼</Text>
+            <AnimatedDecorIcon intensity="medium">
+              <Text style={styles.heroEmoji}>🎼</Text>
+            </AnimatedDecorIcon>
             <Text style={styles.heroTitle}>{t('screens.create.creatorStudio', 'Creator Studio')}</Text>
             <Text style={styles.heroSub}>
               {canUpload

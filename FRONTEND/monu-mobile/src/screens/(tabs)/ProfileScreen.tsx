@@ -196,6 +196,12 @@ export const ProfileScreen = () => {
             onPress: () => navigation.navigate('History'),
         },
         {
+            icon: <FontAwesome name="newspaper-o" color={themeColors.accent} size={18} />,
+            label: 'Bài đăng của tôi',
+            sub: 'Quản lý nội dung, quyền riêng tư',
+            onPress: () => navigation.navigate('MyPosts'),
+        },
+        {
             icon: <AntDesign name="download" color={themeColors.white} size={18} />,
             label: t('screens.library.downloads', 'Downloads'),
             sub: downloadedSongs.length > 0

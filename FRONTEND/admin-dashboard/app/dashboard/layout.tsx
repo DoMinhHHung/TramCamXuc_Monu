@@ -13,15 +13,19 @@ import {
     MusicNote,
     CreditCard,
     SpeakerHigh,
+    Warning,
+    ChartBar,
 } from '@phosphor-icons/react';
 import { useTheme } from '@/lib/theme';
 
 const NAV = [
-    { href: '/dashboard',          label: 'Overview',     icon: SquaresFour, exact: true  },
-    { href: '/dashboard/users',    label: 'Người dùng',   icon: Users,       exact: false },
-    { href: '/dashboard/music',    label: 'Music',        icon: MusicNote,   exact: false },
-    { href: '/dashboard/payments', label: 'Payments',     icon: CreditCard,  exact: false },
-    { href: '/dashboard/ads',      label: 'Quảng cáo',   icon: SpeakerHigh, exact: false },
+    { href: '/dashboard',            label: 'Overview',     icon: SquaresFour, exact: true  },
+    { href: '/dashboard/users',      label: 'Người dùng',   icon: Users,       exact: false },
+    { href: '/dashboard/music',      label: 'Music',        icon: MusicNote,   exact: false },
+    { href: '/dashboard/payments',   label: 'Payments',     icon: CreditCard,  exact: false },
+    { href: '/dashboard/ads',        label: 'Quảng cáo',   icon: SpeakerHigh, exact: false },
+    { href: '/dashboard/reports',    label: 'Báo cáo',     icon: Warning,     exact: false },
+    { href: '/dashboard/analytics',  label: 'Thống kê',    icon: ChartBar,    exact: false },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -120,9 +124,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 dark:text-zinc-600">
                         {pathname.split('/').filter(Boolean).map((seg, i, arr) => (
                             <span key={seg} className="flex items-center gap-1.5">
-                {i > 0 && <span>/</span>}
+                                {i > 0 && <span>/</span>}
                                 <span className={i === arr.length - 1 ? 'text-zinc-600 dark:text-zinc-400' : ''}>{seg}</span>
-              </span>
+                            </span>
                         ))}
                     </div>
                     <div className="ml-auto flex items-center lg:hidden">
