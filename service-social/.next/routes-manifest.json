@@ -1,0 +1,411 @@
+{
+  "version": 3,
+  "pages404": true,
+  "appType": "app",
+  "caseSensitive": false,
+  "basePath": "",
+  "redirects": [
+    {
+      "source": "/:path+/",
+      "destination": "/:path+",
+      "internal": true,
+      "priority": true,
+      "statusCode": 308,
+      "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$"
+    }
+  ],
+  "headers": [],
+  "rewrites": {
+    "beforeFiles": [],
+    "afterFiles": [],
+    "fallback": []
+  },
+  "dynamicRoutes": [
+    {
+      "page": "/internal/social/follows/[userId]/artists",
+      "regex": "^/internal/social/follows/([^/]+?)/artists(?:/)?$",
+      "routeKeys": {
+        "nxtPuserId": "nxtPuserId"
+      },
+      "namedRegex": "^/internal/social/follows/(?<nxtPuserId>[^/]+?)/artists(?:/)?$"
+    },
+    {
+      "page": "/internal/social/follows/[userId]/users",
+      "regex": "^/internal/social/follows/([^/]+?)/users(?:/)?$",
+      "routeKeys": {
+        "nxtPuserId": "nxtPuserId"
+      },
+      "namedRegex": "^/internal/social/follows/(?<nxtPuserId>[^/]+?)/users(?:/)?$"
+    },
+    {
+      "page": "/internal/social/listen-history/[userId]",
+      "regex": "^/internal/social/listen\\-history/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPuserId": "nxtPuserId"
+      },
+      "namedRegex": "^/internal/social/listen\\-history/(?<nxtPuserId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/internal/social/listen-insights/[userId]",
+      "regex": "^/internal/social/listen\\-insights/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPuserId": "nxtPuserId"
+      },
+      "namedRegex": "^/internal/social/listen\\-insights/(?<nxtPuserId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/internal/social/reactions/[userId]/disliked",
+      "regex": "^/internal/social/reactions/([^/]+?)/disliked(?:/)?$",
+      "routeKeys": {
+        "nxtPuserId": "nxtPuserId"
+      },
+      "namedRegex": "^/internal/social/reactions/(?<nxtPuserId>[^/]+?)/disliked(?:/)?$"
+    },
+    {
+      "page": "/internal/social/reactions/[userId]/liked",
+      "regex": "^/internal/social/reactions/([^/]+?)/liked(?:/)?$",
+      "routeKeys": {
+        "nxtPuserId": "nxtPuserId"
+      },
+      "namedRegex": "^/internal/social/reactions/(?<nxtPuserId>[^/]+?)/liked(?:/)?$"
+    },
+    {
+      "page": "/internal/social/[...path]",
+      "regex": "^/internal/social/(.+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPpath": "nxtPpath"
+      },
+      "namedRegex": "^/internal/social/(?<nxtPpath>.+?)(?:/)?$"
+    },
+    {
+      "page": "/social/artists/[artistId]/followers",
+      "regex": "^/social/artists/([^/]+?)/followers(?:/)?$",
+      "routeKeys": {
+        "nxtPartistId": "nxtPartistId"
+      },
+      "namedRegex": "^/social/artists/(?<nxtPartistId>[^/]+?)/followers(?:/)?$"
+    },
+    {
+      "page": "/social/artists/[artistId]/stats",
+      "regex": "^/social/artists/([^/]+?)/stats(?:/)?$",
+      "routeKeys": {
+        "nxtPartistId": "nxtPartistId"
+      },
+      "namedRegex": "^/social/artists/(?<nxtPartistId>[^/]+?)/stats(?:/)?$"
+    },
+    {
+      "page": "/social/comments/[commentId]",
+      "regex": "^/social/comments/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPcommentId": "nxtPcommentId"
+      },
+      "namedRegex": "^/social/comments/(?<nxtPcommentId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/comments/[commentId]/like",
+      "regex": "^/social/comments/([^/]+?)/like(?:/)?$",
+      "routeKeys": {
+        "nxtPcommentId": "nxtPcommentId"
+      },
+      "namedRegex": "^/social/comments/(?<nxtPcommentId>[^/]+?)/like(?:/)?$"
+    },
+    {
+      "page": "/social/comments/[commentId]/replies",
+      "regex": "^/social/comments/([^/]+?)/replies(?:/)?$",
+      "routeKeys": {
+        "nxtPcommentId": "nxtPcommentId"
+      },
+      "namedRegex": "^/social/comments/(?<nxtPcommentId>[^/]+?)/replies(?:/)?$"
+    },
+    {
+      "page": "/social/feed/owner/[ownerId]",
+      "regex": "^/social/feed/owner/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPownerId": "nxtPownerId"
+      },
+      "namedRegex": "^/social/feed/owner/(?<nxtPownerId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/feed/[postId]",
+      "regex": "^/social/feed/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPpostId": "nxtPpostId"
+      },
+      "namedRegex": "^/social/feed/(?<nxtPpostId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/feed/[postId]/like",
+      "regex": "^/social/feed/([^/]+?)/like(?:/)?$",
+      "routeKeys": {
+        "nxtPpostId": "nxtPpostId"
+      },
+      "namedRegex": "^/social/feed/(?<nxtPpostId>[^/]+?)/like(?:/)?$"
+    },
+    {
+      "page": "/social/follows/check/[artistId]",
+      "regex": "^/social/follows/check/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPartistId": "nxtPartistId"
+      },
+      "namedRegex": "^/social/follows/check/(?<nxtPartistId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/follows/[artistId]",
+      "regex": "^/social/follows/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPartistId": "nxtPartistId"
+      },
+      "namedRegex": "^/social/follows/(?<nxtPartistId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/hearts/check/[songId]",
+      "regex": "^/social/hearts/check/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPsongId": "nxtPsongId"
+      },
+      "namedRegex": "^/social/hearts/check/(?<nxtPsongId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/hearts/count/[songId]",
+      "regex": "^/social/hearts/count/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPsongId": "nxtPsongId"
+      },
+      "namedRegex": "^/social/hearts/count/(?<nxtPsongId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/hearts/[songId]",
+      "regex": "^/social/hearts/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPsongId": "nxtPsongId"
+      },
+      "namedRegex": "^/social/hearts/(?<nxtPsongId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/listen-history/count/[songId]",
+      "regex": "^/social/listen\\-history/count/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPsongId": "nxtPsongId"
+      },
+      "namedRegex": "^/social/listen\\-history/count/(?<nxtPsongId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/reactions/my/[songId]",
+      "regex": "^/social/reactions/my/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPsongId": "nxtPsongId"
+      },
+      "namedRegex": "^/social/reactions/my/(?<nxtPsongId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/reactions/[songId]",
+      "regex": "^/social/reactions/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPsongId": "nxtPsongId"
+      },
+      "namedRegex": "^/social/reactions/(?<nxtPsongId>[^/]+?)(?:/)?$"
+    },
+    {
+      "page": "/social/[...path]",
+      "regex": "^/social/(.+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPpath": "nxtPpath"
+      },
+      "namedRegex": "^/social/(?<nxtPpath>.+?)(?:/)?$"
+    }
+  ],
+  "staticRoutes": [
+    {
+      "page": "/",
+      "regex": "^/(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/(?:/)?$"
+    },
+    {
+      "page": "/_global-error",
+      "regex": "^/_global\\-error(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_global\\-error(?:/)?$"
+    },
+    {
+      "page": "/_not-found",
+      "regex": "^/_not\\-found(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/_not\\-found(?:/)?$"
+    },
+    {
+      "page": "/actuator/health",
+      "regex": "^/actuator/health(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/actuator/health(?:/)?$"
+    },
+    {
+      "page": "/health",
+      "regex": "^/health(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/health(?:/)?$"
+    },
+    {
+      "page": "/social/comments",
+      "regex": "^/social/comments(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/comments(?:/)?$"
+    },
+    {
+      "page": "/social/comments/count",
+      "regex": "^/social/comments/count(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/comments/count(?:/)?$"
+    },
+    {
+      "page": "/social/comments/post",
+      "regex": "^/social/comments/post(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/comments/post(?:/)?$"
+    },
+    {
+      "page": "/social/comments/post/count",
+      "regex": "^/social/comments/post/count(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/comments/post/count(?:/)?$"
+    },
+    {
+      "page": "/social/feed",
+      "regex": "^/social/feed(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/feed(?:/)?$"
+    },
+    {
+      "page": "/social/feed/public",
+      "regex": "^/social/feed/public(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/feed/public(?:/)?$"
+    },
+    {
+      "page": "/social/follows",
+      "regex": "^/social/follows(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/follows(?:/)?$"
+    },
+    {
+      "page": "/social/follows/my-artists",
+      "regex": "^/social/follows/my\\-artists(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/follows/my\\-artists(?:/)?$"
+    },
+    {
+      "page": "/social/hearts",
+      "regex": "^/social/hearts(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/hearts(?:/)?$"
+    },
+    {
+      "page": "/social/hearts/my",
+      "regex": "^/social/hearts/my(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/hearts/my(?:/)?$"
+    },
+    {
+      "page": "/social/listen-history/my",
+      "regex": "^/social/listen\\-history/my(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/listen\\-history/my(?:/)?$"
+    },
+    {
+      "page": "/social/reactions/dislike",
+      "regex": "^/social/reactions/dislike(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/reactions/dislike(?:/)?$"
+    },
+    {
+      "page": "/social/reactions/dislikers",
+      "regex": "^/social/reactions/dislikers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/reactions/dislikers(?:/)?$"
+    },
+    {
+      "page": "/social/reactions/like",
+      "regex": "^/social/reactions/like(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/reactions/like(?:/)?$"
+    },
+    {
+      "page": "/social/reactions/likers",
+      "regex": "^/social/reactions/likers(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/reactions/likers(?:/)?$"
+    },
+    {
+      "page": "/social/reactions/summary",
+      "regex": "^/social/reactions/summary(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/reactions/summary(?:/)?$"
+    },
+    {
+      "page": "/social/share",
+      "regex": "^/social/share(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/share(?:/)?$"
+    },
+    {
+      "page": "/social/share/album",
+      "regex": "^/social/share/album(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/share/album(?:/)?$"
+    },
+    {
+      "page": "/social/share/album/qr",
+      "regex": "^/social/share/album/qr(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/share/album/qr(?:/)?$"
+    },
+    {
+      "page": "/social/share/count",
+      "regex": "^/social/share/count(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/share/count(?:/)?$"
+    },
+    {
+      "page": "/social/share/feed",
+      "regex": "^/social/share/feed(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/share/feed(?:/)?$"
+    },
+    {
+      "page": "/social/share/playlist",
+      "regex": "^/social/share/playlist(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/share/playlist(?:/)?$"
+    },
+    {
+      "page": "/social/share/playlist/qr",
+      "regex": "^/social/share/playlist/qr(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/share/playlist/qr(?:/)?$"
+    },
+    {
+      "page": "/social/share/qr",
+      "regex": "^/social/share/qr(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/share/qr(?:/)?$"
+    }
+  ],
+  "dataRoutes": [],
+  "rsc": {
+    "header": "rsc",
+    "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+    "prefetchHeader": "next-router-prefetch",
+    "didPostponeHeader": "x-nextjs-postponed",
+    "contentTypeHeader": "text/x-component",
+    "suffix": ".rsc",
+    "prefetchSegmentHeader": "next-router-segment-prefetch",
+    "prefetchSegmentSuffix": ".segment.rsc",
+    "prefetchSegmentDirSuffix": ".segments",
+    "clientParamParsing": false,
+    "dynamicRSCPrerender": false
+  },
+  "rewriteHeaders": {
+    "pathHeader": "x-nextjs-rewritten-path",
+    "queryHeader": "x-nextjs-rewritten-query"
+  }
+}

@@ -337,10 +337,10 @@ spring:
                 redis-rate-limiter.burstCapacity: 40
                 redis-rate-limiter.requestedTokens: 1
 
-        # ================= SOCIAL =================
+        # ================= SOCIAL (deployed on Render) =================
 
         - id: social-feed-write
-          uri: lb://SOCIAL-SERVICE
+          uri: ${SOCIAL_SERVICE_URL:lb://SOCIAL-SERVICE}
           predicates:
             - Path=/social/feed, /social/feed/*
             - Method=POST,PATCH,DELETE
@@ -353,7 +353,7 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         - id: social-comment-write
-          uri: lb://SOCIAL-SERVICE
+          uri: ${SOCIAL_SERVICE_URL:lb://SOCIAL-SERVICE}
           predicates:
             - Path=/social/comments, /social/comments/*, /social/comments/*/like, /social/comments/post
             - Method=POST,PATCH,DELETE
@@ -366,7 +366,7 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         - id: social-feed-like-write
-          uri: lb://SOCIAL-SERVICE
+          uri: ${SOCIAL_SERVICE_URL:lb://SOCIAL-SERVICE}
           predicates:
             - Path=/social/feed/*/like
             - Method=POST,DELETE
@@ -379,7 +379,7 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         - id: social-follow-write
-          uri: lb://SOCIAL-SERVICE
+          uri: ${SOCIAL_SERVICE_URL:lb://SOCIAL-SERVICE}
           predicates:
             - Path=/social/follows, /social/follows/*
             - Method=POST,DELETE
@@ -392,7 +392,7 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         - id: social-heart-reaction-write
-          uri: lb://SOCIAL-SERVICE
+          uri: ${SOCIAL_SERVICE_URL:lb://SOCIAL-SERVICE}
           predicates:
             - Path=/social/hearts, /social/hearts/*, /social/reactions/like, /social/reactions/dislike, /social/reactions/*
             - Method=POST,DELETE
@@ -405,7 +405,7 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         - id: social-share-to-feed-write
-          uri: lb://SOCIAL-SERVICE
+          uri: ${SOCIAL_SERVICE_URL:lb://SOCIAL-SERVICE}
           predicates:
             - Path=/social/share/feed
             - Method=POST
@@ -418,7 +418,7 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         - id: social-service-api
-          uri: lb://SOCIAL-SERVICE
+          uri: ${SOCIAL_SERVICE_URL:lb://SOCIAL-SERVICE}
           predicates:
             - Path=/social/**
           filters:
@@ -430,7 +430,7 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         - id: social-swagger
-          uri: lb://SOCIAL-SERVICE
+          uri: ${SOCIAL_SERVICE_URL:lb://SOCIAL-SERVICE}
           predicates:
             - Path=/service-social/**
           filters:

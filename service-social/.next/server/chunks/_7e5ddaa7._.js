@@ -1,0 +1,3 @@
+module.exports=[69449,e=>{"use strict";async function r(){try{let{rebuildFamousArtistsCache:r}=await e.A(91757);await r()}catch(e){console.warn("[instrumentation] Famous cache rebuild failed:",e)}try{let{initRabbitMQ:r}=await e.A(76439);await r()}catch(e){console.warn("[instrumentation] RabbitMQ init failed:",e)}}e.s(["register",()=>r])},91757,e=>{e.v(r=>Promise.all(["server/chunks/[root-of-the-server]__3ed3455d._.js","server/chunks/_f305c5bf._.js"].map(r=>e.l(r))).then(()=>r(22217)))},76439,e=>{e.v(r=>Promise.all(["server/chunks/[root-of-the-server]__f62f5e91._.js"].map(r=>e.l(r))).then(()=>r(22205)))}];
+
+//# sourceMappingURL=_7e5ddaa7._.js.map

@@ -1,3 +1,6 @@
+# ════════════════════════════════════════════════════════════════
+# Stage 1: Build
+# ════════════════════════════════════════════════════════════════
 FROM eclipse-temurin:17-jdk-alpine AS build
 
 WORKDIR /app
@@ -6,18 +9,39 @@ COPY .mvn/ .mvn/
 COPY mvnw mvnw
 RUN chmod +x mvnw
 
+# Root pom + TẤT CẢ module pom.xml
 COPY pom.xml pom.xml
-COPY src src
+COPY discovery-server/pom.xml discovery-server/pom.xml
+COPY api-gateway/pom.xml api-gateway/pom.xml
+COPY identity-service/pom.xml identity-service/pom.xml
+COPY integration-service/pom.xml integration-service/pom.xml
+COPY music-service/pom.xml music-service/pom.xml
+COPY payment-service/pom.xml payment-service/pom.xml
+COPY transcode-service/pom.xml transcode-service/pom.xml
+COPY social-service/pom.xml social-service/pom.xml
+COPY ads-service/pom.xml ads-service/pom.xml
+COPY recommendation-service/pom.xml recommendation-service/pom.xml
 
-RUN ./mvnw package -Dmaven.test.skip=true -B --no-transfer-progress
+COPY discovery-server/src discovery-server/src
 
+# -Dmaven.test.skip=true: skip HOÀN TOÀN test (không load surefire plugin)
+RUN ./mvnw package -Dmaven.test.skip=true -B --no-transfer-progress \
+    -pl discovery-server -am \
+    -Dmaven.wagon.http.retryHandler.count=3 \
+    -Dmaven.wagon.httpconnectionManager.ttlSeconds=25
+
+# ════════════════════════════════════════════════════════════════
+# Stage 2: Runtime
+# ════════════════════════════════════════════════════════════════
 FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
+
+
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-COPY --from=build /app/target/*.jar app.jar
+COPY --from=build /app/discovery-server/target/*.jar app.jar
 
 RUN chown appuser:appgroup app.jar
 
@@ -25,4 +49,9 @@ USER appuser
 
 EXPOSE 8761
 
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-XX:+ExitOnOutOfMemoryError", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-XX:+ExitOnOutOfMemoryError", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "app.jar"]

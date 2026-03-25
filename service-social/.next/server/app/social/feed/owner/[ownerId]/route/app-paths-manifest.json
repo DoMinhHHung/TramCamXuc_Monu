@@ -1,0 +1,3 @@
+{
+  "/social/feed/owner/[ownerId]/route": "app/social/feed/owner/[ownerId]/route.js"
+}

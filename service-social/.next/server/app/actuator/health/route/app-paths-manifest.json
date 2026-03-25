@@ -1,0 +1,3 @@
+{
+  "/actuator/health/route": "app/actuator/health/route.js"
+}
