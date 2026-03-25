@@ -489,6 +489,65 @@ export async function isHearted(params: { userId: UUID; songId: UUID }): Promise
   return !!doc;
 }
 
+export async function getMyHeartedSongIds(userId: UUID): Promise<string[]> {
+  const db = await getDb();
+  const docs = await db
+    .collection('hearts')
+    .find({ userId }, { projection: { songId: 1, _id: 0 } })
+    .limit(5000)
+    .toArray();
+  return docs.map((d: any) => String(d.songId));
+}
+
+export async function checkHeartedBatch(params: { userId: UUID; songIds: string[] }): Promise<Record<string, boolean>> {
+  const db = await getDb();
+  const docs = await db
+    .collection('hearts')
+    .find({ userId: params.userId, songId: { $in: params.songIds } }, { projection: { songId: 1, _id: 0 } })
+    .toArray();
+  const heartedSet = new Set(docs.map((d: any) => String(d.songId)));
+  const result: Record<string, boolean> = {};
+  for (const id of params.songIds) result[id] = heartedSet.has(id);
+  return result;
+}
+
+export async function getArtistStatsBatch(artistIds: string[]): Promise<any[]> {
+  const db = await getDb();
+
+  const [followerCounts, listenCounts, likeCounts, shareCounts] = await Promise.all([
+    db.collection('follows').aggregate([
+      { $match: { artistId: { $in: artistIds } } },
+      { $group: { _id: '$artistId', count: { $sum: 1 } } },
+    ]).toArray(),
+    db.collection('listen_history').aggregate([
+      { $match: { artistId: { $in: artistIds } } },
+      { $group: { _id: '$artistId', count: { $sum: 1 } } },
+    ]).toArray(),
+    db.collection('reactions').aggregate([
+      { $match: { artistId: { $in: artistIds }, type: 'LIKE' } },
+      { $group: { _id: '$artistId', count: { $sum: 1 } } },
+    ]).toArray(),
+    db.collection('shares').aggregate([
+      { $match: { artistId: { $in: artistIds } } },
+      { $group: { _id: '$artistId', count: { $sum: 1 } } },
+    ]).toArray(),
+  ]);
+
+  const toMap = (arr: any[]) => new Map(arr.map((g: any) => [String(g._id), Number(g.count)]));
+  const fMap = toMap(followerCounts);
+  const lMap = toMap(listenCounts);
+  const liMap = toMap(likeCounts);
+  const sMap = toMap(shareCounts);
+
+  return artistIds.map((id) => ({
+    artistId: id,
+    followerCount: fMap.get(id) ?? 0,
+    totalListens: lMap.get(id) ?? 0,
+    totalLikes: liMap.get(id) ?? 0,
+    totalShares: sMap.get(id) ?? 0,
+  }));
+}
+
 export async function getHeartCount(songId: UUID): Promise<number> {
   const db = await getDb();
   return db.collection('hearts').countDocuments({ songId });

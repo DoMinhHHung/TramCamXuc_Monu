@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { Song, getTrendingSongs } from '../services/music';
+
+const REC_CACHE_KEY = 'rec_cache_v1';
 import {
   FeedbackType,
   HomeRecommendation,
@@ -132,7 +135,21 @@ export function useRecommendations() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    void fetchAll(false);
+
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(REC_CACHE_KEY);
+        if (raw && isMountedRef.current) {
+          const c = JSON.parse(raw);
+          if (c.globalTrending?.length) setGlobalTrending(c.globalTrending);
+          if (c.newReleases?.length) setNewReleases(c.newReleases);
+          if (c.homeFeed) setHomeFeed(c.homeFeed);
+          if (c.socialRecs?.length) setSocialRecs(c.socialRecs);
+          setLoading(false);
+        }
+      } catch {}
+      fetchAll(false);
+    })();
 
     const id = setInterval(() => {
       void fetchAll(true);
@@ -143,6 +160,16 @@ export function useRecommendations() {
       clearInterval(id);
     };
   }, [fetchAll]);
+
+  useEffect(() => {
+    if (!lastUpdatedAt) return;
+    AsyncStorage.setItem(REC_CACHE_KEY, JSON.stringify({
+      globalTrending,
+      newReleases,
+      homeFeed,
+      socialRecs,
+    })).catch(() => {});
+  }, [lastUpdatedAt]);
 
   const refresh = useCallback(async () => {
     await fetchAll(false);

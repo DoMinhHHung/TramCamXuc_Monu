@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
 import java.util.UUID;
 
-@FeignClient(name = "social-service", path = "/internal/social", configuration = InternalFeignConfig.class)
+@FeignClient(name = "social-service", url = "${social.service.url:}", path = "/internal/social", configuration = InternalFeignConfig.class)
 public interface SocialInternalClient {
 
     /**
