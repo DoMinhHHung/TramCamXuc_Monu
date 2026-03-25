@@ -55,14 +55,28 @@ def get_sync_redis() -> sync_redis.Redis:
 _minio_client: Minio | None = None
 
 
+def _clean_minio_endpoint(raw: str) -> tuple[str, bool]:
+    """Strip scheme from endpoint and infer secure flag."""
+    secure = settings.minio_secure
+    ep = raw.strip().rstrip("/")
+    if ep.startswith("https://"):
+        ep = ep[len("https://"):]
+        secure = True
+    elif ep.startswith("http://"):
+        ep = ep[len("http://"):]
+        secure = False
+    return ep, secure
+
+
 def get_minio() -> Minio:
     global _minio_client
     if _minio_client is None:
+        endpoint, secure = _clean_minio_endpoint(settings.minio_endpoint)
         _minio_client = Minio(
-            settings.minio_endpoint,
+            endpoint,
             access_key=settings.minio_access_key,
             secret_key=settings.minio_secret_key,
-            secure=settings.minio_secure,
+            secure=secure,
         )
         # Đảm bảo bucket tồn tại khi khởi động
         _ensure_bucket(_minio_client, settings.minio_bucket)

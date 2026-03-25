@@ -43,10 +43,10 @@ class Settings(BaseSettings):
     redis_result_ttl: int = 3600              # 1h — cached top-N results per user
 
     # ── MinIO ────────────────────────────────────────────────────────────────
-    minio_endpoint: str = "https://minio.oopsgolden.id.vn/"
+    minio_endpoint: str = "minio.oopsgolden.id.vn"
     minio_access_key: str = "admin"
     minio_secret_key: str = "password123"
-    minio_secure: bool = False
+    minio_secure: bool = True
     minio_bucket: str = "ml-models"
 
     # ── ALS Collaborative Filtering ──────────────────────────────────────────
