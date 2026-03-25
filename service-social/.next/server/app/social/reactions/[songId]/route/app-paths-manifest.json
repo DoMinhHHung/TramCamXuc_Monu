@@ -1,0 +1,3 @@
+{
+  "/social/reactions/[songId]/route": "app/social/reactions/[songId]/route.js"
+}

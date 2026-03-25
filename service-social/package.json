@@ -1,0 +1,30 @@
+{
+  "name": "service-social",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 8767",
+    "build": "next build",
+    "start": "next start -p 8767"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.9",
+    "minio": "^8.0.7",
+    "mongodb": "^7.1.1",
+    "next": "16.1.6",
+    "qrcode": "^1.5.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "redis": "^5.11.0"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.8",
+    "@types/node": "^20",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "typescript": "^5"
+  }
+}

@@ -238,51 +238,51 @@ services:
       retries: 5
       start_period: 80s
 
-  # ─── 9. SOCIAL SERVICE ──────────────────────────────────────
-  social-service:
-    <<: [ *common, *limits ]
-    build: { context: ., dockerfile: social-service/Dockerfile }
-    container_name: social-service
-    environment:
-      <<: [ *infra, *gateway, *java-env, *minio, *internal ]
-      SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
-      MONGODB_URI: ${MONGODB_URI}
-      MINIO_AI_BUCKET: ${MINIO_AI_BUCKET:-ai-training-data}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-    depends_on:
-      discovery-server:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8767/actuator/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 80s
+  # ─── 9. SOCIAL SERVICE (moved to Next.js → deployed on Render) ──
+  # social-service:
+  #   <<: [ *common, *limits ]
+  #   build: { context: ., dockerfile: social-service/Dockerfile }
+  #   container_name: social-service
+  #   environment:
+  #     <<: [ *infra, *gateway, *java-env, *minio, *internal ]
+  #     SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
+  #     MONGODB_URI: ${MONGODB_URI}
+  #     MINIO_AI_BUCKET: ${MINIO_AI_BUCKET:-ai-training-data}
+  #     FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+  #   depends_on:
+  #     discovery-server:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: [ "CMD", "wget", "-qO-", "http://localhost:8767/actuator/health" ]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 80s
 
   # ─── 10. RECOMMENDATION ML (Python) ─────────────────────────
-  recommendation-ml:
-    <<: *common
-    build: { context: ./recommendation-ml }
-    container_name: recommendation-ml
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 500M
-        reservations:
-          cpus: '0.1'
-          memory: 128M
-    environment:
-      REDIS_HOST: ${REDIS_HOST}
-      MINIO_ENDPOINT: host.docker.internal:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-      MINIO_SECRET_KEY: ${MINIO_SECRET}
-    healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8771/health" ]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 80s
+  # recommendation-ml:
+  #   <<: *common
+  #   build: { context: ./recommendation-ml }
+  #   container_name: recommendation-ml
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.0'
+  #         memory: 500M
+  #       reservations:
+  #         cpus: '0.1'
+  #         memory: 128M
+  #   environment:
+  #     REDIS_HOST: ${REDIS_HOST}
+  #     MINIO_ENDPOINT: host.docker.internal:9000
+  #     MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+  #     MINIO_SECRET_KEY: ${MINIO_SECRET}
+  #   healthcheck:
+  #     test: [ "CMD", "wget", "-qO-", "http://localhost:8771/health" ]
+  #     interval: 15s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 80s
 
   # ─── 11. RECOMMENDATION SERVICE ─────────────────────────────
   recommendation-service:
@@ -291,13 +291,15 @@ services:
     container_name: recommendation-service
     environment:
       <<: [ *infra, *java-env ]
-      ML_SERVICE_URL: http://recommendation-ml:8771
-      SOCIAL_SERVICE_URL: http://social-service:8767
+      ML_SERVICE_URL: https://tramcamxuc-monu-1.onrender.com
+      # ML_SERVICE_URL: http://recommendation-ml:8771
+      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-http://social-service:8767}
+      # ↑ Set SOCIAL_SERVICE_URL in .env to Render URL after deploying service-social
     depends_on:
       discovery-server:
         condition: service_healthy
-      recommendation-ml:
-        condition: service_healthy
+      # recommendation-ml:
+      #   condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:8769/actuator/health" ]
       interval: 10s

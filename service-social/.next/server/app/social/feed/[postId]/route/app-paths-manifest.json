@@ -1,0 +1,3 @@
+{
+  "/social/feed/[postId]/route": "app/social/feed/[postId]/route.js"
+}

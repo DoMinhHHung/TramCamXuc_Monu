@@ -1,0 +1,3 @@
+{
+  "/social/comments/[commentId]/replies/route": "app/social/comments/[commentId]/replies/route.js"
+}
