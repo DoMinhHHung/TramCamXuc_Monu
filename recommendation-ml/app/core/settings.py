@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     # ── Downstream services ──────────────────────────────────────────────────
     # Gọi qua Eureka service name khi trong Docker network
     social_service_url: str = Field(
-        default="https://tramcamxuc-monu-1-9yui.onrender.com",
+        default="https://tramcamxuc-monu-1-pq2b.onrender.com",
         description="URL của social-service (Next.js on Vercel)"
     )
     music_service_url: str = Field(
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     redis_result_ttl: int = 3600              # 1h — cached top-N results per user
 
     # ── MinIO ────────────────────────────────────────────────────────────────
-    minio_endpoint: str = "localhost:9000"
+    minio_endpoint: str = "https://minio.oopsgolden.id.vn/"
     minio_access_key: str = "admin"
     minio_secret_key: str = "password123"
     minio_secure: bool = False
