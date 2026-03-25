@@ -12,12 +12,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AntDesign, Fontisto, MaterialIcons } from '@expo/vector-icons';
+
+const LEGACY_CACHE_KEY = 'home_legacy_cache_v1';
 
 import { ColorScheme, useThemeColors } from '../config/colors';
 import { MOOD_EMOJIS, MUSIC_EMOJIS } from '../config/emojis';
@@ -312,8 +315,29 @@ export const HomeScreen = () => {
   }, []);
 
   useEffect(() => {
-    void fetchLegacySections(false);
-    return undefined;
+    if (!legacyTrendingSongs.length && !legacyNewestSongs.length) return;
+    AsyncStorage.setItem(LEGACY_CACHE_KEY, JSON.stringify({
+      trending: legacyTrendingSongs,
+      newest: legacyNewestSongs,
+      genres,
+      genreSections,
+    })).catch(() => {});
+  }, [legacyTrendingSongs, legacyNewestSongs, genres, genreSections]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(LEGACY_CACHE_KEY);
+        if (raw) {
+          const c = JSON.parse(raw);
+          if (c.trending?.length) setLegacyTrendingSongs(c.trending);
+          if (c.newest?.length) setLegacyNewestSongs(c.newest);
+          if (c.genres?.length) setGenres(c.genres);
+          if (c.genreSections) setGenreSections(c.genreSections);
+        }
+      } catch {}
+      fetchLegacySections(false);
+    })();
   }, [fetchLegacySections]);
 
   useEffect(() => {

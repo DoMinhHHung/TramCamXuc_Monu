@@ -171,6 +171,16 @@ export const checkHearted = async (songId: string): Promise<boolean> => {
   return response.data;
 };
 
+export const getMyHeartedIds = async (): Promise<string[]> => {
+  const response = await apiClient.get<string[]>('/social/hearts/my-ids');
+  return Array.isArray(response.data) ? response.data : [];
+};
+
+export const checkHeartedBatch = async (songIds: string[]): Promise<Record<string, boolean>> => {
+  const response = await apiClient.post<Record<string, boolean>>('/social/hearts/check-batch', { songIds });
+  return response.data;
+};
+
 export const getMyHearts = async (params?: { page?: number; size?: number }): Promise<PageResponse<HeartResponse>> => {
   const response = await apiClient.get<PageResponse<HeartResponse>>('/social/hearts/my', { params });
   return response.data;
@@ -236,6 +246,11 @@ export const getArtistFollowers = async (artistId: string, params?: { page?: num
 export const getArtistStats = async (artistId: string): Promise<ArtistStatsResponse> => {
   const response = await apiClient.get<ArtistStatsResponse>(`/social/artists/${artistId}/stats`);
   return response.data;
+};
+
+export const getArtistStatsBatch = async (artistIds: string[]): Promise<ArtistStatsResponse[]> => {
+  const response = await apiClient.post<ArtistStatsResponse[]>('/social/artists/stats-batch', { artistIds });
+  return Array.isArray(response.data) ? response.data : [];
 };
 
 export const getMyListenHistory = async (params?: { page?: number; size?: number }): Promise<PageResponse<ListenHistoryItem>> => {

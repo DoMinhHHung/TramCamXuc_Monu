@@ -7,10 +7,14 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { getPopularArtists, getPopularGenres } from '../services/favorites';
 import { getAlbumById, getMyPlaylists, getPublicAlbums, searchSongs } from '../services/music';
 import { getListeningInsights } from '../services/recommendation';
-import { getArtistStats, getMyFollowedArtists, getMyListenHistory } from '../services/social';
+import { getArtistStatsBatch, getMyFollowedArtists, getMyListenHistory } from '../services/social';
+
+const STORAGE_KEY = 'home_stats_cache';
 
 export interface PlaylistStats {
   id: string;
@@ -89,9 +93,9 @@ const fetchHomeStats = async (): Promise<HomeStatsData> => {
   try {
     const [listenHistoryPage, playlistsPage, insights, popularGenres, popularArtists, followedArtistsPage] = await Promise.all([
       getMyListenHistory({ page: 1, size: LISTEN_HISTORY_LIMIT }),
-      getMyPlaylists({ page: 1, size: 100 }),
+      getMyPlaylists({ page: 1, size: 50 }),
       getListeningInsights(30),
-      getPopularGenres(8),
+      getPopularGenres(12),
       getPopularArtists(8),
       getMyFollowedArtists({ page: 1, size: 100 }),
     ]);
@@ -193,41 +197,39 @@ const fetchHomeStats = async (): Promise<HomeStatsData> => {
     }
 
     const topArtistRows = insights.topArtists ?? [];
-    const artistStatResults = await Promise.allSettled(
-      topArtistRows.map((artist) => getArtistStats(artist.artistId)),
-    );
+    const topArtistIds = topArtistRows.map((a) => a.artistId);
+    const batchStats = topArtistIds.length
+      ? await getArtistStatsBatch(topArtistIds).catch(() => [])
+      : [];
+    const statsMap = new Map(batchStats.map((s) => [s.artistId, s]));
 
-    let topArtists: ArtistStats[] = topArtistRows.map((artist, index) => {
-      const artistStats = artistStatResults[index].status === 'fulfilled'
-        ? artistStatResults[index].value
-        : null;
-
+    let topArtists: ArtistStats[] = topArtistRows.map((artist) => {
+      const s = statsMap.get(artist.artistId);
       return {
         id: artist.artistId,
         name: artist.artistStageName,
         avatarUrl: artist.artistAvatarUrl,
-        followerCount: artistStats?.followerCount ?? 0,
+        followerCount: s?.followerCount ?? 0,
         playCount: artist.playCount,
         isFollowing: followedArtistIds.has(artist.artistId),
       };
     });
 
     if (topArtists.length === 0) {
-      const popularArtistStats = await Promise.allSettled(
-        popularArtists.map((artist) => getArtistStats(artist.id)),
-      );
+      const fallbackIds = popularArtists.map((a) => a.id);
+      const fallbackStats = fallbackIds.length
+        ? await getArtistStatsBatch(fallbackIds).catch(() => [])
+        : [];
+      const fbMap = new Map(fallbackStats.map((s) => [s.artistId, s]));
 
-      topArtists = popularArtists.map((artist, index) => {
-        const stats = popularArtistStats[index].status === 'fulfilled'
-          ? popularArtistStats[index].value
-          : null;
-
+      topArtists = popularArtists.map((artist) => {
+        const s = fbMap.get(artist.id);
         return {
           id: artist.id,
           name: artist.stageName,
           avatarUrl: artist.avatarUrl,
-          followerCount: stats?.followerCount ?? 0,
-          playCount: stats?.totalListens ?? 0,
+          followerCount: s?.followerCount ?? 0,
+          playCount: s?.totalListens ?? 0,
           isFollowing: followedArtistIds.has(artist.id),
         };
       }).slice(0, 5);
@@ -318,17 +320,31 @@ export const useHomeStats = (): UseHomeStatsReturn => {
       setError(null);
       const freshData = await fetchHomeStats();
       setData(freshData);
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(freshData)).catch(() => {});
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch home stats';
       setError(errorMessage);
-      console.error('[useHomeStats] Error:', errorMessage);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    refetch();
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const cached = await AsyncStorage.getItem(STORAGE_KEY);
+        if (cached && !cancelled) {
+          setData(JSON.parse(cached));
+          setLoading(false);
+        }
+      } catch {}
+
+      if (!cancelled) refetch();
+    })();
+
+    return () => { cancelled = true; };
   }, [refetch]);
 
   return {

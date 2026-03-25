@@ -44,8 +44,12 @@ class DataPuller:
         self._music_client: httpx.AsyncClient | None = None
 
     async def __aenter__(self):
+        social_headers = {}
+        if settings.internal_service_secret:
+            social_headers["X-Internal-Secret"] = settings.internal_service_secret
         self._social_client = httpx.AsyncClient(
             base_url=settings.social_service_url,
+            headers=social_headers,
             timeout=_TIMEOUT,
         )
         self._music_client = httpx.AsyncClient(

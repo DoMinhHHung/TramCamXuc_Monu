@@ -96,6 +96,7 @@ services:
     ports: [ "8080:8080" ]
     environment:
       <<: [ *infra, *gateway, *java-env ]
+      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-lb://SOCIAL-SERVICE}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -294,7 +295,6 @@ services:
       ML_SERVICE_URL: https://tramcamxuc-monu-1.onrender.com
       # ML_SERVICE_URL: http://recommendation-ml:8771
       SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-http://social-service:8767}
-      # ↑ Set SOCIAL_SERVICE_URL in .env to Render URL after deploying service-social
     depends_on:
       discovery-server:
         condition: service_healthy

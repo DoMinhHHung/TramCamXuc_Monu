@@ -132,6 +132,7 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
       path === '/social/listen-history/my' ||
       path === '/recommendations/insights' ||
       path === '/social/hearts/my' ||
+      path === '/social/hearts/my-ids' ||
       path === '/social/follows/my-artists' ||
       /^\/social\/artists\/[^/]+\/followers$/i.test(path)
   ) return SIX_HOURS_MS;
