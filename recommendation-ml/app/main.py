@@ -57,9 +57,33 @@ async def lifespan(app: FastAPI):
     log.info("service_shutdown")
 
 
+async def _warm_up_social_service():
+    """Ping service-social health endpoint to wake it from Render cold start."""
+    import httpx
+    url = f"{settings.social_service_url}/health"
+    for attempt in range(1, 7):
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=60)) as c:
+                r = await c.get(url)
+                if r.status_code == 200:
+                    log.info("social_service_warm", attempt=attempt, url=settings.social_service_url)
+                    return True
+        except Exception as e:
+            log.warning("social_warmup_retry", attempt=attempt, error=str(e))
+        await asyncio.sleep(min(attempt * 5, 30))
+    log.error("social_service_unreachable_after_warmup")
+    return False
+
+
 async def _run_initial_training():
     try:
-        await asyncio.sleep(5)
+        await asyncio.sleep(3)
+        log.info("warming_up_social_service")
+        ready = await _warm_up_social_service()
+        if not ready:
+            log.warning("skipping_initial_training_social_unavailable")
+            return
+
         log.info("initial_training_start")
         result = await run_full_pipeline()
         log.info("initial_training_complete", result=result)

@@ -22,15 +22,24 @@ social-service /internal/* đã được permit trong SecurityConfig.
 import asyncio
 from typing import Any
 import httpx
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
 from app.core.settings import get_settings
 from app.core.logging import get_logger
 
 log = get_logger(__name__)
 settings = get_settings()
 
-# Timeout config: connect nhanh, read đủ lâu cho batch calls
-_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=10.0, pool=5.0)
+_TIMEOUT = httpx.Timeout(connect=10.0, read=30.0, write=10.0, pool=5.0)
+
+_TRANSIENT_STATUS = {502, 503, 504}
+
+
+def _is_transient(exc: BaseException) -> bool:
+    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in _TRANSIENT_STATUS:
+        return True
+    if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
+        return True
+    return False
 
 
 class DataPuller:
@@ -67,18 +76,13 @@ class DataPuller:
     # ── Listen History ─────────────────────────────────────────────────────────
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type(httpx.HTTPError),
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=2, min=3, max=30),
+        retry=retry_if_exception(_is_transient),
     )
     async def get_listen_history(
             self, user_id: str, limit: int = 200, days: int = 90
     ) -> list[dict]:
-        """
-        Lấy listen history của một user.
-        social-service trả về list[ListenHistoryResponse]:
-          {id, userId, songId, artistId, playlistId, albumId, durationSeconds, listenedAt}
-        """
         try:
             resp = await self._social_client.get(
                 f"/internal/social/listen-history/{user_id}",
@@ -88,45 +92,83 @@ class DataPuller:
             data = resp.json()
             return data.get("result", []) or []
         except httpx.HTTPStatusError as e:
-            log.warning("listen_history_fetch_failed",
-                        user_id=user_id, status=e.response.status_code)
+            if e.response.status_code in _TRANSIENT_STATUS:
+                log.warning("listen_history_transient", user_id=user_id, status=e.response.status_code)
+                raise
+            log.warning("listen_history_fetch_failed", user_id=user_id, status=e.response.status_code)
             return []
+        except (httpx.ConnectError, httpx.ConnectTimeout) as e:
+            log.warning("listen_history_connect_failed", user_id=user_id, error=str(e))
+            raise
         except Exception as e:
             log.warning("listen_history_fetch_error", user_id=user_id, error=str(e))
             return []
 
+    @retry(
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=2, min=3, max=30),
+        retry=retry_if_exception(_is_transient),
+    )
     async def get_liked_songs(self, user_id: str) -> list[str]:
-        """Trả về list songId mà user đã LIKE."""
         try:
             resp = await self._social_client.get(
                 f"/internal/social/reactions/{user_id}/liked"
             )
             resp.raise_for_status()
             return resp.json().get("result", []) or []
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code in _TRANSIENT_STATUS:
+                raise
+            log.warning("liked_songs_fetch_failed", user_id=user_id, error=str(e))
+            return []
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            raise
         except Exception as e:
             log.warning("liked_songs_fetch_failed", user_id=user_id, error=str(e))
             return []
 
+    @retry(
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=2, min=3, max=30),
+        retry=retry_if_exception(_is_transient),
+    )
     async def get_disliked_songs(self, user_id: str) -> list[str]:
-        """Trả về list songId mà user đã DISLIKE."""
         try:
             resp = await self._social_client.get(
                 f"/internal/social/reactions/{user_id}/disliked"
             )
             resp.raise_for_status()
             return resp.json().get("result", []) or []
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code in _TRANSIENT_STATUS:
+                raise
+            log.warning("disliked_songs_fetch_failed", user_id=user_id, error=str(e))
+            return []
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            raise
         except Exception as e:
             log.warning("disliked_songs_fetch_failed", user_id=user_id, error=str(e))
             return []
 
+    @retry(
+        stop=stop_after_attempt(4),
+        wait=wait_exponential(multiplier=2, min=3, max=30),
+        retry=retry_if_exception(_is_transient),
+    )
     async def get_followed_artists(self, user_id: str) -> list[str]:
-        """Trả về list artistId mà user đang follow."""
         try:
             resp = await self._social_client.get(
                 f"/internal/social/follows/{user_id}/artists"
             )
             resp.raise_for_status()
             return resp.json().get("result", []) or []
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code in _TRANSIENT_STATUS:
+                raise
+            log.warning("followed_artists_fetch_failed", user_id=user_id, error=str(e))
+            return []
+        except (httpx.ConnectError, httpx.ConnectTimeout):
+            raise
         except Exception as e:
             log.warning("followed_artists_fetch_failed", user_id=user_id, error=str(e))
             return []
