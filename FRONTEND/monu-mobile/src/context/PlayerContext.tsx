@@ -15,6 +15,7 @@ import { getNextAd, AdDelivery } from '../services/ads';
 import { isSongDownloaded } from '../services/download';
 import { addListenHistory } from '../utils/listenHistory';
 import { useAuth } from './AuthContext';
+import { useNetworkQuality, suggestQuality, NetworkTier } from '../hooks/useNetworkQuality';
 
 // ─── Quality ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,9 @@ interface PlayerContextValue {
     selectedQuality: AudioQuality;
     maxQuality:      AudioQuality;
     setQuality:      (q: AudioQuality) => void;
+    autoQuality:     boolean;
+    setAutoQuality:  (v: boolean) => void;
+    networkTier:     NetworkTier;
     // ── Repeat / Shuffle ──────────────────────────────────────────────────────
     repeatMode:      RepeatMode;
     isShuffled:      boolean;
@@ -137,6 +141,14 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const selectedQualityRef = useRef<AudioQuality>(128);
     useEffect(() => { selectedQualityRef.current = selectedQuality; }, [selectedQuality]);
 
+    const [autoQuality, setAutoQuality] = useState(true);
+    const autoQualityRef = useRef(true);
+    useEffect(() => { autoQualityRef.current = autoQuality; }, [autoQuality]);
+
+    const { tier: networkTier, tierRef: networkTierRef } = useNetworkQuality();
+    const maxQualityRef = useRef<AudioQuality>(128);
+    useEffect(() => { maxQualityRef.current = maxQuality; }, [maxQuality]);
+
     // ── Ads ────────────────────────────────────────────────────────────────────
     const [pendingAd,   setPendingAd]   = useState<AdDelivery | null>(null);
     const [isPlayingAd, setIsPlayingAd] = useState(false);
@@ -145,6 +157,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
     // ── Player ─────────────────────────────────────────────────────────────────
     const shouldAutoPlayRef = useRef(false);
+    const pendingSeekRef    = useRef<number | null>(null);
     const player            = useAudioPlayer(null);
     const status            = useAudioPlayerStatus(player);
 
@@ -164,8 +177,10 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         if (!authSession) {
             noAdsRef.current = false;
             setMaxQuality(128);
-            setSelectedQuality((prev) => (prev > 128 ? 128 : prev) as AudioQuality);
-            selectedQualityRef.current = Math.min(selectedQualityRef.current, 128) as AudioQuality;
+            maxQualityRef.current = 128;
+            const best = suggestQuality(networkTierRef.current, 128);
+            setSelectedQuality(best);
+            selectedQualityRef.current = best;
             return;
         }
         getMySubscription()
@@ -175,23 +190,47 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     noAdsRef.current = Boolean(features.no_ads);
                     const max = parseMaxQuality(features);
                     setMaxQuality(max);
-                    setSelectedQuality((prev) => (prev > max ? max : prev) as AudioQuality);
-                    selectedQualityRef.current = Math.min(
-                        selectedQualityRef.current, max,
-                    ) as AudioQuality;
+                    maxQualityRef.current = max;
+                    const best = autoQualityRef.current
+                        ? suggestQuality(networkTierRef.current, max)
+                        : Math.min(selectedQualityRef.current, max) as AudioQuality;
+                    setSelectedQuality(best);
+                    selectedQualityRef.current = best;
                 }
             })
             .catch(() => {});
     }, [authSession]);
+
+    // ── Auto quality on network change ─────────────────────────────────────────
+    useEffect(() => {
+        if (!autoQualityRef.current) return;
+        const best = suggestQuality(networkTier, maxQualityRef.current);
+        if (best !== selectedQualityRef.current) {
+            setSelectedQuality(best);
+            selectedQualityRef.current = best;
+            if (currentSongRef.current && status.playing) {
+                const pos = status.currentTime ?? 0;
+                pendingSeekRef.current = pos > 1 ? pos : null;
+                shouldAutoPlayRef.current = true;
+                player.replace({ uri: buildHlsUrl(currentSongRef.current, best) });
+            }
+        }
+    }, [networkTier]);
 
     // ── Audio session ──────────────────────────────────────────────────────────
     useEffect(() => {
         setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     }, []);
 
-    // ── Autoplay khi source load xong ─────────────────────────────────────────
+    // ── Autoplay + pending seek khi source load xong ──────────────────────────
     useEffect(() => {
-        if (status.isLoaded && shouldAutoPlayRef.current) {
+        if (!status.isLoaded) return;
+        if (pendingSeekRef.current !== null) {
+            const pos = pendingSeekRef.current;
+            pendingSeekRef.current = null;
+            try { player.seekTo(pos); } catch {}
+        }
+        if (shouldAutoPlayRef.current) {
             shouldAutoPlayRef.current = false;
             player.play();
         }
@@ -461,14 +500,18 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
     const setQuality = useCallback((q: AudioQuality) => {
         if (q > maxQuality || isPlayingAd) return;
+        setAutoQuality(false);
+        autoQualityRef.current = false;
         setSelectedQuality(q);
         selectedQualityRef.current = q;
         if (currentSong) {
             const wasPlaying = status.playing;
+            const pos = status.currentTime ?? 0;
+            pendingSeekRef.current = pos > 1 ? pos : null;
             shouldAutoPlayRef.current = wasPlaying;
             player.replace({ uri: buildHlsUrl(currentSong, q) });
         }
-    }, [maxQuality, currentSong, player, status.playing, isPlayingAd]);
+    }, [maxQuality, currentSong, player, status.playing, status.currentTime, isPlayingAd]);
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -490,6 +533,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         selectedQuality,
         maxQuality,
         setQuality,
+        autoQuality,
+        setAutoQuality,
+        networkTier,
         repeatMode,
         isShuffled,
         cycleRepeatMode,

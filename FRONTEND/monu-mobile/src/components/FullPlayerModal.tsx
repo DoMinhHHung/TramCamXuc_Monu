@@ -49,8 +49,13 @@ export const FullPlayerModal = () => {
         isPlaying, isLoaded, currentTime, duration,
         togglePlay, seekTo, playNext, playPrev, stopPlayer,
         selectedQuality, maxQuality, setQuality,
+        autoQuality, setAutoQuality, networkTier,
         repeatMode, isShuffled, cycleRepeatMode, toggleShuffle,
     } = usePlayer();
+
+    const NETWORK_LABEL: Record<string, string> = {
+        high: '📶 Mạng tốt', medium: '📶 Mạng trung bình', low: '📶 Mạng yếu', offline: '📴 Ngoại tuyến',
+    };
 
     // ── Seek bar ──────────────────────────────────────────────────────────────
     const barWidthRef = useRef(1);
@@ -256,11 +261,23 @@ export const FullPlayerModal = () => {
 
                     {/* Quality selector */}
                     <View style={styles.qualitySection}>
-                        <Text style={styles.qualityLabel}>Chất lượng âm thanh</Text>
+                        <View style={styles.qualityHeader}>
+                            <Text style={styles.qualityLabel}>Chất lượng âm thanh</Text>
+                            <Pressable
+                                style={[styles.autoBtn, autoQuality && styles.autoBtnActive]}
+                                onPress={() => setAutoQuality(!autoQuality)}
+                                hitSlop={8}
+                            >
+                                <Text style={[styles.autoBtnText, autoQuality && styles.autoBtnTextActive]}>
+                                    Tự động
+                                </Text>
+                            </Pressable>
+                        </View>
                         <View style={styles.qualityRow}>
                             {QUALITY_OPTIONS.map(opt => {
                                 const isSelected  = selectedQuality === opt.value;
                                 const isAvailable = opt.value <= maxQuality;
+                                const dimmed       = autoQuality && !isSelected;
                                 return (
                                     <Pressable
                                         key={opt.value}
@@ -268,6 +285,7 @@ export const FullPlayerModal = () => {
                                             styles.qualityBtn,
                                             isSelected   && styles.qualityBtnActive,
                                             !isAvailable && styles.qualityBtnLocked,
+                                            dimmed       && { opacity: 0.45 },
                                         ]}
                                         onPress={() => isAvailable && setQuality(opt.value)}
                                         disabled={!isAvailable}
@@ -286,9 +304,11 @@ export const FullPlayerModal = () => {
                         <Text style={styles.qualityHint}>
                             {'Đang phát: '}
                             <Text style={{ color: COLORS.accent }}>{selectedQuality}kbps</Text>
-                            {maxQuality < 320
-                                ? '  •  Nâng cấp Premium để mở chất lượng cao hơn'
-                                : '  •  Chất lượng tối đa'}
+                            {autoQuality
+                                ? `  •  ${NETWORK_LABEL[networkTier] ?? networkTier}`
+                                : maxQuality < 320
+                                    ? '  •  Nâng cấp Premium để mở chất lượng cao hơn'
+                                    : '  •  Chất lượng tối đa'}
                         </Text>
                     </View>
 
@@ -430,7 +450,12 @@ const styles = StyleSheet.create({
     modeLabelText:      { color: COLORS.glass45, fontSize: 11, fontWeight: '600' },
 
     qualitySection:         { marginBottom: 14 },
-    qualityLabel:           { color: COLORS.glass40, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
+    qualityHeader:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+    qualityLabel:           { color: COLORS.glass40, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+    autoBtn:                { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface },
+    autoBtnActive:          { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
+    autoBtnText:            { color: COLORS.muted, fontSize: 11, fontWeight: '600' },
+    autoBtnTextActive:      { color: COLORS.accent },
     qualityRow:             { flexDirection: 'row', gap: 8, marginBottom: 8 },
     qualityBtn:             { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface },
     qualityBtnActive:       { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
