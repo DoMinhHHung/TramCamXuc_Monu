@@ -149,6 +149,23 @@ export const getAlbumShareQr = async (albumId: string): Promise<ShareResponse> =
   return response.data;
 };
 
+// ─── Counts (artist stats) ────────────────────────────────────────────────────
+
+export const getSongListenCount = async (songId: string): Promise<number> => {
+  const response = await apiClient.get<number>(`/social/listen-history/count/${songId}`);
+  return Number(response.data ?? 0);
+};
+
+export const getSongHeartCount = async (songId: string): Promise<number> => {
+  const response = await apiClient.get<number>(`/social/hearts/count/${songId}`);
+  return Number(response.data ?? 0);
+};
+
+export const getSongShareCount = async (songId: string): Promise<number> => {
+  const response = await apiClient.get<number>('/social/share/count', { params: { songId } });
+  return Number(response.data ?? 0);
+};
+
 export interface HeartResponse {
   id: string;
   userId: string;

@@ -713,12 +713,11 @@ interface ShareOptionsSheetProps {
   visible: boolean;
   item: { type: ShareItemType; id: string; title: string } | null;
   onClose: () => void;
-  onQr: () => void;
   onExternal: () => void;
   onDiscovery: () => void;
 }
 
-const ShareOptionsSheet = ({ visible, item, onClose, onQr, onExternal, onDiscovery }: ShareOptionsSheetProps) => (
+const ShareOptionsSheet = ({ visible, item, onClose, onExternal, onDiscovery }: ShareOptionsSheetProps) => (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={sheetStyles.overlay} onPress={onClose} />
       <View style={sheetStyles.sheet}>
@@ -743,16 +742,6 @@ const ShareOptionsSheet = ({ visible, item, onClose, onQr, onExternal, onDiscove
           <View style={shareOptionStyles.info}>
             <Text style={shareOptionStyles.label}>{tr('screens.library.shareOutsideApp', 'Share outside app')}</Text>
             <Text style={shareOptionStyles.desc}>{tr('screens.library.shareOutsideAppDesc', 'Send link via message or social networks...')}</Text>
-          </View>
-        </Pressable>
-
-        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onQr(); }}>
-          <View style={[shareOptionStyles.iconWrap, { backgroundColor: rc.success }]}>
-            <Text style={{ fontSize: 20 }}>⬛</Text>
-          </View>
-          <View style={shareOptionStyles.info}>
-            <Text style={shareOptionStyles.label}>{tr('actions.shareQR', 'Share via QR')}</Text>
-            <Text style={shareOptionStyles.desc}>{tr('screens.library.shareQrDesc', 'Generate a QR code to scan')}</Text>
           </View>
         </Pressable>
 
@@ -1268,7 +1257,6 @@ export const LibraryScreen = () => {
   const [canCreateAlbumByPlan, setCanCreateAlbumByPlan] = useState(false);
 
   // Modals
-  const [qrData, setQrData]         = useState<{ link: string; image?: string } | null>(null);
   const [addSongTo, setAddSongTo]   = useState<Song | null>(null);
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
@@ -1353,19 +1341,6 @@ export const LibraryScreen = () => {
   // ── Share helper ──────────────────────────────────────────────────────────
   const openShareOptions = (type: ShareItemType, id: string, title: string) => {
     setShareOptionsItem({ type, id, title });
-  };
-
-  const handleShareQr = async () => {
-    if (!shareOptionsItem) return;
-    const { type, id, title } = shareOptionsItem;
-    try {
-      const qr = type === 'playlist' ? await getPlaylistShareQr(id) :
-          type === 'song'     ? await getSongShareQr(id) :
-              await getAlbumShareQr(id);
-      setQrData({ link: qr.shareUrl, image: qr.qrCodeBase64 });
-    } catch (e: any) {
-      showToast(e?.message ?? t('modals.couldNotGenerateQR', 'Could not generate QR'), 'error');
-    }
   };
 
   const handleShareExternal = async () => {
@@ -1803,22 +1778,11 @@ export const LibraryScreen = () => {
             onCreateAndAdd={handleCreateAndAddToPlaylist}
         />
 
-        {/* QR */}
-        {qrData && (
-            <QrModal
-                visible
-                link={qrData.link}
-                image={qrData.image}
-                onClose={() => setQrData(null)}
-            />
-        )}
-
         {/* Share options sheet */}
         <ShareOptionsSheet
             visible={!!shareOptionsItem}
             item={shareOptionsItem}
             onClose={() => setShareOptionsItem(null)}
-            onQr={() => void handleShareQr()}
             onExternal={() => void handleShareExternal()}
             onDiscovery={() => setDiscoveryShareItem(shareOptionsItem)}
         />

@@ -108,6 +108,8 @@ services:
     depends_on:
       discovery-server:
         condition: service_healthy
+      recommendation-service:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:8080/actuator/health" ]
       interval: 10s
