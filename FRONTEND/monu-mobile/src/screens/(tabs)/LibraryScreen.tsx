@@ -71,6 +71,9 @@ const getSongStatusLabel = (song: Song): { label: string; color: string; pulse: 
   if (song.status === 'PRIVATE') {
     return { label: tr('screens.library.private', 'Private'), color: COLORS.glass40, pulse: false };
   }
+  if (song.status === 'ALBUM_ONLY') {
+    return { label: tr('screens.songVisibility.albumOnly', 'Album only'), color: COLORS.warningMid, pulse: false };
+  }
   switch (song.transcodeStatus as string) {
     case 'PENDING':
       return { label: tr('screens.library.releasePending', 'Pending release...'), color: COLORS.warningMid, pulse: true };
@@ -1037,7 +1040,7 @@ const AlbumDetailModal = ({
 
   const availableSongs = mySongs.filter(s =>
       (s.transcodeStatus as string) === 'COMPLETED' &&
-      (s.status === 'PUBLIC' || s.status === 'PRIVATE') &&
+      (s.status === 'PUBLIC' || s.status === 'PRIVATE' || s.status === 'ALBUM_ONLY') &&
       !album?.songs?.some(as => as.id === s.id)
   );
 
@@ -1156,7 +1159,7 @@ const AlbumDetailModal = ({
             <View style={sheetStyles.sheet}>
               <View style={sheetStyles.handle} />
               <Text style={sheetStyles.title}>Thêm bài hát vào album</Text>
-              <Text style={sheetStyles.subtitle}>Bài hát của bạn (PUBLIC hoặc PRIVATE, đã transcode xong)</Text>
+              <Text style={sheetStyles.subtitle}>Bài hát của bạn (PUBLIC/PRIVATE/ALBUM_ONLY, đã transcode xong)</Text>
               {availableSongs.length === 0 ? (
                   <Text style={{ color: COLORS.glass40, padding: 16, textAlign: 'center' }}>
                     Không có bài hát nào khả dụng.{'\n'}
@@ -1174,7 +1177,7 @@ const AlbumDetailModal = ({
                           <View style={{ flex: 1 }}>
                             <Text style={sheetStyles.itemText} numberOfLines={1}>{s.title}</Text>
                             <Text style={{ color: COLORS.glass40, fontSize: 11 }}>
-                              {s.status === 'PUBLIC' ? '🌐 Công khai' : '🔒 Riêng tư'}
+                              {s.status === 'PUBLIC' ? '🌐 Công khai' : s.status === 'PRIVATE' ? '🔒 Riêng tư' : '💿 Album only'}
                             </Text>
                           </View>
                         </Pressable>

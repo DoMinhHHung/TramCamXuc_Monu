@@ -44,7 +44,9 @@
       "expandedSections": "Nhạc theo thể loại",
       "loadingExpandedSections": "Đang tải mục nhạc mở rộng...",
       "showMore": "Xem thêm",
-      "showLess": "Thu gọn"
+      "showLess": "Thu gọn",
+      "newAlbumReleased": "Album Mới Phát hành",
+      "owner": "Nghệ sĩ"
     },
     "discover": {
       "title": "Khám phá",
@@ -120,6 +122,15 @@
       "lyricDeletedMessage": "Lời bài hát đã được xoá.",
       "lyricDeleteFailed": "Không thể xoá.",
       "notFound": "Không tìm thấy bài hát."
+    },
+    "songVisibility": {
+      "label": "Hiển thị",
+      "public": "🌐 Công khai",
+      "private": "🔒 Riêng tư",
+      "albumOnly": "💿 Chỉ trong album",
+      "selectAlbumTitle": "Chọn album",
+      "selectAlbumRequired": "Vui lòng chọn album khi để chế độ Album only.",
+      "noAlbumPrivateHint": "Hãy tạo album PRIVATE/DRAFT trước khi chọn Album only."
     },
     "profile": {
       "title": "Hồ sơ",

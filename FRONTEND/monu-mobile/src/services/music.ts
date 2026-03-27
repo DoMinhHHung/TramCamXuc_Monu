@@ -22,7 +22,7 @@ export interface Song {
   thumbnailUrl?: string;
   durationSeconds: number;
   playCount: number;
-  status: 'DRAFT' | 'PUBLIC' | 'ARCHIVED' | 'PRIVATE' | "DELETED";
+  status: 'DRAFT' | 'PUBLIC' | 'ARCHIVED' | 'PRIVATE' | 'DELETED' | 'ALBUM_ONLY';
   transcodeStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   streamUrl?: string;
   lyricUrl?: string | null;
@@ -319,7 +319,7 @@ export const deleteLyric = async (songId: string): Promise<void> => {
   await apiClient.delete(`/songs/${songId}/lyrics`);
 };
 
-export type SongStatus = 'PUBLIC' | 'PRIVATE';
+export type SongStatus = 'PUBLIC' | 'PRIVATE' | 'ALBUM_ONLY';
 
 export const updateSong = async (songId: string, payload: {
   title?: string;
@@ -328,4 +328,24 @@ export const updateSong = async (songId: string, payload: {
 }): Promise<Song> => {
   const response = await apiClient.put<Song>(`/songs/${songId}`, payload);
   return unwrap<Song>(response.data);
+};
+
+export const publishAlbum = async (albumId: string): Promise<Album> => {
+  const response = await apiClient.post<Album>(`/albums/${albumId}/publish`);
+  return unwrap<Album>(response.data);
+};
+
+export const unpublishAlbum = async (albumId: string): Promise<Album> => {
+  const response = await apiClient.post<Album>(`/albums/${albumId}/unpublish`);
+  return unwrap<Album>(response.data);
+};
+
+export const addSongToAlbum = async (albumId: string, songId: string): Promise<Album> => {
+  const response = await apiClient.post<Album>(`/albums/${albumId}/songs/${songId}`);
+  return unwrap<Album>(response.data);
+};
+
+export const removeSongFromAlbum = async (albumId: string, songId: string): Promise<Album> => {
+  const response = await apiClient.delete<Album>(`/albums/${albumId}/songs/${songId}`);
+  return unwrap<Album>(response.data);
 };

@@ -44,7 +44,9 @@
       "expandedSections": "Music by Genre",
       "loadingExpandedSections": "Loading more music sections...",
       "showMore": "See more",
-      "showLess": "Collapse"
+      "showLess": "Collapse",
+      "newAlbumReleased": "New album released",
+      "owner": "Owner"
     },
     "discover": {
       "title": "Discover",
@@ -120,6 +122,15 @@
       "lyricDeletedMessage": "Lyrics have been deleted.",
       "lyricDeleteFailed": "Cannot delete.",
       "notFound": "Song not found."
+    },
+    "songVisibility": {
+      "label": "Visibility",
+      "public": "🌐 Public",
+      "private": "🔒 Private",
+      "albumOnly": "💿 Album only",
+      "selectAlbumTitle": "Select album",
+      "selectAlbumRequired": "Please select an album for Album only mode.",
+      "noAlbumPrivateHint": "Create a PRIVATE/DRAFT album first before selecting Album only mode."
     },
     "profile": {
       "title": "Profile",

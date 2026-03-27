@@ -36,8 +36,10 @@ import { SongActionSheet } from '../components/SongActionSheet';
 import { AnimatedDecorIcon } from '../components/AnimatedDecorIcon';
 import {
   addSongToPlaylist,
+  Album,
   createPlaylist,
   getNewestSongs,
+  getPublicAlbums,
   getTrendingSongs,
   searchSongs,
   Song,
@@ -146,6 +148,7 @@ export const HomeScreen = () => {
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
+  const [newlyReleasedAlbums, setNewlyReleasedAlbums] = useState<Album[]>([]);
 
   const topArtistsScrollRef = useRef<ScrollView | null>(null);
   const topArtistsPausedRef = useRef(false);
@@ -324,14 +327,34 @@ export const HomeScreen = () => {
     }
   }, [genreSections]);
 
+  const loadNewlyReleasedAlbums = useCallback(async () => {
+    try {
+      const albumsRes = await getPublicAlbums({ page: 1, size: 30 });
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const fresh = (albumsRes.content ?? []).filter((album) => {
+        if (!album.releaseDate) return false;
+        const d = new Date(album.releaseDate);
+        return d >= sevenDaysAgo && d <= now;
+      });
+      setNewlyReleasedAlbums(fresh);
+    } catch {
+      setNewlyReleasedAlbums([]);
+    }
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     setPullRefreshing(true);
     try {
-      await Promise.all([rec.refresh(), refreshHomePriority()]);
+      await Promise.all([rec.refresh(), refreshHomePriority(), loadNewlyReleasedAlbums()]);
     } finally {
       setPullRefreshing(false);
     }
-  }, [rec, refreshHomePriority]);
+  }, [rec, refreshHomePriority, loadNewlyReleasedAlbums]);
+
+  useEffect(() => {
+    void loadNewlyReleasedAlbums();
+  }, [loadNewlyReleasedAlbums]);
 
   const formatDuration = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -530,6 +553,26 @@ export const HomeScreen = () => {
 
           </>
         ) : null}
+
+        {newlyReleasedAlbums.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>💿 {t('screens.home.newAlbumReleased', 'New album released')}</Text>
+            <View style={{ gap: 10 }}>
+              {newlyReleasedAlbums.map((album) => (
+                <Pressable
+                  key={album.id}
+                  style={styles.albumReleaseCard}
+                  onPress={() => navigation.navigate('AlbumDetail', { albumId: album.id })}
+                >
+                  <Text style={styles.albumReleaseTitle} numberOfLines={1}>{album.title}</Text>
+                  <Text style={styles.albumReleaseMeta} numberOfLines={1}>
+                    {t('screens.home.owner', 'Owner')}: {album.ownerStageName ?? '-'} · {(album.totalSongs ?? album.songs?.length ?? 0)} {t('albumDetails.songs')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
 
         {rec.loading && !rec.globalTrending.length && !rec.homeFeed && (
           <View>
@@ -848,6 +891,15 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   searchPlaceholder: { color: colors.muted, fontSize: 14, flex: 1 },
   section: { paddingHorizontal: 20, marginTop: 24 },
   sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 14 },
+  albumReleaseCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.accentBorder25,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+  },
+  albumReleaseTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  albumReleaseMeta: { color: colors.glass60, fontSize: 12, marginTop: 4 },
   artistHorizontalList: {
     paddingHorizontal: 20,
     gap: 12,

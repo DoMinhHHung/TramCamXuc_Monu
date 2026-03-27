@@ -20,9 +20,12 @@ import { AntDesign } from '@expo/vector-icons';
 import { COLORS, useThemeColors } from '../config/colors';
 import { useTranslation } from '../context/LocalizationContext';
 import {
+  addSongToAlbum,
   deleteLyric,
+  Album,
   Genre,
   getLyric,
+  getMyAlbums,
   LyricResponse,
   Song,
   SongStatus,
@@ -56,11 +59,13 @@ export const EditSongScreen = () => {
   // Song data
   const [song, setSong] = useState<Song | null>(null);
   const [genres, setGenres] = useState<Genre[]>([]);
+  const [myAlbums, setMyAlbums] = useState<Album[]>([]);
 
   // Form state
   const [title, setTitle] = useState('');
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [status, setStatus] = useState<SongStatus>('PUBLIC');
+  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
 
   // Lyric state
   const [lyricData, setLyricData] = useState<LyricResponse | null>(null);
@@ -84,12 +89,18 @@ export const EditSongScreen = () => {
         setSong(s);
         setTitle(s.title);
         setSelectedGenreIds(s.genres?.map(g => g.id) ?? []);
-        setStatus((s.status === 'PUBLIC' || s.status === 'PRIVATE') ? s.status : 'PUBLIC');
+        setStatus((s.status === 'PUBLIC' || s.status === 'PRIVATE' || s.status === 'ALBUM_ONLY') ? s.status : 'PUBLIC');
         setHasLyric(!!s.lyricUrl);
       }
 
       if (genreRes.status === 'fulfilled') {
         setGenres(genreRes.value as unknown as Genre[]);
+      }
+      try {
+        const alRes = await getMyAlbums({ page: 1, size: 100 });
+        setMyAlbums((alRes.content ?? []).filter((a) => a.status !== 'PUBLIC'));
+      } catch {
+        setMyAlbums([]);
       }
 
       // Fetch lyric info
@@ -120,6 +131,13 @@ export const EditSongScreen = () => {
       Alert.alert(t('screens.create.missingInfoTitle', 'Thiếu thông tin'), t('screens.create.missingGenre', 'Chọn ít nhất 1 thể loại.'));
       return;
     }
+    if (status === 'ALBUM_ONLY' && !selectedAlbumId) {
+      Alert.alert(
+        t('screens.songVisibility.selectAlbumTitle', 'Select album'),
+        t('screens.songVisibility.selectAlbumRequired', 'Please select an album for Album only mode.'),
+      );
+      return;
+    }
 
     setSaving(true);
     try {
@@ -128,6 +146,9 @@ export const EditSongScreen = () => {
         genreIds: selectedGenreIds,
         status,
       });
+      if (status === 'ALBUM_ONLY' && selectedAlbumId) {
+        await addSongToAlbum(selectedAlbumId, songId);
+      }
       Alert.alert(
         t('screens.editSong.savedTitle', 'Đã lưu'),
         t('screens.editSong.savedMessage', 'Thông tin bài hát đã được cập nhật.'),
@@ -288,18 +309,47 @@ export const EditSongScreen = () => {
               <>
                 <Text style={styles.fieldLabel}>{t('screens.editSong.statusLabel', 'Trạng thái')}</Text>
                 <View style={styles.statusRow}>
-                  {(['PUBLIC', 'PRIVATE'] as SongStatus[]).map(s => (
+                  {(['PUBLIC', 'PRIVATE', 'ALBUM_ONLY'] as SongStatus[]).map(s => (
                     <Pressable
                       key={s}
                       style={[styles.statusChip, status === s && styles.statusChipActive]}
-                      onPress={() => setStatus(s)}
+                      onPress={() => {
+                        setStatus(s);
+                        if (s !== 'ALBUM_ONLY') setSelectedAlbumId(null);
+                      }}
                     >
                       <Text style={[styles.statusChipText, status === s && styles.statusChipTextActive]}>
-                        {s === 'PUBLIC' ? '🌐 Công khai' : '🔒 Riêng tư'}
+                        {s === 'PUBLIC'
+                          ? t('screens.songVisibility.public', '🌐 Public')
+                          : s === 'PRIVATE'
+                            ? t('screens.songVisibility.private', '🔒 Private')
+                            : t('screens.songVisibility.albumOnly', '💿 Album only')}
                       </Text>
                     </Pressable>
                   ))}
                 </View>
+                {status === 'ALBUM_ONLY' && (
+                  <View style={styles.statusRow}>
+                    {myAlbums.length === 0 ? (
+                      <Text style={styles.helperText}>
+                        {t('screens.songVisibility.noAlbumPrivateHint', 'Create a PRIVATE/DRAFT album first before selecting Album only mode.')}
+                      </Text>
+                    ) : myAlbums.map((album) => {
+                      const active = selectedAlbumId === album.id;
+                      return (
+                        <Pressable
+                          key={album.id}
+                          style={[styles.statusChip, active && styles.statusChipActive]}
+                          onPress={() => setSelectedAlbumId(album.id)}
+                        >
+                          <Text style={[styles.statusChipText, active && styles.statusChipTextActive]}>
+                            💿 {album.title}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
               </>
             )}
 
@@ -538,6 +588,7 @@ const styles = StyleSheet.create({
   },
   statusChipText: { color: COLORS.glass60, fontSize: 14, fontWeight: '600' },
   statusChipTextActive: { color: COLORS.accent },
+  helperText: { color: COLORS.glass50, fontSize: 12, marginTop: 2 },
 
   genreWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   genreChip: {
