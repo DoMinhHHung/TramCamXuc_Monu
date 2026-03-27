@@ -6,7 +6,7 @@ spring:
     name: music-service
 
   main:
-    lazy-initialization: true
+    lazy-initialization: false
     banner-mode: off
   jmx:
     enabled: false

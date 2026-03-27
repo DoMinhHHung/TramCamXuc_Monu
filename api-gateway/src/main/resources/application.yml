@@ -209,6 +209,45 @@ spring:
                 redis-rate-limiter.burstCapacity: 60
                 redis-rate-limiter.requestedTokens: 1
 
+        - id: music-lyric-read
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/songs/*/lyrics
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: music-lyric-upload
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/songs/*/lyrics
+            - Method=POST,DELETE
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: music-lyric-search
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/songs/search-by-lyric
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+
         - id: music-swagger
           uri: lb://MUSIC-SERVICE
           predicates:

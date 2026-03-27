@@ -25,6 +25,8 @@ public enum ErrorCode {
     TITLE_TOO_LONG              (2009, "Title exceeds maximum length",              HttpStatus.BAD_REQUEST),
     GENRES_REQUIRED             (2010, "At least one genre is required",            HttpStatus.BAD_REQUEST),
     INVALID_FILE_EXTENSION      (2011, "Unsupported file extension",                HttpStatus.BAD_REQUEST),
+    LYRIC_NOT_FOUND             (2012, "Lyric not found for this song",             HttpStatus.NOT_FOUND),
+    LYRIC_INVALID_FILE          (2013, "Invalid lyric file (only .lrc, .srt, .txt allowed)", HttpStatus.BAD_REQUEST),
 
     // ── Genre ──────────────────────────────────────────────────────────────────
     GENRE_NOT_FOUND        (2100, "Genre not found",                               HttpStatus.NOT_FOUND),

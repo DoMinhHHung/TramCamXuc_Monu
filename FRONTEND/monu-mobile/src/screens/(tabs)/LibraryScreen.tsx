@@ -194,6 +194,7 @@ const SongRow = ({
                    onPlay,
                    onAddToPlaylist,
                    onShare,
+                   onEdit,
                  }: {
   song: Song;
   isActive: boolean;
@@ -201,6 +202,7 @@ const SongRow = ({
   onPlay: () => void;
   onAddToPlaylist: () => void;
   onShare: () => void;
+  onEdit?: () => void;
 }) => {
   const { label, color, pulse } = getSongStatusLabel(song);
   const isReady = (song.transcodeStatus as string) === 'COMPLETED';
@@ -244,6 +246,13 @@ const SongRow = ({
 
         {/* Actions */}
         <View style={songRowStyles.actions}>
+          {onEdit && (
+              <Pressable onPress={onEdit} hitSlop={8} style={songRowStyles.actionBtn}>
+                <Text style={songRowStyles.actionIcon}>
+                  <FontAwesome name="edit" color={COLORS.glass60} size={14} />
+                </Text>
+              </Pressable>
+          )}
           {isReady && (
               <>
                 <Pressable onPress={onShare} hitSlop={8} style={songRowStyles.actionBtn}>
@@ -1561,6 +1570,7 @@ export const LibraryScreen = () => {
                 onPlay={() => playSong(s, songs)}
                 onAddToPlaylist={() => setAddSongTo(s)}
                 onShare={() => openShareOptions('song', s.id, s.title)}
+                onEdit={isArtist ? () => navigation.navigate('EditSong', { songId: s.id }) : undefined}
             />
         ))}
       </>

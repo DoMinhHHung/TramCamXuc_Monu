@@ -1,4 +1,5 @@
 package iuh.fit.se.musicservice.enums;
 
-public class LyricFormat {
+public enum LyricFormat {
+    LRC, TXT, SRT
 }
