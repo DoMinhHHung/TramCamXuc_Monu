@@ -27,6 +27,7 @@ import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ALLOWED_EXTENSIONS = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'] as const;
+const LYRIC_EXTENSIONS = ['lrc', 'srt', 'txt'] as const;
 
 type ArtistProfile = {
   id: string;
@@ -77,6 +78,7 @@ export const CreateScreen = () => {
   const [title, setTitle]                 = useState('');
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [pickedFile, setPickedFile]       = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [pickedLyric, setPickedLyric]     = useState<DocumentPicker.DocumentPickerAsset | null>(null);
 
   // ── Artist register form ───────────────────────────────────────────────────
   const [stageName, setStageName]         = useState('');
@@ -188,6 +190,26 @@ export const CreateScreen = () => {
     });
   };
 
+  const handlePickLyric = async () => {
+    const picked = await DocumentPicker.getDocumentAsync({
+      type: ['text/*', 'application/x-subrip', 'application/octet-stream'],
+      multiple: false,
+      copyToCacheDirectory: true,
+    });
+    if (picked.canceled) return;
+
+    const file = picked.assets[0];
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (!LYRIC_EXTENSIONS.includes(ext as any)) {
+      Alert.alert(
+        t('screens.create.unsupportedFormatTitle', 'Unsupported format'),
+        `${t('screens.create.lyricAllowedFormatsHint', 'Chỉ hỗ trợ')}: ${LYRIC_EXTENSIONS.join(', ').toUpperCase()}`
+      );
+      return;
+    }
+    setPickedLyric(file);
+  };
+
   const handlePublish = async () => {
     const attemptId = ++publishAttemptRef.current;
     debugCreateUpload('publish_clicked', {
@@ -223,6 +245,7 @@ export const CreateScreen = () => {
     const titleCopy       = title;
     const genresCopy      = [...selectedGenreIds];
     const fileCopy        = pickedFile;
+    const lyricCopy       = pickedLyric;
 
     debugCreateUpload('publish_trigger_upload', {
       attemptId,
@@ -231,14 +254,16 @@ export const CreateScreen = () => {
       fileName: fileCopy.name,
       fileSizeBytes: fileCopy.size ?? null,
       mimeType: fileCopy.mimeType ?? null,
+      hasLyric: !!lyricCopy,
     });
 
     setTitle('');
     setSelectedGenreIds([]);
     setPickedFile(null);
+    setPickedLyric(null);
 
     try {
-      await startUpload({ title: titleCopy, genreIds: genresCopy, file: fileCopy });
+      await startUpload({ title: titleCopy, genreIds: genresCopy, file: fileCopy, lyricFile: lyricCopy });
       debugCreateUpload('publish_startUpload_resolved', { attemptId });
     } catch (error: any) {
       debugCreateUpload('publish_startUpload_failed', {
@@ -479,6 +504,57 @@ export const CreateScreen = () => {
                           </Text>
                           <Text style={styles.filePickerFormats}>
                             {ALLOWED_EXTENSIONS.join('  ·  ').toUpperCase()}
+                          </Text>
+                        </View>
+                    )}
+                  </Pressable>
+
+                  {/* Lyric file (tuỳ chọn) */}
+                  <Text style={styles.fieldLabel}>
+                    {t('screens.create.lyricFileLabel', 'Lyric file (optional)')}
+                  </Text>
+                  <Pressable
+                      style={[
+                        styles.filePicker,
+                        pickedLyric && styles.filePickerSelected,
+                        isUploadActive && styles.disabledBtn,
+                      ]}
+                      onPress={handlePickLyric}
+                      disabled={isUploadActive}
+                  >
+                    {pickedLyric ? (
+                        <View style={styles.filePickerRow}>
+                          <Text style={styles.fileIcon}>📝</Text>
+                          <View style={styles.fileInfo}>
+                            <Text style={styles.fileName} numberOfLines={1}>
+                              {pickedLyric.name}
+                            </Text>
+                            <Text style={styles.fileSize}>
+                              {pickedLyric.size
+                                  ? `${(pickedLyric.size / 1024).toFixed(1)} KB`
+                                  : ''}
+                              {'  ·  '}
+                              {pickedLyric.name.split('.').pop()?.toUpperCase()}
+                            </Text>
+                          </View>
+                          <Pressable
+                              hitSlop={8}
+                              onPress={(e) => {
+                                e.stopPropagation?.();
+                                setPickedLyric(null);
+                              }}
+                          >
+                            <Text style={styles.fileChange}>{t('common.remove', 'Xoá')}</Text>
+                          </Pressable>
+                        </View>
+                    ) : (
+                        <View style={styles.filePickerEmpty}>
+                          <Text style={styles.filePickerPlus}>📝</Text>
+                          <Text style={styles.filePickerHint}>
+                            {t('screens.create.chooseLyricFile', 'Thêm file lời bài hát')}
+                          </Text>
+                          <Text style={styles.filePickerFormats}>
+                            {LYRIC_EXTENSIONS.join('  ·  ').toUpperCase()}
                           </Text>
                         </View>
                     )}

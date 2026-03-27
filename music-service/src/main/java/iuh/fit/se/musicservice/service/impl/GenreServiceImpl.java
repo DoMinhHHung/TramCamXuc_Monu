@@ -63,6 +63,7 @@ public class GenreServiceImpl implements GenreService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public GenreResponse getGenreById(UUID id) {
         Genre genre = genreRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.GENRE_NOT_FOUND));
@@ -70,6 +71,7 @@ public class GenreServiceImpl implements GenreService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<GenreResponse> getAllGenres() {
         return genreRepository.findAll().stream()
                 .map(genreMapper::toResponse)
@@ -77,6 +79,7 @@ public class GenreServiceImpl implements GenreService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<GenreResponse> getPopularGenres(int limit) {
         return genreRepository.findPopularGenres(PageRequest.of(0, limit))
                 .stream()

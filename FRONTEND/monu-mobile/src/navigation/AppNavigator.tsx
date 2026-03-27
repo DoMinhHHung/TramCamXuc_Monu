@@ -53,6 +53,7 @@ import { FollowedArtistsScreen, FollowingScreen }  from '../screens/(artist)/Fol
 import { FollowersScreen }       from '../screens/(artist)/FollowersScreen';
 import { ArtistDiscoveryScreen }  from '../screens/(artist)/ArtistDiscoveryScreen';
 import { AlbumAddSongScreen }     from '../screens/(artist)/AlbumAddSongScreen';
+import { EditSongScreen }         from '../screens/EditSongScreen';
 
 export type RootStackParamList = {
     Welcome:         undefined;
@@ -86,6 +87,7 @@ export type RootStackParamList = {
     FollowedArtists:  undefined;
     ArtistDiscovery:  undefined;
     AlbumAddSong:    { albumId: string };
+    EditSong:        { songId: string };
 };
 
 export type MainTabParamList = {
@@ -212,6 +214,7 @@ export const AppNavigator = () => {
                                 <Stack.Screen name="FollowedArtists"  component={FollowedArtistsScreen}  />
                                 <Stack.Screen name="ArtistDiscovery"  component={ArtistDiscoveryScreen}  />
                                 <Stack.Screen name="AlbumAddSong"     component={AlbumAddSongScreen}     />
+                                <Stack.Screen name="EditSong"         component={EditSongScreen}         />
                             </>
                         )
                     ) : (

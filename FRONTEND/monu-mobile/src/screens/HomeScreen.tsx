@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   Modal,
@@ -12,15 +11,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AntDesign, Fontisto, MaterialIcons } from '@expo/vector-icons';
-
-const LEGACY_CACHE_KEY = 'home_legacy_cache_v1';
 
 import { ColorScheme, useThemeColors } from '../config/colors';
 import { MOOD_EMOJIS, MUSIC_EMOJIS } from '../config/emojis';
@@ -30,6 +26,11 @@ import { useDownload } from '../context/DownloadContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { RecommendationSection } from '../components/RecommendationSection';
+import {
+  SectionSkeleton,
+  SongCardSkeleton,
+  StatsStripSkeleton,
+} from '../components/SkeletonLoader';
 import { SongSection } from '../components/SongSection';
 import { SongActionSheet } from '../components/SongActionSheet';
 import { AnimatedDecorIcon } from '../components/AnimatedDecorIcon';
@@ -41,14 +42,14 @@ import {
   searchSongs,
   Song,
 } from '../services/music';
-import { getPopularGenres } from '../services/favorites';
 import { FeedbackType, RecommendedSong } from '../services/recommendation';
 import { getSongShareQr } from '../services/social';
-import { Genre } from '../types/favorites';
-import { useHomeData } from '../hooks/useHomeData';
-import { useHomeStats } from '../hooks/useHomeStats';
+import { buildGenreSectionsFromPool, useHomeDataPriority } from '../hooks/useHomeDataPriority';
+import { useRecommendations } from '../hooks/useRecommendations';
 import { AlbumCard } from '../components/AlbumCard';
 import { ArtistCardEnhanced } from '../components/ArtistCardEnhanced';
+import { StreakBanner } from '../components/StreakBanner';
+import { ContinueListeningSection } from '../components/ContinueListeningSection';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const TOP_ARTIST_CARD_STEP = 292;
@@ -77,30 +78,6 @@ const toSong = (r: RecommendedSong): Song => ({
   updatedAt: '',
 });
 
-const buildGenreSectionsFromPool = (
-  genres: Genre[],
-  songsPool: Song[],
-): Record<string, { songs: Song[]; hasMore: boolean; expanded: boolean; loading: boolean }> => {
-  const dedupedPool = Array.from(new Map(songsPool.map((song) => [song.id, song])).values());
-
-  const nextSections: Record<string, { songs: Song[]; hasMore: boolean; expanded: boolean; loading: boolean }> = {};
-  genres.forEach((genre) => {
-    const genreSongs = dedupedPool.filter((song) =>
-      (song.genres ?? []).some((songGenre) => songGenre.id === genre.id));
-
-    if (genreSongs.length > 0) {
-      nextSections[genre.id] = {
-        songs: genreSongs.slice(0, 5),
-        hasMore: genreSongs.length > 5,
-        expanded: false,
-        loading: false,
-      };
-    }
-  });
-
-  return nextSections;
-};
-
 const shuffleInSession = <T,>(items: T[]): T[] => {
   const next = [...items];
   for (let i = next.length - 1; i > 0; i -= 1) {
@@ -119,14 +96,47 @@ export const HomeScreen = () => {
   const { t } = useTranslation();
   const themeColors = useThemeColors();
 
-  const {
-    rec,
-    playlists,
-    loading,
-    refresh,
-  } = useHomeData();
+  const rec = useRecommendations();
 
-  const { data: homeStats, loading: statsLoading, error: statsError } = useHomeStats();
+  const {
+    legacyTrendingSongs,
+    legacyNewestSongs,
+    playlists,
+    genres,
+    genreSections,
+    homeStats,
+    phase3Loading,
+    refresh: refreshHomePriority,
+    setGenreSections,
+  } = useHomeDataPriority();
+
+  const genreBatchGenRef = useRef(0);
+
+  const fetchGenreSectionsLazy = useCallback(async () => {
+    if (!genres.length) return;
+    const batch = ++genreBatchGenRef.current;
+    try {
+      const [trending, newest] = await Promise.all([
+        getTrendingSongs({ page: 1, size: 60 }),
+        getNewestSongs({ page: 1, size: 40 }),
+      ]);
+      if (batch !== genreBatchGenRef.current) return;
+      const allSongs = [...(trending.content ?? []), ...(newest.content ?? [])];
+      const shuffled = shuffleInSession(allSongs);
+      setGenreSections(buildGenreSectionsFromPool(genres, shuffled, 2));
+    } catch {
+      /* keep existing genre sections / cache */
+    }
+  }, [genres, setGenreSections]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void fetchGenreSectionsLazy();
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [genres, fetchGenreSectionsLazy]);
+
+  const [pullRefreshing, setPullRefreshing] = useState(false);
 
   const styles = useMemo(() => getStyles(themeColors), [themeColors]);
 
@@ -137,16 +147,6 @@ export const HomeScreen = () => {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
 
-  const [legacyTrendingSongs, setLegacyTrendingSongs] = useState<Song[]>([]);
-  const [legacyNewestSongs, setLegacyNewestSongs] = useState<Song[]>([]);
-  const [genres, setGenres] = useState<Genre[]>([]);
-  const [genreSections, setGenreSections] = useState<Record<string, {
-    songs: Song[];
-    hasMore: boolean;
-    expanded: boolean;
-    loading: boolean;
-  }>>({});
-  const [legacyLoading, setLegacyLoading] = useState(false);
   const topArtistsScrollRef = useRef<ScrollView | null>(null);
   const topArtistsPausedRef = useRef(false);
   const topArtistIndexRef = useRef(0);
@@ -203,6 +203,23 @@ export const HomeScreen = () => {
     (navigation as unknown as { navigate: (route: 'Search') => void }).navigate('Search');
   }, [navigation]);
 
+  const handleOpenInsights = useCallback(() => {
+    const parentNavigation = navigation.getParent();
+    const rootNavigation = parentNavigation?.getParent?.();
+
+    if (rootNavigation && 'navigate' in rootNavigation) {
+      (rootNavigation as { navigate: (route: 'Insights') => void }).navigate('Insights');
+      return;
+    }
+
+    if (parentNavigation && 'navigate' in parentNavigation) {
+      (parentNavigation as { navigate: (route: 'Insights') => void }).navigate('Insights');
+      return;
+    }
+
+    (navigation as unknown as { navigate: (route: 'Insights') => void }).navigate('Insights');
+  }, [navigation]);
+
   const handleFeedback = useCallback((songId: string, feedback: FeedbackType) => {
     void rec.sendFeedback(songId, feedback, 'home');
   }, [rec]);
@@ -239,106 +256,6 @@ export const HomeScreen = () => {
       Alert.alert('Lỗi', e instanceof Error ? e.message : 'Không thể tạo playlist');
     }
   }, [songToAdd, newPlaylistName]);
-
-  const fetchLegacySections = useCallback(async (silent = false) => {
-    try {
-      if (!silent) setLegacyLoading(true);
-      const [trending, newest, popularGenres] = await Promise.all([
-        getTrendingSongs({ page: 1, size: 10 }),
-        getNewestSongs({ page: 1, size: 10 }),
-        getPopularGenres(12),
-      ]);
-
-      // Non-personalized sections are randomized once per app session.
-      setLegacyTrendingSongs(shuffleInSession(trending.content ?? []));
-      setLegacyNewestSongs(shuffleInSession(newest.content ?? []));
-
-      const genreList = popularGenres ?? [];
-      setGenres(genreList);
-
-      if (genreList.length) {
-        const genreResults = await Promise.allSettled(
-          genreList.map(async (genre) => {
-            const res = await searchSongs({ genreId: genre.id, page: 1, size: 6 });
-            const songs = shuffleInSession(res.content ?? []);
-            return {
-              genreId: genre.id,
-              songs: songs.slice(0, 5),
-              hasMore: songs.length > 5,
-            };
-          }),
-        );
-
-        const hasAtLeastOneSuccess = genreResults.some((result) => result.status === 'fulfilled');
-
-        if (!hasAtLeastOneSuccess) {
-          const fallbackSections = buildGenreSectionsFromPool(
-            genreList,
-            [...(trending.content ?? []), ...(newest.content ?? [])],
-          );
-          setGenreSections(fallbackSections);
-          return;
-        }
-
-        setGenreSections((prev) => {
-          const nextSections: Record<string, { songs: Song[]; hasMore: boolean; expanded: boolean; loading: boolean }> = {};
-
-          genreResults.forEach((result, index) => {
-            const genreId = genreList[index].id;
-            const current = prev[genreId];
-
-            if (result.status === 'fulfilled') {
-              nextSections[genreId] = {
-                songs: result.value.songs,
-                hasMore: result.value.hasMore,
-                expanded: current?.expanded ?? false,
-                loading: false,
-              };
-            } else {
-              nextSections[genreId] = {
-                songs: current?.songs ?? [],
-                hasMore: current?.hasMore ?? false,
-                expanded: current?.expanded ?? false,
-                loading: false,
-              };
-            }
-          });
-
-          return nextSections;
-        });
-      }
-    } catch {
-      if (!silent) Alert.alert('Lỗi', 'Không thể tải dữ liệu nhạc theo section');
-    } finally {
-      if (!silent) setLegacyLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!legacyTrendingSongs.length && !legacyNewestSongs.length) return;
-    AsyncStorage.setItem(LEGACY_CACHE_KEY, JSON.stringify({
-      trending: legacyTrendingSongs,
-      newest: legacyNewestSongs,
-      genres,
-      genreSections,
-    })).catch(() => {});
-  }, [legacyTrendingSongs, legacyNewestSongs, genres, genreSections]);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(LEGACY_CACHE_KEY);
-        if (raw) {
-          const c = JSON.parse(raw);
-          if (c.trending?.length) setLegacyTrendingSongs(c.trending);
-          if (c.newest?.length) setLegacyNewestSongs(c.newest);
-          if (c.genres?.length) setGenres(c.genres);
-          if (c.genreSections) setGenreSections(c.genreSections);
-        }
-      } catch {}
-      fetchLegacySections(false);
-    })();
-  }, [fetchLegacySections]);
 
   useEffect(() => {
     const artistsCount = homeStats?.topArtists?.length ?? 0;
@@ -408,9 +325,13 @@ export const HomeScreen = () => {
   }, [genreSections]);
 
   const handleRefresh = useCallback(async () => {
-    // Only personalized blocks are refreshed on pull-to-refresh.
-    await refresh();
-  }, [refresh]);
+    setPullRefreshing(true);
+    try {
+      await Promise.all([rec.refresh(), refreshHomePriority()]);
+    } finally {
+      setPullRefreshing(false);
+    }
+  }, [rec, refreshHomePriority]);
 
   const formatDuration = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -422,14 +343,46 @@ export const HomeScreen = () => {
     || authSession?.profile?.email?.split('@')[0]
     || 'bạn';
 
-  const getGreeting = () => {
+  const getContextualGreeting = () => {
     const h = new Date().getHours();
-    if (h < 10) return 'Chào buổi sáng ☀';
-    if (h < 13) return 'Buổi trưa vui vẻ 🌤';
-    if (h < 17) return 'Good afternoon 🌤';
-    if (h < 22) return 'Chào buổi tối 🌆';
-    return 'Chúc ngủ ngon 🌙';
+    const name = displayName.split(' ')[0] || displayName;
+
+    if (h >= 5 && h < 10) {
+      return {
+        greeting: `Chào buổi sáng, ${name}! ☀️`,
+        suggest: 'Nhạc buổi sáng nhẹ nhàng',
+        emoji: '☕',
+      };
+    }
+    if (h >= 10 && h < 13) {
+      return {
+        greeting: `Chào ${name}! 🌤`,
+        suggest: 'Nhạc làm việc tập trung',
+        emoji: '💼',
+      };
+    }
+    if (h >= 13 && h < 17) {
+      return {
+        greeting: `Good afternoon, ${name}! 🌤`,
+        suggest: 'Nhạc giải lao buổi chiều',
+        emoji: '🌿',
+      };
+    }
+    if (h >= 17 && h < 22) {
+      return {
+        greeting: `Chào buổi tối, ${name}! 🌆`,
+        suggest: 'Nhạc thư giãn cuối ngày',
+        emoji: '🌙',
+      };
+    }
+    return {
+      greeting: `Chúc ngủ ngon, ${name}! 🌙`,
+      suggest: 'Nhạc ru ngủ nhẹ nhàng',
+      emoji: '⭐',
+    };
   };
+
+  const homeGreeting = getContextualGreeting();
 
   const updatedLabel = rec.lastUpdatedAt
     ? (() => {
@@ -448,7 +401,7 @@ export const HomeScreen = () => {
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={(
           <RefreshControl
-            refreshing={loading}
+            refreshing={pullRefreshing}
             onRefresh={handleRefresh}
             tintColor={themeColors.accent}
           />
@@ -464,8 +417,10 @@ export const HomeScreen = () => {
             onPressIn={handleOpenProfile}
           >
             <View>
-              <Text style={styles.greeting}>{getGreeting()},</Text>
-              <Text style={styles.name}>{displayName} 👋</Text>
+              <Text style={styles.name}>{homeGreeting.greeting}</Text>
+              <Text style={styles.greetingSuggest}>
+                {homeGreeting.emoji} {homeGreeting.suggest}
+              </Text>
               {updatedLabel && (
                 <Text style={styles.updatedLabel}>{updatedLabel}</Text>
               )}
@@ -489,13 +444,22 @@ export const HomeScreen = () => {
           </Pressable>
         </LinearGradient>
 
-        {/* Dynamic Home Sections */}
-        {statsLoading && !homeStats ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={themeColors.accent} />
-            <Text style={styles.loadingText}>{t('homeScreen.noDataAvailable')}</Text>
-          </View>
-        ) : homeStats ? (
+        {authSession && homeStats && (
+          <StreakBanner
+            streakDays={homeStats.currentStreakDays ?? 0}
+            totalMinutesToday={homeStats.listeningMinutesToday ?? 0}
+            onPress={handleOpenInsights}
+          />
+        )}
+
+        <ContinueListeningSection />
+
+        {/* Dynamic Home Sections — không chặn cả màn hình; chỉ nhẹ khi đang tải stats */}
+        {authSession && !homeStats && phase3Loading && (
+          <StatsStripSkeleton />
+        )}
+
+        {homeStats ? (
           <>
             {/* Albums from Followed Artists */}
             {homeStats.followedArtistAlbums.length > 0 && (
@@ -567,16 +531,10 @@ export const HomeScreen = () => {
           </>
         ) : null}
 
-        {loading && !rec.homeFeed && !rec.globalTrending.length && (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={themeColors.accent} />
-            <Text style={styles.loadingText}>{t('screens.home.loadingRecommendations')}</Text>
-          </View>
-        )}
-
-        {!!rec.error && (
-          <View style={styles.errorWrap}>
-            <Text style={styles.errorText}>{rec.error}</Text>
+        {rec.loading && !rec.globalTrending.length && !rec.homeFeed && (
+          <View>
+            <SectionSkeleton rows={2} />
+            <SectionSkeleton rows={2} />
           </View>
         )}
 
@@ -656,13 +614,13 @@ export const HomeScreen = () => {
           // emptyText={emptySocialText}
         />
 
-        {legacyLoading
+        {phase3Loading
           && !legacyTrendingSongs.length
           && !legacyNewestSongs.length
           && !genres.length && (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="small" color={themeColors.accent} />
             <Text style={styles.loadingText}>{t('screens.home.loadingExpandedSections')}</Text>
+            <SectionSkeleton rows={2} />
           </View>
         )}
 
@@ -701,7 +659,10 @@ export const HomeScreen = () => {
               </View>
 
               {section?.loading && (
-                <ActivityIndicator color={themeColors.accent} style={{ marginTop: 10 }} />
+                <View style={{ paddingHorizontal: 6, marginTop: 6 }}>
+                  <SongCardSkeleton />
+                  <SongCardSkeleton />
+                </View>
               )}
 
               <SongSection
@@ -750,7 +711,7 @@ export const HomeScreen = () => {
             icon: isDownloaded(selectedSong?.id ?? '')
               ? <AntDesign name="check-circle" size={20} color={themeColors.success} />
               : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                ? <ActivityIndicator size="small" color={themeColors.text} />
+                ? <Text style={{ fontSize: 18, color: themeColors.text }}>⏳</Text>
                 : <AntDesign name="download" size={20} color={themeColors.text} />,
             label: isDownloaded(selectedSong?.id ?? '')
               ? 'Đã tải xuống'
@@ -863,6 +824,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   greeting: { color: colors.textSecondary, fontSize: 14 },
   name: { color: colors.text, fontSize: 26, fontWeight: '800' },
+  greetingSuggest: { color: colors.textSecondary, fontSize: 13, marginTop: 6, fontWeight: '500' },
   updatedLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
   avatarCircle: {
     width: 42,
@@ -937,17 +899,6 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   seeMoreText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
   loadingWrap: { alignItems: 'center', paddingVertical: 32 },
   loadingText: { color: colors.textSecondary, fontSize: 13, marginTop: 10 },
-  errorWrap: {
-    marginHorizontal: 20,
-    marginTop: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.error,
-    backgroundColor: colors.surfaceDim,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  errorText: { color: colors.error, fontSize: 12, fontWeight: '600' },
   backdrop: {
     flex: 1,
     backgroundColor: colors.bg,

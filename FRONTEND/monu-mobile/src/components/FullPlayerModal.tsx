@@ -1,16 +1,22 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Animated, Image, Modal, PanResponder,
-    Pressable, StyleSheet, Text, View, TextInput, Alert,
+    ActivityIndicator, Animated, Dimensions, FlatList, Image,
+    Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
+    Pressable, ScrollView, StyleSheet, Text, View, TextInput, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config/colors';
 import { AudioQuality, RepeatMode, usePlayer } from '../context/PlayerContext';
-import { addSongToPlaylist, createPlaylist, getMyPlaylists, Playlist, reportSong } from '../services/music';
+import {
+    addSongToPlaylist, createPlaylist, getLyric, getMyPlaylists,
+    LyricLine, LyricResponse, Playlist, reportSong,
+} from '../services/music';
 import { getSongShareQr } from '../services/social';
 import { SongActionSheet } from './SongActionSheet';
+
+const { width: SCREEN_W } = Dimensions.get('window');
 
 const formatTime = (seconds: number): string => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -18,7 +24,7 @@ const formatTime = (seconds: number): string => {
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
 };
-import { Foundation, MaterialCommunityIcons, MaterialIcons, Entypo, Feather   } from '@expo/vector-icons';
+import { Foundation, MaterialCommunityIcons, MaterialIcons, Entypo, Feather } from '@expo/vector-icons';
 
 const THUMB_RADIUS = 9;
 
@@ -29,12 +35,163 @@ const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
     { value: 320, label: '320k' },
 ];
 
-// ─── Repeat mode icon ─────────────────────────────────────────────────────────
 const repeatLabel = (mode: RepeatMode): string => {
     if (mode === 'one') return <MaterialIcons name="repeat-one" color="#fff" size={24} /> as any;
     if (mode === 'all') return <MaterialCommunityIcons name="repeat" color="#fff" size={24} /> as any;
     return <Entypo name="flickr" color="#fff" size={24} /> as any;
 };
+
+// ─── Lyric Viewer ──────────────────────────────────────────────────────────────
+
+interface LyricViewerProps {
+    lyricData: LyricResponse | null;
+    loading: boolean;
+    error: string | null;
+    currentTimeMs: number;
+    onSeek?: (timeMs: number) => void;
+}
+
+const LyricViewer = React.memo(({ lyricData, loading, error, currentTimeMs, onSeek }: LyricViewerProps) => {
+    const scrollRef = useRef<ScrollView>(null);
+    const lineHeights = useRef<number[]>([]);
+    const lastActiveIdx = useRef(-1);
+
+    const isSynced = lyricData?.format === 'LRC' || lyricData?.format === 'SRT';
+    const lines = lyricData?.lines ?? [];
+
+    const activeIndex = isSynced
+        ? findActiveLineIndex(lines, currentTimeMs)
+        : -1;
+
+    useEffect(() => {
+        if (!isSynced || activeIndex < 0 || activeIndex === lastActiveIdx.current) return;
+        lastActiveIdx.current = activeIndex;
+
+        let yOffset = 0;
+        for (let i = 0; i < activeIndex; i++) {
+            yOffset += lineHeights.current[i] ?? 44;
+        }
+        const centeredOffset = Math.max(0, yOffset - 200);
+        scrollRef.current?.scrollTo({ y: centeredOffset, animated: true });
+    }, [activeIndex, isSynced]);
+
+    if (loading) {
+        return (
+            <View style={lyricStyles.center}>
+                <ActivityIndicator color={COLORS.accent} size="large" />
+                <Text style={lyricStyles.loadingText}>Đang tải lời bài hát...</Text>
+            </View>
+        );
+    }
+
+    if (error) {
+        return (
+            <View style={lyricStyles.center}>
+                <Text style={lyricStyles.noLyricIcon}>📝</Text>
+                <Text style={lyricStyles.noLyricText}>{error}</Text>
+            </View>
+        );
+    }
+
+    if (!lyricData || lines.length === 0) {
+        return (
+            <View style={lyricStyles.center}>
+                <Text style={lyricStyles.noLyricIcon}>🎵</Text>
+                <Text style={lyricStyles.noLyricText}>Chưa có lời bài hát</Text>
+            </View>
+        );
+    }
+
+    return (
+        <ScrollView
+            ref={scrollRef}
+            style={lyricStyles.scrollView}
+            contentContainerStyle={lyricStyles.scrollContent}
+            showsVerticalScrollIndicator={false}
+        >
+            <View style={lyricStyles.spacerTop} />
+            {lines.map((line, idx) => {
+                const isActive = idx === activeIndex;
+                const isPast = isSynced && activeIndex >= 0 && idx < activeIndex;
+                return (
+                    <Pressable
+                        key={idx}
+                        onPress={() => {
+                            if (isSynced && line.timeMs != null && onSeek) {
+                                onSeek(line.timeMs / 1000);
+                            }
+                        }}
+                        onLayout={e => {
+                            lineHeights.current[idx] = e.nativeEvent.layout.height;
+                        }}
+                    >
+                        <Text
+                            style={[
+                                lyricStyles.line,
+                                isActive && lyricStyles.lineActive,
+                                isPast && lyricStyles.linePast,
+                                !isSynced && lyricStyles.lineUnsyced,
+                            ]}
+                        >
+                            {line.text}
+                        </Text>
+                    </Pressable>
+                );
+            })}
+            <View style={lyricStyles.spacerBottom} />
+        </ScrollView>
+    );
+});
+
+function findActiveLineIndex(lines: LyricLine[], currentTimeMs: number): number {
+    if (lines.length === 0) return -1;
+    let active = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].timeMs != null && lines[i].timeMs! <= currentTimeMs) {
+            active = i;
+        }
+    }
+    return active;
+}
+
+const lyricStyles = StyleSheet.create({
+    center: {
+        flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32,
+    },
+    loadingText: {
+        color: COLORS.glass50, fontSize: 14, marginTop: 12,
+    },
+    noLyricIcon: { fontSize: 48, marginBottom: 12 },
+    noLyricText: { color: COLORS.glass40, fontSize: 15, textAlign: 'center' },
+    scrollView: { flex: 1 },
+    scrollContent: { paddingHorizontal: 24 },
+    spacerTop: { height: 40 },
+    spacerBottom: { height: 200 },
+    line: {
+        color: COLORS.glass35,
+        fontSize: 18,
+        lineHeight: 32,
+        fontWeight: '600',
+        paddingVertical: 6,
+        textAlign: 'center',
+    },
+    lineActive: {
+        color: COLORS.white,
+        fontSize: 22,
+        fontWeight: '800',
+        transform: [{ scale: 1.02 }],
+    },
+    linePast: {
+        color: COLORS.glass25,
+    },
+    lineUnsyced: {
+        color: COLORS.glass70,
+        fontSize: 16,
+        lineHeight: 28,
+    },
+});
+
+// ─── Main Modal ────────────────────────────────────────────────────────────────
 
 export const FullPlayerModal = () => {
     const insets = useSafeAreaInsets();
@@ -43,6 +200,14 @@ export const FullPlayerModal = () => {
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
     const [newPlaylistName, setNewPlaylistName] = useState('');
     const [shareQr, setShareQr] = useState<string | null>(null);
+
+    // Lyrics state
+    const [activePage, setActivePage] = useState(0);
+    const [lyricData, setLyricData] = useState<LyricResponse | null>(null);
+    const [lyricLoading, setLyricLoading] = useState(false);
+    const [lyricError, setLyricError] = useState<string | null>(null);
+    const lyricFetchedForRef = useRef<string | null>(null);
+    const pagerRef = useRef<ScrollView>(null);
 
     const {
         currentSong, isFullScreen, setFullScreen,
@@ -53,14 +218,47 @@ export const FullPlayerModal = () => {
         repeatMode, isShuffled, cycleRepeatMode, toggleShuffle,
     } = usePlayer();
 
+    const hasLyrics = !!currentSong?.lyricUrl;
+    const currentTimeMs = currentTime * 1000;
+
     const NETWORK_LABEL: Record<string, string> = {
         high: '📶 Mạng tốt', medium: '📶 Mạng trung bình', low: '📶 Mạng yếu', offline: '📴 Ngoại tuyến',
     };
 
+    // Fetch lyrics when song changes
+    useEffect(() => {
+        if (!isFullScreen || !currentSong) return;
+
+        if (!hasLyrics) {
+            setLyricData(null);
+            setLyricError(null);
+            lyricFetchedForRef.current = null;
+            return;
+        }
+
+        if (lyricFetchedForRef.current === currentSong.id) return;
+        lyricFetchedForRef.current = currentSong.id;
+
+        setLyricLoading(true);
+        setLyricError(null);
+        getLyric(currentSong.id)
+            .then(setLyricData)
+            .catch(() => setLyricError('Không thể tải lời bài hát'))
+            .finally(() => setLyricLoading(false));
+    }, [isFullScreen, currentSong?.id, hasLyrics]);
+
+    // Reset page when modal closes or song changes
+    useEffect(() => {
+        if (!isFullScreen) {
+            setActivePage(0);
+            pagerRef.current?.scrollTo({ x: 0, animated: false });
+        }
+    }, [isFullScreen, currentSong?.id]);
+
     // ── Seek bar ──────────────────────────────────────────────────────────────
     const barWidthRef = useRef(1);
     const durationRef = useRef(0);
-    React.useEffect(() => { durationRef.current = duration; }, [duration]);
+    useEffect(() => { durationRef.current = duration; }, [duration]);
 
     const seekPan = useRef(
         PanResponder.create({
@@ -77,42 +275,26 @@ export const FullPlayerModal = () => {
         }),
     ).current;
 
-    // ── Swipe down / left → dismiss ────────────────────────────────────────────
+    // ── Swipe down → dismiss (vertical only) ─────────────────────────────────
     const translateY = useRef(new Animated.Value(0)).current;
-    const translateX = useRef(new Animated.Value(0)).current;
 
     const dismissPan = useRef(
         PanResponder.create({
-            onMoveShouldSetPanResponder: (_, gs) => {
-                const down = gs.dy >  12 && Math.abs(gs.dy) > Math.abs(gs.dx) * 0.8;
-                const left = gs.dx < -12 && Math.abs(gs.dx) > Math.abs(gs.dy) * 0.8;
-                return down || left;
-            },
+            onMoveShouldSetPanResponder: (_, gs) =>
+                gs.dy > 12 && Math.abs(gs.dy) > Math.abs(gs.dx) * 1.5,
             onPanResponderMove: (_, gs) => {
-                if (gs.dy > 0 && Math.abs(gs.dy) >= Math.abs(gs.dx)) {
-                    translateY.setValue(gs.dy);
-                } else if (gs.dx < 0) {
-                    translateX.setValue(gs.dx);
-                }
+                if (gs.dy > 0) translateY.setValue(gs.dy);
             },
             onPanResponderRelease: (_, gs) => {
-                const swipedDown = gs.dy >  100;
-                const swipedLeft = gs.dx < -80;
-                if (swipedDown || swipedLeft) {
-                    const anim = swipedLeft
-                        ? Animated.timing(translateX, { toValue: -800, duration: 250, useNativeDriver: true })
-                        : Animated.timing(translateY, { toValue:  900, duration: 250, useNativeDriver: true });
-                    anim.start(() => {
-                        translateY.setValue(0);
-                        translateX.setValue(0);
-                        stopPlayer();
-                        setFullScreen(false);
-                    });
+                if (gs.dy > 120) {
+                    Animated.timing(translateY, { toValue: 900, duration: 250, useNativeDriver: true })
+                        .start(() => {
+                            translateY.setValue(0);
+                            stopPlayer();
+                            setFullScreen(false);
+                        });
                 } else {
-                    Animated.parallel([
-                        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 6 }),
-                        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 6 }),
-                    ]).start();
+                    Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 6 }).start();
                 }
             },
         }),
@@ -121,7 +303,7 @@ export const FullPlayerModal = () => {
     const progress  = duration > 0 ? currentTime / duration : 0;
     const thumbLeft = Math.max(0, progress * barWidthRef.current - THUMB_RADIUS);
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (!isFullScreen) return;
         void (async () => {
             try {
@@ -133,7 +315,19 @@ export const FullPlayerModal = () => {
 
     const openPlaylistPicker = () => setPlaylistPickerOpen(true);
 
+    const handlePageScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+        setActivePage(page);
+    }, []);
+
+    const goToPage = useCallback((page: number) => {
+        pagerRef.current?.scrollTo({ x: page * SCREEN_W, animated: true });
+        setActivePage(page);
+    }, []);
+
     if (!currentSong) return null;
+
+    const showLyricsTab = hasLyrics || lyricData;
 
     return (
         <Modal
@@ -143,7 +337,7 @@ export const FullPlayerModal = () => {
             onRequestClose={() => setFullScreen(false)}
         >
             <Animated.View
-                style={[{ flex: 1 }, { transform: [{ translateY }, { translateX }] }]}
+                style={[{ flex: 1 }, { transform: [{ translateY }] }]}
                 {...dismissPan.panHandlers}
             >
                 <LinearGradient
@@ -156,161 +350,243 @@ export const FullPlayerModal = () => {
                         <Pressable onPress={() => setFullScreen(false)} hitSlop={10}>
                             <Text style={styles.chevron}>⌄</Text>
                         </Pressable>
-                        <Text style={styles.headerTitle}>Đang phát</Text>
+
+                        {/* Page indicators */}
+                        {showLyricsTab ? (
+                            <View style={styles.pageIndicator}>
+                                <Pressable onPress={() => goToPage(0)} hitSlop={4}>
+                                    <Text style={[
+                                        styles.pageIndicatorText,
+                                        activePage === 0 && styles.pageIndicatorActive,
+                                    ]}>Đang phát</Text>
+                                </Pressable>
+                                <View style={styles.pageDot} />
+                                <Pressable onPress={() => goToPage(1)} hitSlop={4}>
+                                    <Text style={[
+                                        styles.pageIndicatorText,
+                                        activePage === 1 && styles.pageIndicatorActive,
+                                    ]}>Lời nhạc</Text>
+                                </Pressable>
+                            </View>
+                        ) : (
+                            <Text style={styles.headerTitle}>Đang phát</Text>
+                        )}
+
                         <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}>
                             <Text style={styles.moreBtn}>⋯</Text>
                         </Pressable>
                     </View>
 
-                    {/* Artwork */}
-                    <View style={styles.artworkSection}>
-                        {currentSong.thumbnailUrl
-                            ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.artwork} />
-                            : <View style={[styles.artwork, styles.artworkPlaceholder]}>
-                                <Text style={styles.artworkIcon}>🎵</Text>
-                            </View>
-                        }
-                    </View>
-
-                    {/* Song info */}
-                    <View style={styles.songInfo}>
-                        <Text style={styles.songTitle}   numberOfLines={2}>{currentSong.title}</Text>
-                        <Text style={styles.artistName}  numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
-                        {currentSong.genres?.length > 0 && (
-                            <View style={styles.genreRow}>
-                                {currentSong.genres.slice(0, 3).map(g => (
-                                    <View key={g.id} style={styles.genreChip}>
-                                        <Text style={styles.genreText}>{g.name}</Text>
+                    {/* Horizontal pager */}
+                    <ScrollView
+                        ref={pagerRef}
+                        horizontal
+                        pagingEnabled
+                        scrollEnabled={!!showLyricsTab}
+                        showsHorizontalScrollIndicator={false}
+                        onMomentumScrollEnd={handlePageScroll}
+                        style={{ flex: 1 }}
+                        bounces={false}
+                    >
+                        {/* ── Page 1: Player ─────────────────────────── */}
+                        <View style={{ width: SCREEN_W, paddingHorizontal: 24 }}>
+                            {/* Artwork */}
+                            <View style={styles.artworkSection}>
+                                {currentSong.thumbnailUrl
+                                    ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.artwork} />
+                                    : <View style={[styles.artwork, styles.artworkPlaceholder]}>
+                                        <Text style={styles.artworkIcon}>🎵</Text>
                                     </View>
-                                ))}
+                                }
                             </View>
-                        )}
-                    </View>
 
-                    {/* Seek bar */}
-                    <View style={styles.progressSection}>
-                        <View
-                            style={styles.seekTouchArea}
-                            onLayout={e => { barWidthRef.current = e.nativeEvent.layout.width; }}
-                            {...seekPan.panHandlers}
-                        >
-                            <View style={styles.seekTrack}>
-                                <View style={[styles.seekFill, { width: `${progress * 100}%` as any }]} />
+                            {/* Song info */}
+                            <View style={styles.songInfo}>
+                                <Text style={styles.songTitle} numberOfLines={2}>{currentSong.title}</Text>
+                                <Text style={styles.artistName} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
+                                {currentSong.genres?.length > 0 && (
+                                    <View style={styles.genreRow}>
+                                        {currentSong.genres.slice(0, 3).map(g => (
+                                            <View key={g.id} style={styles.genreChip}>
+                                                <Text style={styles.genreText}>{g.name}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
                             </View>
-                            <View style={[styles.seekThumb, { left: thumbLeft }]} pointerEvents="none" />
-                        </View>
-                        <View style={styles.timeRow}>
-                            <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-                            <Text style={styles.timeText}>{formatTime(duration)}</Text>
-                        </View>
-                    </View>
 
-                    {/* Controls row: shuffle | prev | play/pause | next | repeat */}
-                    <View style={styles.controls}>
-                        {/* Shuffle */}
-                        <Pressable style={styles.sideBtn} onPress={toggleShuffle} hitSlop={8}>
-                            <Text style={[styles.modeIcon, isShuffled && styles.modeIconActive]}>
-                                <Foundation name="shuffle" color="#34D399"  size={24} />
-                            </Text>
-                            {isShuffled && <View style={styles.modeDot} />}
-                        </Pressable>
+                            {/* Seek bar */}
+                            <View style={styles.progressSection}>
+                                <View
+                                    style={styles.seekTouchArea}
+                                    onLayout={e => { barWidthRef.current = e.nativeEvent.layout.width; }}
+                                    {...seekPan.panHandlers}
+                                >
+                                    <View style={styles.seekTrack}>
+                                        <View style={[styles.seekFill, { width: `${progress * 100}%` as any }]} />
+                                    </View>
+                                    <View style={[styles.seekThumb, { left: thumbLeft }]} pointerEvents="none" />
+                                </View>
+                                <View style={styles.timeRow}>
+                                    <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+                                    <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                                </View>
+                            </View>
 
-                        {/* Previous */}
-                        <Pressable style={styles.sideBtn} onPress={playPrev}>
-                            <MaterialCommunityIcons name="skip-previous" color="#fff" size={30} />
-                        </Pressable>
+                            {/* Controls */}
+                            <View style={styles.controls}>
+                                <Pressable style={styles.sideBtn} onPress={toggleShuffle} hitSlop={8}>
+                                    <Text style={[styles.modeIcon, isShuffled && styles.modeIconActive]}>
+                                        <Foundation name="shuffle" color="#34D399" size={24} />
+                                    </Text>
+                                    {isShuffled && <View style={styles.modeDot} />}
+                                </Pressable>
 
-                        {/* Play / pause */}
-                        <Pressable style={styles.playBtn} onPress={togglePlay}>
-                            <LinearGradient colors={[COLORS.accent, COLORS.accentAlt]} style={styles.playBtnGradient}>
-                                <Text style={styles.playBtnIcon}>{!isLoaded ? '⏳' : isPlaying ? '⏸' : '▶'}</Text>
-                            </LinearGradient>
-                        </Pressable>
+                                <Pressable style={styles.sideBtn} onPress={playPrev}>
+                                    <MaterialCommunityIcons name="skip-previous" color="#fff" size={30} />
+                                </Pressable>
 
-                        {/* Next */}
-                        <Pressable style={styles.sideBtn} onPress={playNext}>
-                            <Text style={styles.sideBtnIcon}>
-                                <MaterialCommunityIcons name="skip-next" color="#fff" size={30} />
-                            </Text>
-                        </Pressable>
+                                <Pressable style={styles.playBtn} onPress={togglePlay}>
+                                    <LinearGradient colors={[COLORS.accent, COLORS.accentAlt]} style={styles.playBtnGradient}>
+                                        <Text style={styles.playBtnIcon}>{!isLoaded ? '⏳' : isPlaying ? '⏸' : '▶'}</Text>
+                                    </LinearGradient>
+                                </Pressable>
 
-                        {/* Repeat */}
-                        <Pressable style={styles.sideBtn} onPress={cycleRepeatMode} hitSlop={8}>
-                            <Text style={[
-                                styles.modeIcon,
-                                repeatMode !== 'none' && styles.modeIconActive,
-                            ]}>
-                                {repeatLabel(repeatMode)}
-                            </Text>
-                            {repeatMode !== 'none' && <View style={styles.modeDot} />}
-                        </Pressable>
-                    </View>
+                                <Pressable style={styles.sideBtn} onPress={playNext}>
+                                    <Text style={styles.sideBtnIcon}>
+                                        <MaterialCommunityIcons name="skip-next" color="#fff" size={30} />
+                                    </Text>
+                                </Pressable>
 
-                    {/* Mode label */}
-                    <View style={styles.modeLabels}>
-                        {isShuffled && (
-                            <Text style={styles.modeLabelText}><Foundation name="shuffle" color="#34D399"  size={13} /> Phát ngẫu nhiên</Text>
-                        )}
-                        {repeatMode === 'one' && (
-                            <Text style={styles.modeLabelText}><MaterialIcons name="repeat-one" color="#fff" size={13} /> Lặp bài này</Text>
-                        )}
-                        {repeatMode === 'all' && (
-                            <Text style={styles.modeLabelText}><MaterialCommunityIcons name="repeat" color="#fff" size={13} /> Lặp danh sách</Text>
-                        )}
-                    </View>
+                                <Pressable style={styles.sideBtn} onPress={cycleRepeatMode} hitSlop={8}>
+                                    <Text style={[styles.modeIcon, repeatMode !== 'none' && styles.modeIconActive]}>
+                                        {repeatLabel(repeatMode)}
+                                    </Text>
+                                    {repeatMode !== 'none' && <View style={styles.modeDot} />}
+                                </Pressable>
+                            </View>
 
-                    {/* Quality selector */}
-                    <View style={styles.qualitySection}>
-                        <View style={styles.qualityHeader}>
-                            <Text style={styles.qualityLabel}>Chất lượng âm thanh</Text>
-                            <Pressable
-                                style={[styles.autoBtn, autoQuality && styles.autoBtnActive]}
-                                onPress={() => setAutoQuality(!autoQuality)}
-                                hitSlop={8}
-                            >
-                                <Text style={[styles.autoBtnText, autoQuality && styles.autoBtnTextActive]}>
-                                    Tự động
-                                </Text>
-                            </Pressable>
-                        </View>
-                        <View style={styles.qualityRow}>
-                            {QUALITY_OPTIONS.map(opt => {
-                                const isSelected  = selectedQuality === opt.value;
-                                const isAvailable = opt.value <= maxQuality;
-                                const dimmed       = autoQuality && !isSelected;
-                                return (
+                            {/* Mode label */}
+                            <View style={styles.modeLabels}>
+                                {isShuffled && (
+                                    <Text style={styles.modeLabelText}><Foundation name="shuffle" color="#34D399" size={13} /> Phát ngẫu nhiên</Text>
+                                )}
+                                {repeatMode === 'one' && (
+                                    <Text style={styles.modeLabelText}><MaterialIcons name="repeat-one" color="#fff" size={13} /> Lặp bài này</Text>
+                                )}
+                                {repeatMode === 'all' && (
+                                    <Text style={styles.modeLabelText}><MaterialCommunityIcons name="repeat" color="#fff" size={13} /> Lặp danh sách</Text>
+                                )}
+                            </View>
+
+                            {/* Quality selector */}
+                            <View style={styles.qualitySection}>
+                                <View style={styles.qualityHeader}>
+                                    <Text style={styles.qualityLabel}>Chất lượng âm thanh</Text>
                                     <Pressable
-                                        key={opt.value}
-                                        style={[
-                                            styles.qualityBtn,
-                                            isSelected   && styles.qualityBtnActive,
-                                            !isAvailable && styles.qualityBtnLocked,
-                                            dimmed       && { opacity: 0.45 },
-                                        ]}
-                                        onPress={() => isAvailable && setQuality(opt.value)}
-                                        disabled={!isAvailable}
+                                        style={[styles.autoBtn, autoQuality && styles.autoBtnActive]}
+                                        onPress={() => setAutoQuality(!autoQuality)}
+                                        hitSlop={8}
                                     >
-                                        <Text style={[
-                                            styles.qualityBtnText,
-                                            isSelected   && styles.qualityBtnTextActive,
-                                            !isAvailable && styles.qualityBtnTextLocked,
-                                        ]}>
-                                            {opt.label}{!isAvailable ? '🔒' : ''}
+                                        <Text style={[styles.autoBtnText, autoQuality && styles.autoBtnTextActive]}>
+                                            Tự động
                                         </Text>
                                     </Pressable>
-                                );
-                            })}
+                                </View>
+                                <View style={styles.qualityRow}>
+                                    {QUALITY_OPTIONS.map(opt => {
+                                        const isSelected  = selectedQuality === opt.value;
+                                        const isAvailable = opt.value <= maxQuality;
+                                        const dimmed      = autoQuality && !isSelected;
+                                        return (
+                                            <Pressable
+                                                key={opt.value}
+                                                style={[
+                                                    styles.qualityBtn,
+                                                    isSelected   && styles.qualityBtnActive,
+                                                    !isAvailable && styles.qualityBtnLocked,
+                                                    dimmed       && { opacity: 0.45 },
+                                                ]}
+                                                onPress={() => isAvailable && setQuality(opt.value)}
+                                                disabled={!isAvailable}
+                                            >
+                                                <Text style={[
+                                                    styles.qualityBtnText,
+                                                    isSelected   && styles.qualityBtnTextActive,
+                                                    !isAvailable && styles.qualityBtnTextLocked,
+                                                ]}>
+                                                    {opt.label}{!isAvailable ? '🔒' : ''}
+                                                </Text>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+                                <Text style={styles.qualityHint}>
+                                    {'Đang phát: '}
+                                    <Text style={{ color: COLORS.accent }}>{selectedQuality}kbps</Text>
+                                    {autoQuality
+                                        ? `  •  ${NETWORK_LABEL[networkTier] ?? networkTier}`
+                                        : maxQuality < 320
+                                            ? '  •  Nâng cấp Premium để mở chất lượng cao hơn'
+                                            : '  •  Chất lượng tối đa'}
+                                </Text>
+                            </View>
+
+                            {/* Lyric hint */}
+                            {showLyricsTab && activePage === 0 && (
+                                <Pressable style={styles.lyricHint} onPress={() => goToPage(1)}>
+                                    <Text style={styles.lyricHintText}>📝 Vuốt sang phải để xem lời nhạc</Text>
+                                </Pressable>
+                            )}
+
+                            {/* Stats */}
+                            <View style={styles.stats}>
+                                <Text style={styles.statsText}>
+                                    🎧 {currentSong.playCount?.toLocaleString('vi-VN') ?? 0} lượt nghe
+                                </Text>
+                            </View>
+
+                            <View style={{ height: insets.bottom + 16 }} />
                         </View>
-                        <Text style={styles.qualityHint}>
-                            {'Đang phát: '}
-                            <Text style={{ color: COLORS.accent }}>{selectedQuality}kbps</Text>
-                            {autoQuality
-                                ? `  •  ${NETWORK_LABEL[networkTier] ?? networkTier}`
-                                : maxQuality < 320
-                                    ? '  •  Nâng cấp Premium để mở chất lượng cao hơn'
-                                    : '  •  Chất lượng tối đa'}
-                        </Text>
-                    </View>
+
+                        {/* ── Page 2: Lyrics ─────────────────────────── */}
+                        {showLyricsTab && (
+                            <View style={{ width: SCREEN_W }}>
+                                {/* Mini player bar on lyrics page */}
+                                <View style={styles.lyricMiniBar}>
+                                    {currentSong.thumbnailUrl
+                                        ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.lyricMiniArt} />
+                                        : <View style={[styles.lyricMiniArt, { backgroundColor: COLORS.accentFill20 }]}>
+                                            <Text style={{ fontSize: 14 }}>🎵</Text>
+                                        </View>
+                                    }
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.lyricMiniTitle} numberOfLines={1}>{currentSong.title}</Text>
+                                        <Text style={styles.lyricMiniArtist} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
+                                    </View>
+                                    <Pressable onPress={togglePlay} hitSlop={8}>
+                                        <Text style={styles.lyricMiniPlay}>{isPlaying ? '⏸' : '▶'}</Text>
+                                    </Pressable>
+                                </View>
+
+                                {/* Progress bar thin */}
+                                <View style={styles.lyricProgress}>
+                                    <View style={[styles.lyricProgressFill, { width: `${progress * 100}%` as any }]} />
+                                </View>
+
+                                {/* Lyrics content */}
+                                <LyricViewer
+                                    lyricData={lyricData}
+                                    loading={lyricLoading}
+                                    error={lyricError}
+                                    currentTimeMs={currentTimeMs}
+                                    onSeek={seekTo}
+                                />
+
+                                <View style={{ height: insets.bottom + 16 }} />
+                            </View>
+                        )}
+                    </ScrollView>
 
                     {/* Action sheet */}
                     <SongActionSheet
@@ -395,15 +671,6 @@ export const FullPlayerModal = () => {
                             </View>
                         </Pressable>
                     </Modal>
-
-                    {/* Stats */}
-                    <View style={styles.stats}>
-                        <Text style={styles.statsText}>
-                            🎧 {currentSong.playCount?.toLocaleString('vi-VN') ?? 0} lượt nghe
-                        </Text>
-                    </View>
-
-                    <View style={{ height: insets.bottom + 16 }} />
                 </LinearGradient>
             </Animated.View>
         </Modal>
@@ -411,11 +678,17 @@ export const FullPlayerModal = () => {
 };
 
 const styles = StyleSheet.create({
-    root:               { flex: 1, paddingHorizontal: 24 },
-    header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16 },
+    root:               { flex: 1 },
+    header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 24 },
     chevron:            { color: COLORS.white, fontSize: 32, lineHeight: 32, fontWeight: '700' },
     headerTitle:        { color: COLORS.glass60, fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
     moreBtn:            { color: COLORS.white, fontSize: 30, lineHeight: 30 },
+
+    pageIndicator:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    pageIndicatorText:  { color: COLORS.glass35, fontSize: 13, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+    pageIndicatorActive: { color: COLORS.white },
+    pageDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.glass30 },
+
     artworkSection:     { alignItems: 'center', marginTop: 8, marginBottom: 20 },
     artwork:            { width: 240, height: 240, borderRadius: 20, backgroundColor: COLORS.surface },
     artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.accentBorder25, backgroundColor: COLORS.accentFill20 },
@@ -434,7 +707,6 @@ const styles = StyleSheet.create({
     timeRow:            { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
     timeText:           { color: COLORS.glass40, fontSize: 12, fontWeight: '500' },
 
-    // Controls: shuffle | prev | play | next | repeat
     controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 4 },
     sideBtn:            { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
     sideBtnIcon:        { fontSize: 28, color: COLORS.glass70 },
@@ -442,7 +714,6 @@ const styles = StyleSheet.create({
     playBtnGradient:    { width: 72, height: 72, alignItems: 'center', justifyContent: 'center' },
     playBtnIcon:        { fontSize: 28, color: COLORS.white },
 
-    // Mode icons (shuffle / repeat)
     modeIcon:           { fontSize: 22, color: COLORS.glass35 },
     modeIconActive:     { color: COLORS.accent },
     modeDot:            { width: 5, height: 5, borderRadius: 3, backgroundColor: COLORS.accent, marginTop: 2 },
@@ -464,6 +735,17 @@ const styles = StyleSheet.create({
     qualityBtnTextActive:   { color: COLORS.accent },
     qualityBtnTextLocked:   { color: COLORS.glass25 },
     qualityHint:            { color: COLORS.glass30, fontSize: 11, lineHeight: 16 },
+
+    lyricHint:          { alignItems: 'center', marginBottom: 8 },
+    lyricHintText:      { color: COLORS.glass30, fontSize: 12, fontWeight: '500' },
+
+    lyricMiniBar:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 10 },
+    lyricMiniArt:       { width: 40, height: 40, borderRadius: 8, backgroundColor: COLORS.surface },
+    lyricMiniTitle:     { color: COLORS.white, fontSize: 14, fontWeight: '700' },
+    lyricMiniArtist:    { color: COLORS.glass50, fontSize: 12 },
+    lyricMiniPlay:      { color: COLORS.white, fontSize: 22 },
+    lyricProgress:      { height: 2, backgroundColor: COLORS.glass10, marginHorizontal: 20 },
+    lyricProgressFill:  { height: 2, backgroundColor: COLORS.accent, borderRadius: 1 },
 
     menuBackdrop:       { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
     menuSheet:          { backgroundColor: COLORS.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, gap: 10 },

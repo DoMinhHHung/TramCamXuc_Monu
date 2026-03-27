@@ -214,6 +214,7 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<AlbumResponse> getMyAlbums(Pageable pageable) {
         Artist artist = requireCurrentArtist();
         return albumRepository.findByOwnerArtistId(artist.getId(), pageable)
@@ -221,6 +222,7 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public AlbumResponse getAlbumDetail(UUID albumId) {
         Artist artist = requireCurrentArtist();
         Album album = requireOwnAlbum(albumId, artist.getId());
@@ -477,6 +479,7 @@ public class AlbumServiceImpl implements AlbumService {
 //    }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<AlbumResponse> getPublicAlbums(String artistIdStr, Pageable pageable) {
         if (artistIdStr != null) {
             UUID artistId = UUID.fromString(artistIdStr);
@@ -491,6 +494,7 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public AlbumResponse getPublicAlbumDetail(UUID albumId) {
         Album album = albumRepository.findByIdAndStatus(albumId, AlbumStatus.PUBLIC)
                 .orElseThrow(() -> new AppException(ErrorCode.ALBUM_NOT_FOUND));

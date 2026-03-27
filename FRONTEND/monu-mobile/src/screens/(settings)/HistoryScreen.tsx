@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   Pressable,
@@ -18,6 +19,8 @@ import { ColorScheme, useThemeColors } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
 import { usePlayer } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
+import { getSongsByIds } from '../../services/music';
+import { getMyListenHistory } from '../../services/social';
 import { clearListenHistory, getListenHistory, ListenHistoryItem } from '../../utils/listenHistory';
 
 const timeAgo = (ms: number, t: (key: string, params?: any) => string): string => {
@@ -59,6 +62,26 @@ export const HistoryScreen = () => {
   };
 
   const onClear = async () => {
+    if (fromServer) {
+      Alert.alert(
+        t('screens.history.clearServerTitle', 'Lịch sử trên tài khoản'),
+        t(
+            'screens.history.clearServerMessage',
+            'Lịch sử trên máy chủ chưa thể xóa từ app. Bạn vẫn có thể xóa bản nhớ cục bộ trên máy này.',
+        ),
+        [
+          { text: t('common.cancel', 'Huỷ'), style: 'cancel' },
+          {
+            text: t('screens.history.clearLocalOnly', 'Xóa bản trên máy'),
+            style: 'destructive',
+            onPress: async () => {
+              await clearListenHistory();
+            },
+          },
+        ],
+      );
+      return;
+    }
     await clearListenHistory();
     setItems([]);
   };
@@ -73,8 +96,10 @@ export const HistoryScreen = () => {
         <View style={styles.headerTop}>
           <BackButton onPress={() => navigation.goBack()} />
           {items.length > 0 ? (
-            <Pressable style={styles.clearBtn} onPress={onClear}>
-              <Text style={styles.clearBtnText}>{t('screens.history.clearHistory')}</Text>
+            <Pressable style={styles.clearBtn} onPress={() => void onClear()}>
+              <Text style={styles.clearBtnText}>
+                {fromServer ? t('screens.history.clearOptions', 'Tuỳ chọn xóa') : t('screens.history.clearHistory')}
+              </Text>
             </Pressable>
           ) : (
             <View style={{ width: 48 }} />

@@ -1,9 +1,24 @@
 server:
   port: 8769
+  compression:
+    enabled: true
+    mime-types:
+      - application/json
+      - application/javascript
+      - text/plain
+    min-response-size: 1024
 
 spring:
   application:
     name: recommendation-service
+
+  cloud:
+    openfeign:
+      client:
+        config:
+          social-service:
+            connectTimeout: 8000
+            readTimeout: 90000
 
   main:
     lazy-initialization: false
@@ -53,7 +68,6 @@ social:
   service:
     url: ${SOCIAL_SERVICE_URL:http://social-service:8767}
 
-# Cấu hình blending weights — tách ra yml để dễ tune không cần redeploy
 recommendation:
   blend:
     cf-weight: 0.35
@@ -62,8 +76,8 @@ recommendation:
     trending-weight: 0.15
     freshness-weight: 0.05
   trending:
-    decay-factor: 0.85           # nhân mỗi giờ → bài 8h trước còn ~27% score
-    global-top-size: 200         # giữ 200 bài trong ZSET global (đủ để phân trang)
+    decay-factor: 0.85          
+    global-top-size: 200         
     genre-top-size: 100
   cache:
     home-ttl-minutes: 15
@@ -73,8 +87,13 @@ recommendation:
     insights-ttl-minutes: 30
   page:
     default-size: 20
-    max-songs-per-artist: 2      # không trả quá 2 bài cùng artist trong top-20
-    exclusion-window-days: 7     # loại bài user nghe trong 7 ngày qua
+    max-songs-per-artist: 2      
+    exclusion-window-days: 7     
+  health:
+    ml-probe-connect-timeout-ms: 5000
+    ml-probe-read-timeout-ms: 90000
+    ml-check-interval-ms: 30000
+    ml-check-initial-delay-ms: 0
 
 open:
   api:
@@ -95,11 +114,16 @@ management:
   endpoint:
     health:
       show-details: never
+      probes:
+        enabled: true
+      status:
+        # DEGRADED (ML down, vẫn phục vụ fallback) không bị coi như DOWN mặc định
+        order: DOWN, OUT_OF_SERVICE, UNKNOWN, DEGRADED, UP
   metrics:
     tags:
       application: ${spring.application.name}
 
 internal:
-  service-secret: ${INTERNAL_SERVICE_SECRET}
+  service-secret: ${INTERNAL_SERVICE_SECRET:}
 gateway:
   internal-secret: ${GATEWAY_INTERNAL_SECRET:}

@@ -91,6 +91,7 @@ public class SongReportServiceImpl implements SongReportService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<SongReportResponse> getReports(ReportStatus status, UUID songId, Pageable pageable) {
         return reportRepository.findForAdmin(status, songId, pageable)
                 .map(r -> {

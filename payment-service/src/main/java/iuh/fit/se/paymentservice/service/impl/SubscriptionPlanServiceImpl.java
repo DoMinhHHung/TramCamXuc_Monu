@@ -1,5 +1,7 @@
 package iuh.fit.se.paymentservice.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.paymentservice.config.RabbitMQConfig;
 import iuh.fit.se.paymentservice.dto.request.SubscriptionPlanRequest;
 import iuh.fit.se.paymentservice.dto.request.SubscriptionPlanUpdateRequest;
@@ -9,17 +11,20 @@ import iuh.fit.se.paymentservice.event.FreePlanResponseEvent;
 import iuh.fit.se.paymentservice.exception.AppException;
 import iuh.fit.se.paymentservice.exception.ErrorCode;
 import iuh.fit.se.paymentservice.dto.mapper.SubscriptionPlanMapper;
+import iuh.fit.se.paymentservice.outbox.OutboxEvent;
+import iuh.fit.se.paymentservice.outbox.OutboxEventRepository;
+import iuh.fit.se.paymentservice.outbox.OutboxEventTypes;
 import iuh.fit.se.paymentservice.repository.SubscriptionPlanRepository;
 import iuh.fit.se.paymentservice.repository.UserSubscriptionRepository;
 import iuh.fit.se.paymentservice.service.SubscriptionPlanService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +39,8 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
     private final SubscriptionPlanRepository planRepository;
     private final UserSubscriptionRepository subscriptionRepository;
     private final SubscriptionPlanMapper planMapper;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
     // ──────────────────────────────────────────────────────────
     // CREATE
@@ -127,11 +133,13 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
     // ──────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public SubscriptionPlanResponse getPlanById(UUID id) {
         return planMapper.toResponse(getPlanOrThrow(id));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<SubscriptionPlanResponse> getAllActivePlans() {
         return planRepository.findAllByIsActiveTrueOrderByDisplayOrderAsc()
                 .stream()
@@ -140,6 +148,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<SubscriptionPlanResponse> getAllPlans(Pageable pageable) {
         return planRepository.findAll(pageable).map(planMapper::toResponse);
     }
@@ -155,17 +164,23 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
 
     private void broadcastFreePlan(SubscriptionPlan plan) {
         try {
-            rabbitTemplate.convertAndSend(
-                    RabbitMQConfig.CONFIG_EXCHANGE,
-                    RabbitMQConfig.ROUTING_FREE_PLAN_RESPONSE,
-                    FreePlanResponseEvent.builder()
-                            .planName(plan.getSubsName())
-                            .features(plan.getFeatures())
-                            .build()
-            );
-            log.info("Broadcasted FREE plan config update to identity-service");
-        } catch (Exception e) {
-            log.error("Failed to broadcast FREE plan update", e);
+            FreePlanResponseEvent evt = FreePlanResponseEvent.builder()
+                    .planName(plan.getSubsName())
+                    .features(plan.getFeatures())
+                    .build();
+            outboxEventRepository.save(OutboxEvent.builder()
+                    .aggregateType("SubscriptionPlan")
+                    .aggregateId(plan.getId().toString())
+                    .eventType(OutboxEventTypes.FREE_PLAN_BROADCAST)
+                    .exchange(RabbitMQConfig.CONFIG_EXCHANGE)
+                    .routingKey(RabbitMQConfig.ROUTING_FREE_PLAN_RESPONSE)
+                    .payload(objectMapper.writeValueAsString(evt))
+                    .published(false)
+                    .createdAt(Instant.now())
+                    .build());
+            log.info("Enqueued FREE plan config outbox for identity-service");
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize FreePlanResponseEvent for outbox", e);
         }
     }
 }

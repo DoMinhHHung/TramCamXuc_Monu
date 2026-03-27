@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 
-import { confirmUploadSong, requestUploadSong } from '../services/music';
+import { confirmUploadSong, requestUploadSong, uploadLyric } from '../services/music';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +34,7 @@ interface UploadContextValue {
         title: string;
         genreIds: string[];
         file: DocumentPicker.DocumentPickerAsset;
+        lyricFile?: DocumentPicker.DocumentPickerAsset | null;
     }) => Promise<void>;
     dismissJob: () => void;
 }
@@ -108,10 +109,12 @@ export const UploadProvider = ({ children }: PropsWithChildren) => {
                                                title,
                                                genreIds,
                                                file,
+                                               lyricFile,
                                            }: {
         title: string;
         genreIds: string[];
         file: DocumentPicker.DocumentPickerAsset;
+        lyricFile?: DocumentPicker.DocumentPickerAsset | null;
     }) => {
         if (job?.stage === 'requesting' || job?.stage === 'uploading' || job?.stage === 'confirming') {
             return;
@@ -150,6 +153,21 @@ export const UploadProvider = ({ children }: PropsWithChildren) => {
 
             // Bước 3: confirm để trigger transcode
             await confirmUploadSong(created.id);
+
+            // Bước 4: upload lyric nếu có
+            if (lyricFile) {
+                console.log('[Upload] uploading lyric file...');
+                try {
+                    await uploadLyric(created.id, {
+                        uri: lyricFile.uri,
+                        name: lyricFile.name,
+                        type: lyricFile.mimeType ?? 'text/plain',
+                    });
+                    console.log('[Upload] lyric uploaded');
+                } catch (lyricErr: any) {
+                    console.warn('[Upload] lyric upload failed (song OK):', lyricErr?.message);
+                }
+            }
 
             updateJob({ stage: 'done', progress: 100 });
             console.log('[Upload] done:', title);

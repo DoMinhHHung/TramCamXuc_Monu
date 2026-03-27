@@ -4,6 +4,7 @@ import { Pressable, Text } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useHeartCache } from '../context/HeartCacheContext';
 import { heartSong, unheartSong } from '../services/social';
+import { haptic } from '../utils/haptics';
 
 interface HeartButtonProps {
     songId: string;
@@ -20,6 +21,7 @@ export const HeartButton = ({ songId, size = 22, onToggle }: HeartButtonProps) =
     const handlePress = async () => {
         if (!authSession) return;
 
+        haptic.light();
         const newHearted = !hearted;
         setHearted(songId, newHearted);
         onToggle?.(newHearted);

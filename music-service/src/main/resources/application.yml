@@ -1,12 +1,19 @@
 server:
   port: 8764
+  compression:
+    enabled: true
+    mime-types:
+      - application/json
+      - application/javascript
+      - text/plain
+    min-response-size: 1024
 
 spring:
   application:
     name: music-service
 
   main:
-    lazy-initialization: true
+    lazy-initialization: false
     banner-mode: off
   jmx:
     enabled: false

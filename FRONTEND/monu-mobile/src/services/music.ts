@@ -25,6 +25,7 @@ export interface Song {
   status: 'DRAFT' | 'PUBLIC' | 'ARCHIVED' | 'PRIVATE' | "DELETED";
   transcodeStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   streamUrl?: string;
+  lyricUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   uploadUrl?: string;
@@ -264,4 +265,67 @@ export const reorderPlaylists = async (playlistIds: string[]): Promise<void> => 
 
 export const reportSong = async (songId: string, payload: { reason: 'COPYRIGHT_VIOLATION' | 'EXPLICIT_CONTENT' | 'HATE_SPEECH' | 'SPAM' | 'MISINFORMATION' | 'OTHER'; description?: string }): Promise<void> => {
   await apiClient.post(`/songs/${songId}/report`, payload);
+};
+
+// ── Lyrics ──────────────────────────────────────────────────────────────────
+
+export type LyricFormat = 'LRC' | 'SRT' | 'TXT';
+
+export interface LyricLine {
+  timeMs: number | null;
+  text: string;
+}
+
+export interface LyricResponse {
+  songId: string;
+  format: LyricFormat;
+  lines: LyricLine[];
+}
+
+export const getLyric = async (songId: string): Promise<LyricResponse> => {
+  const response = await apiClient.get<LyricResponse>(`/songs/${songId}/lyrics`);
+  return unwrap<LyricResponse>(response.data);
+};
+
+export const searchByLyric = async (params: {
+  keyword: string;
+  page?: number;
+  size?: number;
+}): Promise<Song[]> => {
+  const response = await apiClient.get<Song[]>('/songs/search-by-lyric', { params });
+  return unwrap<Song[]>(response.data);
+};
+
+export const uploadLyric = async (songId: string, file: {
+  uri: string;
+  name: string;
+  type?: string;
+}): Promise<LyricResponse> => {
+  const form = new FormData();
+  form.append('file', {
+    uri: file.uri,
+    name: file.name,
+    type: file.type ?? 'application/octet-stream',
+  } as any);
+  const response = await apiClient.post<LyricResponse>(
+    `/songs/${songId}/lyrics`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  );
+  return unwrap<LyricResponse>(response.data);
+};
+
+export const deleteLyric = async (songId: string): Promise<void> => {
+  await apiClient.delete(`/songs/${songId}/lyrics`);
+};
+
+export type SongStatus = 'PUBLIC' | 'PRIVATE';
+
+export const updateSong = async (songId: string, payload: {
+  title?: string;
+  genreIds?: string[];
+  status?: SongStatus;
+}): Promise<Song> => {
+  const response = await apiClient.put<Song>(`/songs/${songId}`, payload);
+  return unwrap<Song>(response.data);
 };

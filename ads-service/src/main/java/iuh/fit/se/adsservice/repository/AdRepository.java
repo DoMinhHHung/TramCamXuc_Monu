@@ -45,15 +45,34 @@ public interface AdRepository extends JpaRepository<Ad, UUID> {
     void incrementClicks(@Param("id") UUID id);
 
     /** Auto-pause ads vượt budget */
+    @Modifying
     @Query("""
-        SELECT a FROM Ad a
-        WHERE a.status = 'ACTIVE'
-          AND a.budgetVnd > 0
-          AND (a.cpmVnd * a.totalImpressions / 1000) >= a.budgetVnd
+        UPDATE Ad a
+        SET a.totalImpressions = a.totalImpressions + 1,
+            a.status = CASE
+                WHEN a.budgetVnd > 0
+                AND a.cpmVnd * (a.totalImpressions + 1) / 1000 >= a.budgetVnd
+                THEN 'PAUSED'
+                ELSE a.status
+            END
+        WHERE a.id = :id
         """)
-    List<Ad> findBudgetExceededAds();
+void incrementImpressionsAndCheckBudget(@Param("id") UUID id);
 
     /** Danh sách tên advertiser duy nhất */
     @Query("SELECT DISTINCT a.advertiserName FROM Ad a ORDER BY a.advertiserName")
     List<String> findDistinctAdvertiserNames();
+
+    /**
+     * Ads đang ACTIVE nhưng doanh thu CPM ước tính đã đạt hoặc vượt ngân sách
+     * (cùng công thức với incrementImpressionsAndCheckBudget).
+     */
+    @Query("""
+        SELECT a FROM Ad a
+        WHERE a.status = :status
+          AND a.budgetVnd > 0
+          AND a.cpmVnd > 0
+          AND (a.cpmVnd * a.totalImpressions / 1000) >= a.budgetVnd
+        """)
+    List<Ad> findBudgetExceededAds(@Param("status") AdStatus status);
 }

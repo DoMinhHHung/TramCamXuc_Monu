@@ -15,7 +15,7 @@ import { usePlayer } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import {
-    Artist, getSongsByArtist, searchArtists, searchSongs, Song,
+    Artist, getSongsByArtist, searchArtists, searchByLyric, searchSongs, Song,
 } from '../../services/music';
 import {
     addSearchHistory, clearSearchHistory,
@@ -91,8 +91,21 @@ export const SearchScreen = () => {
         setArtistDetail(null);
         try {
             if (currentTab === 'songs') {
-                const res = await searchSongs({ keyword: q, size: 30 });
-                setSongResults(res.content);
+                const [titleRes, lyricRes] = await Promise.allSettled([
+                    searchSongs({ keyword: q, size: 30 }),
+                    searchByLyric({ keyword: q, size: 20 }),
+                ]);
+                const titleSongs = titleRes.status === 'fulfilled' ? titleRes.value.content : [];
+                const lyricSongs = lyricRes.status === 'fulfilled' ? lyricRes.value : [];
+                const seen = new Set(titleSongs.map(s => s.id));
+                const merged = [...titleSongs];
+                for (const s of lyricSongs) {
+                    if (!seen.has(s.id)) {
+                        seen.add(s.id);
+                        merged.push(s);
+                    }
+                }
+                setSongResults(merged);
             } else {
                 const res = await searchArtists({ keyword: q, size: 20 });
                 setArtistResults(res.content);
@@ -171,8 +184,9 @@ export const SearchScreen = () => {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     const showHistory  = !query.trim();
+    const currentResultCount = tab === 'songs' ? songResults.length : artistResults.length;
     const showEmpty    = !loading && !!query.trim() && !artistDetail
-        && (tab === 'songs' ? songResults.length === 0 : artistResults.length === 0);
+        && currentResultCount === 0;
 
     const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
         <Pressable

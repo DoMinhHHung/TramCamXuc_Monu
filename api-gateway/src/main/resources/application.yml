@@ -1,5 +1,12 @@
 server:
   port: 8080
+  compression:
+    enabled: true
+    mime-types:
+      - application/json
+      - application/javascript
+      - text/plain
+    min-response-size: 1024
 
 spring:
   application:
@@ -26,8 +33,9 @@ spring:
   cloud:
     gateway:
       httpclient:
-        connect-timeout: 5000
-        response-timeout: 30s
+        connect-timeout: 8000
+        # /recommendations/insights: recommendation → social (Render) + nhiều Feign music — 30s dễ cắt giữa chừng
+        response-timeout: 120s
       discovery:
         locator:
           enabled: true
@@ -209,6 +217,45 @@ spring:
                 redis-rate-limiter.burstCapacity: 60
                 redis-rate-limiter.requestedTokens: 1
 
+        - id: music-lyric-read
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/songs/*/lyrics
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: music-lyric-upload
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/songs/*/lyrics
+            - Method=POST,DELETE
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: music-lyric-search
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/songs/search-by-lyric
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+
         - id: music-swagger
           uri: lb://MUSIC-SERVICE
           predicates:
@@ -337,7 +384,8 @@ spring:
                 redis-rate-limiter.burstCapacity: 40
                 redis-rate-limiter.requestedTokens: 1
 
-        # ================= SOCIAL (deployed on Render) =================
+        # ================= SOCIAL (Next.js service-social trên Render hoặc lb://SOCIAL-SERVICE) =================
+        # SOCIAL_SERVICE_URL ví dụ: https://xxx.onrender.com — không có trailing slash
 
         - id: social-feed-write
           uri: ${SOCIAL_SERVICE_URL:lb://SOCIAL-SERVICE}

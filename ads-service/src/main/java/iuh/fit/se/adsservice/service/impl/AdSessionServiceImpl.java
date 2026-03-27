@@ -3,10 +3,13 @@ package iuh.fit.se.adsservice.service.impl;
 import iuh.fit.se.adsservice.service.AdSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -47,20 +50,22 @@ public class AdSessionServiceImpl implements AdSessionService {
     @Override
     public boolean onSongListened(UUID userId, int durationSeconds) {
         String key = sessionKey(userId);
+        long addedSeconds = Math.max(durationSeconds, 0);
 
-        // Khởi tạo field nếu chưa có (putIfAbsent đảm bảo atomic)
-        redisTemplate.opsForHash().putIfAbsent(key, SONG_COUNT_FIELD, 0L);
-        redisTemplate.opsForHash().putIfAbsent(key, LISTENED_SECONDS_FIELD, 0L);
+        // Một pipeline = một round-trip TCP (HINCRBY ×2 + EXPIRE vẫn atomic từng lệnh trên server)
+        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+        byte[] songField = SONG_COUNT_FIELD.getBytes(StandardCharsets.UTF_8);
+        byte[] listenedField = LISTENED_SECONDS_FIELD.getBytes(StandardCharsets.UTF_8);
 
-        // Cộng dồn song count
-        Long newCount = redisTemplate.opsForHash().increment(key, SONG_COUNT_FIELD, 1);
+        List<Object> results = redisTemplate.executePipelined((RedisCallback<Object>) conn -> {
+            conn.hIncrBy(keyBytes, songField, 1);
+            conn.hIncrBy(keyBytes, listenedField, addedSeconds);
+            conn.expire(keyBytes, SESSION_TTL.getSeconds());
+            return null;
+        });
 
-        // Cộng dồn thời gian nghe thực tế (chỉ cộng nếu duration hợp lệ)
-        long addedSeconds = durationSeconds > 0 ? durationSeconds : 0;
-        Long newListened  = redisTemplate.opsForHash().increment(key, LISTENED_SECONDS_FIELD, addedSeconds);
-
-        // Làm mới TTL mỗi lần có hoạt động
-        redisTemplate.expire(key, SESSION_TTL);
+        long newCount = ((Number) results.get(0)).longValue();
+        long newListened = ((Number) results.get(1)).longValue();
 
         log.debug("User {} onSongListened: songCount={}, listenedSeconds={}, addedSec={}",
                 userId, newCount, newListened, addedSeconds);

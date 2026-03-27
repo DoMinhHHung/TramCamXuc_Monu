@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @FeignClient(name = "social-service", url = "${social.service.url:}", path = "/internal/social", configuration = InternalFeignConfig.class)
@@ -55,4 +56,12 @@ public interface SocialInternalClient {
      */
     @GetMapping("/reactions/{userId}/disliked")
     ApiResponse<List<String>> getDislikedSongIds(@PathVariable("userId") UUID userId);
+
+    /**
+     * Dữ liệu thô cho {@code ListeningInsightsService} (Mongo aggregate trên service-social).
+     */
+    @GetMapping("/listen-insights/{userId}")
+    ApiResponse<Map<String, Object>> getListenInsights(
+            @PathVariable("userId") UUID userId,
+            @RequestParam int days);
 }

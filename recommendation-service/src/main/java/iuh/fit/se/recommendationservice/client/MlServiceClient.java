@@ -4,8 +4,8 @@ import iuh.fit.se.recommendationservice.dto.MlRecommendResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
@@ -33,6 +33,12 @@ public class MlServiceClient {
 
     @Value("${ml.service.url}")
     private String mlServiceUrl;
+
+    @Value("${recommendation.health.ml-probe-connect-timeout-ms:5000}")
+    private int mlProbeConnectTimeoutMs;
+
+    @Value("${recommendation.health.ml-probe-read-timeout-ms:90000}")
+    private int mlProbeReadTimeoutMs;
 
     /**
      * Lấy top-N songs từ Collaborative Filtering model (ALS).
@@ -134,12 +140,15 @@ public class MlServiceClient {
     }
 
     /**
-     * Kiểm tra Python ML service còn sống và model có fresh không.
-     * Gọi bởi health check endpoint.
+     * Kiểm tra Python ML service (GET /health). Timeout dài hơn request thường để chờ cold start.
      */
     public boolean isHealthy() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(mlProbeConnectTimeoutMs);
+        factory.setReadTimeout(mlProbeReadTimeoutMs);
+        RestTemplate probe = new RestTemplate(factory);
         try {
-            ResponseEntity<String> response = restTemplate.getForEntity(
+            ResponseEntity<String> response = probe.getForEntity(
                     mlServiceUrl + "/health", String.class);
             return response.getStatusCode().is2xxSuccessful();
         } catch (Exception e) {

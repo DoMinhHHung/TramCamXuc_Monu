@@ -16,6 +16,8 @@ import {
 } from '../services/recommendation';
 
 const RECOMMENDATION_POLL_MS = 90_000;
+/** Sau trending + new releases, trì personal/social để ưu tiên above-the-fold trên mạng yếu */
+const PERSONAL_REC_DELAY_MS = 320;
 
 const toErrorMessage = (reason: unknown): string => {
   if (reason instanceof Error) return reason.message;
@@ -48,81 +50,101 @@ export function useRecommendations() {
 
   const isMountedRef = useRef(true);
 
+  const runTrendingReleases = useCallback(async (): Promise<string[]> => {
+    const errors: string[] = [];
+    const [trendingResult, releasesResult] = await Promise.allSettled([
+      getTrendingRecommendations(20),
+      getNewReleases(),
+    ]);
+
+    if (!isMountedRef.current) return errors;
+
+    if (trendingResult.status === 'fulfilled') {
+      const trending = (trendingResult.value as RecommendedSong[]) ?? [];
+      if (trending.length > 0) {
+        setGlobalTrending(trending);
+      } else {
+        try {
+          const fallback = await getTrendingSongs({ page: 1, size: 20 });
+          const mapped = (fallback.content ?? []).map(mapMusicSongToRecommended);
+          if (isMountedRef.current) setGlobalTrending(mapped);
+          if (!mapped.length) {
+            errors.push('Danh sách trending hiện đang trống.');
+          }
+        } catch (e: unknown) {
+          errors.push(`Không tải được trending fallback: ${toErrorMessage(e)}`);
+          if (isMountedRef.current) setGlobalTrending([]);
+        }
+      }
+    } else {
+      errors.push(`Không tải được recommendation trending: ${toErrorMessage(trendingResult.reason)}`);
+      try {
+        const fallback = await getTrendingSongs({ page: 1, size: 20 });
+        const mapped = (fallback.content ?? []).map(mapMusicSongToRecommended);
+        if (isMountedRef.current) setGlobalTrending(mapped);
+        if (!mapped.length) {
+          errors.push('Trending fallback không có dữ liệu.');
+        }
+      } catch (e: unknown) {
+        errors.push(`Không tải được trending fallback: ${toErrorMessage(e)}`);
+        if (isMountedRef.current) setGlobalTrending([]);
+      }
+    }
+
+    if (!isMountedRef.current) return errors;
+
+    if (releasesResult.status === 'fulfilled') {
+      setNewReleases((releasesResult.value as RecommendedSong[]) ?? []);
+    } else {
+      errors.push(`Không tải được mục mới phát hành: ${toErrorMessage(releasesResult.reason)}`);
+    }
+
+    return errors;
+  }, []);
+
+  const runHomeSocial = useCallback(async (): Promise<string[]> => {
+    const errors: string[] = [];
+    if (!authSession) {
+      if (isMountedRef.current) setHomeFeed(null);
+      return errors;
+    }
+
+    const [homeResult, socialResult] = await Promise.allSettled([
+      getHomeRecommendations(false),
+      getSocialRecommendations(20),
+    ]);
+
+    if (!isMountedRef.current) return errors;
+
+    if (homeResult.status === 'fulfilled') {
+      setHomeFeed(homeResult.value as HomeRecommendation);
+    } else {
+      errors.push(`Không tải được gợi ý cá nhân: ${toErrorMessage(homeResult.reason)}`);
+    }
+
+    if (socialResult.status === 'fulfilled') {
+      setSocialRecs((socialResult.value as RecommendedSong[]) ?? []);
+    } else {
+      errors.push(`Không tải được gợi ý cộng đồng: ${toErrorMessage(socialResult.reason)}`);
+    }
+
+    return errors;
+  }, [authSession]);
+
   const fetchAll = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
 
     try {
-      const tasks: Promise<unknown>[] = [
-        getTrendingRecommendations(20),
-        getNewReleases(),
-      ];
-
-      if (authSession) {
-        tasks.push(getHomeRecommendations(false));
-        tasks.push(getSocialRecommendations(20));
-      }
-
-      const [trendingResult, releasesResult, homeResult, socialResult] = await Promise.allSettled(tasks);
+      const [coreErrs, personalErrs] = await Promise.all([
+        runTrendingReleases(),
+        runHomeSocial(),
+      ]);
 
       if (!isMountedRef.current) return;
 
-      const errors: string[] = [];
-
-      if (trendingResult.status === 'fulfilled') {
-        const trending = (trendingResult.value as RecommendedSong[]) ?? [];
-        if (trending.length > 0) {
-          setGlobalTrending(trending);
-        } else {
-          try {
-            const fallback = await getTrendingSongs({ page: 1, size: 20 });
-            const mapped = (fallback.content ?? []).map(mapMusicSongToRecommended);
-            setGlobalTrending(mapped);
-            if (!mapped.length) {
-              errors.push('Danh sách trending hiện đang trống.');
-            }
-          } catch (e: unknown) {
-            errors.push(`Không tải được trending fallback: ${toErrorMessage(e)}`);
-            setGlobalTrending([]);
-          }
-        }
-      } else {
-        errors.push(`Không tải được recommendation trending: ${toErrorMessage(trendingResult.reason)}`);
-
-        try {
-          const fallback = await getTrendingSongs({ page: 1, size: 20 });
-          const mapped = (fallback.content ?? []).map(mapMusicSongToRecommended);
-          setGlobalTrending(mapped);
-          if (!mapped.length) {
-            errors.push('Trending fallback không có dữ liệu.');
-          }
-        } catch (e: unknown) {
-          errors.push(`Không tải được trending fallback: ${toErrorMessage(e)}`);
-          setGlobalTrending([]);
-        }
-      }
-
-      if (releasesResult.status === 'fulfilled') {
-        setNewReleases((releasesResult.value as RecommendedSong[]) ?? []);
-      } else {
-        errors.push(`Không tải được mục mới phát hành: ${toErrorMessage(releasesResult.reason)}`);
-      }
-
-      if (homeResult?.status === 'fulfilled') {
-        setHomeFeed(homeResult.value as HomeRecommendation);
-      } else if (!authSession) {
-        setHomeFeed(null);
-      } else if (homeResult?.status === 'rejected') {
-        errors.push(`Không tải được gợi ý cá nhân: ${toErrorMessage(homeResult.reason)}`);
-      }
-
-      if (socialResult?.status === 'fulfilled') {
-        setSocialRecs((socialResult.value as RecommendedSong[]) ?? []);
-      } else if (socialResult?.status === 'rejected') {
-        errors.push(`Không tải được gợi ý cộng đồng: ${toErrorMessage(socialResult.reason)}`);
-      }
-
+      const merged = [...coreErrs, ...personalErrs];
+      setError(merged.length ? merged[0] : null);
       setLastUpdatedAt(new Date());
-      setError(errors.length ? errors[0] : null);
     } catch (e: unknown) {
       if (!silent) {
         const msg = e instanceof Error ? e.message : 'Không thể tải recommendation';
@@ -131,24 +153,46 @@ export function useRecommendations() {
     } finally {
       if (isMountedRef.current && !silent) setLoading(false);
     }
-  }, [authSession]);
+  }, [runTrendingReleases, runHomeSocial]);
 
   useEffect(() => {
     isMountedRef.current = true;
 
     (async () => {
+      let hadTrendingCache = false;
       try {
         const raw = await AsyncStorage.getItem(REC_CACHE_KEY);
         if (raw && isMountedRef.current) {
           const c = JSON.parse(raw);
-          if (c.globalTrending?.length) setGlobalTrending(c.globalTrending);
+          if (c.globalTrending?.length) {
+            setGlobalTrending(c.globalTrending);
+            hadTrendingCache = true;
+          }
           if (c.newReleases?.length) setNewReleases(c.newReleases);
           if (c.homeFeed) setHomeFeed(c.homeFeed);
           if (c.socialRecs?.length) setSocialRecs(c.socialRecs);
           setLoading(false);
         }
-      } catch {}
-      fetchAll(false);
+      } catch { /* ignore */ }
+
+      const blockUi = !hadTrendingCache;
+      if (blockUi) setLoading(true);
+
+      const coreErrs = await runTrendingReleases();
+      if (!isMountedRef.current) return;
+
+      if (blockUi) setLoading(false);
+      setError(coreErrs[0] ?? null);
+      setLastUpdatedAt(new Date());
+
+      await new Promise<void>((r) => setTimeout(r, PERSONAL_REC_DELAY_MS));
+      if (!isMountedRef.current) return;
+
+      const personalErrs = await runHomeSocial();
+      if (!isMountedRef.current) return;
+
+      setError((prev) => prev ?? personalErrs[0] ?? null);
+      setLastUpdatedAt(new Date());
     })();
 
     const id = setInterval(() => {
@@ -159,7 +203,7 @@ export function useRecommendations() {
       isMountedRef.current = false;
       clearInterval(id);
     };
-  }, [fetchAll]);
+  }, [runTrendingReleases, runHomeSocial, fetchAll]);
 
   useEffect(() => {
     if (!lastUpdatedAt) return;

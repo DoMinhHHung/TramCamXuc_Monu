@@ -132,6 +132,7 @@ public class ArtistServiceImpl implements ArtistService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ArtistResponse getMyProfile() {
         UUID userId = currentUserId();
         Artist artist = artistRepository.findByUserId(userId)
@@ -167,6 +168,7 @@ public class ArtistServiceImpl implements ArtistService {
     // ── Public / Admin ─────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public ArtistResponse getArtistById(UUID artistId) {
         Artist artist = artistRepository.findById(artistId)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTIST_NOT_FOUND));
@@ -174,6 +176,7 @@ public class ArtistServiceImpl implements ArtistService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ArtistResponse getArtistByUserId(UUID userId) {
         Artist artist = artistRepository.findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ARTIST_NOT_FOUND));
@@ -181,6 +184,7 @@ public class ArtistServiceImpl implements ArtistService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ArtistResponse> searchArtists(String stageName, ArtistStatus status, Pageable pageable) {
         return artistRepository.searchArtists(stageName, status, pageable)
                 .map(artistMapper::toResponse);
@@ -197,6 +201,7 @@ public class ArtistServiceImpl implements ArtistService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<ArtistResponse> getPopularArtists(int limit) {
         return artistRepository.findPopularArtists(PageRequest.of(0, limit))
                 .stream()
