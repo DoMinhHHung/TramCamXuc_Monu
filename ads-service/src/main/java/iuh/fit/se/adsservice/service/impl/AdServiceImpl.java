@@ -168,11 +168,13 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public AdResponse getAdById(UUID adId) {
         return toResponse(findOrThrow(adId));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<AdResponse> getAllAds(AdStatus status, String advertiserName, Pageable pageable) {
         Page<Ad> page;
         if (status != null && advertiserName != null) {
@@ -192,6 +194,7 @@ public class AdServiceImpl implements AdService {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public AdStatsResponse getAdStats(UUID adId, LocalDate from, LocalDate to) {
         Ad ad = findOrThrow(adId);
 
@@ -239,6 +242,7 @@ public class AdServiceImpl implements AdService {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public AdDeliveryResponse getNextAd(UUID userId) {
         if (!sessionService.isAdDue(userId)) return null;
 

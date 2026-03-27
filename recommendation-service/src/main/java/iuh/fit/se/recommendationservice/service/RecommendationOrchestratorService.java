@@ -4,18 +4,22 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.recommendationservice.client.MlServiceClient;
 import iuh.fit.se.recommendationservice.client.MusicInternalClient;
+import iuh.fit.se.recommendationservice.config.RecommendationFetchExecutorConfig;
 import iuh.fit.se.recommendationservice.config.RedisConfig;
 import iuh.fit.se.recommendationservice.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -68,6 +72,11 @@ public class RecommendationOrchestratorService {
     private final ObjectMapper                   objectMapper;
     private final RedisConfig.RecommendationProperties props;
 
+    @Qualifier(RecommendationFetchExecutorConfig.BEAN_NAME)
+    private final Executor fetchExecutor;
+
+    private static final int PARALLEL_FETCH_TIMEOUT_SEC = 5;
+
     // ── Home feed ─────────────────────────────────────────────────────────────
 
     /**
@@ -104,45 +113,48 @@ public class RecommendationOrchestratorService {
     private HomeRecommendationResponse buildHomeFeed(UUID userId, boolean debug) {
         int pageSize = props.getPage().getDefaultSize();
 
-        // ── Phase 1: Parallel data fetching ────────────────────────────────
+        // ── Phase 1a: Kick off all independent fetches on the pool (truly parallel) ──
 
-        // Fetch thông tin context của user (what to exclude, user signals)
         CompletableFuture<Set<String>> futureAlreadyHeard = CompletableFuture.supplyAsync(
-                () -> socialService.getRecentlyHeardSongIds(userId));
+                () -> socialService.getRecentlyHeardSongIds(userId), fetchExecutor);
 
         CompletableFuture<Set<String>> futureDisliked = CompletableFuture.supplyAsync(
-                () -> socialService.getDislikedSongIds(userId));
+                () -> socialService.getDislikedSongIds(userId), fetchExecutor);
 
-        // Fetch ML recommendations song song
         CompletableFuture<List<MlRecommendResponse.MlSongScore>> futureCf =
-                CompletableFuture.supplyAsync(() -> mlClient.getCfRecommendations(userId, 60));
+                CompletableFuture.supplyAsync(() -> mlClient.getCfRecommendations(userId, 60), fetchExecutor);
 
         CompletableFuture<List<MlRecommendResponse.MlSongScore>> futureCb =
-                CompletableFuture.supplyAsync(() -> mlClient.getCbRecommendations(userId, 40));
+                CompletableFuture.supplyAsync(() -> mlClient.getCbRecommendations(userId, 40), fetchExecutor);
 
-        // Fetch trending
         CompletableFuture<List<String>> futureTrending = CompletableFuture.supplyAsync(
-                () -> trendingService.getGlobalTrending(pageSize * 2));
-
-        // Đợi alreadyHeard và disliked trước (cần cho các fetch sau)
-        Set<String> alreadyHeard = futureFetchSafe(futureAlreadyHeard, Collections.emptySet());
-        Set<String> disliked     = futureFetchSafe(futureDisliked, Collections.emptySet());
-
-        // Fetch social sections (cần alreadyHeard để pre-filter)
-        CompletableFuture<List<RecommendedSongDto>> futureFriends = CompletableFuture.supplyAsync(
-                () -> socialService.getFriendsListening(userId, pageSize, alreadyHeard));
-
-        CompletableFuture<List<RecommendedSongDto>> futureArtists = CompletableFuture.supplyAsync(
-                () -> socialService.getSongsFromFollowedArtists(userId, pageSize, alreadyHeard));
+                () -> trendingService.getGlobalTrending(pageSize * 2), fetchExecutor);
 
         CompletableFuture<List<RecommendedSongDto>> futureNewReleases = CompletableFuture.supplyAsync(
-                () -> socialService.getNewReleasesFromFollowedArtists(userId, pageSize));
+                () -> socialService.getNewReleasesFromFollowedArtists(userId, pageSize), fetchExecutor);
 
-        // ── Phase 2: Collect ML results ─────────────────────────────────────
+        waitAllParallelFetches(
+                userId,
+                futureAlreadyHeard, futureDisliked, futureCf, futureCb, futureTrending, futureNewReleases);
 
-        List<MlRecommendResponse.MlSongScore> cfScores  = futureFetchSafe(futureCf, Collections.emptyList());
-        List<MlRecommendResponse.MlSongScore> cbScores  = futureFetchSafe(futureCb, Collections.emptyList());
-        List<String>                          trendingIds = futureFetchSafe(futureTrending, Collections.emptyList());
+        Set<String> alreadyHeard = futureResult(futureAlreadyHeard, Collections.emptySet());
+        Set<String> disliked     = futureResult(futureDisliked, Collections.emptySet());
+
+        // ── Phase 1b: Social slices that depend on alreadyHeard ───────────────────
+
+        CompletableFuture<List<RecommendedSongDto>> futureFriends = CompletableFuture.supplyAsync(
+                () -> socialService.getFriendsListening(userId, pageSize, alreadyHeard), fetchExecutor);
+
+        CompletableFuture<List<RecommendedSongDto>> futureArtists = CompletableFuture.supplyAsync(
+                () -> socialService.getSongsFromFollowedArtists(userId, pageSize, alreadyHeard), fetchExecutor);
+
+        waitAllParallelFetches(userId, futureFriends, futureArtists);
+
+        // ── Phase 2: Collect ML / trending / social results (no blocking .get() chain) ─
+
+        List<MlRecommendResponse.MlSongScore> cfScores  = futureResult(futureCf, Collections.emptyList());
+        List<MlRecommendResponse.MlSongScore> cbScores  = futureResult(futureCb, Collections.emptyList());
+        List<String>                          trendingIds = futureResult(futureTrending, Collections.emptyList());
 
         // ── Phase 3: Cold-start check & handling ─────────────────────────────
 
@@ -198,9 +210,9 @@ public class RecommendationOrchestratorService {
 
         // ── Phase 7: Collect social sections ────────────────────────────────
 
-        List<RecommendedSongDto> friendsSection    = futureFetchSafe(futureFriends, Collections.emptyList());
-        List<RecommendedSongDto> artistsSection    = futureFetchSafe(futureArtists, Collections.emptyList());
-        List<RecommendedSongDto> newReleasesSection = futureFetchSafe(futureNewReleases, Collections.emptyList());
+        List<RecommendedSongDto> friendsSection     = futureResult(futureFriends, Collections.emptyList());
+        List<RecommendedSongDto> artistsSection     = futureResult(futureArtists, Collections.emptyList());
+        List<RecommendedSongDto> newReleasesSection = futureResult(futureNewReleases, Collections.emptyList());
 
         // ── Phase 8: Assemble response ───────────────────────────────────────
 
@@ -434,9 +446,28 @@ public class RecommendationOrchestratorService {
         }
     }
 
-    private <T> T futureFetchSafe(CompletableFuture<T> future, T defaultValue) {
+    /**
+     * Wait until all futures complete or timeout. After a {@link TimeoutException}, slow tasks may still run;
+     * {@link #futureResult} uses {@code !isDone()} so we do not block the HTTP thread on a late {@code .get()}.
+     */
+    @SafeVarargs
+    private void waitAllParallelFetches(UUID userId, CompletableFuture<?>... futures) {
         try {
-            return future.get();
+            CompletableFuture.allOf(futures).get(PARALLEL_FETCH_TIMEOUT_SEC, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("[Orchestrator] Timeout ({}s) waiting for parallel fetches userId={}",
+                    PARALLEL_FETCH_TIMEOUT_SEC, userId);
+        } catch (Exception e) {
+            log.warn("[Orchestrator] Parallel fetch wait failed userId={}: {}", userId, e.getMessage());
+        }
+    }
+
+    private <T> T futureResult(CompletableFuture<T> future, T defaultValue) {
+        if (!future.isDone()) {
+            return defaultValue;
+        }
+        try {
+            return future.join();
         } catch (Exception e) {
             log.warn("[Orchestrator] Async fetch failed: {}", e.getMessage());
             return defaultValue;

@@ -266,6 +266,7 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public String getDownloadUrl(UUID songId) {
         UUID userId = currentUserId();
 
@@ -285,6 +286,7 @@ public class SongServiceImpl implements SongService {
     // ── Public ─────────────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public SongResponse getSongById(UUID songId) {
         Song song = songRepository.findPublicById(songId)
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
@@ -292,6 +294,7 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public String getStreamUrl(UUID songId) {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
@@ -328,6 +331,7 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public void recordPlay(UUID songId) {
         if (!songRepository.existsById(songId)) {
             throw new AppException(ErrorCode.SONG_NOT_FOUND);
@@ -336,6 +340,7 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public void recordListen(UUID songId, UUID playlistId, UUID albumId,
                              int durationSeconds, boolean completed) {
         Song song = songRepository.findByIdWithGenres(songId)
@@ -466,6 +471,7 @@ public class SongServiceImpl implements SongService {
     // ── Recommendation-service internal endpoints ───────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public List<SongResponse> getSongsByIds(List<UUID> ids) {
         if (ids == null || ids.isEmpty()) return Collections.emptyList();
 

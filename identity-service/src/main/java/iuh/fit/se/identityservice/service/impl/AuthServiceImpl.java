@@ -1,5 +1,7 @@
 package iuh.fit.se.identityservice.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -16,13 +18,15 @@ import iuh.fit.se.identityservice.enums.AuthProvider;
 import iuh.fit.se.identityservice.enums.Role;
 import iuh.fit.se.identityservice.event.NotificationEvent;
 import iuh.fit.se.identityservice.exception.AppException;
+import iuh.fit.se.identityservice.outbox.OutboxEvent;
+import iuh.fit.se.identityservice.outbox.OutboxEventRepository;
+import iuh.fit.se.identityservice.outbox.OutboxEventTypes;
 import iuh.fit.se.identityservice.exception.ErrorCode;
 import iuh.fit.se.identityservice.repository.UserRepository;
 import iuh.fit.se.identityservice.repository.httpclient.IdentityClient;
 import iuh.fit.se.identityservice.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -44,7 +49,8 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final IdentityClient identityClient;
     private final RedisTemplate<String, Object> redisTemplate;
-    private final RabbitTemplate rabbitTemplate;   // ← thay ApplicationEventPublisher
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
 
     @Value("${jwt.signerKey}")
     private String signerKey;
@@ -92,14 +98,16 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.DB_CONNECTION_FAILED);
         }
 
-        // Gửi email qua RabbitMQ (integration-service lắng nghe)
-        publishNotification(NotificationEvent.builder()
-                .channel("EMAIL")
-                .recipient(user.getEmail())
-                .subject("Welcome to TramCamXuc - Verify your account")
-                .templateCode("register-otp")
-                .paramMap(Map.of("name", request.getFullName(), "otp", otp))
-                .build());
+        enqueueNotificationEmail(
+                NotificationEvent.builder()
+                        .channel("EMAIL")
+                        .recipient(user.getEmail())
+                        .subject("Welcome to TramCamXuc - Verify your account")
+                        .templateCode("register-otp")
+                        .paramMap(Map.of("name", request.getFullName(), "otp", otp))
+                        .build(),
+                "User",
+                user.getId().toString());
 
         return userMapper.toResponse(user);
     }
@@ -120,6 +128,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
     public void resendOtp(String email) {
         User user = getByEmail(email);
         if (user.getStatus() == AccountStatus.ACTIVE)
@@ -128,28 +137,35 @@ public class AuthServiceImpl implements AuthService {
         String otp = generateOtp();
         redisTemplate.opsForValue().set("auth:otp:registration:" + email, otp, 5, TimeUnit.MINUTES);
 
-        publishNotification(NotificationEvent.builder()
-                .channel("EMAIL")
-                .recipient(email)
-                .subject("Resend OTP")
-                .templateCode("register-otp")
-                .paramMap(Map.of("name", email, "otp", otp))
-                .build());
+        enqueueNotificationEmail(
+                NotificationEvent.builder()
+                        .channel("EMAIL")
+                        .recipient(email)
+                        .subject("Resend OTP")
+                        .templateCode("register-otp")
+                        .paramMap(Map.of("name", email, "otp", otp))
+                        .build(),
+                "User",
+                user.getId().toString());
     }
 
     @Override
+    @Transactional
     public void forgotPassword(String email) {
         User user = getByEmail(email);
         String otp = generateOtp();
         redisTemplate.opsForValue().set("auth:otp:forgot:" + email, otp, 5, TimeUnit.MINUTES);
 
-        publishNotification(NotificationEvent.builder()
-                .channel("EMAIL")
-                .recipient(email)
-                .subject("Reset Password Request")
-                .templateCode("forgot-password")
-                .paramMap(Map.of("name", user.getFullName(), "otp", otp))
-                .build());
+        enqueueNotificationEmail(
+                NotificationEvent.builder()
+                        .channel("EMAIL")
+                        .recipient(email)
+                        .subject("Reset Password Request")
+                        .templateCode("forgot-password")
+                        .paramMap(Map.of("name", user.getFullName(), "otp", otp))
+                        .build(),
+                "User",
+                user.getId().toString());
     }
 
     @Override
@@ -167,6 +183,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public AuthenticationResponse login(AuthenticationRequest request) {
         User user = getByEmail(request.getEmail());
 
@@ -179,7 +196,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public AuthenticationResponse refreshToken(RefreshRequest request) {
         String redisKey = refreshTokenRedisKey(request.getRefreshToken());
         Object userIdRaw = redisTemplate.opsForValue().get(redisKey);
@@ -331,18 +348,21 @@ public class AuthServiceImpl implements AuthService {
         return result.toString();
     }
 
-    /**
-     * Publish notification event sang integration-service qua RabbitMQ.
-     */
-    private void publishNotification(NotificationEvent event) {
+    /** Cùng transaction với save user / Redis OTP — scheduler gửi RabbitMQ. */
+    private void enqueueNotificationEmail(NotificationEvent event, String aggregateType, String aggregateId) {
         try {
-            rabbitTemplate.convertAndSend(
-                    RabbitMQConfig.NOTIFICATION_EXCHANGE,
-                    RabbitMQConfig.ROUTING_NOTIFICATION_EMAIL,
-                    event
-            );
-        } catch (Exception e) {
-            log.error("Failed to publish notification event", e);
+            outboxEventRepository.save(OutboxEvent.builder()
+                    .aggregateType(aggregateType)
+                    .aggregateId(aggregateId)
+                    .eventType(OutboxEventTypes.NOTIFICATION_EMAIL)
+                    .exchange(RabbitMQConfig.NOTIFICATION_EXCHANGE)
+                    .routingKey(RabbitMQConfig.ROUTING_NOTIFICATION_EMAIL)
+                    .payload(objectMapper.writeValueAsString(event))
+                    .published(false)
+                    .createdAt(Instant.now())
+                    .build());
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize notification for outbox", e);
         }
     }
 }

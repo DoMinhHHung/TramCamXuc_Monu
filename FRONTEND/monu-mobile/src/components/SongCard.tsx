@@ -7,6 +7,7 @@ import { Song } from '../services/music';
 import { useThemeColors } from '../config/colors';
 import { MUSIC_EMOJIS } from '../config/emojis';
 import { HeartButton } from './HeartButton';
+import { haptic } from '../utils/haptics';
 
 type Props = {
   song: Song;
@@ -38,6 +39,7 @@ export const SongCard = ({
           longPressTriggeredRef.current = false;
           return;
         }
+        haptic.light();
         onPress();
       }}
       onLongPress={() => {

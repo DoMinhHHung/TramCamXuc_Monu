@@ -17,6 +17,9 @@ x-infra: &infra
   RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
   RABBITMQ_VHOST: ${RABBITMQ_VHOST}
   EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+  # Đăng ký lên Eureka nhanh hơn (mặc định Spring thường 30–40s cho lần replicate đầu)
+  EUREKA_CLIENT_INITIAL_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS: "5"
+  EUREKA_CLIENT_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS: "10"
 
 x-db: &db
   DB_USERNAME: ${DB_USERNAME}
@@ -35,6 +38,8 @@ x-internal: &internal
   INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
   GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:-}
 
+# Không dùng spring.main.lazy-initialization=true ở đây: làm DiscoveryClient/Eureka
+# khởi tạo muộn → đăng ký lên discovery-server rất chậm và dễ timeout/read stack trace trên log.
 x-java-env: &java-env
   JAVA_OPTS: >-
     -Xmx256m -Xms64m
@@ -48,9 +53,11 @@ x-java-env: &java-env
     -XX:CICompilerCount=2
     -Djava.security.egd=file:/dev/./urandom
     -Dspring.jmx.enabled=false
-    -Dspring.main.lazy-initialization=true
   MANAGEMENT_TRACING_ENABLED: "false"
   MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ""
+  # Giảm log stack HttpClient/Jersey khi Eureka retry / đọc response chậm (không phải lỗi nghiêm trọng)
+  LOGGING_LEVEL_COM_NETFLIX_DISCOVERY: WARN
+  LOGGING_LEVEL_COM_NETFLIX_EUREKA: WARN
 
 x-limits: &limits
   deploy:
@@ -96,7 +103,8 @@ services:
     ports: [ "8080:8080" ]
     environment:
       <<: [ *infra, *gateway, *java-env ]
-      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-lb://SOCIAL-SERVICE}
+      # Mặc định trỏ service-social (Next.js) trên Render — social-service Java trong compose đang comment
+      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu-1-pq2b.onrender.com}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -292,9 +300,9 @@ services:
     container_name: recommendation-service
     environment:
       <<: [ *infra, *java-env ]
-      ML_SERVICE_URL: https://tramcamxuc-monu-1.onrender.com
+      ML_SERVICE_URL: ${ML_SERVICE_URL:-https://tramcamxuc-monu-1.onrender.com}
       # ML_SERVICE_URL: http://recommendation-ml:8771
-      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-http://social-service:8767}
+      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu-1-pq2b.onrender.com}
     depends_on:
       discovery-server:
         condition: service_healthy

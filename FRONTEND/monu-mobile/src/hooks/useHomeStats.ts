@@ -10,11 +10,18 @@ import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getPopularArtists, getPopularGenres } from '../services/favorites';
-import { getAlbumById, getMyPlaylists, getPublicAlbums, searchSongs } from '../services/music';
-import { getListeningInsights } from '../services/recommendation';
-import { getArtistStatsBatch, getMyFollowedArtists, getMyListenHistory } from '../services/social';
+import { getAlbumById, getMyPlaylists, getPublicAlbums, Playlist, searchSongs } from '../services/music';
+import { getListeningInsights, ListeningInsights } from '../services/recommendation';
+import {
+  getArtistStatsBatch,
+  getMyFollowedArtists,
+  FollowResponse,
+  getMyListenHistory,
+  ListenHistoryItem,
+  PageResponse,
+} from '../services/social';
 
-const STORAGE_KEY = 'home_stats_cache';
+export const HOME_STATS_CACHE_KEY = 'home_stats_cache';
 
 export interface PlaylistStats {
   id: string;
@@ -54,12 +61,14 @@ export interface GenreStats {
   topSongsCount: number;
 }
 
-interface HomeStatsData {
+export interface HomeStatsData {
   mostPlayedPlaylists: PlaylistStats[];
   favoriteAlbums: AlbumStats[];
   followedArtistAlbums: AlbumStats[];
   topArtists: ArtistStats[];
   trendingGenres: GenreStats[];
+  currentStreakDays?: number;
+  listeningMinutesToday?: number;
 }
 
 interface UseHomeStatsReturn {
@@ -69,11 +78,38 @@ interface UseHomeStatsReturn {
   refetch: () => Promise<void>;
 }
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000; 
 let cachedData: HomeStatsData | null = null;
 let cacheTimestamp: number = 0;
 
 const LISTEN_HISTORY_LIMIT = 200;
+
+const EMPTY_INSIGHTS: ListeningInsights = {
+  totalListeningMinutesLast30Days: 0,
+  uniqueSongsLast30Days: 0,
+  currentStreakDays: 0,
+  longestStreakDays: 0,
+  topGenres: [],
+  topArtists: [],
+  mostPlayedSongs: [],
+  listeningByHour: [],
+  listeningByDayOfWeek: [],
+  newlyDiscoveredArtistIds: [],
+};
+
+function emptyPage<T>(): PageResponse<T> {
+  return {
+    content: [],
+    totalElements: 0,
+    totalPages: 0,
+    first: true,
+    last: true,
+    number: 0,
+    size: 0,
+    numberOfElements: 0,
+    empty: true,
+  } as PageResponse<T>;
+}
 
 const normalizeId = (value?: string | null): string | null => {
   if (!value) return null;
@@ -83,25 +119,46 @@ const normalizeId = (value?: string | null): string | null => {
   return value;
 };
 
-const fetchHomeStats = async (): Promise<HomeStatsData> => {
-  // Check cache first
+export const fetchHomeStats = async (options?: { force?: boolean }): Promise<HomeStatsData> => {
   const now = Date.now();
-  if (cachedData && now - cacheTimestamp < CACHE_DURATION) {
+  if (!options?.force && cachedData && now - cacheTimestamp < CACHE_DURATION) {
     return cachedData;
   }
 
   try {
-    const [listenHistoryPage, playlistsPage, insights, popularGenres, popularArtists, followedArtistsPage] = await Promise.all([
-      getMyListenHistory({ page: 1, size: LISTEN_HISTORY_LIMIT }),
+    const settled = await Promise.allSettled([
+      getMyListenHistory({ page: 0, size: LISTEN_HISTORY_LIMIT }),
       getMyPlaylists({ page: 1, size: 50 }),
       getListeningInsights(30),
       getPopularGenres(12),
       getPopularArtists(8),
-      getMyFollowedArtists({ page: 1, size: 100 }),
+      getMyFollowedArtists({ page: 0, size: 100 }),
     ]);
+
+    const listenHistoryPage: PageResponse<ListenHistoryItem> =
+        settled[0].status === 'fulfilled' ? settled[0].value : emptyPage<ListenHistoryItem>();
+    const playlistsPage =
+        settled[1].status === 'fulfilled' ? settled[1].value : emptyPage<Playlist>();
+    const insights: ListeningInsights =
+        settled[2].status === 'fulfilled' ? settled[2].value : EMPTY_INSIGHTS;
+    const popularGenres = settled[3].status === 'fulfilled' ? settled[3].value : [];
+    const popularArtists = settled[4].status === 'fulfilled' ? settled[4].value : [];
+    const followedArtistsPage =
+        settled[5].status === 'fulfilled' ? settled[5].value : emptyPage<FollowResponse>();
 
     const listenHistory = listenHistoryPage.content ?? [];
     const playlists = playlistsPage.content ?? [];
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayStartMs = startOfToday.getTime();
+    const listeningMinutesToday = Math.round(
+      listenHistory.reduce((sum, item) => {
+        const ts = new Date(item.listenedAt).getTime();
+        if (Number.isNaN(ts) || ts < todayStartMs) return sum;
+        return sum + (item.durationSeconds ?? 0);
+      }, 0) / 60,
+    );
 
     const followedArtistIds = new Set((followedArtistsPage.content ?? []).map((f) => normalizeId(f.artistId)).filter((id): id is string => !!id));
 
@@ -292,6 +349,8 @@ const fetchHomeStats = async (): Promise<HomeStatsData> => {
       followedArtistAlbums,
       topArtists,
       trendingGenres,
+      currentStreakDays: insights.currentStreakDays ?? 0,
+      listeningMinutesToday,
     };
 
     // Update cache
@@ -300,7 +359,7 @@ const fetchHomeStats = async (): Promise<HomeStatsData> => {
 
     return data;
   } catch (error) {
-    console.error('[useHomeStats] Failed to fetch home stats:', error);
+    console.warn('[useHomeStats] Failed to fetch home stats:', error);
     throw error;
   }
 };
@@ -318,9 +377,9 @@ export const useHomeStats = (): UseHomeStatsReturn => {
     try {
       setLoading(true);
       setError(null);
-      const freshData = await fetchHomeStats();
+      const freshData = await fetchHomeStats({ force: true });
       setData(freshData);
-      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(freshData)).catch(() => {});
+      AsyncStorage.setItem(HOME_STATS_CACHE_KEY, JSON.stringify(freshData)).catch(() => {});
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch home stats';
       setError(errorMessage);
@@ -334,7 +393,7 @@ export const useHomeStats = (): UseHomeStatsReturn => {
 
     (async () => {
       try {
-        const cached = await AsyncStorage.getItem(STORAGE_KEY);
+        const cached = await AsyncStorage.getItem(HOME_STATS_CACHE_KEY);
         if (cached && !cancelled) {
           setData(JSON.parse(cached));
           setLoading(false);

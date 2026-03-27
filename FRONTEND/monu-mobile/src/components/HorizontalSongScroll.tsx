@@ -1,6 +1,5 @@
 import React, { memo, useMemo, useRef } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Image,
   Pressable,
@@ -10,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '../config/colors';
+import { HorizontalRecommendationSkeleton } from './SkeletonLoader';
 import { ReasonBadge } from './ReasonBadge';
 import { FeedbackType, RecommendedSong } from '../services/recommendation';
 
@@ -109,11 +109,7 @@ export const HorizontalSongScroll = ({
   const styles = useMemo(() => getStyles(colors), [colors]);
 
   if (loading) {
-    return (
-      <View style={styles.emptyWrap}>
-        <ActivityIndicator size="small" color={colors.accent} />
-      </View>
-    );
+    return <HorizontalRecommendationSkeleton />;
   }
 
   if (!songs.length) {

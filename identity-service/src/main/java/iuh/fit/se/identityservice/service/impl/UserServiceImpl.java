@@ -43,6 +43,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public UserResponse getMyProfile() {
         return userMapper.toResponse(currentUser());
     }
@@ -85,12 +86,14 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional(readOnly = true)
     public Page<UserResponse> getAllUsers(Pageable pageable) {
         return userRepository.findAllByRoleNot(Role.ADMIN, pageable).map(userMapper::toResponse);
     }
 
     @Override
     @PreAuthorize("hasRole('ADMIN')")
+    @Transactional(readOnly = true)
     public UserResponse getUserById(String id) {
         User user = userRepository.findById(UUID.fromString(id))
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
@@ -117,6 +120,7 @@ public class UserServiceImpl implements UserService {
     // ── Favorites for onboarding ──────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public FavoritesResponse getMyFavorites() {
         User user = currentUser();
         return FavoritesResponse.builder()

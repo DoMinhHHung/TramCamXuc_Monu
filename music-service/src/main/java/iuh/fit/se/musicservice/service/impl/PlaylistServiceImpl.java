@@ -286,6 +286,7 @@ public class PlaylistServiceImpl implements PlaylistService {
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override
+    @Transactional(readOnly = true)
     public PlaylistResponse getById(UUID playlistId) {
         UUID userId = currentUserIdOrNull();
 
@@ -312,6 +313,7 @@ public class PlaylistServiceImpl implements PlaylistService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<PlaylistResponse> getMyPlaylists(Pageable pageable) {
         return playlistRepository
                 .findByOwnerId(currentUserId(), pageable)

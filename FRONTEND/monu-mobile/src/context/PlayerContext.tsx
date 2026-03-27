@@ -161,6 +161,15 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const player            = useAudioPlayer(null);
     const status            = useAudioPlayerStatus(player);
 
+    /** Tránh stale `status` trong effect chỉ phụ thuộc networkTier */
+    const statusRef = useRef({ playing: false as boolean, currentTime: 0 });
+    useEffect(() => {
+        statusRef.current = {
+            playing:    status.playing ?? false,
+            currentTime: status.currentTime ?? 0,
+        };
+    }, [status.playing, status.currentTime]);
+
     // ── Listen tracking refs ───────────────────────────────────────────────────
     const listenTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
     const playSegmentStartRef  = useRef<number | null>(null);
@@ -201,40 +210,48 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             .catch(() => {});
     }, [authSession]);
 
-    // ── Auto quality on network change ─────────────────────────────────────────
+    // ── Auto quality on network change (tier đã debounce trong useNetworkQuality) ─
     useEffect(() => {
         if (!autoQualityRef.current) return;
         const best = suggestQuality(networkTier, maxQualityRef.current);
         if (best !== selectedQualityRef.current) {
             setSelectedQuality(best);
             selectedQualityRef.current = best;
-            if (currentSongRef.current && status.playing) {
-                const pos = status.currentTime ?? 0;
-                pendingSeekRef.current = pos > 1 ? pos : null;
+            const snap = statusRef.current;
+            if (currentSongRef.current && snap.playing) {
+                const pos = snap.currentTime;
+                pendingSeekRef.current = pos > 0.35 ? pos : null;
                 shouldAutoPlayRef.current = true;
                 player.replace({ uri: buildHlsUrl(currentSongRef.current, best) });
             }
         }
-    }, [networkTier]);
+    }, [networkTier, player]);
 
     // ── Audio session ──────────────────────────────────────────────────────────
     useEffect(() => {
         setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     }, []);
 
-    // ── Autoplay + pending seek khi source load xong ──────────────────────────
+    // ── Autoplay + seek sau khi HLS load: 2 frame defer để native gắn segment rồi mới play ─
     useEffect(() => {
         if (!status.isLoaded) return;
-        if (pendingSeekRef.current !== null) {
-            const pos = pendingSeekRef.current;
-            pendingSeekRef.current = null;
-            try { player.seekTo(pos); } catch {}
-        }
-        if (shouldAutoPlayRef.current) {
-            shouldAutoPlayRef.current = false;
-            player.play();
-        }
-    }, [status.isLoaded]);
+
+        const pos = pendingSeekRef.current;
+        const wantPlay = shouldAutoPlayRef.current;
+        pendingSeekRef.current = null;
+        shouldAutoPlayRef.current = false;
+
+        requestAnimationFrame(() => {
+            try {
+                if (pos !== null) player.seekTo(pos);
+            } catch { /* ignore */ }
+            requestAnimationFrame(() => {
+                try {
+                    if (wantPlay) player.play();
+                } catch { /* ignore */ }
+            });
+        });
+    }, [status.isLoaded, player]);
 
     // ── Check & show ads ───────────────────────────────────────────────────────
     const checkForAd = useCallback(async (): Promise<boolean> => {
@@ -507,7 +524,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         if (currentSong) {
             const wasPlaying = status.playing;
             const pos = status.currentTime ?? 0;
-            pendingSeekRef.current = pos > 1 ? pos : null;
+            pendingSeekRef.current = pos > 0.35 ? pos : null;
             shouldAutoPlayRef.current = wasPlaying;
             player.replace({ uri: buildHlsUrl(currentSong, q) });
         }

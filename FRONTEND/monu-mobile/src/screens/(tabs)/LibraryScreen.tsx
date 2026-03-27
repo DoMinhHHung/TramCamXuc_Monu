@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -49,6 +49,7 @@ import {
 } from '../../services/social';
 import { apiClient } from '../../services/api';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
+import { Toast, useToast } from '../../components/Toast';
 import { getMySubscription } from '../../services/payment';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1252,6 +1253,7 @@ export const LibraryScreen = () => {
   tr = t;
   rc = themeColors;
   const { playSong, currentSong, isPlaying } = usePlayer();
+  const { toast, show: showToast, hide: hideToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<Tab>('playlists');
   const [loading, setLoading]     = useState(true);
@@ -1279,9 +1281,18 @@ export const LibraryScreen = () => {
   const [shareOptionsItem, setShareOptionsItem] = useState<{ type: ShareItemType; id: string; title: string } | null>(null);
   const [discoveryShareItem, setDiscoveryShareItem] = useState<{ type: ShareItemType; id: string; title: string } | null>(null);
 
+  /** Lần đầu vào tab: có spinner; các lần sau chỉ refresh nền — tránh chặn UI mỗi lần chuyển tab */
+  const libraryFocusPassRef = useRef(0);
+
+  useEffect(() => {
+    libraryFocusPassRef.current = 0;
+  }, [authSession?.tokens.accessToken]);
+
   // ── Load ──────────────────────────────────────────────────────────────────
   useFocusEffect(useCallback(() => {
-    void load(false);
+    const silent = libraryFocusPassRef.current > 0;
+    libraryFocusPassRef.current += 1;
+    void load(silent);
     const pollIntervalId = setInterval(() => void load(true), 60_000);
     return () => clearInterval(pollIntervalId);
   }, [authSession?.tokens.accessToken]));
@@ -1290,11 +1301,14 @@ export const LibraryScreen = () => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(false);
-      const [plRes, soRes, alRes] = await Promise.allSettled([
+      const [plRes, soRes, alRes, artistRes, subRes] = await Promise.allSettled([
         getMyPlaylists({ page: 1, size: 50 }),
         getMySongs({ page: 1, size: 50 }),
         getMyAlbums({ page: 1, size: 50 }),
+        apiClient.get<ArtistProfile>('/artists/me'),
+        getMySubscription(),
       ]);
+
       if (plRes.status === 'fulfilled') setPlaylists(plRes.value.content ?? []);
       if (soRes.status === 'fulfilled') setSongs(soRes.value.content ?? []);
       if (alRes.status === 'fulfilled') setAlbums(alRes.value.content ?? []);
@@ -1303,13 +1317,14 @@ export const LibraryScreen = () => {
         const status = err?.response?.status;
         const backendMessage = err?.response?.data?.message;
         console.warn('Tải bài hát thất bại', { status, data: err?.response?.data, message: err?.message });
-        Alert.alert(t('screens.library.loadSongsFailedTitle', 'Failed to load songs'), backendMessage || err?.message || t('errors.tryAgain', 'Please try again.'));
+        if (!silent) {
+          showToast(
+            `${t('screens.library.loadSongsFailedTitle', 'Failed to load songs')}: ${backendMessage || err?.message || t('errors.tryAgain', 'Please try again.')}`,
+            'error',
+          );
+        }
       }
 
-      const [artistRes, subRes] = await Promise.allSettled([
-        apiClient.get<ArtistProfile>('/artists/me'),
-        getMySubscription(),
-      ]);
       if (artistRes.status === 'fulfilled') {
         setArtistProfile(artistRes.value.data ?? null);
       } else {
@@ -1349,7 +1364,7 @@ export const LibraryScreen = () => {
               await getAlbumShareQr(id);
       setQrData({ link: qr.shareUrl, image: qr.qrCodeBase64 });
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message ?? t('modals.couldNotGenerateQR', 'Could not generate QR'));
+      showToast(e?.message ?? t('modals.couldNotGenerateQR', 'Could not generate QR'), 'error');
     }
   };
 
@@ -1362,7 +1377,7 @@ export const LibraryScreen = () => {
               await getAlbumShareLink(id);
       await Share.share({ message: `${title}\n${res.shareUrl}` });
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotShare', 'Cannot share.'));
+      showToast(e?.message ?? t('screens.library.cannotShare', 'Cannot share.'), 'error');
     }
   };
 
@@ -1379,9 +1394,9 @@ export const LibraryScreen = () => {
         contentType,
       });
       setDiscoveryShareItem(null);
-      Alert.alert(t('screens.library.postedTitle', 'Posted!'), t('screens.library.postedToDiscovery', 'Your post has been shared to Discovery.'));
+      showToast(t('screens.library.postedToDiscovery', 'Your post has been shared to Discovery.'), 'success');
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotPostToDiscovery', 'Cannot post to Discovery.'));
+      showToast(e?.message ?? t('screens.library.cannotPostToDiscovery', 'Cannot post to Discovery.'), 'error');
     }
   };
 
@@ -1407,7 +1422,7 @@ export const LibraryScreen = () => {
       setEditPlaylist(null);
       await load(true);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotUpdate', 'Cannot update.'));
+      showToast(e?.message ?? t('screens.library.cannotUpdate', 'Cannot update.'), 'error');
     }
   };
 
@@ -1422,7 +1437,7 @@ export const LibraryScreen = () => {
       setCreatePlaylistOpen(false);
       await load(true);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotCreatePlaylist', 'Cannot create playlist.'));
+      showToast(e?.message ?? t('screens.library.cannotCreatePlaylist', 'Cannot create playlist.'), 'error');
     }
   };
 
@@ -1441,9 +1456,12 @@ export const LibraryScreen = () => {
     try {
       await apiClient.post(`/albums/${albumId}/publish`);
       await load(true);
-      Alert.alert(t('screens.library.publishedTitle', 'Published!'), t('screens.library.albumPublicNow', 'Your album is now public.'));
+      showToast(t('screens.library.albumPublicNow', 'Your album is now public.'), 'success');
     } catch (e: any) {
-      Alert.alert(t('screens.library.cannotPublishTitle', 'Cannot publish'), e?.message ?? t('screens.library.checkAlbumSongs', 'Check whether your album has enough songs.'));
+      showToast(
+        e?.message ?? t('screens.library.checkAlbumSongs', 'Check whether your album has enough songs.'),
+        'error',
+      );
     }
   };
 
@@ -1452,7 +1470,7 @@ export const LibraryScreen = () => {
       await apiClient.post(`/albums/${albumId}/unpublish`);
       await load(true);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotSetPrivate', 'Cannot set private.'));
+      showToast(e?.message ?? t('screens.library.cannotSetPrivate', 'Cannot set private.'), 'error');
     }
   };
 
@@ -1464,7 +1482,7 @@ export const LibraryScreen = () => {
             await apiClient.delete(`/albums/${a.id}`);
             await load(true);
           } catch (e: any) {
-            Alert.alert(t('common.error'), e?.message);
+            showToast(e?.message ?? t('common.error', 'Error'), 'error');
           }
         }},
     ]);
@@ -1476,9 +1494,9 @@ export const LibraryScreen = () => {
     try {
       await addSongToPlaylist(playlistId, addSongTo.id);
       setAddSongTo(null);
-      Alert.alert(t('screens.library.addedTitle', 'Added'), t('screens.library.songAddedToPlaylist', 'Song has been added to playlist.'));
+      showToast(`${t('screens.library.songAddedToPlaylist', 'Song has been added to playlist.')} ✓`);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message);
+      showToast(e?.message ?? t('common.error', 'Error'), 'error');
     }
   };
 
@@ -1489,8 +1507,9 @@ export const LibraryScreen = () => {
       await addSongToPlaylist(pl.id, addSongTo.id);
       setAddSongTo(null);
       await load(true);
+      showToast(`${t('screens.library.songAddedToPlaylist', 'Song has been added to playlist.')} ✓`);
     } catch (e: any) {
-      Alert.alert(t('common.error'), e?.message);
+      showToast(e?.message ?? t('common.error', 'Error'), 'error');
     }
   };
 
@@ -1811,6 +1830,8 @@ export const LibraryScreen = () => {
             onClose={() => setDiscoveryShareItem(null)}
             onPost={(title, caption, visibility) => handleDiscoveryPost(title, caption, visibility)}
         />
+
+        <Toast {...toast} onHide={hideToast} />
       </View>
   );
 };

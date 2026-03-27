@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome, Ionicons, AntDesign } from '@expo/vector-icons';
 
 import { COLORS, useThemeColors } from '../../config/colors';
+import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import {
@@ -1449,6 +1450,9 @@ export const DiscoverScreen = () => {
     return contentCache[`${post.id}:${post.contentType}:${post.contentId}`] ?? null;
   }, [contentCache]);
 
+  const loadContentForPostRef = useRef(loadContentForPost);
+  loadContentForPostRef.current = loadContentForPost;
+
   // Load feed
   const loadFeed = useCallback(async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
     try {
@@ -1499,8 +1503,22 @@ export const DiscoverScreen = () => {
     return unsubscribe;
   }, [loadFeed]));
 
+  /** Tải metadata từng bài theo lô — tránh 20–30 request song song làm chậm mạng / JS thread */
   useEffect(() => {
-    posts.forEach(p => { void loadContentForPost(p); });
+    let cancelled = false;
+    const BATCH = 4;
+    let i = 0;
+    const step = () => {
+      if (cancelled) return;
+      const slice = posts.slice(i, i + BATCH);
+      i += BATCH;
+      slice.forEach((p) => { void loadContentForPostRef.current(p); });
+      if (i < posts.length) {
+        setTimeout(step, 40);
+      }
+    };
+    if (posts.length) step();
+    return () => { cancelled = true; };
   }, [posts]);
 
   // Actions
@@ -1685,7 +1703,8 @@ export const DiscoverScreen = () => {
 
           {loading ? (
               <View style={styles.loadingWrap}>
-                <ActivityIndicator color={COLORS.accent} />
+                <SectionSkeleton rows={4} />
+                <ActivityIndicator color={COLORS.accent} style={{ marginTop: 16 }} />
               </View>
           ) : posts.length === 0 ? (
               <View style={styles.emptyWrap}>

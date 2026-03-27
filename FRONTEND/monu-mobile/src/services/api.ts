@@ -7,6 +7,7 @@ import axios, {
   AxiosResponse,
   InternalAxiosRequestConfig,
 } from 'axios';
+import NetInfo, { type NetInfoState } from '@react-native-community/netinfo';
 
 import { env } from '../config/env';
 
@@ -41,6 +42,45 @@ const REFRESH_ENDPOINT = '/auth/refresh';
 const DEFAULT_GET_CACHE_TTL_MS = 15000;
 const DISABLE_CACHE_TTL_MS = 0;
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+
+// ─── Adaptive timeout theo loại mạng (một subscription module-scope) ───────────
+let currentNetworkTier: 'fast' | 'slow' | 'offline' = 'fast';
+
+const applyNetInfoState = (state: NetInfoState) => {
+  if (state.isConnected === false) {
+    currentNetworkTier = 'offline';
+    return;
+  }
+  if (state.isConnected == null) return;
+  const { type } = state;
+  currentNetworkTier = type === 'wifi' || type === 'ethernet' ? 'fast' : 'slow';
+};
+
+void NetInfo.fetch().then(applyNetInfoState);
+NetInfo.addEventListener(applyNetInfoState);
+
+const getAdaptiveTimeout = (path: string): number => {
+  // Insights: recommendation-service gọi social (Mongo) + nhiều batch music-service — dễ > 8s
+  if (path.includes('/recommendations/insights')) {
+    if (currentNetworkTier === 'offline') return 5_000;
+    if (currentNetworkTier === 'slow') return 95_000;
+    return 85_000;
+  }
+  // service-social (Render): listen-history / follows — Mongo + cold start
+  if (
+      path.includes('/social/listen-history/my') ||
+      path.includes('/social/follows/my-artists')
+  ) {
+    if (currentNetworkTier === 'offline') return 5_000;
+    if (currentNetworkTier === 'slow') return 50_000;
+    return 40_000;
+  }
+  return {
+    fast: 8_000,
+    slow: 20_000,
+    offline: 3_000,
+  }[currentNetworkTier];
+};
 
 // ─── Retry config ──────────────────────────────────────────────────────────────
 const MAX_RETRY_COUNT = 2;
@@ -172,6 +212,9 @@ export const apiClient: AxiosInstance = axios.create({
 
 // ─── Request interceptor ────────────────────────────────────────────────────────
 apiClient.interceptors.request.use((config) => {
+  const path = normalizeUrlPath(config.url);
+  config.timeout = getAdaptiveTimeout(path);
+
   if (accessTokenInMemory) setAuthorizationHeader(config, accessTokenInMemory);
 
   const method = (config.method ?? 'get').toLowerCase();
@@ -225,9 +268,11 @@ apiClient.interceptors.response.use(
         if (retryCount < MAX_RETRY_COUNT) {
           originalRequest._retryCount = retryCount + 1;
           const delay = RETRY_DELAY_MS * (retryCount + 1); // 1.2s, 2.4s
-          console.warn(
-              `[API] Retry ${retryCount + 1}/${MAX_RETRY_COUNT} sau ${delay}ms — ${requestUrl}`
-          );
+          if (__DEV__) {
+            console.debug(
+                `[API] Retry ${retryCount + 1}/${MAX_RETRY_COUNT} sau ${delay}ms — ${requestUrl}`
+            );
+          }
           await new Promise((resolve) => setTimeout(resolve, delay));
           return apiClient(originalRequest);
         }

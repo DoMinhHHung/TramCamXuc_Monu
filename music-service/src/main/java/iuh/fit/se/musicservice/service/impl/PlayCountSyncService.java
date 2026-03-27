@@ -2,17 +2,16 @@ package iuh.fit.se.musicservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.core.Cursor;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -26,76 +25,81 @@ public class PlayCountSyncService {
     private final JdbcTemplate jdbcTemplate;
 
     private static final String KEY_PREFIX = "song:playcount:";
+    /** Song IDs with a pending Redis counter — no full-key SCAN on flush */
+    private static final String DIRTY_SET = "song:playcount:dirty";
+
+    /**
+     * Atomic read-and-remove counter value in one EVAL (same guarantees as GETDEL on Redis 6.2+,
+     * works on older Redis too).
+     */
+    private static final DefaultRedisScript<String> ATOMIC_GET_DEL = new DefaultRedisScript<>(
+            "local v = redis.call('GET', KEYS[1]); if v ~= false then redis.call('DEL', KEYS[1]) end; return v",
+            String.class
+    );
 
     public void increment(UUID songId) {
         if (songId == null) {
             return;
         }
-        stringRedisTemplate.opsForValue().increment(KEY_PREFIX + songId);
+        String idStr = songId.toString();
+        stringRedisTemplate.opsForValue().increment(KEY_PREFIX + idStr);
+        stringRedisTemplate.opsForSet().add(DIRTY_SET, idStr);
     }
 
     @Scheduled(cron = "0 */5 * * * *")
     @Transactional
     public void flushToDatabase() {
-        Set<String> keys = scanPlayCountKeys();
-        if (keys.isEmpty()) {
+        String drainKey = DIRTY_SET + ":drain:" + UUID.randomUUID();
+        try {
+            stringRedisTemplate.rename(DIRTY_SET, drainKey);
+        } catch (DataAccessException ex) {
+            // No dirty set (nothing to flush) or race with another instance that renamed first
+            log.debug("Playcount flush skipped (no dirty set to rename): {}", ex.getMessage());
             return;
         }
 
-        List<Object[]> batchArgs   = new ArrayList<>();
-        List<String>   keysToDelete = new ArrayList<>();
-
-        for (String key : keys) {
-            try {
-                String raw = stringRedisTemplate.opsForValue().get(key);
-                if (raw == null || raw.isBlank()) {
-                    continue;
-                }
-
-                long delta = Long.parseLong(raw.trim());
-                if (delta <= 0) {
-                    continue;
-                }
-
-                String songId = key.substring(KEY_PREFIX.length());
-                batchArgs.add(new Object[]{delta, songId});
-                keysToDelete.add(key);
-            } catch (Exception ex) {
-                log.warn("Skip invalid playcount key={}", key, ex);
+        try {
+            Set<String> dirtyIds = stringRedisTemplate.opsForSet().members(drainKey);
+            if (dirtyIds == null || dirtyIds.isEmpty()) {
+                return;
             }
-        }
 
-        if (batchArgs.isEmpty()) {
-            return;
-        }
+            List<Object[]> batchArgs = new ArrayList<>();
 
-        jdbcTemplate.batchUpdate(
-                "UPDATE songs SET play_count = play_count + ? WHERE id = ?::uuid",
-                batchArgs
-        );
+            for (String songId : dirtyIds) {
+                try {
+                    String redisKey = KEY_PREFIX + songId;
+                    String raw = stringRedisTemplate.execute(
+                            ATOMIC_GET_DEL,
+                            Collections.singletonList(redisKey));
 
-         stringRedisTemplate.delete(keysToDelete);
+                    if (raw == null || raw.isBlank()) {
+                        continue;
+                    }
 
-        log.info("Flushed playcount deltas for {} songs", batchArgs.size());
-    }
+                    long delta = Long.parseLong(raw.trim());
+                    if (delta <= 0) {
+                        continue;
+                    }
 
-    private Set<String> scanPlayCountKeys() {
-        return stringRedisTemplate.execute((RedisConnection connection) -> {
-            ScanOptions options = ScanOptions.scanOptions()
-                    .match(KEY_PREFIX + "*")
-                    .count(1000)
-                    .build();
-
-            try (Cursor<byte[]> cursor = connection.scan(options)) {
-                Set<String> keys = new java.util.HashSet<>();
-                while (cursor.hasNext()) {
-                    keys.add(new String(cursor.next(), StandardCharsets.UTF_8));
+                    batchArgs.add(new Object[]{delta, songId});
+                } catch (Exception ex) {
+                    log.warn("Skip invalid playcount songId={}", songId, ex);
                 }
-                return keys;
-            } catch (Exception e) {
-                log.error("Failed to scan playcount keys from Redis", e);
-                return Set.<String>of();
             }
-        });
+
+            if (batchArgs.isEmpty()) {
+                return;
+            }
+
+            jdbcTemplate.batchUpdate(
+                    "UPDATE songs SET play_count = play_count + ? WHERE id = ?::uuid",
+                    batchArgs
+            );
+
+            log.info("Flushed playcount deltas for {} songs", batchArgs.size());
+        } finally {
+            stringRedisTemplate.delete(drainKey);
+        }
     }
 }

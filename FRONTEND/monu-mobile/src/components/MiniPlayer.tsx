@@ -4,6 +4,7 @@ import {
     StyleSheet, Text, View, Image,
 } from 'react-native';
 import { COLORS } from '../config/colors';
+import { haptic } from '../utils/haptics';
 import { usePlayer } from '../context/PlayerContext';
 import { Fold } from 'react-native-animated-spinkit';
 import { AntDesign } from '@expo/vector-icons';
@@ -44,6 +45,9 @@ export const MiniPlayer = () => {
                 const swipedLeft = gs.dx < -SWIPE_THRESHOLD;
 
                 if (swipedDown || swipedLeft) {
+                    if (swipedDown) {
+                        haptic.medium();
+                    }
                     const anim = swipedLeft
                         ? Animated.timing(translateX, { toValue: -500, duration: 220, useNativeDriver: true })
                         : Animated.timing(translateY, { toValue: MINI_HEIGHT + TAB_BAR_HEIGHT + 40, duration: 200, useNativeDriver: true });

@@ -1,5 +1,6 @@
 package iuh.fit.se.transcoderservice.service;
 
+import com.rabbitmq.client.Channel;
 import iuh.fit.se.transcoderservice.config.RabbitMQConfig;
 import iuh.fit.se.transcoderservice.dto.TranscodeFailedMessage;
 import iuh.fit.se.transcoderservice.dto.TranscodeSongMessage;
@@ -7,11 +8,12 @@ import iuh.fit.se.transcoderservice.dto.TranscodeSuccessMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -22,8 +24,11 @@ public class TranscodeWorkerService {
     private final FfmpegService ffmpegService;
     private final RabbitTemplate rabbitTemplate;
 
-    @Async("transcodeTaskExecutor")
-    public void process(TranscodeSongMessage message) {
+    /**
+     * Runs on the Rabbit listener thread so {@link Channel#basicAck}/{@link Channel#basicNack} are valid.
+     * Do not offload with @Async — the channel must not be used from another thread.
+     */
+    public void process(TranscodeSongMessage message, Channel channel, long deliveryTag) {
         log.info("==== START TRANSCODING song={} ====" , message.getSongId());
 
         String tmpDir = System.getProperty("java.io.tmpdir");
@@ -62,19 +67,42 @@ public class TranscodeWorkerService {
                     successMsg
             );
 
+            ack(channel, deliveryTag, message.getSongId());
             log.info("==== TRANSCODE SUCCESS song={} ====", message.getSongId());
         } catch (Exception e) {
             log.error("==== TRANSCODE FAILED song={} ====", message.getSongId(), e);
-            rabbitTemplate.convertAndSend(
-                    RabbitMQConfig.MUSIC_EXCHANGE,
-                    RabbitMQConfig.TRANSCODE_FAILED_ROUTING_KEY,
-                    TranscodeFailedMessage.builder()
-                            .songId(message.getSongId())
-                            .error(e.getMessage())
-                            .build()
-            );
+            try {
+                rabbitTemplate.convertAndSend(
+                        RabbitMQConfig.MUSIC_EXCHANGE,
+                        RabbitMQConfig.TRANSCODE_FAILED_ROUTING_KEY,
+                        TranscodeFailedMessage.builder()
+                                .songId(message.getSongId())
+                                .error(e.getMessage())
+                                .build()
+                );
+            } catch (Exception publishErr) {
+                log.error("Failed to publish transcode failure event song={}", message.getSongId(), publishErr);
+            }
+            nack(channel, deliveryTag, message.getSongId());
         } finally {
             cleanup(localRawPath, hlsOutputDir, localMp3Path);
+        }
+    }
+
+    private void ack(Channel channel, long deliveryTag, UUID songId) {
+        try {
+            channel.basicAck(deliveryTag, false);
+        } catch (IOException ex) {
+            log.error("Failed to ACK transcode message song={}", songId, ex);
+        }
+    }
+
+    private void nack(Channel channel, long deliveryTag, UUID songId) {
+        try {
+            channel.basicNack(deliveryTag, false, false);
+            log.warn("Transcode message NACKed (no requeue) song={}", songId);
+        } catch (IOException ex) {
+            log.error("Failed to NACK transcode message song={}", songId, ex);
         }
     }
 

@@ -393,6 +393,7 @@ export const PremiumScreen = () => {
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
     const [currentSub, setCurrentSub] = useState<UserSubscription | null>(null);
     const [loading, setLoading] = useState(true);
+    const premiumFocusPassRef = useRef(0);
     const [purchasing, setPurchasing] = useState(false);
     const mappedFeatures = useMemo<FeatureItem[]>(() => {
         const raw = selectedPlan?.features ?? {};
@@ -465,7 +466,7 @@ export const PremiumScreen = () => {
             if (!silent) setLoading(true);
             const [plansData, subData] = await Promise.allSettled([
                 getActiveSubscriptionPlans(),
-                authSession ? getMySubscription() : null,
+                authSession ? getMySubscription() : Promise.resolve(null as UserSubscription | null),
             ]);
 
             if (plansData.status === 'fulfilled') {
@@ -477,18 +478,24 @@ export const PremiumScreen = () => {
                     setSelectedPlan(paid.reduce((a, b) => (a.price < b.price ? a : b)));
                 }
             }
-            if (subData.status === 'fulfilled' && subData.value) {
-                setCurrentSub(subData.value);
+            if (subData.status === 'fulfilled') {
+                setCurrentSub(subData.value ?? null);
+            } else {
+                setCurrentSub(null);
             }
         } catch {}
         finally { if (!silent) setLoading(false); }
     }, [authSession, selectedPlan]);
 
-    useEffect(() => { void fetchData(); }, []);
+    useEffect(() => {
+        premiumFocusPassRef.current = 0;
+    }, [authSession?.tokens.accessToken]);
 
     useFocusEffect(
         useCallback(() => {
-            void fetchData(true);
+            const silent = premiumFocusPassRef.current > 0;
+            premiumFocusPassRef.current += 1;
+            void fetchData(silent);
             const id = setInterval(() => void fetchData(true), 120000);
             return () => clearInterval(id);
         }, [fetchData]),

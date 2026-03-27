@@ -10,8 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.beans.factory.annotation.Value;
 
 import java.time.Duration;
 import java.util.*;
@@ -29,13 +27,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ListeningInsightsService {
 
-    private final RestTemplate   restTemplate;
-    private final MusicInternalClient musicClient;
-    private final ObjectMapper   objectMapper;
+    private final SocialInternalClient socialInternalClient;
+    private final MusicInternalClient  musicClient;
+    private final ObjectMapper         objectMapper;
     private final RedisTemplate<String, Object> redisTemplate;
-
-    @Value("${social.service.url:http://social-service:8767}")
-    private String socialServiceUrl;
 
     private static final Duration CACHE_TTL = Duration.ofMinutes(30);
     private static final String   CACHE_PREFIX = "rec:insights:";
@@ -77,22 +72,13 @@ public class ListeningInsightsService {
     }
 
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> fetchRawAggregation(UUID userId, int days) {
         try {
-            String url = socialServiceUrl
-                    + "/internal/social/listen-insights/" + userId
-                    + "?days=" + days;
-
-            Map<?, ?> wrapper = restTemplate.getForObject(url, Map.class);
-            if (wrapper == null) return Collections.emptyMap();
-
-            Object result = wrapper.get("result");
-            if (result instanceof Map) {
-                return (Map<String, Object>) result;
+            ApiResponse<Map<String, Object>> resp = socialInternalClient.getListenInsights(userId, days);
+            if (resp == null || resp.getResult() == null) {
+                return Collections.emptyMap();
             }
-            return Collections.emptyMap();
-
+            return resp.getResult();
         } catch (Exception e) {
             log.warn("[Insights] Failed to fetch raw aggregation userId={}: {}", userId, e.getMessage());
             return Collections.emptyMap();

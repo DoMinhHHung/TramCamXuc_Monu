@@ -30,23 +30,89 @@ export function suggestQuality(networkTier: NetworkTier, subscriptionMax: AudioQ
     return Math.min(networkMax, subscriptionMax) as AudioQuality;
 }
 
+function tierRank(t: NetworkTier): number {
+    switch (t) {
+        case 'high':
+            return 3;
+        case 'medium':
+            return 2;
+        case 'low':
+            return 1;
+        case 'offline':
+            return 0;
+    }
+}
+
+/** Hạ bậc mạng → đổi chất lượng nhanh; lên bậc → chờ ổn định để tránh nhảy 64↔320 liên tục. */
+function debounceMsForTransition(from: NetworkTier, to: NetworkTier): number {
+    if (tierRank(to) < tierRank(from)) return 1_200;
+    if (tierRank(to) > tierRank(from)) return 4_500;
+    return 0;
+}
+
 export function useNetworkQuality() {
     const [tier, setTier] = useState<NetworkTier>('high');
     const tierRef = useRef<NetworkTier>('high');
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingTargetRef = useRef<NetworkTier | null>(null);
 
     useEffect(() => {
-        const unsub = NetInfo.addEventListener(state => {
+        const clearDebounce = () => {
+            if (debounceTimerRef.current !== null) {
+                clearTimeout(debounceTimerRef.current);
+                debounceTimerRef.current = null;
+            }
+        };
+
+        const commitTier = (t: NetworkTier) => {
+            if (t === tierRef.current) return;
+            tierRef.current = t;
+            setTier(t);
+            pendingTargetRef.current = null;
+        };
+
+        const scheduleTierChange = (t: NetworkTier) => {
+            if (t === tierRef.current) {
+                clearDebounce();
+                pendingTargetRef.current = null;
+                return;
+            }
+            pendingTargetRef.current = t;
+            clearDebounce();
+            const ms = debounceMsForTransition(tierRef.current, t);
+            debounceTimerRef.current = setTimeout(() => {
+                debounceTimerRef.current = null;
+                const pending = pendingTargetRef.current;
+                if (pending !== null && pending !== tierRef.current) {
+                    commitTier(pending);
+                }
+            }, ms);
+        };
+
+        NetInfo.fetch()
+            .then((state) => {
+                const t = classifyNetwork(
+                    state.type,
+                    state.isConnected,
+                    (state.details as any)?.downlink,
+                );
+                commitTier(t);
+            })
+            .catch(() => {});
+
+        const unsub = NetInfo.addEventListener((state) => {
             const t = classifyNetwork(
                 state.type,
                 state.isConnected,
                 (state.details as any)?.downlink,
             );
-            if (t !== tierRef.current) {
-                tierRef.current = t;
-                setTier(t);
-            }
+            scheduleTierChange(t);
         });
-        return () => unsub();
+
+        return () => {
+            unsub();
+            clearDebounce();
+        };
     }, []);
 
     return { tier, tierRef };

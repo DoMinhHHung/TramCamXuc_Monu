@@ -1,5 +1,6 @@
 package iuh.fit.se.paymentservice.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import iuh.fit.se.paymentservice.config.PayOSConfig;
@@ -12,14 +13,17 @@ import iuh.fit.se.paymentservice.enums.PaymentMethod;
 import iuh.fit.se.paymentservice.enums.PaymentStatus;
 import iuh.fit.se.paymentservice.enums.SubscriptionStatus;
 import iuh.fit.se.paymentservice.event.NotificationEvent;
+import iuh.fit.se.paymentservice.event.SubscriptionActiveEvent;
 import iuh.fit.se.paymentservice.exception.AppException;
 import iuh.fit.se.paymentservice.exception.ErrorCode;
+import iuh.fit.se.paymentservice.outbox.OutboxEvent;
+import iuh.fit.se.paymentservice.outbox.OutboxEventRepository;
+import iuh.fit.se.paymentservice.outbox.OutboxEventTypes;
 import iuh.fit.se.paymentservice.repository.PaymentTransactionRepository;
 import iuh.fit.se.paymentservice.repository.UserSubscriptionRepository;
 import iuh.fit.se.paymentservice.service.PayOSService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.payos.PayOS;
@@ -49,7 +53,7 @@ public class PayOSServiceImpl implements PayOSService {
     private final PaymentTransactionRepository transactionRepository;
     private final UserSubscriptionRepository subscriptionRepository;
     private final ObjectMapper objectMapper;
-    private final RabbitTemplate rabbitTemplate;
+    private final OutboxEventRepository outboxEventRepository;
     private final SubscriptionAuthorizationCacheService subscriptionAuthorizationCacheService;
 
     // ──────────────────────────────────────────────────────────
@@ -178,19 +182,24 @@ public class PayOSServiceImpl implements PayOSService {
             Long orderCode = data.getOrderCode();
             log.info("Webhook verified, orderCode={}, code={}", orderCode, data.getCode());
 
-            PaymentTransaction transaction = transactionRepository.findByOrderCode(orderCode)
-                    .orElseThrow(() -> new RuntimeException("Transaction not found for orderCode=" + orderCode));
-
-            if (transaction.getStatus() == PaymentStatus.COMPLETED
-                    || transaction.getStatus() == PaymentStatus.FAILED) {
-                log.info("Duplicate webhook ignored for orderCode={}, currentStatus={}",
-                        orderCode, transaction.getStatus());
-                return;
+            if (transactionRepository.findByOrderCode(orderCode).isEmpty()) {
+                throw new RuntimeException("Transaction not found for orderCode=" + orderCode);
             }
 
             if ("00".equals(data.getCode())) {
-                transaction.setStatus(PaymentStatus.COMPLETED);
-                transaction.setProviderTransactionId(data.getReference());
+                // Một lệnh UPDATE có điều kiện status=PENDING — idempotent khi webhook trùng / concurrent
+                int updated = transactionRepository.updateFromPendingToCompleted(
+                        orderCode,
+                        PaymentStatus.COMPLETED,
+                        data.getReference(),
+                        PaymentStatus.PENDING);
+                if (updated == 0) {
+                    log.info("Payment success webhook skipped (not pending or duplicate) orderCode={}", orderCode);
+                    return;
+                }
+
+                PaymentTransaction transaction = transactionRepository.findByOrderCode(orderCode)
+                        .orElseThrow(() -> new RuntimeException("Transaction missing after claim orderCode=" + orderCode));
 
                 if (transaction.getSubscription() != null) {
                     UserSubscription sub = transaction.getSubscription();
@@ -206,16 +215,22 @@ public class PayOSServiceImpl implements PayOSService {
                             sub.getExpiresAt()
                     );
 
-                    publishSubscriptionActiveEvent(transaction.getUserId(), sub);
-
-                    publishPaymentSuccessEmail(transaction, sub);
+                    enqueueSubscriptionActiveEvent(transaction.getUserId(), sub);
+                    enqueuePaymentSuccessEmail(transaction, sub);
                 }
 
                 log.info("Payment COMPLETED for orderCode={}", orderCode);
 
             } else {
-                // ── Thanh toán thất bại ────────────────────────────
-                transaction.setStatus(PaymentStatus.FAILED);
+                int updated = transactionRepository.updateFromPendingToFailed(
+                        orderCode, PaymentStatus.FAILED, PaymentStatus.PENDING);
+                if (updated == 0) {
+                    log.info("Payment failure webhook skipped (not pending or duplicate) orderCode={}", orderCode);
+                    return;
+                }
+
+                PaymentTransaction transaction = transactionRepository.findByOrderCode(orderCode)
+                        .orElseThrow(() -> new RuntimeException("Transaction missing after fail claim orderCode=" + orderCode));
 
                 if (transaction.getSubscription() != null) {
                     UserSubscription sub = transaction.getSubscription();
@@ -225,8 +240,6 @@ public class PayOSServiceImpl implements PayOSService {
 
                 log.warn("Payment FAILED for orderCode={}, code={}", orderCode, data.getCode());
             }
-
-            transactionRepository.save(transaction);
 
         } catch (Exception e) {
             log.error("Error handling PayOS webhook", e);
@@ -238,48 +251,61 @@ public class PayOSServiceImpl implements PayOSService {
     // PRIVATE HELPERS
     // ──────────────────────────────────────────────────────────
 
-    private void publishSubscriptionActiveEvent(UUID userId, UserSubscription sub) {
+    /** Cùng transaction với save subscription — scheduler sẽ gửi RabbitMQ. */
+    private void enqueueSubscriptionActiveEvent(UUID userId, UserSubscription sub) {
         try {
-            rabbitTemplate.convertAndSend(
-                    RabbitMQConfig.IDENTITY_EXCHANGE,
-                    RabbitMQConfig.ROUTING_SUBSCRIPTION_ACTIVE,
-                    iuh.fit.se.paymentservice.event.SubscriptionActiveEvent.builder()
-                            .userId(userId)
-                            .planName(sub.getPlan().getSubsName())
-                            .features(sub.getPlan().getFeatures())
-                            .build()
-            );
-            log.info("Published SubscriptionActiveEvent for userId={}, plan={}", userId, sub.getPlan().getSubsName());
-        } catch (Exception e) {
-            log.warn("Failed to publish SubscriptionActiveEvent for userId={}", userId, e);
+            SubscriptionActiveEvent evt = SubscriptionActiveEvent.builder()
+                    .userId(userId)
+                    .planName(sub.getPlan().getSubsName())
+                    .features(sub.getPlan().getFeatures())
+                    .build();
+            outboxEventRepository.save(OutboxEvent.builder()
+                    .aggregateType("Subscription")
+                    .aggregateId(sub.getId().toString())
+                    .eventType(OutboxEventTypes.SUBSCRIPTION_ACTIVATED)
+                    .exchange(RabbitMQConfig.IDENTITY_EXCHANGE)
+                    .routingKey(RabbitMQConfig.ROUTING_SUBSCRIPTION_ACTIVE)
+                    .payload(objectMapper.writeValueAsString(evt))
+                    .published(false)
+                    .createdAt(Instant.now())
+                    .build());
+            log.info("Enqueued SubscriptionActiveEvent for userId={}, plan={}", userId, sub.getPlan().getSubsName());
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize SubscriptionActiveEvent for outbox", e);
         }
     }
 
-    private void publishPaymentSuccessEmail(PaymentTransaction transaction, UserSubscription sub) {
+    private void enqueuePaymentSuccessEmail(PaymentTransaction transaction, UserSubscription sub) {
         try {
             String activatedAt = LocalDateTime.now()
                     .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
             String expiredAt   = sub.getExpiresAt()
                     .format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
 
-            rabbitTemplate.convertAndSend(
-                    RabbitMQConfig.NOTIFICATION_EXCHANGE,
-                    RabbitMQConfig.ROUTING_NOTIFICATION_EMAIL,
-                    NotificationEvent.builder()
-                            .channel("EMAIL")
-                            .recipient(transaction.getUserEmail())
-                            .subject("Thanh toán thành công - TramCamXuc")
-                            .templateCode("payment-success")
-                            .paramMap(Map.of(
-                                    "planName",    sub.getPlan().getSubsName(),
-                                    "amount",      transaction.getAmount().toPlainString() + " VNĐ",
-                                    "activatedAt", activatedAt,
-                                    "expiredAt",   expiredAt
-                            ))
-                            .build()
-            );
-        } catch (Exception e) {
-            log.warn("Failed to send payment success email", e);
+            NotificationEvent evt = NotificationEvent.builder()
+                    .channel("EMAIL")
+                    .recipient(transaction.getUserEmail())
+                    .subject("Thanh toán thành công - TramCamXuc")
+                    .templateCode("payment-success")
+                    .paramMap(Map.of(
+                            "planName",    sub.getPlan().getSubsName(),
+                            "amount",      transaction.getAmount().toPlainString() + " VNĐ",
+                            "activatedAt", activatedAt,
+                            "expiredAt",   expiredAt
+                    ))
+                    .build();
+            outboxEventRepository.save(OutboxEvent.builder()
+                    .aggregateType("PaymentTransaction")
+                    .aggregateId(transaction.getId().toString())
+                    .eventType(OutboxEventTypes.PAYMENT_SUCCESS_EMAIL)
+                    .exchange(RabbitMQConfig.NOTIFICATION_EXCHANGE)
+                    .routingKey(RabbitMQConfig.ROUTING_NOTIFICATION_EMAIL)
+                    .payload(objectMapper.writeValueAsString(evt))
+                    .published(false)
+                    .createdAt(Instant.now())
+                    .build());
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize payment success NotificationEvent for outbox", e);
         }
     }
 
