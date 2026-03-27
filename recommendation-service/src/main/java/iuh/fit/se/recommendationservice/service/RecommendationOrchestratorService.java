@@ -7,7 +7,6 @@ import iuh.fit.se.recommendationservice.client.MusicInternalClient;
 import iuh.fit.se.recommendationservice.config.RecommendationFetchExecutorConfig;
 import iuh.fit.se.recommendationservice.config.RedisConfig;
 import iuh.fit.se.recommendationservice.dto.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -58,7 +57,6 @@ import java.util.stream.Stream;
  *   user không nhận ra sự khác biệt 15 phút)
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class RecommendationOrchestratorService {
 
@@ -71,9 +69,30 @@ public class RecommendationOrchestratorService {
     private final RedisTemplate<String, Object>  redisTemplate;
     private final ObjectMapper                   objectMapper;
     private final RedisConfig.RecommendationProperties props;
+    private final Executor                       fetchExecutor;
 
-    @Qualifier(RecommendationFetchExecutorConfig.BEAN_NAME)
-    private final Executor fetchExecutor;
+    public RecommendationOrchestratorService(
+            MlServiceClient mlClient,
+            MusicInternalClient musicClient,
+            SocialRecommendationService socialService,
+            TrendingScoreService trendingService,
+            RecommendationRanker ranker,
+            ColdStartHandler coldStartHandler,
+            RedisTemplate<String, Object> redisTemplate,
+            ObjectMapper objectMapper,
+            RedisConfig.RecommendationProperties props,
+            @Qualifier(RecommendationFetchExecutorConfig.BEAN_NAME) Executor fetchExecutor) {
+        this.mlClient = mlClient;
+        this.musicClient = musicClient;
+        this.socialService = socialService;
+        this.trendingService = trendingService;
+        this.ranker = ranker;
+        this.coldStartHandler = coldStartHandler;
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
+        this.props = props;
+        this.fetchExecutor = fetchExecutor;
+    }
 
     private static final int PARALLEL_FETCH_TIMEOUT_SEC = 5;
 

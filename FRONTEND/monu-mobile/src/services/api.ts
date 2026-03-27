@@ -348,9 +348,16 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        attachAccessToken(null);
-        clearGetCache();
-        await logoutHandler?.();
+        const axiosErr = refreshError as AxiosError | null;
+        const refreshStatus = (axiosErr as any)?.response?.status as number | undefined;
+
+        // Nếu refresh fail do network/5xx tạm thời → không logout ngay (tránh "văng" login khi mạng chập chờn).
+        const shouldLogout = refreshStatus === 401 || refreshStatus === 403;
+        if (shouldLogout) {
+          attachAccessToken(null);
+          clearGetCache();
+          await logoutHandler?.();
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

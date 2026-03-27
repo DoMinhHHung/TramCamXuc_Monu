@@ -4,6 +4,7 @@ export interface FeedPost {
   id: string;
   ownerId: string;
   ownerType: 'ARTIST' | 'USER';
+  ownerDisplayName?: string | null;
   contentType: 'SONG' | 'ALBUM' | 'PLAYLIST';
   contentId?: string;
   title?: string;
@@ -46,6 +47,7 @@ export interface FeedPostRequest {
   contentType?: 'SONG' | 'ALBUM' | 'PLAYLIST';
   title?: string;
   coverImageUrl?: string;
+  ownerDisplayName?: string;
 }
 
 export interface ShareResponse {
@@ -147,6 +149,23 @@ export const getAlbumShareLink = async (albumId: string, platform = 'direct'): P
 export const getAlbumShareQr = async (albumId: string): Promise<ShareResponse> => {
   const response = await apiClient.get<ShareResponse>('/social/share/album/qr', { params: { albumId } });
   return response.data;
+};
+
+// ─── Counts (artist stats) ────────────────────────────────────────────────────
+
+export const getSongListenCount = async (songId: string): Promise<number> => {
+  const response = await apiClient.get<number>(`/social/listen-history/count/${songId}`);
+  return Number(response.data ?? 0);
+};
+
+export const getSongHeartCount = async (songId: string): Promise<number> => {
+  const response = await apiClient.get<number>(`/social/hearts/count/${songId}`);
+  return Number(response.data ?? 0);
+};
+
+export const getSongShareCount = async (songId: string): Promise<number> => {
+  const response = await apiClient.get<number>('/social/share/count', { params: { songId } });
+  return Number(response.data ?? 0);
 };
 
 export interface HeartResponse {

@@ -1274,6 +1274,9 @@ export const DiscoverScreen = () => {
   const myAvatarUrl     = authSession?.profile?.avatarUrl;
   const [canManageAlbums, setCanManageAlbums] = useState(false);
 
+  type FeedTab = 'for_you' | 'following';
+  const [feedTab, setFeedTab] = useState<FeedTab>('for_you');
+
   const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [posting, setPosting]     = useState(false);
@@ -1335,8 +1338,10 @@ export const DiscoverScreen = () => {
       if (res.status === 'fulfilled' && res.value) {
         updates[id] = { displayName: res.value.stageName || id, artistId: res.value.id, avatarUrl: res.value.avatarUrl };
       } else {
+        // If the post was created by a normal USER, backend can embed display name/email for nicer rendering.
+        const embedded = toFetch.find(p => p.ownerId === id && p.ownerType === 'USER')?.ownerDisplayName;
         updates[id] = {
-          displayName: id === currentUserId ? myDisplayName ?? `User ${id.slice(0, 6)}` : `User ${id.slice(0, 6)}`,
+          displayName: embedded || (id === currentUserId ? myDisplayName ?? `User ${id.slice(0, 6)}` : `User ${id.slice(0, 6)}`),
           artistId: null,
         };
       }
@@ -1458,9 +1463,10 @@ export const DiscoverScreen = () => {
     try {
       if (mode === 'initial')  setLoading(true);
       if (mode === 'refresh')  setRefreshing(true);
-      const data = currentUserId
-          ? await getTimeline({ page: 0, size: 30 })
-          : await getPublicFeed({ page: 0, size: 30 });
+      const data =
+          feedTab === 'following' && currentUserId
+              ? await getTimeline({ page: 0, size: 30 })
+              : await getPublicFeed({ page: 0, size: 30 });
       const newPosts = data.content ?? [];
       const nextSignature = newPosts
           .map(p =>
@@ -1489,7 +1495,7 @@ export const DiscoverScreen = () => {
       if (mode === 'initial')  setLoading(false);
       if (mode === 'refresh')  setRefreshing(false);
     }
-  }, [fetchOwnerInfos, currentUserId]);
+  }, [fetchOwnerInfos, currentUserId, feedTab]);
 
   useEffect(() => {
     loadFeed('initial');
@@ -1684,6 +1690,30 @@ export const DiscoverScreen = () => {
             <Text style={styles.headerSub}>
               {t('screens.discover.communityLabel', 'Cộng đồng âm nhạc')} · {posts.length} {t('screens.discover.posts', 'bài đăng')}
             </Text>
+
+            {/* Feed tabs */}
+            <View style={styles.tabBar}>
+              <Pressable
+                  style={[styles.tab, feedTab === 'for_you' && styles.tabActive]}
+                  onPress={() => { setFeedTab('for_you'); void loadFeed('initial'); }}
+              >
+                <Text style={[styles.tabText, feedTab === 'for_you' && styles.tabTextActive]}>
+                  Dành cho bạn
+                </Text>
+              </Pressable>
+              <Pressable
+                  style={[styles.tab, feedTab === 'following' && styles.tabActive]}
+                  onPress={() => { setFeedTab('following'); void loadFeed('initial'); }}
+                  disabled={!currentUserId}
+              >
+                <Text style={[styles.tabText, feedTab === 'following' && styles.tabTextActive, !currentUserId && { opacity: 0.6 }]}>
+                  Đang theo dõi
+                </Text>
+              </Pressable>
+            </View>
+            {feedTab === 'following' && !currentUserId ? (
+                <Text style={styles.tabHint}>Đăng nhập để xem bài từ người bạn theo dõi</Text>
+            ) : null}
           </LinearGradient>
 
           {/* Composer bar */}
@@ -1796,6 +1826,12 @@ const styles = StyleSheet.create({
   liveBadge: { backgroundColor: COLORS.error, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   liveBadgeText: { color: COLORS.white, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   headerSub: { color: COLORS.glass40, fontSize: 13, marginTop: 4 },
+  tabBar: { flexDirection: 'row', backgroundColor: COLORS.surfaceLow, borderRadius: 12, padding: 3, marginTop: 12, borderWidth: 1, borderColor: COLORS.glass10 },
+  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
+  tabActive: { backgroundColor: COLORS.accentFill20, borderWidth: 1, borderColor: COLORS.accentBorder25 },
+  tabText: { color: COLORS.glass45, fontSize: 13, fontWeight: '700' },
+  tabTextActive: { color: COLORS.accent },
+  tabHint: { color: COLORS.glass35, fontSize: 11, marginTop: 6 },
   composerBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
   composerInput: { flex: 1, backgroundColor: COLORS.surface, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: COLORS.glass10 },
   composerPlaceholder: { color: COLORS.glass35, fontSize: 14 },
@@ -1915,7 +1951,7 @@ const saveStyles = StyleSheet.create({
   sourceBadge: { backgroundColor: COLORS.glass07, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10, borderWidth: 1, borderColor: COLORS.glass10 },
   sourceText: { color: COLORS.glass70, fontSize: 12, lineHeight: 17 },
   lockedNotice: { backgroundColor: COLORS.glass08, borderWidth: 1, borderColor: COLORS.glass12, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
-  lockedNoticeText: { color: COLORS.glass55, fontSize: 12, lineHeight: 17 },
+  lockedNoticeText: { color: COLORS.glass50, fontSize: 12, lineHeight: 17 },
   // Tab bar
   tabBar: { flexDirection: 'row', backgroundColor: COLORS.surfaceLow, borderRadius: 10, padding: 3, marginBottom: 10 },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },

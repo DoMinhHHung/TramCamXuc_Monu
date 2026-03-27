@@ -20,6 +20,7 @@ function mapFeedPost(p: any, likedByCurrentUser: boolean): FeedPost {
     id: String(p._id ?? p.id),
     ownerId: String(p.ownerId),
     ownerType: p.ownerType,
+    ownerDisplayName: p.ownerDisplayName ?? null,
     contentType: p.contentType,
     contentId: p.contentId ? String(p.contentId) : undefined,
     title: p.title ?? null,
@@ -101,6 +102,7 @@ async function evictFollowCache(followerId: string): Promise<void> {
 export async function createFeedPost(params: {
   ownerId: UUID;
   ownerType: string;
+  ownerDisplayName?: string | null;
   contentType?: string;
   contentId?: string;
   title?: string;
@@ -114,6 +116,7 @@ export async function createFeedPost(params: {
   const doc = {
     ownerId: params.ownerId,
     ownerType: params.ownerType,
+    ownerDisplayName: params.ownerDisplayName ?? null,
     contentType: params.contentType ?? 'TEXT',
     contentId: params.contentId ?? null,
     title: params.title ?? null,

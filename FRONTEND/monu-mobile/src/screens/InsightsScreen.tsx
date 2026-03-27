@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
 import { STATS_EMOJIS } from '../config/emojis';
+import { apiClient } from '../services/api';
+import { getMySongs, Song } from '../services/music';
 import {
     getListeningInsights,
     ListeningInsights,
@@ -25,6 +27,7 @@ import {
     HourlyListenCount,
     DailyListenCount,
 } from '../services/recommendation';
+import { getSongHeartCount, getSongListenCount, getSongShareCount } from '../services/social';
 
 // ─── Period selector ──────────────────────────────────────────────────────────
 
@@ -118,6 +121,15 @@ export const InsightsScreen = () => {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // ── Artist stats (for artists only) ───────────────────────────────────────
+    const [isArtist, setIsArtist] = useState<boolean>(false);
+    const [artistSongs, setArtistSongs] = useState<Array<{
+        song: Song;
+        listens: number;
+        likes: number;
+        shares: number;
+    }>>([]);
+
     const load = useCallback(async (p: Period, silent = false) => {
         try {
             if (!silent) setLoading(true);
@@ -132,8 +144,33 @@ export const InsightsScreen = () => {
         }
     }, []);
 
+    const loadArtistStats = useCallback(async () => {
+        try {
+            await apiClient.get('/artists/me');
+            setIsArtist(true);
+
+            const mySongsPage = await getMySongs({ page: 1, size: 20, noCache: true });
+            const songs = mySongsPage.content ?? [];
+            const rows = await Promise.all(
+                songs.map(async (song) => {
+                    const [listens, likes, shares] = await Promise.all([
+                        getSongListenCount(song.id).catch(() => 0),
+                        getSongHeartCount(song.id).catch(() => 0),
+                        getSongShareCount(song.id).catch(() => 0),
+                    ]);
+                    return { song, listens, likes, shares };
+                }),
+            );
+            setArtistSongs(rows);
+        } catch {
+            setIsArtist(false);
+            setArtistSongs([]);
+        }
+    }, []);
+
     useEffect(() => {
         void load(period);
+        void loadArtistStats();
     }, [period, load]);
 
     const onRefresh = useCallback(() => {
@@ -350,6 +387,57 @@ export const InsightsScreen = () => {
                             </Text>
                         </Section>
                     )}
+
+                    {/* Artist stats */}
+                    <Section title="🎛 Thống kê bài hát của bạn">
+                        {!isArtist ? (
+                            <View style={{ backgroundColor: COLORS.glass06, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: COLORS.glass10 }}>
+                                <Text style={{ color: COLORS.white, fontWeight: '700', marginBottom: 6 }}>
+                                    Bạn cần đăng ký Artist để xem thống kê này
+                                </Text>
+                                <Text style={{ color: COLORS.glass50, fontSize: 13, lineHeight: 18 }}>
+                                    Thống kê cho bài hát bạn đăng lên: lượt nghe, lượt thích, lượt chia sẻ.
+                                </Text>
+                                <Pressable
+                                    style={[styles.retryBtn, { alignSelf: 'flex-start', marginTop: 12 }]}
+                                    onPress={() => (navigation as any).navigate?.('RegisterArtist')}
+                                >
+                                    <Text style={styles.retryLabel}>Đăng ký Artist</Text>
+                                </Pressable>
+                            </View>
+                        ) : artistSongs.length === 0 ? (
+                            <Text style={{ color: COLORS.glass50, fontSize: 13 }}>
+                                Chưa có bài hát nào hoặc chưa có dữ liệu thống kê.
+                            </Text>
+                        ) : (
+                            <View style={{ gap: 10 }}>
+                                {artistSongs.map((row) => (
+                                    <View
+                                        key={row.song.id}
+                                        style={{
+                                            backgroundColor: COLORS.glass06,
+                                            borderRadius: 14,
+                                            padding: 12,
+                                            borderWidth: 1,
+                                            borderColor: COLORS.glass10,
+                                        }}
+                                    >
+                                        <Text style={{ color: COLORS.white, fontWeight: '700' }} numberOfLines={1}>
+                                            {row.song.title}
+                                        </Text>
+                                        <Text style={{ color: COLORS.glass45, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                                            {row.song.primaryArtist?.stageName}
+                                        </Text>
+                                        <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
+                                            <Text style={{ color: COLORS.glass60, fontSize: 12 }}>👂 {row.listens}</Text>
+                                            <Text style={{ color: COLORS.glass60, fontSize: 12 }}>❤️ {row.likes}</Text>
+                                            <Text style={{ color: COLORS.glass60, fontSize: 12 }}>🔗 {row.shares}</Text>
+                                        </View>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                    </Section>
                 </ScrollView>
             )}
         </View>
