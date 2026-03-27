@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
       ownerId: userId,
       ownerType,
       ownerDisplayName: ownerEmail ?? body.ownerDisplayName,
+      ownerAvatarUrl: body.ownerAvatarUrl ?? null,
       contentType: body.contentType,
       contentId: body.contentId,
       title: body.title,

@@ -9,6 +9,7 @@ export type FeedPost = {
   ownerId: UUID;
   ownerType: string;
   ownerDisplayName?: string | null;
+  ownerAvatarUrl?: string | null;
   contentType: string;
   contentId?: UUID;
   title?: string | null;

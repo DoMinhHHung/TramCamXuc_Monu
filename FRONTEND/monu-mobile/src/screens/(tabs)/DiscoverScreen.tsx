@@ -1340,9 +1340,11 @@ export const DiscoverScreen = () => {
       } else {
         // If the post was created by a normal USER, backend can embed display name/email for nicer rendering.
         const embedded = toFetch.find(p => p.ownerId === id && p.ownerType === 'USER')?.ownerDisplayName;
+        const embeddedAvatar = toFetch.find(p => p.ownerId === id && p.ownerType === 'USER')?.ownerAvatarUrl;
         updates[id] = {
           displayName: embedded || (id === currentUserId ? myDisplayName ?? `User ${id.slice(0, 6)}` : `User ${id.slice(0, 6)}`),
           artistId: null,
+          avatarUrl: embeddedAvatar ?? undefined,
         };
       }
     });
@@ -1468,7 +1470,22 @@ export const DiscoverScreen = () => {
               ? await getTimeline({ page: 0, size: 30 })
               : await getPublicFeed({ page: 0, size: 30 });
       const newPosts = data.content ?? [];
-      const nextSignature = newPosts
+
+      // Nếu user chưa follow ai, không show "famous" trong tab Đang theo dõi (đúng kỳ vọng UX)
+      const filteredPosts = await (async () => {
+        if (feedTab !== 'following' || !currentUserId) return newPosts;
+        try {
+          const followed = await getMyFollowedArtists({ page: 0, size: 200 });
+          const ids = new Set((followed.content ?? []).map((f) => f.artistId));
+          if (ids.size === 0) {
+            return newPosts.filter((p) => p.ownerId === currentUserId);
+          }
+          return newPosts.filter((p) => p.ownerId === currentUserId || ids.has(p.ownerId));
+        } catch {
+          return newPosts;
+        }
+      })();
+      const nextSignature = filteredPosts
           .map(p =>
               [
                 p.id,
@@ -1486,8 +1503,8 @@ export const DiscoverScreen = () => {
 
       if (postsSignatureRef.current !== nextSignature) {
         postsSignatureRef.current = nextSignature;
-        setPosts(newPosts);
-        void fetchOwnerInfos(newPosts);
+        setPosts(filteredPosts);
+        void fetchOwnerInfos(filteredPosts);
       }
     } catch {
       if (mode !== 'silent') setPosts([]);
@@ -1531,7 +1548,13 @@ export const DiscoverScreen = () => {
   const handleCreatePost = async (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY') => {
     setPosting(true);
     try {
-      await createFeedPost({ visibility, title, caption: caption || undefined });
+      await createFeedPost({
+        visibility,
+        title,
+        caption: caption || undefined,
+        ownerDisplayName: myDisplayName ?? undefined,
+        ownerAvatarUrl: myAvatarUrl ?? null,
+      });
       setComposeOpen(false);
       await loadFeed('silent');
       notifyFeedUpdated();

@@ -5,6 +5,7 @@ export interface FeedPost {
   ownerId: string;
   ownerType: 'ARTIST' | 'USER';
   ownerDisplayName?: string | null;
+  ownerAvatarUrl?: string | null;
   contentType: 'SONG' | 'ALBUM' | 'PLAYLIST';
   contentId?: string;
   title?: string;
@@ -48,6 +49,7 @@ export interface FeedPostRequest {
   title?: string;
   coverImageUrl?: string;
   ownerDisplayName?: string;
+  ownerAvatarUrl?: string | null;
 }
 
 export interface ShareResponse {
