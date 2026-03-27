@@ -1,4 +1,5 @@
 const BASE = '/api';
+const responseCache = new Map<string, { expiresAt: number; data: unknown }>();
 
 function token() {
     return typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
@@ -32,7 +33,22 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
             headers: {
                 'Content-Type': 'application/json',
                 ...(token() ? { Authorization: `Bearer ${token()}` } : {}),
-                ...init?.headers,
+export interface ApiFetchInit extends RequestInit {
+    /** Client-side cache TTL (ms). Only applies to GET requests with empty body. */
+    ttlMs?: number;
+}
+
+export async function apiFetch<T>(path: string, init?: ApiFetchInit): Promise<T> {
+    const method = (init?.method ?? 'GET').toUpperCase();
+    const cacheable = method === 'GET' && !init?.body && (init?.ttlMs ?? 0) > 0;
+    const cacheKey = cacheable ? `${method}:${path}` : null;
+    if (cacheable && cacheKey) {
+        const hit = responseCache.get(cacheKey);
+        if (hit && hit.expiresAt > Date.now()) {
+            return hit.data as T;
+        }
+    }
+
             },
         });
     } catch {
@@ -87,4 +103,19 @@ function httpStatusMsg(status: number): string {
         503: 'Service không khả dụng',
     };
     return map[status] ?? `HTTP ${status}`;
-}
+}        const parsed = (data.result ?? data) as T;
+        if (cacheable && cacheKey) {
+            responseCache.set(cacheKey, {
+                expiresAt: Date.now() + (init?.ttlMs ?? 0),
+                data: parsed,
+            });
+        }
+        return parsed;
+    const parsed = data as T;
+    if (cacheable && cacheKey) {
+        responseCache.set(cacheKey, {
+            expiresAt: Date.now() + (init?.ttlMs ?? 0),
+            data: parsed,
+        });
+    }
+    return parsed;

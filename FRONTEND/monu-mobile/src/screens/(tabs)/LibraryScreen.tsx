@@ -507,6 +507,7 @@ const modalStyles = StyleSheet.create({
     padding: 20,
   },
   title: { color: COLORS.white, fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  subTitle: { color: COLORS.glass45, fontSize: 12, marginBottom: 10 },
   input: {
     backgroundColor: COLORS.surfaceLow,
     borderWidth: 1,
@@ -1264,6 +1265,8 @@ export const LibraryScreen = () => {
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [createAlbumOpen, setCreateAlbumOpen] = useState(false);
+  const [publishAlbumTarget, setPublishAlbumTarget] = useState<Album | null>(null);
+  const [releaseDateDraft, setReleaseDateDraft] = useState('');
   const [detailAlbumId, setDetailAlbumId]     = useState<string | null>(null);
   const [editPlaylist, setEditPlaylist]        = useState<Playlist | null>(null);
   const [editPlaylistName, setEditPlaylistName] = useState('');
@@ -1430,8 +1433,12 @@ export const LibraryScreen = () => {
     }
   };
 
-  const handlePublishAlbum = async (albumId: string) => {
+  const handlePublishAlbum = async (albumId: string, releaseDate?: string) => {
     try {
+      const normalizedReleaseDate = (releaseDate ?? '').trim();
+      if (normalizedReleaseDate) {
+        await apiClient.put(`/albums/${albumId}`, { releaseDate: normalizedReleaseDate });
+      }
       await apiClient.post(`/albums/${albumId}/publish`);
       await load(true);
       showToast(t('screens.library.albumPublicNow', 'Your album is now public.'), 'success');
@@ -1450,6 +1457,11 @@ export const LibraryScreen = () => {
     } catch (e: any) {
       showToast(e?.message ?? t('screens.library.cannotSetPrivate', 'Cannot set private.'), 'error');
     }
+  };
+
+  const openPublishAlbumModal = (album: Album) => {
+    setPublishAlbumTarget(album);
+    setReleaseDateDraft(album.releaseDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
   };
 
   const handleDeleteAlbum = (a: Album) => {
@@ -1626,7 +1638,7 @@ export const LibraryScreen = () => {
                     key={a.id}
                     album={a}
                     onPress={() => setDetailAlbumId(a.id)}
-                    onPublish={() => void handlePublishAlbum(a.id)}
+                    onPublish={() => openPublishAlbumModal(a)}
                     onUnpublish={() => void handleUnpublishAlbum(a.id)}
                     onDelete={() => handleDeleteAlbum(a)}
                     onShare={() => openShareOptions('album', a.id, a.title)}
@@ -1770,6 +1782,44 @@ export const LibraryScreen = () => {
             onRefreshParent={() => void load(true)}
             mySongs={songs}
         />
+
+        <Modal
+          visible={!!publishAlbumTarget}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPublishAlbumTarget(null)}
+        >
+          <View style={modalStyles.overlay}>
+            <View style={modalStyles.card}>
+              <Text style={modalStyles.title}>{t('screens.library.publishAlbum', 'Publish album')}</Text>
+              <Text style={modalStyles.subTitle}>
+                {publishAlbumTarget?.title} · {t('screens.library.releaseDate', 'Release date')} (YYYY-MM-DD)
+              </Text>
+              <TextInput
+                style={modalStyles.input}
+                value={releaseDateDraft}
+                onChangeText={setReleaseDateDraft}
+                placeholder="2026-03-27"
+                placeholderTextColor={COLORS.glass30}
+              />
+              <View style={modalStyles.actions}>
+                <Pressable style={modalStyles.cancelBtn} onPress={() => setPublishAlbumTarget(null)}>
+                  <Text style={modalStyles.cancelText}>{t('common.cancel', 'Cancel')}</Text>
+                </Pressable>
+                <Pressable
+                  style={modalStyles.createBtn}
+                  onPress={async () => {
+                    if (!publishAlbumTarget) return;
+                    await handlePublishAlbum(publishAlbumTarget.id, releaseDateDraft);
+                    setPublishAlbumTarget(null);
+                  }}
+                >
+                  <Text style={modalStyles.createText}>{t('screens.library.publish', 'Publish')}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* Add to playlist */}
         <AddToPlaylistModal

@@ -334,9 +334,10 @@ export const HomeScreen = () => {
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const fresh = (albumsRes.content ?? []).filter((album) => {
         if (!album.releaseDate) return false;
-        const d = new Date(album.releaseDate);
+        const dateInput = album.releaseDate.includes('T') ? album.releaseDate : `${album.releaseDate}T00:00:00`;
+        const d = new Date(dateInput);
         return d >= sevenDaysAgo && d <= now;
-      });
+      }).sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''));
       setNewlyReleasedAlbums(fresh);
     } catch {
       setNewlyReleasedAlbums([]);

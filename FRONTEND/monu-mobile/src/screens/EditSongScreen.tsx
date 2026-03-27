@@ -150,12 +150,12 @@ export const EditSongScreen = () => {
         await addSongToAlbum(selectedAlbumId, songId);
       }
       Alert.alert(
-        t('screens.editSong.savedTitle', 'Đã lưu'),
+        '✅ Thành công',
         t('screens.editSong.savedMessage', 'Thông tin bài hát đã được cập nhật.'),
         [{ text: 'OK', onPress: () => navigation.goBack() }],
       );
     } catch (err: any) {
-      Alert.alert(t('common.error'), err?.message ?? t('screens.editSong.saveFailed', 'Không thể lưu. Thử lại.'));
+      Alert.alert('❌ Lỗi', err?.message ?? t('screens.editSong.saveFailed', 'Không thể lưu. Thử lại.'));
     } finally {
       setSaving(false);
     }
@@ -193,9 +193,9 @@ export const EditSongScreen = () => {
       setLyricData(result);
       setHasLyric(true);
       setPickedLyric(null);
-      Alert.alert(t('screens.editSong.lyricUploadedTitle', 'Thành công'), t('screens.editSong.lyricUploadedMessage', 'Lời bài hát đã được tải lên.'));
+      Alert.alert('✅ Thành công', t('screens.editSong.lyricUploadedMessage', 'Lời bài hát đã được tải lên.'));
     } catch (err: any) {
-      Alert.alert(t('common.error'), err?.message ?? t('screens.editSong.lyricUploadFailed', 'Không thể tải lên lời bài hát.'));
+      Alert.alert('❌ Lỗi', err?.message ?? t('screens.editSong.lyricUploadFailed', 'Không thể tải lên lời bài hát.'));
     } finally {
       setLyricUploading(false);
     }
@@ -216,9 +216,9 @@ export const EditSongScreen = () => {
               await deleteLyric(songId);
               setLyricData(null);
               setHasLyric(false);
-              Alert.alert(t('screens.editSong.lyricDeletedTitle', 'Đã xoá'), t('screens.editSong.lyricDeletedMessage', 'Lời bài hát đã được xoá.'));
+              Alert.alert('✅ Thành công', t('screens.editSong.lyricDeletedMessage', 'Lời bài hát đã được xoá.'));
             } catch (err: any) {
-              Alert.alert(t('common.error'), err?.message ?? t('screens.editSong.lyricDeleteFailed', 'Không thể xoá.'));
+              Alert.alert('❌ Lỗi', err?.message ?? t('screens.editSong.lyricDeleteFailed', 'Không thể xoá.'));
             } finally {
               setLyricDeleting(false);
             }
