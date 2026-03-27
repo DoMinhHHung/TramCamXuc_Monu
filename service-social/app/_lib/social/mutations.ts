@@ -21,6 +21,7 @@ function mapFeedPost(p: any, likedByCurrentUser: boolean): FeedPost {
     ownerId: String(p.ownerId),
     ownerType: p.ownerType,
     ownerDisplayName: p.ownerDisplayName ?? null,
+    ownerAvatarUrl: p.ownerAvatarUrl ?? null,
     contentType: p.contentType,
     contentId: p.contentId ? String(p.contentId) : undefined,
     title: p.title ?? null,
@@ -103,6 +104,7 @@ export async function createFeedPost(params: {
   ownerId: UUID;
   ownerType: string;
   ownerDisplayName?: string | null;
+  ownerAvatarUrl?: string | null;
   contentType?: string;
   contentId?: string;
   title?: string;
@@ -117,6 +119,7 @@ export async function createFeedPost(params: {
     ownerId: params.ownerId,
     ownerType: params.ownerType,
     ownerDisplayName: params.ownerDisplayName ?? null,
+    ownerAvatarUrl: params.ownerAvatarUrl ?? null,
     contentType: params.contentType ?? 'TEXT',
     contentId: params.contentId ?? null,
     title: params.title ?? null,
