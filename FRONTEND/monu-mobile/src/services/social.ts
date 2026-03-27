@@ -4,6 +4,7 @@ export interface FeedPost {
   id: string;
   ownerId: string;
   ownerType: 'ARTIST' | 'USER';
+  ownerDisplayName?: string | null;
   contentType: 'SONG' | 'ALBUM' | 'PLAYLIST';
   contentId?: string;
   title?: string;
@@ -46,6 +47,7 @@ export interface FeedPostRequest {
   contentType?: 'SONG' | 'ALBUM' | 'PLAYLIST';
   title?: string;
   coverImageUrl?: string;
+  ownerDisplayName?: string;
 }
 
 export interface ShareResponse {

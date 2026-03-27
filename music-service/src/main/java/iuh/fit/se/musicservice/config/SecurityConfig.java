@@ -38,6 +38,7 @@ public class SecurityConfig {
                     "/genres",
                     "/genres/**",
                     "/artists",
+                    "/artists/by-user/**",
                     "/artists/register",
                     "/artists/*/songs",
                     "/albums",
