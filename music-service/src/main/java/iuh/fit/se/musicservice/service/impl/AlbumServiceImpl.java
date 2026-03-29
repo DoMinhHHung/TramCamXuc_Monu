@@ -656,8 +656,17 @@ public class AlbumServiceImpl implements AlbumService {
     @Override
     @Transactional(readOnly = true)
     public List<AlbumResponse> adminTopFavoritedAlbumsThisWeek(int limit) {
+        return adminTopFavoritedAlbumsSince(limit, LocalDateTime.now().minusDays(7));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AlbumResponse> adminTopFavoritedAlbumsThisMonth(int limit) {
+        return adminTopFavoritedAlbumsSince(limit, LocalDateTime.now().minusDays(30));
+    }
+
+    private List<AlbumResponse> adminTopFavoritedAlbumsSince(int limit, LocalDateTime since) {
         int cap = Math.min(Math.max(limit, 1), 100);
-        LocalDateTime since = LocalDateTime.now().minusDays(7);
         List<Object[]> rows = albumFavoriteRepository.topAlbumIdsByFavoriteSinceRaw(since, PageRequest.of(0, cap));
         List<AlbumResponse> out = new ArrayList<>();
         for (Object[] row : rows) {
