@@ -1,31 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
 import { openAdminRealtime } from '@/lib/realtime';
-import { ArrowClockwise } from '@phosphor-icons/react';
+import { ArrowClockwise, MusicNotesPlus } from '@phosphor-icons/react';
 
-type Tab = 'top' | 'genres' | 'songs' | 'albums';
+type MusicTab = 'songs' | 'songs-top' | 'playlists-top' | 'albums-top' | 'jamendo';
+type Period = 'WEEK' | 'MONTH';
 type ListenPeriod = 'DAY' | 'WEEK' | 'MONTH';
 
-interface Genre {
-    id: string;
-    name: string;
+interface PageResult<T> {
+    content: T[];
+    totalElements: number;
 }
 
 interface Song {
     id: string;
     title: string;
+    durationSeconds?: number;
     primaryArtist?: { stageName?: string };
     primaryArtistStageName?: string;
-    status?: string;
-    durationSeconds?: number;
-}
-
-interface PageResult<T> {
-    content: T[];
-    totalElements: number;
-    totalPages: number;
 }
 
 interface TopListenEntry {
@@ -37,185 +31,212 @@ interface AdminSongBrief {
     id: string;
     title: string;
     primaryArtistStageName?: string;
-    status?: string;
 }
 
-interface AdminAlbumBrief {
+interface Playlist {
+    id: string;
+    name: string;
+    totalSongs?: number;
+    ownerId?: string;
+}
+
+interface Album {
     id: string;
     title: string;
-    status?: string;
     ownerStageName?: string;
-    publishedAt?: string;
-    credits?: string;
 }
 
-function fmtDuration(sec?: number) {
-    if (sec == null || Number.isNaN(sec)) return '—';
+interface JamendoImportSummary {
+    fetched?: number;
+    skipped?: number;
+    enqueued?: number;
+}
+
+const fmtDuration = (sec?: number) => {
+    if (sec == null) return '—';
     const m = Math.floor(sec / 60);
     const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
+    return `${m}:${`${s}`.padStart(2, '0')}`;
+};
+
+function DataCard({ title, subtitle, value }: { title: string; subtitle?: string; value?: string }) {
+    return (
+        <div className="border border-zinc-200 dark:border-white/10 p-3 bg-white/70 dark:bg-white/[0.02]">
+            <p className="text-[10px] uppercase tracking-wider text-zinc-500">{title}</p>
+            <p className="text-lg font-semibold text-zinc-900 dark:text-white mt-1">{value ?? '—'}</p>
+            {subtitle ? <p className="text-[11px] text-zinc-500 mt-1">{subtitle}</p> : null}
+        </div>
+    );
 }
 
 export default function MusicPage() {
-    const [tab, setTab] = useState<Tab>('top');
+    const [tab, setTab] = useState<MusicTab>('songs');
     const [error, setError] = useState<string | null>(null);
 
-    const [genres, setGenres] = useState<Genre[]>([]);
-    const [loadingGenres, setLoadingGenres] = useState(false);
-
     const [songs, setSongs] = useState<Song[]>([]);
+    const [totalSongs, setTotalSongs] = useState(0);
     const [loadingSongs, setLoadingSongs] = useState(false);
 
-    const [period, setPeriod] = useState<ListenPeriod>('DAY');
+    const [songPeriod, setSongPeriod] = useState<Period>('WEEK');
     const [topListen, setTopListen] = useState<TopListenEntry[]>([]);
-    const [topBriefs, setTopBriefs] = useState<Record<string, AdminSongBrief>>({});
-    const [loadingTop, setLoadingTop] = useState(false);
+    const [topSongMap, setTopSongMap] = useState<Record<string, AdminSongBrief>>({});
+    const [loadingTopSongs, setLoadingTopSongs] = useState(false);
 
-    const [recentAlbums, setRecentAlbums] = useState<AdminAlbumBrief[]>([]);
-    const [loadingRecentAlbums, setLoadingRecentAlbums] = useState(false);
-    const [topFavAlbums, setTopFavAlbums] = useState<AdminAlbumBrief[]>([]);
-    const [loadingTopFavAlbums, setLoadingTopFavAlbums] = useState(false);
+    const [playlistPeriod, setPlaylistPeriod] = useState<Period>('WEEK');
+    const [playlists, setPlaylists] = useState<Playlist[]>([]);
+    const [totalPlaylists, setTotalPlaylists] = useState(0);
+    const [loadingPlaylists, setLoadingPlaylists] = useState(false);
 
-    const loadGenres = useCallback(async () => {
-        setLoadingGenres(true);
-        try {
-            const data = await apiFetch<Genre[]>('/genres', { ttlMs: 10_000 });
-            setGenres(Array.isArray(data) ? data : []);
-            setError(null);
-        } catch (e: unknown) {
-            setError(e instanceof ApiError ? e.message : 'Không tải được genres');
-        } finally {
-            setLoadingGenres(false);
-        }
-    }, []);
+    const [albumPeriod, setAlbumPeriod] = useState<Period>('WEEK');
+    const [topAlbums, setTopAlbums] = useState<Album[]>([]);
+    const [totalAlbums, setTotalAlbums] = useState(0);
+    const [loadingAlbums, setLoadingAlbums] = useState(false);
+
+    const [jamendoTags, setJamendoTags] = useState('pop');
+    const [jamendoLimit, setJamendoLimit] = useState(50);
+    const [importingJamendo, setImportingJamendo] = useState(false);
+    const [jamendoSummary, setJamendoSummary] = useState<JamendoImportSummary | null>(null);
 
     const loadSongs = useCallback(async () => {
         setLoadingSongs(true);
         try {
-            const data = await apiFetch<PageResult<Song>>(
-                '/admin/songs?status=PUBLIC&page=1&size=50&showDeleted=false',
-                { ttlMs: 10_000 },
-            );
-            setSongs(data?.content ?? []);
+            const result = await apiFetch<PageResult<Song>>('/admin/songs?status=PUBLIC&page=1&size=24&showDeleted=false', { ttlMs: 5_000 });
+            setSongs(result?.content ?? []);
+            setTotalSongs(result?.totalElements ?? 0);
             setError(null);
-        } catch (e: unknown) {
-            setError(e instanceof ApiError ? e.message : 'Không tải được songs');
+        } catch (e) {
+            setError(e instanceof ApiError ? e.message : 'Không thể tải danh sách bài hát');
         } finally {
             setLoadingSongs(false);
         }
     }, []);
 
-    const loadRecentAlbums = useCallback(async () => {
-        setLoadingRecentAlbums(true);
+    const loadTopSongs = useCallback(async () => {
+        setLoadingTopSongs(true);
         try {
-            const data = await apiFetch<PageResult<AdminAlbumBrief>>(
-                '/admin/albums/recently-published?withinDays=14&page=1&size=30',
-                { ttlMs: 0 },
-            );
-            setRecentAlbums(data?.content ?? []);
-            setError(null);
-        } catch (e: unknown) {
-            setError(e instanceof ApiError ? e.message : 'Không tải được album mới phát hành');
-            setRecentAlbums([]);
-        } finally {
-            setLoadingRecentAlbums(false);
-        }
-    }, []);
-
-    const loadTopFavAlbums = useCallback(async () => {
-        setLoadingTopFavAlbums(true);
-        try {
-            const data = await apiFetch<AdminAlbumBrief[]>('/admin/albums/top-favorites-week?limit=30', { ttlMs: 0 });
-            setTopFavAlbums(Array.isArray(data) ? data : []);
-            setError(null);
-        } catch (e: unknown) {
-            setError(e instanceof ApiError ? e.message : 'Không tải được album yêu thích tuần');
-            setTopFavAlbums([]);
-        } finally {
-            setLoadingTopFavAlbums(false);
-        }
-    }, []);
-
-    const loadTopListened = useCallback(async () => {
-        setLoadingTop(true);
-        try {
-            const raw = await apiFetch<TopListenEntry[]>(
-                `/social/admin/listen/top-songs?period=${period}&limit=50`,
-                { ttlMs: 0 },
-            );
-            const list = Array.isArray(raw) ? raw : [];
-            setTopListen(list);
-
-            const ids = list.map((r) => r.songId).filter(Boolean);
-            if (ids.length === 0) {
-                setTopBriefs({});
-                setError(null);
-                return;
+            const period: ListenPeriod = songPeriod === 'WEEK' ? 'WEEK' : 'MONTH';
+            const list = await apiFetch<TopListenEntry[]>(`/social/admin/listen/top-songs?period=${period}&limit=12`, { ttlMs: 0 });
+            const safe = Array.isArray(list) ? list : [];
+            setTopListen(safe);
+            const ids = safe.map((x) => x.songId).filter(Boolean);
+            if (ids.length) {
+                const briefs = await apiFetch<AdminSongBrief[]>('/admin/songs/batch-lookup', {
+                    method: 'POST',
+                    body: JSON.stringify(ids),
+                });
+                const map: Record<string, AdminSongBrief> = {};
+                for (const b of briefs ?? []) map[b.id] = b;
+                setTopSongMap(map);
+            } else {
+                setTopSongMap({});
             }
-
-            const briefs = await apiFetch<AdminSongBrief[]>('/admin/songs/batch-lookup', {
-                method: 'POST',
-                body: JSON.stringify(ids),
-            });
-            const map: Record<string, AdminSongBrief> = {};
-            for (const b of briefs ?? []) {
-                map[b.id] = b;
-            }
-            setTopBriefs(map);
             setError(null);
-        } catch (e: unknown) {
-            setError(e instanceof ApiError ? e.message : 'Không tải được thống kê lượt nghe');
+        } catch (e) {
             setTopListen([]);
-            setTopBriefs({});
+            setTopSongMap({});
+            setError(e instanceof ApiError ? e.message : 'Không thể tải top bài hát');
         } finally {
-            setLoadingTop(false);
+            setLoadingTopSongs(false);
         }
-    }, [period]);
+    }, [songPeriod]);
+
+    const loadPlaylists = useCallback(async () => {
+        setLoadingPlaylists(true);
+        try {
+            const result = await apiFetch<PageResult<Playlist>>('/playlists/my-playlists?page=1&size=12', { ttlMs: 5_000 });
+            setPlaylists(result?.content ?? []);
+            setTotalPlaylists(result?.totalElements ?? 0);
+            setError(null);
+        } catch (e) {
+            setPlaylists([]);
+            setTotalPlaylists(0);
+            setError(e instanceof ApiError ? e.message : 'Không thể tải playlist');
+        } finally {
+            setLoadingPlaylists(false);
+        }
+    }, []);
+
+    const loadAlbums = useCallback(async () => {
+        setLoadingAlbums(true);
+        try {
+            const topEndpoint = albumPeriod === 'MONTH' ? '/admin/albums/top-favorites-month?limit=12' : '/admin/albums/top-favorites-week?limit=12';
+            const top = await apiFetch<Album[]>(topEndpoint, { ttlMs: 0 });
+            const total = await apiFetch<PageResult<Album>>('/albums?page=1&size=1', { ttlMs: 10_000 });
+            setTopAlbums(Array.isArray(top) ? top : []);
+            setTotalAlbums(total?.totalElements ?? 0);
+            setError(null);
+        } catch (e) {
+            setTopAlbums([]);
+            setTotalAlbums(0);
+            setError(e instanceof ApiError ? e.message : 'Không thể tải album');
+        } finally {
+            setLoadingAlbums(false);
+        }
+    }, [albumPeriod]);
+
+    const refreshCurrentTab = useCallback(() => {
+        if (tab === 'songs') return void loadSongs();
+        if (tab === 'songs-top') return void loadTopSongs();
+        if (tab === 'playlists-top') return void loadPlaylists();
+        if (tab === 'albums-top') return void loadAlbums();
+    }, [tab, loadSongs, loadTopSongs, loadPlaylists, loadAlbums]);
 
     useEffect(() => {
-        void Promise.allSettled([loadGenres(), loadSongs()]);
-    }, [loadGenres, loadSongs]);
+        void Promise.allSettled([loadSongs(), loadTopSongs(), loadPlaylists(), loadAlbums()]);
+    }, [loadSongs, loadTopSongs, loadPlaylists, loadAlbums]);
 
     useEffect(() => {
-        if (tab === 'top') {
-            void loadTopListened();
-        }
-        if (tab === 'albums') {
-            void Promise.allSettled([loadRecentAlbums(), loadTopFavAlbums()]);
-        }
-    }, [tab, loadTopListened, loadRecentAlbums, loadTopFavAlbums]);
+        if (tab === 'songs-top') void loadTopSongs();
+    }, [songPeriod, tab, loadTopSongs]);
 
     useEffect(() => {
-        const closeRealtime = openAdminRealtime(() => {
-            void Promise.allSettled([
-                loadGenres(),
-                loadSongs(),
-                tab === 'top' ? loadTopListened() : Promise.resolve(),
-                tab === 'albums' ? Promise.allSettled([loadRecentAlbums(), loadTopFavAlbums()]) : Promise.resolve(),
-            ]);
+        if (tab === 'playlists-top') void loadPlaylists();
+    }, [playlistPeriod, tab, loadPlaylists]);
+
+    useEffect(() => {
+        if (tab === 'albums-top') void loadAlbums();
+    }, [albumPeriod, tab, loadAlbums]);
+
+    useEffect(() => {
+        const close = openAdminRealtime(() => {
+            refreshCurrentTab();
         });
-        return () => {
-            closeRealtime();
-        };
-    }, [loadGenres, loadSongs, loadTopListened, tab]);
+        return () => close();
+    }, [refreshCurrentTab]);
+
+    const topSongTitle = useMemo(() => {
+        if (!topListen.length) return 'Chưa có dữ liệu';
+        const first = topListen[0];
+        const title = topSongMap[first.songId]?.title ?? first.songId;
+        return `${title} (${first.listenCount.toLocaleString('vi-VN')} lượt nghe)`;
+    }, [topListen, topSongMap]);
+
+    const onImportJamendo = async (e: FormEvent) => {
+        e.preventDefault();
+        setImportingJamendo(true);
+        try {
+            const payload = await apiFetch<JamendoImportSummary>(`/admin/jamendo/import?tags=${encodeURIComponent(jamendoTags)}&limit=${jamendoLimit}`, {
+                method: 'POST',
+            });
+            setJamendoSummary(payload ?? {});
+            setError(null);
+        } catch (err) {
+            setError(err instanceof ApiError ? err.message : 'Không thể import Jamendo');
+        } finally {
+            setImportingJamendo(false);
+        }
+    };
 
     return (
         <div className="p-3 sm:p-6 max-w-6xl mx-auto space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                     <h1 className="text-sm font-semibold text-zinc-900 dark:text-white">Music</h1>
-                    <p className="text-[11px] text-zinc-500 dark:text-zinc-500">Bài hát, genres và lượt nghe theo thời gian.</p>
+                    <p className="text-[11px] text-zinc-500">Quản lý bài hát, playlist, album và nguồn Jamendo cho admin.</p>
                 </div>
                 <button
                     type="button"
-                    onClick={() => {
-                        void Promise.allSettled([
-                            loadGenres(),
-                            loadSongs(),
-                            tab === 'top' ? loadTopListened() : Promise.resolve(),
-                            tab === 'albums' ? Promise.allSettled([loadRecentAlbums(), loadTopFavAlbums()]) : Promise.resolve(),
-                        ]);
-                    }}
+                    onClick={refreshCurrentTab}
                     className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-white/5"
                 >
                     <ArrowClockwise size={14} />
@@ -223,175 +244,161 @@ export default function MusicPage() {
                 </button>
             </div>
 
-            {error && (
-                <div className="text-[11px] text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/40 px-3 py-2">
-                    {error}
-                </div>
-            )}
+            {error ? <div className="text-[11px] text-red-500 border border-red-200 dark:border-red-900/30 px-3 py-2">{error}</div> : null}
 
             <div className="flex flex-wrap gap-2">
-                {(['top', 'genres', 'songs', 'albums'] as const).map((t) => (
+                {[
+                    { key: 'songs', label: 'Danh sách bài hát' },
+                    { key: 'songs-top', label: 'Bài hát yêu thích tuần/tháng' },
+                    { key: 'playlists-top', label: 'Playlist yêu thích + tổng số' },
+                    { key: 'albums-top', label: 'Album yêu thích + tổng số' },
+                    { key: 'jamendo', label: 'Thêm nhạc từ Jamendo' },
+                ].map((t) => (
                     <button
-                        key={t}
-                        type="button"
-                        onClick={() => setTab(t)}
-                        className={`px-3 h-8 text-[11px] border ${
-                            tab === t
-                                ? 'bg-zinc-900 text-white dark:bg-white dark:text-black'
-                                : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'
-                        }`}
+                        key={t.key}
+                        onClick={() => setTab(t.key as MusicTab)}
+                        className={`px-3 h-8 text-[11px] border ${tab === t.key ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
                     >
-                        {t === 'top'
-                            ? 'Nghe nhiều nhất'
-                            : t === 'genres'
-                              ? 'Genres'
-                              : t === 'songs'
-                                ? 'Songs (public)'
-                                : 'Albums'}
+                        {t.label}
                     </button>
                 ))}
             </div>
 
-            {tab === 'top' && (
+            {tab === 'songs' && (
                 <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2 items-center">
-                        <span className="text-[11px] text-zinc-500">Khoảng thời gian:</span>
-                        {(['DAY', 'WEEK', 'MONTH'] as const).map((p) => (
+                    <DataCard title="Tổng số bài hát (PUBLIC)" value={totalSongs.toLocaleString('vi-VN')} subtitle="Nguồn: /admin/songs" />
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {loadingSongs ? <p className="text-[11px] text-zinc-500">Đang tải...</p> : songs.map((s) => (
+                            <div key={s.id} className="border border-zinc-200 dark:border-white/10 p-3">
+                                <p className="text-[12px] font-medium text-zinc-900 dark:text-white truncate">{s.title}</p>
+                                <p className="text-[11px] text-zinc-500 truncate">{s.primaryArtist?.stageName ?? s.primaryArtistStageName ?? '—'}</p>
+                                <p className="text-[11px] text-zinc-500 mt-1">{fmtDuration(s.durationSeconds)}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {tab === 'songs-top' && (
+                <div className="space-y-3">
+                    <div className="flex gap-2">
+                        {(['WEEK', 'MONTH'] as const).map((p) => (
                             <button
                                 key={p}
-                                type="button"
-                                onClick={() => setPeriod(p)}
-                                className={`px-2.5 py-1 text-[11px] border ${
-                                    period === p
-                                        ? 'bg-zinc-900 text-white dark:bg-white dark:text-black'
-                                        : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'
-                                }`}
+                                onClick={() => setSongPeriod(p)}
+                                className={`px-2.5 py-1 text-[11px] border ${songPeriod === p ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
                             >
-                                {p === 'DAY' ? 'Ngày' : p === 'WEEK' ? 'Tuần' : 'Tháng'}
+                                {p === 'WEEK' ? 'Tuần' : 'Tháng'}
                             </button>
                         ))}
                     </div>
-
-                    <div className="border border-zinc-200 dark:border-white/10 overflow-hidden">
-                        <div className="px-3 py-2 border-b border-zinc-200 dark:border-white/10 text-[11px] text-zinc-500">
-                            Top bài hát (theo listen_history MongoDB — ngày = 24h, tuần = 7 ngày, tháng = 30 ngày)
-                        </div>
-                        <div className="divide-y divide-zinc-200 dark:divide-white/10">
-                            {loadingTop && (
-                                <div className="p-3 text-[11px] text-zinc-500">Đang tải...</div>
-                            )}
-                            {!loadingTop && topListen.length === 0 && (
-                                <div className="p-3 text-[11px] text-zinc-500">Chưa có dữ liệu nghe trong khoảng này.</div>
-                            )}
-                            {!loadingTop &&
-                                topListen.map((row, idx) => {
-                                    const b = topBriefs[row.songId];
-                                    return (
-                                        <div key={row.songId} className="px-3 py-2 text-[11px] flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <p className="text-zinc-900 dark:text-white font-medium">
-                                                    {idx + 1}. {b?.title ?? row.songId}
-                                                </p>
-                                                <p className="text-zinc-500 truncate">
-                                                    {b?.primaryArtistStageName ?? '—'}
-                                                    {b?.status ? ` · ${b.status}` : ''}
-                                                </p>
-                                            </div>
-                                            <span className="text-zinc-600 dark:text-zinc-400 shrink-0 tabular-nums">
-                                                {row.listenCount.toLocaleString('vi-VN')} lượt
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                        </div>
+                    <DataCard title="Bài hát được yêu thích nhất" value={topSongTitle} subtitle={`Khoảng thời gian: ${songPeriod === 'WEEK' ? 'Tuần' : 'Tháng'}`} />
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {loadingTopSongs ? <p className="text-[11px] text-zinc-500">Đang tải...</p> : topListen.map((row, idx) => (
+                            <div key={row.songId} className="border border-zinc-200 dark:border-white/10 p-3">
+                                <p className="text-[12px] font-medium text-zinc-900 dark:text-white truncate">#{idx + 1} {topSongMap[row.songId]?.title ?? row.songId}</p>
+                                <p className="text-[11px] text-zinc-500 truncate">{topSongMap[row.songId]?.primaryArtistStageName ?? '—'}</p>
+                                <p className="text-[11px] text-zinc-500 mt-1">{row.listenCount.toLocaleString('vi-VN')} lượt nghe</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
 
-            {tab === 'genres' && (
-                <div className="border border-zinc-200 dark:border-white/10">
-                    <div className="px-3 py-2 border-b border-zinc-200 dark:border-white/10 text-[11px] text-zinc-500">Genres</div>
-                    <div className="divide-y divide-zinc-200 dark:divide-white/10 max-h-[480px] overflow-y-auto">
-                        {loadingGenres && <div className="p-3 text-[11px] text-zinc-500">Đang tải...</div>}
-                        {!loadingGenres &&
-                            genres.map((g) => (
-                                <div key={g.id} className="px-3 py-2 text-[11px] text-zinc-800 dark:text-zinc-200">
-                                    {g.name}
-                                </div>
-                            ))}
+            {tab === 'playlists-top' && (
+                <div className="space-y-3">
+                    <div className="flex gap-2">
+                        {(['WEEK', 'MONTH'] as const).map((p) => (
+                            <button
+                                key={p}
+                                onClick={() => setPlaylistPeriod(p)}
+                                className={`px-2.5 py-1 text-[11px] border ${playlistPeriod === p ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                            >
+                                {p === 'WEEK' ? 'Tuần' : 'Tháng'}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <DataCard title="Playlist được yêu thích nhất" value={playlists[0]?.name ?? 'Chưa có dữ liệu'} subtitle={`Khoảng thời gian đang chọn: ${playlistPeriod === 'WEEK' ? 'Tuần' : 'Tháng'}.`} />
+                        <DataCard title="Tổng số Playlist" value={totalPlaylists.toLocaleString('vi-VN')} subtitle="Nguồn hiện có: /playlists/my-playlists." />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {loadingPlaylists ? <p className="text-[11px] text-zinc-500">Đang tải...</p> : playlists.map((p) => (
+                            <div key={p.id} className="border border-zinc-200 dark:border-white/10 p-3">
+                                <p className="text-[12px] font-medium text-zinc-900 dark:text-white truncate">{p.name}</p>
+                                <p className="text-[11px] text-zinc-500">{p.totalSongs ?? 0} bài hát</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
 
-            {tab === 'songs' && (
-                <div className="border border-zinc-200 dark:border-white/10">
-                    <div className="px-3 py-2 border-b border-zinc-200 dark:border-white/10 text-[11px] text-zinc-500">
-                        Public songs (trang 1, 50 mục)
+            {tab === 'albums-top' && (
+                <div className="space-y-3">
+                    <div className="flex gap-2">
+                        {(['WEEK', 'MONTH'] as const).map((p) => (
+                            <button
+                                key={p}
+                                onClick={() => setAlbumPeriod(p)}
+                                className={`px-2.5 py-1 text-[11px] border ${albumPeriod === p ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                            >
+                                {p === 'WEEK' ? 'Tuần' : 'Tháng'}
+                            </button>
+                        ))}
                     </div>
-                    <div className="divide-y divide-zinc-200 dark:divide-white/10 max-h-[480px] overflow-y-auto">
-                        {loadingSongs && <div className="p-3 text-[11px] text-zinc-500">Đang tải...</div>}
-                        {!loadingSongs &&
-                            songs.map((s) => (
-                                <div key={s.id} className="px-3 py-2 text-[11px] flex items-center justify-between gap-2">
-                                    <div className="min-w-0">
-                                        <p className="text-zinc-900 dark:text-white truncate">{s.title}</p>
-                                        <p className="text-zinc-500 truncate">
-                                            {s.primaryArtist?.stageName ?? s.primaryArtistStageName ?? '—'}
-                                        </p>
-                                    </div>
-                                    <span className="text-zinc-500 shrink-0">{fmtDuration(s.durationSeconds)}</span>
-                                </div>
-                            ))}
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <DataCard
+                            title="Album được yêu thích nhất"
+                            value={topAlbums[0]?.title ?? 'Chưa có dữ liệu'}
+                            subtitle={`Nguồn: ${albumPeriod === 'MONTH' ? '/admin/albums/top-favorites-month' : '/admin/albums/top-favorites-week'}.`}
+                        />
+                        <DataCard title="Tổng số Album" value={totalAlbums.toLocaleString('vi-VN')} subtitle="Nguồn: /albums?page=1&size=1." />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {loadingAlbums ? <p className="text-[11px] text-zinc-500">Đang tải...</p> : topAlbums.map((a) => (
+                            <div key={a.id} className="border border-zinc-200 dark:border-white/10 p-3">
+                                <p className="text-[12px] font-medium text-zinc-900 dark:text-white truncate">{a.title}</p>
+                                <p className="text-[11px] text-zinc-500 truncate">{a.ownerStageName ?? '—'}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
 
-            {tab === 'albums' && (
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="border border-zinc-200 dark:border-white/10">
-                        <div className="px-3 py-2 border-b border-zinc-200 dark:border-white/10 text-[11px] text-zinc-500">
-                            Album mới phát hành (14 ngày, theo publishedAt)
-                        </div>
-                        <div className="divide-y divide-zinc-200 dark:divide-white/10 max-h-[420px] overflow-y-auto">
-                            {loadingRecentAlbums && (
-                                <div className="p-3 text-[11px] text-zinc-500">Đang tải...</div>
-                            )}
-                            {!loadingRecentAlbums && recentAlbums.length === 0 && (
-                                <div className="p-3 text-[11px] text-zinc-500">Chưa có dữ liệu.</div>
-                            )}
-                            {!loadingRecentAlbums &&
-                                recentAlbums.map((a) => (
-                                    <div key={a.id} className="px-3 py-2 text-[11px]">
-                                        <p className="text-zinc-900 dark:text-white font-medium">{a.title}</p>
-                                        <p className="text-zinc-500 truncate">
-                                            {a.ownerStageName ?? '—'}
-                                            {a.publishedAt ? ` · ${a.publishedAt}` : ''}
-                                        </p>
-                                        {a.credits ? <p className="text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-2">{a.credits}</p> : null}
-                                    </div>
-                                ))}
-                        </div>
+            {tab === 'jamendo' && (
+                <div className="space-y-4 border border-zinc-200 dark:border-white/10 p-4">
+                    <div>
+                        <h2 className="text-[12px] font-semibold text-zinc-900 dark:text-white">Thêm nhạc từ Jamendo</h2>
+                        <p className="text-[11px] text-zinc-500">Gọi API admin để enqueue import từ Jamendo.</p>
                     </div>
-                    <div className="border border-zinc-200 dark:border-white/10">
-                        <div className="px-3 py-2 border-b border-zinc-200 dark:border-white/10 text-[11px] text-zinc-500">
-                            Album được yêu thích nhiều (7 ngày)
+                    <form className="grid gap-3 md:grid-cols-3" onSubmit={onImportJamendo}>
+                        <input
+                            value={jamendoTags}
+                            onChange={(e) => setJamendoTags(e.target.value)}
+                            className="h-9 border border-zinc-200 dark:border-white/10 bg-transparent px-3 text-[12px]"
+                            placeholder="tags, vd: pop,rock,lofi"
+                        />
+                        <input
+                            type="number"
+                            min={1}
+                            max={500}
+                            value={jamendoLimit}
+                            onChange={(e) => setJamendoLimit(Number(e.target.value))}
+                            className="h-9 border border-zinc-200 dark:border-white/10 bg-transparent px-3 text-[12px]"
+                        />
+                        <button type="submit" disabled={importingJamendo} className="h-9 inline-flex items-center justify-center gap-2 bg-zinc-900 text-white dark:bg-white dark:text-black text-[12px]">
+                            <MusicNotesPlus size={14} />
+                            {importingJamendo ? 'Đang gửi...' : 'Import Jamendo'}
+                        </button>
+                    </form>
+
+                    {jamendoSummary && (
+                        <div className="grid gap-3 md:grid-cols-3">
+                            <DataCard title="Fetched" value={String(jamendoSummary.fetched ?? 0)} />
+                            <DataCard title="Skipped" value={String(jamendoSummary.skipped ?? 0)} />
+                            <DataCard title="Enqueued" value={String(jamendoSummary.enqueued ?? 0)} />
                         </div>
-                        <div className="divide-y divide-zinc-200 dark:divide-white/10 max-h-[420px] overflow-y-auto">
-                            {loadingTopFavAlbums && (
-                                <div className="p-3 text-[11px] text-zinc-500">Đang tải...</div>
-                            )}
-                            {!loadingTopFavAlbums && topFavAlbums.length === 0 && (
-                                <div className="p-3 text-[11px] text-zinc-500">Chưa có dữ liệu.</div>
-                            )}
-                            {!loadingTopFavAlbums &&
-                                topFavAlbums.map((a) => (
-                                    <div key={a.id} className="px-3 py-2 text-[11px]">
-                                        <p className="text-zinc-900 dark:text-white font-medium">{a.title}</p>
-                                        <p className="text-zinc-500 truncate">{a.ownerStageName ?? '—'}</p>
-                                    </div>
-                                ))}
-                        </div>
-                    </div>
+                    )}
                 </div>
             )}
         </div>

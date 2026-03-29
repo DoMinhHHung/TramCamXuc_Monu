@@ -72,4 +72,6 @@ public interface AlbumService {
     Page<AlbumResponse> adminRecentlyPublishedAlbums(Pageable pageable, int withinDays);
 
     List<AlbumResponse> adminTopFavoritedAlbumsThisWeek(int limit);
+
+    List<AlbumResponse> adminTopFavoritedAlbumsThisMonth(int limit);
 }
