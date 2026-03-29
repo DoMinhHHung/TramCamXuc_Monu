@@ -1,4 +1,4 @@
-import create from 'zustand';
+import { create } from 'zustand';
 
 interface RevenuePoint {
   date: string;
@@ -39,8 +39,9 @@ export const useAnalyticsStore = create<AnalyticsState>((set) => ({
         loading: false,
         error: null,
       });
-    } catch (e: any) {
-      set({ loading: false, error: e.message || 'Lỗi khi tải dữ liệu analytics' });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Lỗi khi tải dữ liệu analytics';
+      set({ loading: false, error: message });
     }
   },
 }));
