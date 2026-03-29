@@ -15,4 +15,7 @@ public class AlbumUpdateRequest {
     private String description;
 
     private LocalDate releaseDate;
+
+    @Size(max = 500)
+    private String credits;
 }

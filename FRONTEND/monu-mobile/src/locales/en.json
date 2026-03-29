@@ -44,7 +44,10 @@
       "expandedSections": "Music by Genre",
       "loadingExpandedSections": "Loading more music sections...",
       "showMore": "See more",
-      "showLess": "Collapse"
+      "showLess": "Collapse",
+      "newAlbumReleased": "New album released",
+      "newReleasedAlbumsSection": "New released albums",
+      "owner": "Owner"
     },
     "discover": {
       "title": "Discover",
@@ -120,6 +123,15 @@
       "lyricDeletedMessage": "Lyrics have been deleted.",
       "lyricDeleteFailed": "Cannot delete.",
       "notFound": "Song not found."
+    },
+    "songVisibility": {
+      "label": "Visibility",
+      "public": "🌐 Public",
+      "private": "🔒 Private",
+      "albumOnly": "💿 Album only",
+      "selectAlbumTitle": "Select album",
+      "selectAlbumRequired": "Please select an album for Album only mode.",
+      "noAlbumPrivateHint": "Create a PRIVATE/DRAFT album first before selecting Album only mode."
     },
     "profile": {
       "title": "Profile",
@@ -529,7 +541,26 @@
       "noSongsHint": "Upload songs in the Create tab",
       "noAlbums": "No albums yet",
       "noAlbumsHint": "Organize songs into albums for release",
-      "editPlaylistName": "Edit playlist name"
+      "editPlaylistName": "Edit playlist name",
+      "publishAlbum": "Publish album",
+      "releaseDate": "Release date",
+      "pendingReleaseScheduled": "Pending release",
+      "scheduleRelease": "Schedule release",
+      "changeReleaseTime": "Change release time",
+      "cancelSchedule": "Cancel schedule",
+      "cancelScheduleConfirm": "Remove the scheduled release time?",
+      "scheduleCancelled": "Schedule cancelled.",
+      "scheduleSaved": "Release scheduled.",
+      "scheduleMustBeFuture": "Choose a date and time in the future.",
+      "publishNowTab": "Publish now",
+      "scheduleTab": "Schedule",
+      "releaseDateOptional": "Release date (optional, YYYY-MM-DD)",
+      "scheduleDateLabel": "Release date (YYYY-MM-DD)",
+      "scheduleTimeLabel": "Time (HH:mm, local)",
+      "creditsLabel": "Credits / collaborators",
+      "creditsPlaceholder": "Featuring, producers…",
+      "scheduleCooldownHint": "You can change the scheduled time only 6 hours after the last confirmation.",
+      "confirmSchedule": "Confirm schedule"
     },
     "discover": {
       "title": "Discover",
@@ -670,6 +701,7 @@
   },
   "albumDetails": {
     "songs": "songs",
+    "loginToFavorite": "Sign in to favorite albums.",
     "artist": "Artist",
     "releaseDate": "Release Date",
     "totalListeners": "Total Listeners",

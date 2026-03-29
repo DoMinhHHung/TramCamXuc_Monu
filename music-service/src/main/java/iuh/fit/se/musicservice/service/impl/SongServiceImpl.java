@@ -5,17 +5,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.musicservice.client.PaymentInternalClient;
 import iuh.fit.se.musicservice.config.RabbitMQConfig;
 import iuh.fit.se.musicservice.dto.request.SongCreateRequest;
+import iuh.fit.se.musicservice.dto.response.AdminSongBriefResponse;
 import iuh.fit.se.musicservice.dto.response.PaymentSubscriptionStatusResponse;
 import iuh.fit.se.musicservice.dto.request.SongUpdateRequest;
 import iuh.fit.se.musicservice.dto.response.SongResponse;
+import iuh.fit.se.musicservice.entity.AlbumSong;
 import iuh.fit.se.musicservice.entity.Genre;
 import iuh.fit.se.musicservice.entity.Artist;
 import iuh.fit.se.musicservice.entity.Song;
+import iuh.fit.se.musicservice.enums.AlbumStatus;
 import iuh.fit.se.musicservice.enums.SongStatus;
 import iuh.fit.se.musicservice.enums.TranscodeStatus;
 import iuh.fit.se.musicservice.exception.AppException;
 import iuh.fit.se.musicservice.exception.ErrorCode;
 import iuh.fit.se.musicservice.mapper.SongMapper;
+import iuh.fit.se.musicservice.repository.AlbumRepository;
+import iuh.fit.se.musicservice.repository.AlbumSongRepository;
 import iuh.fit.se.musicservice.repository.GenreRepository;
 import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
@@ -47,6 +52,8 @@ public class SongServiceImpl implements SongService {
     private final SongRepository songRepository;
     private final GenreRepository genreRepository;
     private final ArtistRepository artistRepository;
+    private final AlbumRepository albumRepository;
+    private final AlbumSongRepository albumSongRepository;
     private final SongMapper songMapper;
     private final MinioStorageService storageService;
     private final RabbitTemplate rabbitTemplate;
@@ -267,6 +274,15 @@ public class SongServiceImpl implements SongService {
 
     @Override
     @Transactional(readOnly = true)
+    public SongResponse getMySongById(UUID songId) {
+        UUID userId = currentUserId();
+        Song song = songRepository.findByIdAndOwnerUserId(songId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
+        return songMapper.toResponse(song);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public String getDownloadUrl(UUID songId) {
         UUID userId = currentUserId();
 
@@ -308,6 +324,11 @@ public class SongServiceImpl implements SongService {
 
         // Bài PUBLIC thì ai cũng nghe được
         if (song.getStatus() == SongStatus.PUBLIC) {
+            return buildStreamUrl(song, resolveStreamQuality());
+        }
+
+        // ALBUM_ONLY trong album đã PUBLIC (đã phát hành) → nghe được như trong album
+        if (song.getStatus() == SongStatus.ALBUM_ONLY && isSongInPublicAlbum(songId)) {
             return buildStreamUrl(song, resolveStreamQuality());
         }
 
@@ -588,7 +609,38 @@ public class SongServiceImpl implements SongService {
         return songMapper.toResponse(songRepository.save(song));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdminSongBriefResponse> adminBatchLookup(List<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<UUID> order = ids.stream().distinct().limit(200).toList();
+        Map<UUID, Song> songMap = songRepository.findAllById(order).stream()
+                .collect(Collectors.toMap(Song::getId, s -> s));
+        return order.stream()
+                .map(songMap::get)
+                .filter(Objects::nonNull)
+                .map(s -> AdminSongBriefResponse.builder()
+                        .id(s.getId())
+                        .title(s.getTitle())
+                        .primaryArtistStageName(s.getPrimaryArtistStageName())
+                        .status(s.getStatus())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
     // ── Private helpers ────────────────────────────────────────────────────────
+
+    private boolean isSongInPublicAlbum(UUID songId) {
+        List<AlbumSong> links = albumSongRepository.findBySongId(songId);
+        if (links.isEmpty()) {
+            return false;
+        }
+        Set<UUID> albumIds = links.stream().map(AlbumSong::getAlbumId).collect(Collectors.toSet());
+        return albumRepository.findAllById(albumIds).stream()
+                .anyMatch(a -> a.getStatus() == AlbumStatus.PUBLIC);
+    }
 
     private String toKeywordPattern(String keyword) {
         if (keyword == null) {

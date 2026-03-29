@@ -23,6 +23,21 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PlaylistController {
 
+        /**
+         * Lưu playlist từ Discovery về tài khoản hiện tại
+         * @param sourcePlaylistId ID playlist gốc
+         * @param sourceAuthorName Tên tác giả playlist gốc
+         */
+        @PostMapping("/save-from-discovery")
+        @PreAuthorize("isAuthenticated()")
+        public ApiResponse<PlaylistResponse> saveFromDiscovery(
+                        @RequestParam UUID sourcePlaylistId,
+                        @RequestParam String sourceAuthorName) {
+                return ApiResponse.<PlaylistResponse>builder()
+                                .result(playlistService.saveFromDiscovery(sourcePlaylistId, sourceAuthorName))
+                                .build();
+        }
+
     private final PlaylistService playlistService;
 
     // ── PUBLIC / COLLABORATIVE ────────────────────────────────────────────────

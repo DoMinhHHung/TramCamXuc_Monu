@@ -2,6 +2,7 @@ package iuh.fit.se.musicservice.service;
 
 import iuh.fit.se.musicservice.dto.request.SongCreateRequest;
 import iuh.fit.se.musicservice.dto.request.SongUpdateRequest;
+import iuh.fit.se.musicservice.dto.response.AdminSongBriefResponse;
 import iuh.fit.se.musicservice.dto.response.SongResponse;
 import iuh.fit.se.musicservice.enums.SongStatus;
 import org.springframework.data.domain.Page;
@@ -22,6 +23,10 @@ public interface SongService {
     SongResponse updateSong(UUID songId, SongUpdateRequest request);
     void deleteSong(UUID songId);
     Page<SongResponse> getMySongs(Pageable pageable);
+
+    /** Chi tiết bài hát của owner (mọi status, kể cả ALBUM_ONLY). */
+    SongResponse getMySongById(UUID songId);
+
     String getDownloadUrl(UUID songId);
 
     // ── Public ─────────────────────────────────────────────────────────────────
@@ -49,4 +54,7 @@ public interface SongService {
 
     /** Khôi phục bài hát bị xóa nhầm */
     SongResponse restoreSong(UUID songId);
+
+    /** Admin: tra cứu nhanh theo danh sách id (giữ thứ tự, tối đa 200) */
+    List<AdminSongBriefResponse> adminBatchLookup(List<UUID> ids);
 }

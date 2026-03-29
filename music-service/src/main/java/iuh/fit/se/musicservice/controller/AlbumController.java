@@ -2,6 +2,7 @@ package iuh.fit.se.musicservice.controller;
 
 import iuh.fit.se.musicservice.dto.request.AlbumCreateRequest;
 import iuh.fit.se.musicservice.dto.request.AlbumReorderRequest;
+import iuh.fit.se.musicservice.dto.request.AlbumScheduleCommitRequest;
 import iuh.fit.se.musicservice.dto.request.AlbumUpdateRequest;
 import iuh.fit.se.musicservice.dto.response.ApiResponse;
 import iuh.fit.se.musicservice.dto.response.AlbumResponse;
@@ -16,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -50,6 +52,21 @@ public class AlbumController {
     private final AlbumService albumService;
 
     // ── Public ─────────────────────────────────────────────────────────────────
+
+    /**
+     * Album mới phát hành (theo publishedAt, mặc định 7 ngày).
+     */
+    @GetMapping("/new-releases")
+    public ApiResponse<Page<AlbumResponse>> getRecentlyPublishedAlbums(
+            @RequestParam(defaultValue = "7") int withinDays,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.<Page<AlbumResponse>>builder()
+                .result(albumService.getRecentlyPublishedAlbums(
+                        PageRequest.of(page - 1, size, Sort.by("publishedAt").descending()),
+                        withinDays))
+                .build();
+    }
 
     @GetMapping
     public ApiResponse<Page<AlbumResponse>> getPublicAlbums(
@@ -96,6 +113,15 @@ public class AlbumController {
     public ApiResponse<AlbumResponse> getMyAlbumDetail(@PathVariable UUID albumId) {
         return ApiResponse.<AlbumResponse>builder()
                 .result(albumService.getAlbumDetail(albumId))
+                .build();
+    }
+
+    /** Album của tôi có chứa bài hát (khi chỉnh Album-only / release date). */
+    @GetMapping("/my/containing-song/{songId}")
+    @PreAuthorize("hasRole('ARTIST')")
+    public ApiResponse<List<AlbumResponse>> getMyAlbumsContainingSong(@PathVariable UUID songId) {
+        return ApiResponse.<List<AlbumResponse>>builder()
+                .result(albumService.getMyAlbumsContainingSong(songId))
                 .build();
     }
 
@@ -189,11 +215,48 @@ public class AlbumController {
                 .build();
     }
 
+    /**
+     * Xác nhận lịch phát hành + credits/collaborators (JSON body).
+     */
+    @PostMapping("/{albumId}/schedule/commit")
+    @PreAuthorize("hasRole('ARTIST')")
+    public ApiResponse<AlbumResponse> commitSchedule(
+            @PathVariable UUID albumId,
+            @Valid @RequestBody AlbumScheduleCommitRequest request) {
+        return ApiResponse.<AlbumResponse>builder()
+                .result(albumService.commitSchedule(albumId, request))
+                .build();
+    }
+
     @DeleteMapping("/{albumId}/schedule")
     @PreAuthorize("hasRole('ARTIST')")
     public ApiResponse<AlbumResponse> cancelSchedule(@PathVariable UUID albumId) {
         return ApiResponse.<AlbumResponse>builder()
                 .result(albumService.cancelScheduledPublish(albumId))
+                .build();
+    }
+
+    // ── Listener: yêu thích album (PUBLIC) ─────────────────────────────────────
+
+    @PostMapping("/{albumId}/favorite")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> favoriteAlbum(@PathVariable UUID albumId) {
+        albumService.favoriteAlbum(albumId);
+        return ApiResponse.<Void>builder().build();
+    }
+
+    @DeleteMapping("/{albumId}/favorite")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> unfavoriteAlbum(@PathVariable UUID albumId) {
+        albumService.unfavoriteAlbum(albumId);
+        return ApiResponse.<Void>builder().build();
+    }
+
+    @GetMapping("/{albumId}/favorite/me")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Boolean> isAlbumFavorited(@PathVariable UUID albumId) {
+        return ApiResponse.<Boolean>builder()
+                .result(albumService.isAlbumFavoritedByMe(albumId))
                 .build();
     }
 }

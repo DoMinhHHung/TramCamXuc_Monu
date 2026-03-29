@@ -19,7 +19,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useUpload, UploadStage } from '../../context/UploadContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { apiClient } from '../../services/api';
-import { Genre } from '../../services/music';
+import { Album, Genre, getMyAlbums, SongStatus } from '../../services/music';
 import { getPopularGenres } from '../../services/favorites';
 import { getMySubscription } from '../../services/payment';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
@@ -73,12 +73,15 @@ export const CreateScreen = () => {
   const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
   const [hasActiveSub, setHasActiveSub]   = useState(false);
   const [genres, setGenres]               = useState<Genre[]>([]);
+  const [myAlbums, setMyAlbums]           = useState<Album[]>([]);
 
   // ── Form state ─────────────────────────────────────────────────────────────
   const [title, setTitle]                 = useState('');
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [pickedFile, setPickedFile]       = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [pickedLyric, setPickedLyric]     = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [visibility, setVisibility]       = useState<SongStatus>('PUBLIC');
+  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
 
   // ── Artist register form ───────────────────────────────────────────────────
   const [stageName, setStageName]         = useState('');
@@ -141,6 +144,12 @@ export const CreateScreen = () => {
               ? (genreRes.value as unknown as Genre[])
               : []
       );
+      try {
+        const alRes = await getMyAlbums({ page: 1, size: 100 });
+        setMyAlbums((alRes.content ?? []).filter((a) => a.status !== 'PUBLIC'));
+      } catch {
+        setMyAlbums([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -217,6 +226,8 @@ export const CreateScreen = () => {
       titleLength: title.trim().length,
       selectedGenres: selectedGenreIds.length,
       hasFile: !!pickedFile,
+      visibility,
+      albumOnlySelected: selectedAlbumId,
       canUpload,
       isUploadActive,
     });
@@ -236,6 +247,13 @@ export const CreateScreen = () => {
       Alert.alert(t('screens.create.noFileTitle', 'No file selected'), t('screens.create.noFileMessage', 'Choose a music file before publishing.'));
       return;
     }
+    if (visibility === 'ALBUM_ONLY' && !selectedAlbumId) {
+      Alert.alert(
+        t('screens.songVisibility.selectAlbumTitle', 'Select album'),
+        t('screens.songVisibility.selectAlbumRequired', 'Please select an album for Album only mode.'),
+      );
+      return;
+    }
     if (isUploadActive) {
       debugCreateUpload('publish_blocked_upload_active', { attemptId, stage: job?.stage ?? null });
       return;
@@ -246,6 +264,8 @@ export const CreateScreen = () => {
     const genresCopy      = [...selectedGenreIds];
     const fileCopy        = pickedFile;
     const lyricCopy       = pickedLyric;
+    const visibilityCopy  = visibility;
+    const albumIdCopy     = selectedAlbumId;
 
     debugCreateUpload('publish_trigger_upload', {
       attemptId,
@@ -261,9 +281,18 @@ export const CreateScreen = () => {
     setSelectedGenreIds([]);
     setPickedFile(null);
     setPickedLyric(null);
+    setVisibility('PUBLIC');
+    setSelectedAlbumId(null);
 
     try {
-      await startUpload({ title: titleCopy, genreIds: genresCopy, file: fileCopy, lyricFile: lyricCopy });
+      await startUpload({
+        title: titleCopy,
+        genreIds: genresCopy,
+        file: fileCopy,
+        lyricFile: lyricCopy,
+        visibility: visibilityCopy,
+        albumId: visibilityCopy === 'ALBUM_ONLY' ? albumIdCopy : null,
+      });
       debugCreateUpload('publish_startUpload_resolved', { attemptId });
     } catch (error: any) {
       debugCreateUpload('publish_startUpload_failed', {
@@ -593,6 +622,55 @@ export const CreateScreen = () => {
                     })}
                   </View>
 
+                  <Text style={styles.fieldLabel}>{t('screens.songVisibility.label', 'Visibility')}</Text>
+                  <View style={styles.visWrap}>
+                    {(['PUBLIC', 'PRIVATE', 'ALBUM_ONLY'] as SongStatus[]).map((s) => {
+                      const active = visibility === s;
+                      const label =
+                        s === 'PUBLIC'
+                          ? t('screens.songVisibility.public', '🌐 Public')
+                          : s === 'PRIVATE'
+                            ? t('screens.songVisibility.private', '🔒 Private')
+                            : t('screens.songVisibility.albumOnly', '💿 Album only');
+                      return (
+                        <Pressable
+                          key={s}
+                          style={[styles.genreChip, active && styles.genreChipActive]}
+                          onPress={() => {
+                            setVisibility(s);
+                            if (s !== 'ALBUM_ONLY') setSelectedAlbumId(null);
+                          }}
+                        >
+                          <Text style={[styles.genreText, active && styles.genreTextActive]}>{label}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  {visibility === 'ALBUM_ONLY' && (
+                    <View style={styles.visWrap}>
+                      {myAlbums.length === 0 ? (
+                        <Text style={styles.publishNote}>
+                          {t('screens.songVisibility.noAlbumPrivateHint', 'Create a PRIVATE/DRAFT album first before selecting Album only mode.')}
+                        </Text>
+                      ) : (
+                        myAlbums.map((album) => {
+                          const active = selectedAlbumId === album.id;
+                          return (
+                            <Pressable
+                              key={album.id}
+                              style={[styles.genreChip, active && styles.genreChipActive]}
+                              onPress={() => setSelectedAlbumId(album.id)}
+                            >
+                              <Text style={[styles.genreText, active && styles.genreTextActive]} numberOfLines={1}>
+                                💿 {album.title}
+                              </Text>
+                            </Pressable>
+                          );
+                        })
+                      )}
+                    </View>
+                  )}
+
                   {/* Publish button */}
                   <Pressable
                       style={[
@@ -840,6 +918,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  visWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 6,
+  },
   genreChip: {
     borderRadius: 999,
     borderWidth: 1,
@@ -907,4 +992,3 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
 });
-

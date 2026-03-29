@@ -1,5 +1,6 @@
 package iuh.fit.se.musicservice.controller;
 
+import iuh.fit.se.musicservice.dto.response.AdminSongBriefResponse;
 import iuh.fit.se.musicservice.dto.response.ApiResponse;
 import iuh.fit.se.musicservice.dto.response.SongResponse;
 import iuh.fit.se.musicservice.enums.SongStatus;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -46,6 +48,19 @@ public class AdminSongController {
                 .result(songService.getAdminSongs(
                         keyword, status, showDeleted,
                         PageRequest.of(page - 1, size, Sort.by("createdAt").descending())))
+                .build();
+    }
+
+    /**
+     * Tra cứu nhanh theo danh sách id (dashboard + thống kê lượt nghe).
+     *
+     * POST /admin/songs/batch-lookup
+     * Body: ["uuid1","uuid2",...]
+     */
+    @PostMapping("/batch-lookup")
+    public ApiResponse<List<AdminSongBriefResponse>> batchLookup(@RequestBody List<UUID> songIds) {
+        return ApiResponse.<List<AdminSongBriefResponse>>builder()
+                .result(songService.adminBatchLookup(songIds))
                 .build();
     }
 

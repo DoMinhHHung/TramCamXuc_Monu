@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
 import { Users, CreditCard, SpeakerHigh, TrendUp, Warning } from '@phosphor-icons/react';
+import { openAdminRealtime } from '@/lib/realtime';
 
 interface Plan { id: string; subsName: string; price: number; isActive: boolean }
 interface Ad   { id: string; title: string; advertiserName: string; status: string; totalImpressions: number; totalClicks: number }
@@ -204,16 +205,28 @@ export default function DashboardPage() {
     const [ads,           setAds]           = useState<Ad[]>([]);
     const [loadingAds,    setLoadingAds]    = useState(true);
     const [errorAds,      setErrorAds]      = useState<string | null>(null);
+    const [loadingRevenue, setLoadingRevenue] = useState(false);
+
+    const loadRevenue = (days: 7 | 30, ttlMs = 5_000) => {
+        setLoadingRevenue(true);
+        const to = new Date();
+        const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+        const q = `/admin/subscriptions/stats?from=${from.toISOString().slice(0, 10)}&to=${to.toISOString().slice(0, 10)}`;
+        return apiFetch<RevenuePoint[]>(q, { ttlMs })
+            .then((r) => setRevenueStats(r ?? []))
+            .catch(() => setRevenueStats([]))
+            .finally(() => setLoadingRevenue(false));
+    };
 
     useEffect(() => {
         // ── Users ──────────────────────────────────────────────
-        apiFetch<PageResult<object>>('/users?page=1&size=1')
+        apiFetch<PageResult<object>>('/users?page=1&size=1', { ttlMs: 20_000 })
             .then(r => setTotalUsers(r.totalElements))
             .catch((e: ApiError | Error) => setErrorUsers(e.message))
             .finally(() => setLoadingUsers(false));
 
         // payment-service: 0-indexed Pageable
-        apiFetch<PageResult<Plan>>('/admin/subscriptions/plans?page=0&size=100')
+        apiFetch<PageResult<Plan>>('/admin/subscriptions/plans?page=0&size=100', { ttlMs: 30_000 })
             .then(r => setPlans(r.content ?? []))
             .catch((e: ApiError | Error) => {
                 const status = (e as ApiError).status;
@@ -227,16 +240,24 @@ export default function DashboardPage() {
 
         // ── Ads ────────────────────────────────────────────────
         // ads-service: 0-indexed Pageable. May 404 if gateway route not yet configured.
-        fetch('/api/admin/ads?page=0&size=50', {
-            headers: { Authorization: `Bearer ${localStorage.getItem('access_token') ?? ''}` },
-        })
-            .then(r => r.ok ? r.json() : Promise.reject(Object.assign(new Error(`HTTP ${r.status}`), { status: r.status })))
-            .then(data => setAds(data.content ?? []))
-            .catch((e: Error & { status?: number }) => {
-                const s = e.status ?? 0;
-                if (s === 404) setErrorAds('Chưa cấu hình route cho Ads service trong Gateway');
-                else if (s === 503 || s === 0) setErrorAds('Ads service không khả dụng');
-                else setErrorAds(e.message);
+        apiFetch<PageResult<Ad>>('/admin/ads?page=1&size=50', { ttlMs: 20_000 })
+            apiFetch<PageResult<SongLite>>('/songs/trending?page=1&size=5', { ttlMs: 20_000 }).then((r) => setTopSongs(r.content ?? [])),
+            apiFetch<PageResult<AlbumLite>>('/albums?page=1&size=5', { ttlMs: 20_000 }).then((r) => setTopAlbums(r.content ?? [])),
+            loadRevenue(windowDays, 0),
+        const closeRealtime = openAdminRealtime(() => {
+            void Promise.allSettled([
+                loadRevenue(windowDays, 0),
+                apiFetch<PageResult<SongLite>>('/songs/trending?page=1&size=5', { ttlMs: 0 }).then((r) => setTopSongs(r.content ?? [])),
+                apiFetch<PageResult<AlbumLite>>('/albums?page=1&size=5', { ttlMs: 0 }).then((r) => setTopAlbums(r.content ?? [])),
+            ]);
+        });
+        return () => closeRealtime();
+        void loadRevenue(windowDays, 0);
+        const id = setInterval(() => {
+            void loadRevenue(windowDays);
+        }, 5000);
+        return () => clearInterval(id);
+        clicks: p.total,
             })
             .finally(() => setLoadingAds(false));
     }, []);
@@ -361,4 +382,4 @@ export default function DashboardPage() {
             </Section>
         </div>
     );
-}
+}                        {loadingRevenue ? <Spinner /> : <StockAreaChart data={paymentChartData} />}

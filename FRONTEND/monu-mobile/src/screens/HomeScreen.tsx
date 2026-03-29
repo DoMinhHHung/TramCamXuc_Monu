@@ -36,8 +36,10 @@ import { SongActionSheet } from '../components/SongActionSheet';
 import { AnimatedDecorIcon } from '../components/AnimatedDecorIcon';
 import {
   addSongToPlaylist,
+  Album,
   createPlaylist,
   getNewestSongs,
+  getRecentlyPublishedAlbums,
   getTrendingSongs,
   searchSongs,
   Song,
@@ -146,6 +148,7 @@ export const HomeScreen = () => {
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
+  const [newlyReleasedAlbums, setNewlyReleasedAlbums] = useState<Album[]>([]);
 
   const topArtistsScrollRef = useRef<ScrollView | null>(null);
   const topArtistsPausedRef = useRef(false);
@@ -324,14 +327,27 @@ export const HomeScreen = () => {
     }
   }, [genreSections]);
 
+  const loadNewlyReleasedAlbums = useCallback(async () => {
+    try {
+      const albumsRes = await getRecentlyPublishedAlbums({ withinDays: 7, page: 1, size: 24 });
+      setNewlyReleasedAlbums(albumsRes.content ?? []);
+    } catch {
+      setNewlyReleasedAlbums([]);
+    }
+  }, []);
+
   const handleRefresh = useCallback(async () => {
     setPullRefreshing(true);
     try {
-      await Promise.all([rec.refresh(), refreshHomePriority()]);
+      await Promise.all([rec.refresh(), refreshHomePriority(), loadNewlyReleasedAlbums()]);
     } finally {
       setPullRefreshing(false);
     }
-  }, [rec, refreshHomePriority]);
+  }, [rec, refreshHomePriority, loadNewlyReleasedAlbums]);
+
+  useEffect(() => {
+    void loadNewlyReleasedAlbums();
+  }, [loadNewlyReleasedAlbums]);
 
   const formatDuration = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -530,6 +546,45 @@ export const HomeScreen = () => {
 
           </>
         ) : null}
+
+        {newlyReleasedAlbums.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              💿 {t('screens.home.newReleasedAlbumsSection', 'New released albums')}
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.newAlbumsHorizontal}
+            >
+              {newlyReleasedAlbums.map((album) => (
+                <Pressable
+                  key={album.id}
+                  style={styles.albumReleaseCardH}
+                  onPress={() => navigation.navigate('AlbumDetail', { albumId: album.id })}
+                >
+                  {album.coverUrl ? (
+                    <Image source={{ uri: album.coverUrl }} style={styles.albumReleaseCover} />
+                  ) : (
+                    <View style={[styles.albumReleaseCover, styles.albumReleaseCoverPh]}>
+                      <Text style={{ fontSize: 28 }}>💿</Text>
+                    </View>
+                  )}
+                  <Text style={styles.albumReleaseTitle} numberOfLines={2}>{album.title}</Text>
+                  <Text style={styles.albumReleaseMeta} numberOfLines={1}>
+                    {album.ownerStageName ?? '—'}
+                  </Text>
+                  {album.credits ? (
+                    <Text style={styles.albumReleaseCredits} numberOfLines={2}>{album.credits}</Text>
+                  ) : null}
+                  <Text style={styles.albumReleaseMeta}>
+                    {(album.totalSongs ?? album.songs?.length ?? 0)} {t('albumDetails.songs')}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {rec.loading && !rec.globalTrending.length && !rec.homeFeed && (
           <View>
@@ -848,6 +903,40 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   searchPlaceholder: { color: colors.muted, fontSize: 14, flex: 1 },
   section: { paddingHorizontal: 20, marginTop: 24 },
   sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 14 },
+  albumReleaseCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.accentBorder25,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+  },
+  newAlbumsHorizontal: {
+    paddingRight: 20,
+    gap: 12,
+  },
+  albumReleaseCardH: {
+    width: 168,
+    backgroundColor: colors.surface,
+    borderColor: colors.accentBorder25,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+    marginRight: 4,
+  },
+  albumReleaseCover: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: colors.surfaceMid,
+  },
+  albumReleaseCoverPh: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  albumReleaseTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  albumReleaseMeta: { color: colors.glass60, fontSize: 11, marginTop: 3 },
+  albumReleaseCredits: { color: colors.muted, fontSize: 10, marginTop: 4, lineHeight: 14 },
   artistHorizontalList: {
     paddingHorizontal: 20,
     gap: 12,

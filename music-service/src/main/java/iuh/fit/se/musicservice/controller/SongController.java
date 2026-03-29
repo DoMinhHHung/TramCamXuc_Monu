@@ -197,6 +197,18 @@ public class SongController {
     }
 
     /**
+     * Chi tiết bài hát của owner (ALBUM_ONLY, PRIVATE, …).
+     * GET /songs/my/{songId}
+     */
+    @GetMapping("/my/{songId}")
+    @PreAuthorize("hasAnyRole('ARTIST', 'USER')")
+    public ApiResponse<SongResponse> getMySongById(@PathVariable UUID songId) {
+        return ApiResponse.<SongResponse>builder()
+                .result(songService.getMySongById(songId))
+                .build();
+    }
+
+    /**
      * Bước 1 — Tạo record bài hát + nhận presigned URL để upload file lên MinIO.
      * POST /songs/request-upload
      */

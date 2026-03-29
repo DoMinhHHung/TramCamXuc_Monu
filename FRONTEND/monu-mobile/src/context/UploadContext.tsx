@@ -7,7 +7,7 @@ import React, {
 } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 
-import { confirmUploadSong, requestUploadSong, uploadLyric } from '../services/music';
+import { addSongToAlbum, confirmUploadSong, requestUploadSong, SongStatus, updateSong, uploadLyric } from '../services/music';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +35,8 @@ interface UploadContextValue {
         genreIds: string[];
         file: DocumentPicker.DocumentPickerAsset;
         lyricFile?: DocumentPicker.DocumentPickerAsset | null;
+        visibility?: SongStatus;
+        albumId?: string | null;
     }) => Promise<void>;
     dismissJob: () => void;
 }
@@ -110,11 +112,15 @@ export const UploadProvider = ({ children }: PropsWithChildren) => {
                                                genreIds,
                                                file,
                                                lyricFile,
+                                               visibility = 'PUBLIC',
+                                               albumId,
                                            }: {
         title: string;
         genreIds: string[];
         file: DocumentPicker.DocumentPickerAsset;
         lyricFile?: DocumentPicker.DocumentPickerAsset | null;
+        visibility?: SongStatus;
+        albumId?: string | null;
     }) => {
         if (job?.stage === 'requesting' || job?.stage === 'uploading' || job?.stage === 'confirming') {
             return;
@@ -167,6 +173,14 @@ export const UploadProvider = ({ children }: PropsWithChildren) => {
                 } catch (lyricErr: any) {
                     console.warn('[Upload] lyric upload failed (song OK):', lyricErr?.message);
                 }
+            }
+
+            if (visibility !== 'PUBLIC') {
+                await updateSong(created.id, { status: visibility });
+            }
+
+            if (visibility === 'ALBUM_ONLY' && albumId) {
+                await addSongToAlbum(albumId, created.id);
             }
 
             updateJob({ stage: 'done', progress: 100 });
