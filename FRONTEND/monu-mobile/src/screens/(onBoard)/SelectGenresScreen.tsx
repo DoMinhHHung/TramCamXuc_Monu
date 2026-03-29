@@ -81,7 +81,14 @@ export const SelectGenresScreen = () => {
   const handleSkip = () => {
     Alert.alert(t('controls.skip'), t('screens.onboarding.skipGenresMessage'), [
       { text: t('common.cancel'), style: 'cancel' },
-      { text: t('controls.skip'), style: 'destructive', onPress: async () => { await refreshProfile(); } },
+      {
+        text: t('controls.skip'),
+        style: 'destructive',
+        onPress: async () => {
+          await refreshProfile();
+          navigation.navigate('SelectArtists', { selectedGenreIds: [] });
+        },
+      },
     ]);
   };
 

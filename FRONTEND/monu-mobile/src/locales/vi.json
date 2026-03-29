@@ -642,8 +642,7 @@
     "selectLanguage": "Chọn ngôn ngữ",
     "selectGenres": "Chọn thể loại",
     "selectArtists": "Chọn nghệ sĩ",
-    "selectGenresDescription": "Chọn thể loại nhạc bạn yêu thích",
-    "selectArtistsDescription": "Playlist của bạn sẽ được cá nhân hóa theo lựa chọn này"
+    "selectGenresDescription": "Chọn thể loại nhạc bạn yêu thích"
   },
   "premium": {
     "title": "Premium",
@@ -671,7 +670,6 @@
     "selectGenresSubtitle": "Chọn thể loại nhạc bạn yêu thích",
     "selectArtists": "Chọn nghệ sĩ",
     "selectArtistsTitle": "Nghệ sĩ bạn yêu thích",
-    "selectArtistsSubtitle": "Playlist của bạn sẽ được cá nhân hóa theo lựa chọn này",
     "selectCount": "Chọn {min}–{max}",
     "selected": "{count}/{max}"
   },
