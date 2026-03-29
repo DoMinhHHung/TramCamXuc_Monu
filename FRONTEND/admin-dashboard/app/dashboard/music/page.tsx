@@ -96,6 +96,13 @@ export default function MusicPage() {
     const [jamendoLimit, setJamendoLimit] = useState(50);
     const [importingJamendo, setImportingJamendo] = useState(false);
     const [jamendoSummary, setJamendoSummary] = useState<JamendoImportSummary | null>(null);
+    const [loadedTabs, setLoadedTabs] = useState<Record<MusicTab, boolean>>({
+        songs: false,
+        'songs-top': false,
+        'playlists-top': false,
+        'albums-top': false,
+        jamendo: true,
+    });
 
     const loadSongs = useCallback(async () => {
         setLoadingSongs(true);
@@ -115,7 +122,7 @@ export default function MusicPage() {
         setLoadingTopSongs(true);
         try {
             const period: ListenPeriod = songPeriod === 'WEEK' ? 'WEEK' : 'MONTH';
-            const list = await apiFetch<TopListenEntry[]>(`/social/admin/listen/top-songs?period=${period}&limit=12`, { ttlMs: 0 });
+            const list = await apiFetch<TopListenEntry[]>(`/social/admin/listen/top-songs?period=${period}&limit=12`, { ttlMs: 8_000 });
             const safe = Array.isArray(list) ? list : [];
             setTopListen(safe);
             const ids = safe.map((x) => x.songId).filter(Boolean);
@@ -160,7 +167,7 @@ export default function MusicPage() {
         setLoadingAlbums(true);
         try {
             const topEndpoint = albumPeriod === 'MONTH' ? '/admin/albums/top-favorites-month?limit=12' : '/admin/albums/top-favorites-week?limit=12';
-            const top = await apiFetch<Album[]>(topEndpoint, { ttlMs: 0 });
+            const top = await apiFetch<Album[]>(topEndpoint, { ttlMs: 8_000 });
             const total = await apiFetch<PageResult<Album>>('/albums?page=1&size=1', { ttlMs: 10_000 });
             setTopAlbums(Array.isArray(top) ? top : []);
             setTotalAlbums(total?.totalElements ?? 0);
@@ -181,17 +188,28 @@ export default function MusicPage() {
         if (tab === 'albums-top') return void loadAlbums();
     }, [tab, loadSongs, loadTopSongs, loadPlaylists, loadAlbums]);
 
+    const loadByTab = useCallback((targetTab: MusicTab) => {
+        if (targetTab === 'songs') return loadSongs();
+        if (targetTab === 'songs-top') return loadTopSongs();
+        if (targetTab === 'playlists-top') return loadPlaylists();
+        if (targetTab === 'albums-top') return loadAlbums();
+        return Promise.resolve();
+    }, [loadAlbums, loadPlaylists, loadSongs, loadTopSongs]);
+
     useEffect(() => {
-        void Promise.allSettled([loadSongs(), loadTopSongs(), loadPlaylists(), loadAlbums()]);
-    }, [loadSongs, loadTopSongs, loadPlaylists, loadAlbums]);
+        if (loadedTabs[tab]) return;
+        void loadByTab(tab).finally(() => {
+            setLoadedTabs((prev) => ({ ...prev, [tab]: true }));
+        });
+    }, [tab, loadedTabs, loadByTab]);
 
     useEffect(() => {
         if (tab === 'songs-top') void loadTopSongs();
     }, [songPeriod, tab, loadTopSongs]);
 
     useEffect(() => {
-        if (tab === 'playlists-top') void loadPlaylists();
-    }, [playlistPeriod, tab, loadPlaylists]);
+        if (tab === 'playlists-top' && !loadedTabs['playlists-top']) void loadPlaylists();
+    }, [playlistPeriod, tab, loadPlaylists, loadedTabs]);
 
     useEffect(() => {
         if (tab === 'albums-top') void loadAlbums();
@@ -199,7 +217,7 @@ export default function MusicPage() {
 
     useEffect(() => {
         const close = openAdminRealtime(() => {
-            refreshCurrentTab();
+            void refreshCurrentTab();
         });
         return () => close();
     }, [refreshCurrentTab]);

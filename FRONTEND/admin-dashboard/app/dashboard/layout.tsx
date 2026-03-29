@@ -33,18 +33,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const pathname  = usePathname();
     const { theme, toggle } = useTheme();
     const [open,    setOpen]    = useState(false);
-    const [mounted, setMounted] = useState(false);
+    const [authenticated] = useState<boolean>(() =>
+        typeof window !== 'undefined' && Boolean(localStorage.getItem('access_token')),
+    );
 
     useEffect(() => {
-        setMounted(true);
-        if (!localStorage.getItem('access_token')) router.replace('/login');
-    }, [router]);
+        if (!authenticated) router.replace('/login');
+    }, [router, authenticated]);
 
     const logout = () => { localStorage.clear(); router.replace('/login'); };
     const isActive = (href: string, exact: boolean) =>
         exact ? pathname === href : pathname.startsWith(href);
 
-    if (!mounted) return null;
+    if (!authenticated) {
+        return (
+            <div className="min-h-screen bg-white dark:bg-black" />
+        );
+    }
     const isDark = theme === 'dark';
 
     return (
