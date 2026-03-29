@@ -98,7 +98,6 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
 
             <Text style={styles.emoji}>{ONBOARDING_EMOJIS.artist}</Text>
             <Text style={styles.title}>{t('onboarding.selectArtistsTitle')}</Text>
-            <Text style={styles.subtitle}>{t('onboarding.selectArtistsSubtitle')}</Text>
           </LinearGradient>
 
           <View style={[styles.body, { paddingBottom: insets.bottom + 32 }]}>
@@ -146,6 +145,15 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
 };
 
 const createStyles = (colors: ColorScheme) => StyleSheet.create({
+    skipBtn: {
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.glass10,
+  },
+  skipText: { color: colors.glass45, fontWeight: '600', fontSize: 15 },
   root: { flex: 1, backgroundColor: colors.bg },
   loadingText: { color: colors.glass40, marginTop: 12 },
 
