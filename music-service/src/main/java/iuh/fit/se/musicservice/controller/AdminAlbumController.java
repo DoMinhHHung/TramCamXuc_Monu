@@ -48,4 +48,15 @@ public class AdminAlbumController {
                 .result(albumService.adminTopFavoritedAlbumsThisWeek(limit))
                 .build();
     }
+
+    /**
+     * GET /admin/albums/top-favorites-month?limit=20
+     */
+    @GetMapping("/top-favorites-month")
+    public ApiResponse<List<AlbumResponse>> topFavoritesMonth(
+            @RequestParam(defaultValue = "20") int limit) {
+        return ApiResponse.<List<AlbumResponse>>builder()
+                .result(albumService.adminTopFavoritedAlbumsThisMonth(limit))
+                .build();
+    }
 }
