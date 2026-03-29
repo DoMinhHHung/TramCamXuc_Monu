@@ -40,4 +40,6 @@ public interface AlbumSongRepository extends JpaRepository<AlbumSong, UUID> {
     /** Duyệt linked list theo thứ tự: trả về tất cả nodes của album (không đảm bảo thứ tự) */
     @Query("SELECT s FROM AlbumSong s WHERE s.albumId = :albumId")
     List<AlbumSong> findAllByAlbumId(@Param("albumId") UUID albumId);
+
+    List<AlbumSong> findBySongId(UUID songId);
 }

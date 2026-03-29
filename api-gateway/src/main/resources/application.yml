@@ -208,7 +208,7 @@ spring:
         - id: music-service-api
           uri: lb://MUSIC-SERVICE
           predicates:
-            - Path=/songs/**, /albums/**, /genres/**, /artists/**, /playlists/**, /admin/songs/**, /admin/jamendo/**, /admin/reports/**
+            - Path=/songs/**, /albums/**, /genres/**, /artists/**, /playlists/**, /admin/songs/**, /admin/albums/**, /admin/jamendo/**, /admin/reports/**
           filters:
             - name: RequestRateLimiter
               args:

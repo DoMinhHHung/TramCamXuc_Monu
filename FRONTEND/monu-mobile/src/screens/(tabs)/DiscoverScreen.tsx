@@ -60,6 +60,7 @@ import {
   getMyPlaylists,
   Album,
   Playlist,
+  savePlaylistFromDiscovery,
 } from '../../services/music';
 import { getMySubscription } from '../../services/payment';
 import { apiClient } from '../../services/api';
@@ -175,11 +176,12 @@ interface SaveContentModalProps {
   sourceOwner?: string;
   canManageAlbums?: boolean;
   onClose: () => void;
+  discoveryPlaylistId?: string; // Nếu là copy từ Discovery, truyền id playlist gốc
 }
 
 const SaveContentModal: React.FC<SaveContentModalProps> = ({
-                                                             visible, songs, sourceTitle, sourceOwner, canManageAlbums = false, onClose,
-                                                           }) => {
+  visible, songs, sourceTitle, sourceOwner, canManageAlbums = false, onClose, discoveryPlaylistId,
+}) => {
   const insets = useSafeAreaInsets();
 
   // Tab state: 'playlist' | 'album'
@@ -232,6 +234,22 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
   // ── Lưu vào Playlist ─────────────────────────────────────────────────────────
   const handleSaveToPlaylist = useCallback(async (plId: string, plName: string) => {
     setSavingPl(plId);
+    if (discoveryPlaylistId) {
+      // Nếu là copy từ Discovery, gọi API đặc biệt
+      try {
+        await savePlaylistFromDiscovery(discoveryPlaylistId, sourceOwner || '');
+        setSavingPl(null);
+        Alert.alert(
+          '✓ Đã lưu',
+          `Đã tạo bản copy Discovery từ "${sourceTitle}"`,
+          [{ text: 'OK', onPress: onClose }]
+        );
+      } catch (e: any) {
+        setSavingPl(null);
+        Alert.alert('Lỗi', e?.message || 'Không thể lưu playlist từ Discovery');
+      }
+      return;
+    }
     let ok = 0;
     for (const s of songs) {
       try { await addSongToPlaylist(plId, s.id); ok++; } catch { /* duplicate bỏ qua */ }
@@ -242,7 +260,7 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
         `${ok}/${songs.length} bài từ "${sourceTitle}" → playlist "${plName}"`,
         [{ text: 'OK', onPress: onClose }],
     );
-  }, [songs, sourceTitle, onClose]);
+  }, [songs, sourceTitle, onClose, discoveryPlaylistId, sourceOwner]);
 
   const handleCreatePlaylistAndSave = useCallback(async () => {
     const trimmedName = newPlName.trim();
@@ -618,12 +636,13 @@ const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> = ({
         </Modal>
 
         <SaveContentModal
-            visible={saveOpen}
-            songs={content.songs}
-            sourceTitle={content.title}
-            sourceOwner={content.ownerName ?? content.subtitle}
-            canManageAlbums={canManageAlbums}
-            onClose={() => setSaveOpen(false)}
+          visible={saveOpen}
+          songs={content.songs}
+          sourceTitle={content.title}
+          sourceOwner={content.ownerName ?? content.subtitle}
+          canManageAlbums={canManageAlbums}
+          onClose={() => setSaveOpen(false)}
+          discoveryPlaylistId={content.type === 'PLAYLIST' && content.slug === 'discovery' ? content.id : undefined}
         />
       </>
   );

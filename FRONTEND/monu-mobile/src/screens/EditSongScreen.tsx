@@ -26,9 +26,12 @@ import {
   Genre,
   getLyric,
   getMyAlbums,
+  getMyAlbumsContainingSong,
   LyricResponse,
+  removeSongFromAlbum,
   Song,
   SongStatus,
+  updateAlbum,
   updateSong,
   uploadLyric,
 } from '../services/music';
@@ -66,6 +69,8 @@ export const EditSongScreen = () => {
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [status, setStatus] = useState<SongStatus>('PUBLIC');
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
+  /** Ngày phát hành album (YYYY-MM-DD), áp dụng cho album đang chọn khi Album-only */
+  const [albumReleaseDate, setAlbumReleaseDate] = useState('');
 
   // Lyric state
   const [lyricData, setLyricData] = useState<LyricResponse | null>(null);
@@ -80,7 +85,7 @@ export const EditSongScreen = () => {
     setLoading(true);
     try {
       const [songRes, genreRes] = await Promise.allSettled([
-        apiClient.get<Song>(`/songs/${songId}`),
+        apiClient.get<Song>(`/songs/my/${songId}`),
         getPopularGenres(30),
       ]);
 
@@ -91,6 +96,20 @@ export const EditSongScreen = () => {
         setSelectedGenreIds(s.genres?.map(g => g.id) ?? []);
         setStatus((s.status === 'PUBLIC' || s.status === 'PRIVATE' || s.status === 'ALBUM_ONLY') ? s.status : 'PUBLIC');
         setHasLyric(!!s.lyricUrl);
+
+        if (s.status === 'ALBUM_ONLY') {
+          try {
+            const containing = await getMyAlbumsContainingSong(songId);
+            if (containing.length > 0) {
+              const first = containing[0];
+              setSelectedAlbumId(first.id);
+              const rd = first.releaseDate;
+              setAlbumReleaseDate(rd ? (rd.includes('T') ? rd.slice(0, 10) : rd.slice(0, 10)) : '');
+            }
+          } catch {
+            /* ignore */
+          }
+        }
       }
 
       if (genreRes.status === 'fulfilled') {
@@ -98,7 +117,7 @@ export const EditSongScreen = () => {
       }
       try {
         const alRes = await getMyAlbums({ page: 1, size: 100 });
-        setMyAlbums((alRes.content ?? []).filter((a) => a.status !== 'PUBLIC'));
+        setMyAlbums(alRes.content ?? []);
       } catch {
         setMyAlbums([]);
       }
@@ -141,14 +160,46 @@ export const EditSongScreen = () => {
 
     setSaving(true);
     try {
+      const containing = await getMyAlbumsContainingSong(songId);
+
       await updateSong(songId, {
         title: title.trim(),
         genreIds: selectedGenreIds,
         status,
       });
-      if (status === 'ALBUM_ONLY' && selectedAlbumId) {
-        await addSongToAlbum(selectedAlbumId, songId);
+
+      if (status !== 'ALBUM_ONLY') {
+        for (const a of containing) {
+          try {
+            await removeSongFromAlbum(a.id, songId);
+          } catch {
+            /* ignore */
+          }
+        }
+      } else if (selectedAlbumId) {
+        for (const a of containing) {
+          if (a.id !== selectedAlbumId) {
+            try {
+              await removeSongFromAlbum(a.id, songId);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+        try {
+          await addSongToAlbum(selectedAlbumId, songId);
+        } catch (e: any) {
+          const m = String(e?.message ?? e ?? '');
+          if (!/already|ALREADY|exists/i.test(m)) {
+            throw e;
+          }
+        }
+        const ymd = albumReleaseDate.trim();
+        if (ymd) {
+          await updateAlbum(selectedAlbumId, { releaseDate: ymd });
+        }
       }
+
       Alert.alert(
         '✅ Thành công',
         t('screens.editSong.savedMessage', 'Thông tin bài hát đã được cập nhật.'),
@@ -329,26 +380,69 @@ export const EditSongScreen = () => {
                   ))}
                 </View>
                 {status === 'ALBUM_ONLY' && (
-                  <View style={styles.statusRow}>
-                    {myAlbums.length === 0 ? (
-                      <Text style={styles.helperText}>
-                        {t('screens.songVisibility.noAlbumPrivateHint', 'Create a PRIVATE/DRAFT album first before selecting Album only mode.')}
-                      </Text>
-                    ) : myAlbums.map((album) => {
-                      const active = selectedAlbumId === album.id;
-                      return (
-                        <Pressable
-                          key={album.id}
-                          style={[styles.statusChip, active && styles.statusChipActive]}
-                          onPress={() => setSelectedAlbumId(album.id)}
-                        >
-                          <Text style={[styles.statusChipText, active && styles.statusChipTextActive]}>
-                            💿 {album.title}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
+                  <>
+                    <Text style={[styles.fieldLabel, { marginTop: 8 }]}>
+                      {t('screens.songVisibility.pickAlbum', 'Chọn album')}
+                    </Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.albumChipScroll}
+                    >
+                      {myAlbums.length === 0 ? (
+                        <Text style={styles.helperText}>
+                          {t('screens.songVisibility.noAlbumsYet', 'Tạo album trong tab Create trước.')}
+                        </Text>
+                      ) : (
+                        myAlbums.map((album) => {
+                          const active = selectedAlbumId === album.id;
+                          return (
+                            <Pressable
+                              key={album.id}
+                              style={[styles.albumChip, active && styles.statusChipActive]}
+                              onPress={() => {
+                                setSelectedAlbumId(album.id);
+                                const rd = album.releaseDate;
+                                if (rd) {
+                                  setAlbumReleaseDate(rd.includes('T') ? rd.slice(0, 10) : rd.slice(0, 10));
+                                } else {
+                                  setAlbumReleaseDate('');
+                                }
+                              }}
+                            >
+                              <Text style={[styles.albumChipTitle, active && styles.statusChipTextActive]} numberOfLines={1}>
+                                💿 {album.title}
+                              </Text>
+                              <Text style={styles.albumChipMeta} numberOfLines={1}>
+                                {album.status}
+                                {album.releaseDate ? ` · ${(album.releaseDate.includes('T') ? album.releaseDate.slice(0, 10) : album.releaseDate.slice(0, 10))}` : ''}
+                              </Text>
+                            </Pressable>
+                          );
+                        })
+                      )}
+                    </ScrollView>
+                    {selectedAlbumId ? (
+                      <>
+                        <Text style={[styles.fieldLabel, { marginTop: 10 }]}>
+                          {t('screens.songVisibility.releaseDate', 'Ngày phát hành album')}
+                        </Text>
+                        <TextInput
+                          style={styles.input}
+                          value={albumReleaseDate}
+                          onChangeText={setAlbumReleaseDate}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor={COLORS.glass35}
+                        />
+                        <Text style={styles.helperText}>
+                          {t(
+                            'screens.songVisibility.releaseHint',
+                            'Album chưa PUBLIC: bài chỉ nghe trong album của bạn. Khi đã phát hành, bài vẫn không hiện tìm kiếm toàn cục (Album-only) nhưng hiện trong album công khai.',
+                          )}
+                        </Text>
+                      </>
+                    ) : null}
+                  </>
                 )}
               </>
             )}
@@ -589,6 +683,20 @@ const styles = StyleSheet.create({
   statusChipText: { color: COLORS.glass60, fontSize: 14, fontWeight: '600' },
   statusChipTextActive: { color: COLORS.accent },
   helperText: { color: COLORS.glass50, fontSize: 12, marginTop: 2 },
+
+  albumChipScroll: { flexDirection: 'row', gap: 10, paddingVertical: 4, alignItems: 'stretch' },
+  albumChip: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.glass20,
+    backgroundColor: COLORS.surfaceLow,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    minWidth: 148,
+    maxWidth: 240,
+  },
+  albumChipTitle: { color: COLORS.glass50, fontSize: 13, fontWeight: '600' },
+  albumChipMeta: { color: COLORS.glass35, fontSize: 11, marginTop: 4 },
 
   genreWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   genreChip: {

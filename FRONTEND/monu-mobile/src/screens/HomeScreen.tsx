@@ -39,7 +39,7 @@ import {
   Album,
   createPlaylist,
   getNewestSongs,
-  getPublicAlbums,
+  getRecentlyPublishedAlbums,
   getTrendingSongs,
   searchSongs,
   Song,
@@ -329,16 +329,8 @@ export const HomeScreen = () => {
 
   const loadNewlyReleasedAlbums = useCallback(async () => {
     try {
-      const albumsRes = await getPublicAlbums({ page: 1, size: 30 });
-      const now = new Date();
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const fresh = (albumsRes.content ?? []).filter((album) => {
-        if (!album.releaseDate) return false;
-        const dateInput = album.releaseDate.includes('T') ? album.releaseDate : `${album.releaseDate}T00:00:00`;
-        const d = new Date(dateInput);
-        return d >= sevenDaysAgo && d <= now;
-      }).sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''));
-      setNewlyReleasedAlbums(fresh);
+      const albumsRes = await getRecentlyPublishedAlbums({ withinDays: 7, page: 1, size: 24 });
+      setNewlyReleasedAlbums(albumsRes.content ?? []);
     } catch {
       setNewlyReleasedAlbums([]);
     }
@@ -557,21 +549,40 @@ export const HomeScreen = () => {
 
         {newlyReleasedAlbums.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>💿 {t('screens.home.newAlbumReleased', 'New album released')}</Text>
-            <View style={{ gap: 10 }}>
+            <Text style={styles.sectionTitle}>
+              💿 {t('screens.home.newReleasedAlbumsSection', 'New released albums')}
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.newAlbumsHorizontal}
+            >
               {newlyReleasedAlbums.map((album) => (
                 <Pressable
                   key={album.id}
-                  style={styles.albumReleaseCard}
+                  style={styles.albumReleaseCardH}
                   onPress={() => navigation.navigate('AlbumDetail', { albumId: album.id })}
                 >
-                  <Text style={styles.albumReleaseTitle} numberOfLines={1}>{album.title}</Text>
+                  {album.coverUrl ? (
+                    <Image source={{ uri: album.coverUrl }} style={styles.albumReleaseCover} />
+                  ) : (
+                    <View style={[styles.albumReleaseCover, styles.albumReleaseCoverPh]}>
+                      <Text style={{ fontSize: 28 }}>💿</Text>
+                    </View>
+                  )}
+                  <Text style={styles.albumReleaseTitle} numberOfLines={2}>{album.title}</Text>
                   <Text style={styles.albumReleaseMeta} numberOfLines={1}>
-                    {t('screens.home.owner', 'Owner')}: {album.ownerStageName ?? '-'} · {(album.totalSongs ?? album.songs?.length ?? 0)} {t('albumDetails.songs')}
+                    {album.ownerStageName ?? '—'}
+                  </Text>
+                  {album.credits ? (
+                    <Text style={styles.albumReleaseCredits} numberOfLines={2}>{album.credits}</Text>
+                  ) : null}
+                  <Text style={styles.albumReleaseMeta}>
+                    {(album.totalSongs ?? album.songs?.length ?? 0)} {t('albumDetails.songs')}
                   </Text>
                 </Pressable>
               ))}
-            </View>
+            </ScrollView>
           </View>
         )}
 
@@ -899,8 +910,33 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     borderRadius: 12,
     padding: 12,
   },
-  albumReleaseTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  albumReleaseMeta: { color: colors.glass60, fontSize: 12, marginTop: 4 },
+  newAlbumsHorizontal: {
+    paddingRight: 20,
+    gap: 12,
+  },
+  albumReleaseCardH: {
+    width: 168,
+    backgroundColor: colors.surface,
+    borderColor: colors.accentBorder25,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 10,
+    marginRight: 4,
+  },
+  albumReleaseCover: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 10,
+    marginBottom: 8,
+    backgroundColor: colors.surfaceMid,
+  },
+  albumReleaseCoverPh: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  albumReleaseTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  albumReleaseMeta: { color: colors.glass60, fontSize: 11, marginTop: 3 },
+  albumReleaseCredits: { color: colors.muted, fontSize: 10, marginTop: 4, lineHeight: 14 },
   artistHorizontalList: {
     paddingHorizontal: 20,
     gap: 12,

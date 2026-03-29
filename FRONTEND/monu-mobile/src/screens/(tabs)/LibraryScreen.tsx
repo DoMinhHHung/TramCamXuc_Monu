@@ -29,13 +29,21 @@ import { useTranslation } from '../../context/LocalizationContext';
 import {
   addSongToPlaylist,
   Album,
+  albumTracksAsPlayableSongs,
+  cancelAlbumSchedule,
+  commitAlbumSchedule,
   createPlaylist,
   deletePlaylist,
+  getMyAlbumById,
   getMyAlbums,
   getMyPlaylists,
   getMySongs,
+  isAlbumPendingScheduledRelease,
+  localDateAndTimeToPublishAtIso,
   Playlist,
+  publishAlbum,
   Song,
+  updateAlbum,
   updatePlaylist,
 } from '../../services/music';
 import {
@@ -320,6 +328,8 @@ const AlbumCard = ({
                      album,
                      onPress,
                      onPublish,
+                     onScheduleRelease,
+                     onCancelSchedule,
                      onUnpublish,
                      onDelete,
                      onShare,
@@ -327,17 +337,22 @@ const AlbumCard = ({
   album: Album;
   onPress: () => void;
   onPublish: () => void;
+  onScheduleRelease: () => void;
+  onCancelSchedule: () => void;
   onUnpublish: () => void;
   onDelete: () => void;
   onShare: () => void;
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const pendingRelease = isAlbumPendingScheduledRelease(album);
   const statusColor =
       album.status === 'PUBLIC'   ? COLORS.success :
+          pendingRelease ? COLORS.accent :
           album.status === 'PRIVATE'  ? COLORS.warningMid :
               COLORS.glass40;
   const statusLabel =
       album.status === 'PUBLIC'   ? tr('screens.library.public', 'Public') :
+        pendingRelease ? tr('screens.library.pendingReleaseScheduled', 'Pending release') :
         album.status === 'PRIVATE'  ? tr('screens.library.private', 'Private') :
           tr('screens.library.draft', 'Draft');
 
@@ -376,10 +391,25 @@ const AlbumCard = ({
               <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPress(); }}>
                 <Text style={albumCardStyles.menuItemText}>👁  {tr('screens.library.viewDetails', 'View details')}</Text>
               </Pressable>
-              {album.status !== 'PUBLIC' && (
-                  <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPublish(); }}>
-                    <Text style={albumCardStyles.menuItemText}>🚀  {tr('screens.library.publish', 'Publish')}</Text>
-                  </Pressable>
+              {album.status !== 'PUBLIC' && !pendingRelease && (
+                  <>
+                    <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPublish(); }}>
+                      <Text style={albumCardStyles.menuItemText}>🚀  {tr('screens.library.publish', 'Publish')}</Text>
+                    </Pressable>
+                    <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onScheduleRelease(); }}>
+                      <Text style={albumCardStyles.menuItemText}>📅  {tr('screens.library.scheduleRelease', 'Schedule release')}</Text>
+                    </Pressable>
+                  </>
+              )}
+              {pendingRelease && (
+                  <>
+                    <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onScheduleRelease(); }}>
+                      <Text style={albumCardStyles.menuItemText}>✏️  {tr('screens.library.changeReleaseTime', 'Change release time')}</Text>
+                    </Pressable>
+                    <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onCancelSchedule(); }}>
+                      <Text style={albumCardStyles.menuItemText}>🛑  {tr('screens.library.cancelSchedule', 'Cancel schedule')}</Text>
+                    </Pressable>
+                  </>
               )}
               {album.status === 'PUBLIC' && (
                   <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onUnpublish(); }}>
@@ -540,6 +570,21 @@ const modalStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   createText: { color: COLORS.white, fontWeight: '700' },
+  modeChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: COLORS.glass08,
+    borderWidth: 1,
+    borderColor: COLORS.glass12,
+    alignItems: 'center',
+  },
+  modeChipActive: {
+    backgroundColor: COLORS.accentFill20,
+    borderColor: COLORS.accentBorder25,
+  },
+  modeChipText: { color: COLORS.glass50, fontSize: 13, fontWeight: '600' },
+  modeChipTextActive: { color: COLORS.accent },
 });
 
 // ─── Add Song to Playlist Modal ───────────────────────────────────────────────
@@ -1003,22 +1048,19 @@ const AlbumDetailModal = ({
     if (!albumId) return;
     setLoading(true);
     try {
-      const res = await apiClient.get<{ result: Album }>(`/albums/my/${albumId}`);
-      setAlbum((res.data as any).result ?? res.data);
+      const data = await getMyAlbumById(albumId);
+      setAlbum(data);
     } catch {
-      try {
-        const res2 = await apiClient.get<{ result: Album }>(`/albums/${albumId}`);
-        setAlbum((res2.data as any).result ?? res2.data);
-      } catch {
-        setAlbum(null);
-      }
+      setAlbum(null);
     } finally {
       setLoading(false);
     }
   };
 
+  const pendingSchedule = album ? isAlbumPendingScheduledRelease(album) : false;
+
   const handleAddSong = async (songId: string) => {
-    if (!albumId) return;
+    if (!albumId || pendingSchedule) return;
     try {
       await apiClient.post(`/albums/${albumId}/songs/${songId}`);
       await load();
@@ -1042,10 +1084,10 @@ const AlbumDetailModal = ({
   const availableSongs = mySongs.filter(s =>
       (s.transcodeStatus as string) === 'COMPLETED' &&
       (s.status === 'PUBLIC' || s.status === 'PRIVATE' || s.status === 'ALBUM_ONLY') &&
-      !album?.songs?.some(as => as.id === s.id)
+      !album?.songs?.some((as: any) => as.id === s.id || as.songId === s.id)
   );
 
-  const queue = (album?.songs ?? []) as Song[];
+  const queue = albumTracksAsPlayableSongs(album);
 
   const getAlbumSongId = (song: any): string | undefined => song?.id ?? song?.songId;
   const getAlbumSongTitle = (song: any): string => song?.title ?? 'Bài hát';
@@ -1062,9 +1104,13 @@ const AlbumDetailModal = ({
             <Text style={albumDetailStyles.title} numberOfLines={1}>
               {album?.title ?? 'Album'}
             </Text>
-            <Pressable onPress={() => setAddOpen(true)} style={albumDetailStyles.addBtn}>
-              <Text style={albumDetailStyles.addBtnText}>+ Thêm bài</Text>
-            </Pressable>
+            {!pendingSchedule ? (
+              <Pressable onPress={() => setAddOpen(true)} style={albumDetailStyles.addBtn}>
+                <Text style={albumDetailStyles.addBtnText}>+ Thêm bài</Text>
+              </Pressable>
+            ) : (
+              <View style={{ maxWidth: 120 }} />
+            )}
           </View>
 
           {loading ? (
@@ -1086,12 +1132,28 @@ const AlbumDetailModal = ({
                     <View style={albumDetailStyles.metaBadge}>
                       <Text style={albumDetailStyles.metaStatus}>
                         {album?.status === 'PUBLIC' ? '🟢 Công khai' :
+                            pendingSchedule ? '⏳ Chờ phát hành' :
                             album?.status === 'PRIVATE' ? '🟡 Riêng tư' : '⚪ Bản nháp'}
                       </Text>
                     </View>
+                    {pendingSchedule && album?.scheduledPublishAt ? (
+                      <Text style={albumDetailStyles.metaCount}>
+                        {new Date(album.scheduledPublishAt).toLocaleString()}
+                      </Text>
+                    ) : null}
+                    {album?.credits ? (
+                      <Text style={[albumDetailStyles.metaCount, { marginTop: 4 }]} numberOfLines={3}>
+                        {album.credits}
+                      </Text>
+                    ) : null}
                     <Text style={albumDetailStyles.metaCount}>
                       {album?.songs?.length ?? 0} bài hát
                     </Text>
+                    {pendingSchedule ? (
+                      <Text style={[albumDetailStyles.metaCount, { color: COLORS.warningMid, marginTop: 6 }]}>
+                        Không thể thêm bài khi đang chờ phát hành.
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
 
@@ -1113,8 +1175,11 @@ const AlbumDetailModal = ({
                           <Pressable
                               style={albumDetailStyles.songMain}
                               onPress={() => {
-                                if ((song as Song).id) {
-                                  playSong(song as Song, queue);
+                                const sid = getAlbumSongId(song);
+                                if (!sid) return;
+                                const playable = queue.find((q) => q.id === sid);
+                                if (playable && playable.transcodeStatus === 'COMPLETED') {
+                                  playSong(playable, queue);
                                 }
                               }}
                           >
@@ -1266,7 +1331,11 @@ export const LibraryScreen = () => {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [createAlbumOpen, setCreateAlbumOpen] = useState(false);
   const [publishAlbumTarget, setPublishAlbumTarget] = useState<Album | null>(null);
+  const [publishModalMode, setPublishModalMode] = useState<'now' | 'schedule'>('now');
   const [releaseDateDraft, setReleaseDateDraft] = useState('');
+  const [scheduleDateDraft, setScheduleDateDraft] = useState('');
+  const [scheduleTimeDraft, setScheduleTimeDraft] = useState('12:00');
+  const [creditsDraft, setCreditsDraft] = useState('');
   const [detailAlbumId, setDetailAlbumId]     = useState<string | null>(null);
   const [editPlaylist, setEditPlaylist]        = useState<Playlist | null>(null);
   const [editPlaylistName, setEditPlaylistName] = useState('');
@@ -1437,9 +1506,9 @@ export const LibraryScreen = () => {
     try {
       const normalizedReleaseDate = (releaseDate ?? '').trim();
       if (normalizedReleaseDate) {
-        await apiClient.put(`/albums/${albumId}`, { releaseDate: normalizedReleaseDate });
+        await updateAlbum(albumId, { releaseDate: normalizedReleaseDate });
       }
-      await apiClient.post(`/albums/${albumId}/publish`);
+      await publishAlbum(albumId);
       await load(true);
       showToast(t('screens.library.albumPublicNow', 'Your album is now public.'), 'success');
     } catch (e: any) {
@@ -1459,9 +1528,66 @@ export const LibraryScreen = () => {
     }
   };
 
-  const openPublishAlbumModal = (album: Album) => {
+  const pad2 = (n: number) => n.toString().padStart(2, '0');
+
+  const openPublishAlbumModal = (album: Album, mode: 'now' | 'schedule' = 'now') => {
     setPublishAlbumTarget(album);
+    setPublishModalMode(mode);
     setReleaseDateDraft(album.releaseDate?.slice(0, 10) ?? new Date().toISOString().slice(0, 10));
+    if (album.scheduledPublishAt) {
+      const d = new Date(album.scheduledPublishAt);
+      setScheduleDateDraft(`${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`);
+      setScheduleTimeDraft(`${pad2(d.getHours())}:${pad2(d.getMinutes())}`);
+    } else {
+      const t = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      setScheduleDateDraft(`${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`);
+      setScheduleTimeDraft('12:00');
+    }
+    setCreditsDraft(album.credits ?? '');
+  };
+
+  const handleCancelAlbumSchedule = (a: Album) => {
+    Alert.alert(
+      t('screens.library.cancelSchedule', 'Cancel schedule'),
+      t('screens.library.cancelScheduleConfirm', 'Remove the scheduled release time?'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('screens.library.cancelSchedule', 'Cancel schedule'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelAlbumSchedule(a.id);
+              await load(true);
+              showToast(t('screens.library.scheduleCancelled', 'Schedule cancelled.'), 'success');
+            } catch (e: any) {
+              showToast(e?.response?.data?.message ?? e?.message ?? t('common.error'), 'error');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleConfirmSchedule = async () => {
+    if (!publishAlbumTarget) return;
+    try {
+      const publishAt = localDateAndTimeToPublishAtIso(scheduleDateDraft, scheduleTimeDraft);
+      if (new Date(publishAt).getTime() <= Date.now()) {
+        showToast(t('screens.library.scheduleMustBeFuture', 'Choose a date and time in the future.'), 'error');
+        return;
+      }
+      await commitAlbumSchedule(publishAlbumTarget.id, {
+        publishAt,
+        credits: creditsDraft.trim() || undefined,
+      });
+      setPublishAlbumTarget(null);
+      await load(true);
+      showToast(t('screens.library.scheduleSaved', 'Release scheduled.'), 'success');
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? e?.message ?? t('common.error');
+      showToast(msg, 'error');
+    }
   };
 
   const handleDeleteAlbum = (a: Album) => {
@@ -1638,7 +1764,9 @@ export const LibraryScreen = () => {
                     key={a.id}
                     album={a}
                     onPress={() => setDetailAlbumId(a.id)}
-                    onPublish={() => openPublishAlbumModal(a)}
+                    onPublish={() => openPublishAlbumModal(a, 'now')}
+                    onScheduleRelease={() => openPublishAlbumModal(a, 'schedule')}
+                    onCancelSchedule={() => handleCancelAlbumSchedule(a)}
                     onUnpublish={() => void handleUnpublishAlbum(a.id)}
                     onDelete={() => handleDeleteAlbum(a)}
                     onShare={() => openShareOptions('album', a.id, a.title)}
@@ -1790,34 +1918,116 @@ export const LibraryScreen = () => {
           onRequestClose={() => setPublishAlbumTarget(null)}
         >
           <View style={modalStyles.overlay}>
-            <View style={modalStyles.card}>
-              <Text style={modalStyles.title}>{t('screens.library.publishAlbum', 'Publish album')}</Text>
-              <Text style={modalStyles.subTitle}>
-                {publishAlbumTarget?.title} · {t('screens.library.releaseDate', 'Release date')} (YYYY-MM-DD)
-              </Text>
-              <TextInput
-                style={modalStyles.input}
-                value={releaseDateDraft}
-                onChangeText={setReleaseDateDraft}
-                placeholder="2026-03-27"
-                placeholderTextColor={COLORS.glass30}
-              />
-              <View style={modalStyles.actions}>
-                <Pressable style={modalStyles.cancelBtn} onPress={() => setPublishAlbumTarget(null)}>
-                  <Text style={modalStyles.cancelText}>{t('common.cancel', 'Cancel')}</Text>
-                </Pressable>
-                <Pressable
-                  style={modalStyles.createBtn}
-                  onPress={async () => {
-                    if (!publishAlbumTarget) return;
-                    await handlePublishAlbum(publishAlbumTarget.id, releaseDateDraft);
-                    setPublishAlbumTarget(null);
-                  }}
-                >
-                  <Text style={modalStyles.createText}>{t('screens.library.publish', 'Publish')}</Text>
-                </Pressable>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 24 }}
+            >
+              <View style={modalStyles.card}>
+                <Text style={modalStyles.title}>{t('screens.library.publishAlbum', 'Publish album')}</Text>
+                <Text style={modalStyles.subTitle} numberOfLines={2}>{publishAlbumTarget?.title}</Text>
+
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                  <Pressable
+                    style={[
+                      modalStyles.modeChip,
+                      publishModalMode === 'now' && modalStyles.modeChipActive,
+                    ]}
+                    onPress={() => setPublishModalMode('now')}
+                  >
+                    <Text style={[modalStyles.modeChipText, publishModalMode === 'now' && modalStyles.modeChipTextActive]}>
+                      {t('screens.library.publishNowTab', 'Publish now')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      modalStyles.modeChip,
+                      publishModalMode === 'schedule' && modalStyles.modeChipActive,
+                    ]}
+                    onPress={() => setPublishModalMode('schedule')}
+                  >
+                    <Text style={[modalStyles.modeChipText, publishModalMode === 'schedule' && modalStyles.modeChipTextActive]}>
+                      {t('screens.library.scheduleTab', 'Schedule')}
+                    </Text>
+                  </Pressable>
+                </View>
+
+                {publishModalMode === 'now' ? (
+                  <>
+                    <Text style={modalStyles.subTitle}>
+                      {t('screens.library.releaseDateOptional', 'Release date (optional, YYYY-MM-DD)')}
+                    </Text>
+                    <TextInput
+                      style={modalStyles.input}
+                      value={releaseDateDraft}
+                      onChangeText={setReleaseDateDraft}
+                      placeholder="2026-03-27"
+                      placeholderTextColor={COLORS.glass30}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Text style={modalStyles.subTitle}>
+                      {t('screens.library.scheduleDateLabel', 'Release date (YYYY-MM-DD)')}
+                    </Text>
+                    <TextInput
+                      style={modalStyles.input}
+                      value={scheduleDateDraft}
+                      onChangeText={setScheduleDateDraft}
+                      placeholder="2026-03-30"
+                      placeholderTextColor={COLORS.glass30}
+                    />
+                    <Text style={modalStyles.subTitle}>
+                      {t('screens.library.scheduleTimeLabel', 'Time (HH:mm, local)')}
+                    </Text>
+                    <TextInput
+                      style={modalStyles.input}
+                      value={scheduleTimeDraft}
+                      onChangeText={setScheduleTimeDraft}
+                      placeholder="20:00"
+                      placeholderTextColor={COLORS.glass30}
+                    />
+                    <Text style={modalStyles.subTitle}>
+                      {t('screens.library.creditsLabel', 'Credits / collaborators')}
+                    </Text>
+                    <TextInput
+                      style={[modalStyles.input, { minHeight: 72, textAlignVertical: 'top' }]}
+                      value={creditsDraft}
+                      onChangeText={setCreditsDraft}
+                      placeholder={t('screens.library.creditsPlaceholder', 'Featuring, producers...')}
+                      placeholderTextColor={COLORS.glass30}
+                      multiline
+                    />
+                    <Text style={[modalStyles.subTitle, { fontSize: 11, opacity: 0.85 }]}>
+                      {t('screens.library.scheduleCooldownHint', 'You can change the scheduled time only 6 hours after the last confirmation.')}
+                    </Text>
+                  </>
+                )}
+
+                <View style={modalStyles.actions}>
+                  <Pressable style={modalStyles.cancelBtn} onPress={() => setPublishAlbumTarget(null)}>
+                    <Text style={modalStyles.cancelText}>{t('common.cancel', 'Cancel')}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={modalStyles.createBtn}
+                    onPress={async () => {
+                      if (!publishAlbumTarget) return;
+                      if (publishModalMode === 'now') {
+                        await handlePublishAlbum(publishAlbumTarget.id, releaseDateDraft);
+                        setPublishAlbumTarget(null);
+                      } else {
+                        await handleConfirmSchedule();
+                      }
+                    }}
+                  >
+                    <Text style={modalStyles.createText}>
+                      {publishModalMode === 'now'
+                        ? t('screens.library.publish', 'Publish')
+                        : t('screens.library.confirmSchedule', 'Confirm schedule')}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
-            </View>
+            </ScrollView>
           </View>
         </Modal>
 

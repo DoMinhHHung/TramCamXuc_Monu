@@ -11,6 +11,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.UUID;
 
 public interface PlaylistService {
+    /**
+     * Lưu playlist từ Discovery: tạo bản copy, gắn description đặc biệt, đánh dấu discovery, tăng share count.
+     */
+    PlaylistResponse saveFromDiscovery(UUID sourcePlaylistId, String sourceAuthorName);
 
     // ── CRUD — chỉ OWNER ──────────────────────────────────────
     PlaylistResponse createPlaylist(PlaylistCreateRequest request);

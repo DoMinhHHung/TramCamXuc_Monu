@@ -1,4 +1,18 @@
+/**
+ * Lưu/copy playlist từ Discovery: tạo bản copy Discovery ở backend
+ * @param sourcePlaylistId ID playlist gốc
+ * @param sourceAuthorName Tên tác giả gốc (hiển thị mô tả)
+ */
+
 import { apiClient } from './api';
+
+export const savePlaylistFromDiscovery = async (sourcePlaylistId: string, sourceAuthorName: string): Promise<Playlist> => {
+  const response = await apiClient.post<Playlist>(
+    `/playlists/save-from-discovery`,
+    { sourcePlaylistId, sourceAuthorName }
+  );
+  return unwrap<Playlist>(response.data);
+};
 
 const unwrap = <T>(data: any): T => (data && typeof data === 'object' && 'result' in data ? (data as any).result as T : data as T);
 
@@ -58,6 +72,24 @@ export interface Playlist {
   updatedAt: string;
 }
 
+/** Track row trong album (API `AlbumSongResponse`) */
+export interface AlbumSongRow {
+  albumSongId?: string;
+  songId: string;
+  prevId?: string | null;
+  nextId?: string | null;
+  title: string;
+  slug?: string;
+  thumbnailUrl?: string;
+  durationSeconds?: number;
+  playCount?: number;
+  available?: boolean;
+  unavailableReason?: string;
+  artistId?: string;
+  artistStageName?: string;
+  artistAvatarUrl?: string;
+}
+
 export interface Album {
   id: string;
   title: string;
@@ -65,15 +97,74 @@ export interface Album {
   description?: string;
   coverUrl?: string;
   releaseDate?: string;
+  /** Lịch phát hành tự động (album PRIVATE + có giá trị = chờ phát hành) */
+  scheduledPublishAt?: string | null;
+  scheduleCommittedAt?: string | null;
+  credits?: string | null;
+  publishedAt?: string | null;
   status: 'DRAFT' | 'PUBLIC' | 'PRIVATE';
   totalSongs?: number;
   totalDurationSeconds?: number;
   ownerArtistId?: string;
   ownerStageName?: string;
   ownerAvatarUrl?: string;
-  songs: Song[];
+  /** Detail có danh sách bài; list có thể rỗng */
+  songs?: (Song | AlbumSongRow)[];
   createdAt: string;
   updatedAt: string;
+}
+
+export function isAlbumPendingScheduledRelease(album: Pick<Album, 'status' | 'scheduledPublishAt'>): boolean {
+  return album.status === 'PRIVATE' && !!album.scheduledPublishAt;
+}
+
+/** Gộp ngày + giờ local → ISO gửi backend (ZonedDateTime) */
+export function localDateAndTimeToPublishAtIso(dateYmd: string, timeHm: string): string {
+  const d = dateYmd.trim();
+  const t = (timeHm.trim() || '12:00').slice(0, 5);
+  const [y, m, day] = d.split('-').map((x) => Number.parseInt(x, 10));
+  const [hh, mm] = t.split(':').map((x) => Number.parseInt(x, 10));
+  if (!y || !m || !day || Number.isNaN(hh) || Number.isNaN(mm)) {
+    throw new Error('Invalid date/time');
+  }
+  const local = new Date(y, m - 1, day, hh, mm, 0, 0);
+  return local.toISOString();
+}
+
+export function albumTrackToSong(row: AlbumSongRow): Song {
+  const id = row.songId;
+  let status: Song['status'] = 'PUBLIC';
+  if (row.available === false) {
+    status = 'ALBUM_ONLY';
+  }
+  return {
+    id,
+    title: row.title ?? 'Track',
+    primaryArtist: {
+      artistId: row.artistId ?? '',
+      stageName: row.artistStageName ?? 'Artist',
+      avatarUrl: row.artistAvatarUrl,
+    },
+    genres: [],
+    thumbnailUrl: row.thumbnailUrl,
+    durationSeconds: row.durationSeconds ?? 0,
+    playCount: typeof row.playCount === 'number' ? row.playCount : 0,
+    status,
+    transcodeStatus: row.available === false ? 'PENDING' : 'COMPLETED',
+    createdAt: '',
+    updatedAt: '',
+  };
+}
+
+/** Chuẩn hoá queue cho player từ album detail */
+export function albumTracksAsPlayableSongs(album: Album | null): Song[] {
+  const raw = album?.songs ?? [];
+  return raw.map((s: Song | AlbumSongRow) => {
+    if (s && typeof (s as AlbumSongRow).songId === 'string') {
+      return albumTrackToSong(s as AlbumSongRow);
+    }
+    return s as Song;
+  });
 }
 
 export interface PageResponse<T> {
@@ -348,4 +439,61 @@ export const addSongToAlbum = async (albumId: string, songId: string): Promise<A
 export const removeSongFromAlbum = async (albumId: string, songId: string): Promise<Album> => {
   const response = await apiClient.delete<Album>(`/albums/${albumId}/songs/${songId}`);
   return unwrap<Album>(response.data);
+};
+
+/** Album của artist hiện tại có chứa bài hát này (chỉnh Album-only). */
+export const getMyAlbumsContainingSong = async (songId: string): Promise<Album[]> => {
+  const response = await apiClient.get<Album[]>(`/albums/my/containing-song/${songId}`);
+  return unwrap<Album[]>(response.data);
+};
+
+export const updateAlbum = async (
+  albumId: string,
+  payload: { title?: string; description?: string; releaseDate?: string | null; credits?: string | null },
+): Promise<Album> => {
+  const response = await apiClient.put<Album>(`/albums/${albumId}`, payload);
+  return unwrap<Album>(response.data);
+};
+
+export interface AlbumScheduleCommitRequest {
+  publishAt: string;
+  credits?: string | null;
+}
+
+export const commitAlbumSchedule = async (albumId: string, payload: AlbumScheduleCommitRequest): Promise<Album> => {
+  const response = await apiClient.post<Album>(`/albums/${albumId}/schedule/commit`, payload);
+  return unwrap<Album>(response.data);
+};
+
+export const cancelAlbumSchedule = async (albumId: string): Promise<Album> => {
+  const response = await apiClient.delete<Album>(`/albums/${albumId}/schedule`);
+  return unwrap<Album>(response.data);
+};
+
+export const getRecentlyPublishedAlbums = async (params?: {
+  withinDays?: number;
+  page?: number;
+  size?: number;
+}): Promise<PageResponse<Album>> => {
+  const response = await apiClient.get<PageResponse<Album>>('/albums/new-releases', {
+    params: {
+      withinDays: params?.withinDays ?? 7,
+      page: params?.page ?? 1,
+      size: params?.size ?? 20,
+    },
+  });
+  return unwrap<PageResponse<Album>>(response.data);
+};
+
+export const favoriteAlbum = async (albumId: string): Promise<void> => {
+  await apiClient.post(`/albums/${albumId}/favorite`);
+};
+
+export const unfavoriteAlbum = async (albumId: string): Promise<void> => {
+  await apiClient.delete(`/albums/${albumId}/favorite`);
+};
+
+export const isAlbumFavoritedByMe = async (albumId: string): Promise<boolean> => {
+  const response = await apiClient.get<boolean>(`/albums/${albumId}/favorite/me`);
+  return unwrap<boolean>(response.data);
 };

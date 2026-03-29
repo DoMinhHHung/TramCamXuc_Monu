@@ -57,6 +57,8 @@ public enum ErrorCode {
     ALBUM_HAS_UNREADY_SONGS      (2407, "Album has songs that are not ready yet",         HttpStatus.CONFLICT),
     ALBUM_SCHEDULE_INVALID_TIME  (2408, "Scheduled time must be in the future",           HttpStatus.BAD_REQUEST),
     ALBUM_SCHEDULE_NOT_FOUND     (2409, "No scheduled publish time set for this album",   HttpStatus.NOT_FOUND),
+    ALBUM_SCHEDULE_EDIT_COOLDOWN (2410, "You can change the release schedule only 6 hours after the last confirmation", HttpStatus.CONFLICT),
+    ALBUM_PENDING_PUBLISH_LOCKED (2411, "Cannot modify album tracks while a release is scheduled", HttpStatus.CONFLICT),
 
     // ── Playlist ────────────────────────────────────────────────────────────
     PLAYLIST_NOT_FOUND               (2500, "Playlist not found",                                    HttpStatus.NOT_FOUND),

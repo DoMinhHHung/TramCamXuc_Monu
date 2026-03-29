@@ -20,6 +20,18 @@ import java.util.UUID;
         @Index(name = "idx_playlists_slug",  columnList = "slug", unique = true)
 })
 public class Playlist extends BaseEntity {
+    @Column(name = "is_discovery_copy", nullable = false)
+    @Builder.Default
+    private boolean isDiscoveryCopy = false;
+
+    @Column(name = "discovery_source_id")
+    private UUID discoverySourceId;
+
+    @Column(name = "discovery_source_type", length = 20)
+    private String discoverySourceType;
+
+    @Column(name = "discovery_source_name", length = 255)
+    private String discoverySourceName;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

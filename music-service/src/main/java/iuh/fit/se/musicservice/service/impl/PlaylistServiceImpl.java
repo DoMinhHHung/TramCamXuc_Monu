@@ -1,3 +1,4 @@
+// ...existing code...
 package iuh.fit.se.musicservice.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -40,6 +41,79 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class PlaylistServiceImpl implements PlaylistService {
+        /**
+         * Lưu playlist từ Discovery: tạo bản copy, gắn description đặc biệt, đánh dấu discovery, tăng share count.
+         */
+        @Override
+        @Transactional
+        public PlaylistResponse saveFromDiscovery(UUID sourcePlaylistId, String sourceAuthorName) {
+            UUID userId = currentUserId();
+            // 1. Tìm playlist gốc (chỉ cho phép copy playlist PUBLIC)
+            Playlist source = playlistRepository.findById(sourcePlaylistId)
+                    .filter(p -> p.getVisibility() == PlaylistVisibility.PUBLIC)
+                    .orElseThrow(() -> new AppException(ErrorCode.PLAYLIST_NOT_FOUND));
+
+            // 2. Không cho phép copy lại discovery copy
+            if (source.isDiscoveryCopy()) {
+                throw new AppException(ErrorCode.INVALID_REQUEST);
+            }
+
+            // 3. Tạo bản copy với các trường đặc biệt
+            UUID newId = UUID.randomUUID();
+            String specialDesc = "[BẢN SAO DISCOVERY] Được lưu từ playlist của " + sourceAuthorName + ". Bạn không thể chỉnh sửa hay chia sẻ lại.";
+
+            Playlist copy = Playlist.builder()
+                    .id(newId)
+                    .name(source.getName())
+                    .slug(SlugUtils.generate(source.getName(), newId))
+                    .description(specialDesc)
+                    .coverUrl(source.getCoverUrl())
+                    .ownerId(userId)
+                    .visibility(PlaylistVisibility.PRIVATE) // Bản copy luôn là PRIVATE
+                    .headSongId(null) // Sẽ set lại bên dưới
+                    .isDiscoveryCopy(true)
+                    .discoverySourceId(source.getId())
+                    .discoverySourceType("PLAYLIST")
+                    .discoverySourceName(source.getName())
+                    .build();
+
+            // 4. Copy các bài hát (giữ nguyên thứ tự)
+            List<PlaylistSong> sourceSongs = playlistSongRepository.findAllByPlaylistId(source.getId());
+            Map<UUID, PlaylistSong> nodeMap = sourceSongs.stream().collect(Collectors.toMap(PlaylistSong::getId, Function.identity()));
+            List<PlaylistSong> ordered = linkedListService.toOrderedList(source.getHeadSongId(), nodeMap);
+
+            UUID prevId = null;
+            UUID firstId = null;
+            for (PlaylistSong srcNode : ordered) {
+                UUID nodeId = UUID.randomUUID();
+                PlaylistSong newNode = PlaylistSong.builder()
+                        .id(nodeId)
+                        .playlist(copy)
+                        .song(srcNode.getSong())
+                        .addedAt(LocalDateTime.now())
+                        .prevId(prevId)
+                        .nextId(null)
+                        .build();
+                if (prevId != null) {
+                    // Update previous node's nextId
+                    copy.getSongs().get(copy.getSongs().size() - 1).setNextId(nodeId);
+                } else {
+                    firstId = nodeId;
+                }
+                copy.getSongs().add(newNode);
+                prevId = nodeId;
+            }
+            copy.setHeadSongId(firstId);
+
+            // 5. Lưu bản copy
+            playlistRepository.save(copy);
+
+            // 6. Tăng share count cho playlist gốc (nếu có trường này, nếu không thì bỏ qua)
+            // TODO: Nếu có trường shareCount trong Playlist, tăng lên. Nếu chưa có, bỏ qua bước này.
+
+            // 7. Trả về response
+            return toDetailResponse(copy);
+        }
     private static final int DEFAULT_PLAYLIST_LIMIT = 5;
 
     private final PlaylistRepository     playlistRepository;
