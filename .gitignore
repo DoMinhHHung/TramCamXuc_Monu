@@ -1,4 +1,5 @@
 .env
+.next
 package-lock.json
 yarn.lock
 .expo
