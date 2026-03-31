@@ -15,16 +15,21 @@ public class OutboxPublishScheduler {
     private final OutboxEventRepository outboxEventRepository;
     private final OutboxPublisherService outboxPublisherService;
 
-    @Scheduled(fixedDelayString = "${outbox.publish-delay-ms:1000}")
+    @Scheduled(fixedDelayString = "${outbox.publish-delay-ms:5000}")
     public void publishPending() {
-        List<OutboxEvent> batch = outboxEventRepository.findTop50ByPublishedFalseOrderByCreatedAtAsc();
-        for (OutboxEvent e : batch) {
-            try {
-                outboxPublisherService.publishSingle(e);
-            } catch (Exception ex) {
-                log.warn("Outbox publish failed, will retry id={} eventType={}: {}",
-                        e.getId(), e.getEventType(), ex.getMessage());
+        Boolean acquired = redis.opsForValue()
+            .setIfAbsent("lock:outbox:publish", "1", Duration.ofSeconds(4));
+        if (!Boolean.TRUE.equals(acquired)) return;
+        
+        try {
+            List<OutboxEvent> batch = outboxEventRepository
+                .findTop50ByPublishedFalseOrderByCreatedAtAsc();
+            for (OutboxEvent e : batch) {
+                try { outboxPublisherService.publishSingle(e); }
+                catch (Exception ex) { log.warn("Outbox retry: {}", ex.getMessage()); }
             }
+        } finally {
+            redis.delete("lock:outbox:publish");
         }
     }
 }

@@ -47,7 +47,7 @@ public interface SongService {
 
     // ── Admin ──────────────────────────────────────────────────────────────────
     Page<SongResponse> getAdminSongs(String keyword, SongStatus status,
-                                     boolean showDeleted, Pageable pageable);
+                                     boolean showDeleted, String source, Pageable pageable);
 
     /** Soft-delete bài hát vi phạm */
     SongResponse softDeleteSong(UUID songId, String reason);

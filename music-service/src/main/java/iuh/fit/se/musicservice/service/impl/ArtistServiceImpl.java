@@ -203,9 +203,30 @@ public class ArtistServiceImpl implements ArtistService {
     @Override
     @Transactional(readOnly = true)
     public List<ArtistResponse> getPopularArtists(int limit) {
-        return artistRepository.findPopularArtists(PageRequest.of(0, limit))
-                .stream()
-                .map(artistMapper::toResponse)
-                .collect(Collectors.toList());
+        String cacheKey = "popular:artists:" + limit;
+        try {
+            String cached = stringRedisTemplate.opsForValue().get(cacheKey);
+            if (cached != null) {
+                return objectMapper.readValue(cached, 
+                    new TypeReference<List<ArtistResponse>>() {});
+            }
+        } catch (Exception e) {}
+
+        List<ArtistResponse> result = artistRepository
+            .findPopularArtists(PageRequest.of(0, limit))
+            .stream()
+            .map(artistMapper::toResponse)
+            .collect(Collectors.toList());
+
+        try {
+            stringRedisTemplate.opsForValue().set(
+                cacheKey,
+                objectMapper.writeValueAsString(result),
+                Duration.ofMinutes(15)
+            );
+        } catch (Exception e) {
+            log.warn("Cache write failed for popular artists");
+        }
+        return result;
     }
 }

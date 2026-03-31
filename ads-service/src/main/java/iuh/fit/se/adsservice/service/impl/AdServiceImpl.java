@@ -59,20 +59,6 @@ public class AdServiceImpl implements AdService {
         if (!isAudioFile(audioFile))
             throw new IllegalArgumentException("Only MP3 audio files are accepted");
 
-        /*
-         * FIX: Upload MinIO BEFORE saving entity to DB.
-         *
-         * Previous (broken) order:
-         *   1. adRepository.save(ad)          ← INSERT with audioFileKey = null
-         *   2. minioService.uploadAudioFile()  ← upload AFTER → NOT NULL violated on commit
-         *   3. ad.setAudioFileKey(key)
-         *   4. adRepository.save(ad)           ← too late
-         *
-         * Correct order:
-         *   1. Generate a stable UUID for the ad
-         *   2. minioService.uploadAudioFile()  ← upload FIRST, use pre-generated UUID as path
-         *   3. adRepository.save(ad)           ← INSERT with audioFileKey already set → OK
-         */
         UUID adId    = UUID.randomUUID();
         String audioKey = minioService.uploadAudioFile(audioFile, adId);
 
@@ -92,8 +78,6 @@ public class AdServiceImpl implements AdService {
                 .totalClicks(0L)
                 .build();
 
-        // Use the pre-generated UUID so the MinIO path matches the DB id
-        // Hibernate will use the provided id instead of generating a new one
         ad = saveWithId(ad, adId);
 
         log.info("Created ad id={} advertiser={} audioKey={}", ad.getId(), ad.getAdvertiserName(), audioKey);
