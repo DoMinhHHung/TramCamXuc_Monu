@@ -29,7 +29,6 @@ export const WelcomeScreen = () => {
             locations={[0, 0.45, 1]}
             style={[styles.heroGradient, { paddingTop: insets.top + 20 }]}
         >
-          {/* Decorative rings - giữ nguyên nếu bạn có */}
           <View style={styles.ringOuter} />
           <View style={styles.ringInner} />
 

@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { registerUser } from '../../services/auth';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { COLORS } from '../../config/colors';
+import { ACTION_ICONS, ICON_LIBRARY, ICON_SIZES } from '../../config/icons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { BackButton } from '../../components/BackButton';
 import { useTranslation } from '../../context/LocalizationContext';
 
@@ -32,7 +34,9 @@ export default function RegisterScreen() {
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rePassword, setRePassword] = useState('');
     const [showPw, setShowPw] = useState(false);
+    const [showRePw, setShowRePw] = useState(false);
     const [dob, setDob] = useState('');
     const [dobDisplay, setDobDisplay] = useState('');
     const [gender, setGender] = useState<Gender | null>(null);
@@ -52,6 +56,8 @@ export default function RegisterScreen() {
         if (!fullName.trim()) return t('screens.authRegister.validation.fullName', 'Please enter your full name.');
         if (!email.trim()) return t('screens.authRegister.validation.email', 'Please enter your email.');
         if (!password) return t('screens.authRegister.validation.password', 'Please enter your password.');
+        if (!rePassword) return t('screens.authRegister.validation.rePassword', 'Please re-enter your password.');
+        if (password !== rePassword) return t('screens.authRegister.validation.passwordMatch', 'Passwords do not match.');
         if (!dob) return t('screens.authRegister.validation.dob', 'Please enter your date of birth in DD/MM/YYYY format.');
         if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password))
             return t('screens.authRegister.validation.passwordPolicy', 'Password must be at least 8 characters with uppercase, lowercase, number, and special character.');
@@ -81,13 +87,21 @@ export default function RegisterScreen() {
         }
     };
 
+    // Password strength indicator
     const pwStrength = !password
         ? null
         : /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(password)
-            ? { label: t('screens.authRegister.passwordStrength.strong', 'Strong 💪'), color: COLORS.success, width: '100%' as const }
+            ? { label: t('screens.authRegister.passwordStrength.strong'), color: COLORS.success, width: '100%' as const }
             : password.length >= 6
-                ? { label: t('screens.authRegister.passwordStrength.medium', 'Medium'), color: COLORS.warningMid, width: '60%' as const }
-                : { label: t('screens.authRegister.passwordStrength.weak', 'Weak'), color: COLORS.error, width: '30%' as const };
+                ? { label: t('screens.authRegister.passwordStrength.medium'), color: COLORS.warningMid, width: '60%' as const }
+                : { label: t('screens.authRegister.passwordStrength.weak'), color: COLORS.error, width: '30%' as const };
+
+    // Password match status for re-enter password
+    const passwordMatchStatus = !rePassword
+        ? null
+        : password === rePassword
+            ? { label: t('screens.authRegister.passwordMatch', 'Khớp'), color: COLORS.success }
+            : { label: t('screens.authRegister.passwordNotMatch', 'Không khớp'), color: COLORS.error };
 
     return (
         <KeyboardAvoidingView
@@ -131,6 +145,7 @@ export default function RegisterScreen() {
                         autoCapitalize="none"
                     />
 
+
                     <Text style={styles.fieldLabel}>{t('auth.password')}</Text>
                     <View style={styles.pwWrap}>
                         <TextInput
@@ -142,7 +157,11 @@ export default function RegisterScreen() {
                             placeholderTextColor={COLORS.glass25}
                         />
                         <Pressable onPress={() => setShowPw(!showPw)} style={styles.eyeBtn}>
-                            <Text style={{ fontSize: 18 }}>{showPw ? '🙈' : '👁️'}</Text>
+                            <MaterialIcons
+                                name={showPw ? 'visibility-off' : 'visibility'}
+                                size={ICON_SIZES.medium}
+                                color={COLORS.glass40}
+                            />
                         </Pressable>
                     </View>
 
@@ -160,6 +179,31 @@ export default function RegisterScreen() {
                                 {pwStrength.label}
                             </Text>
                         </View>
+                    )}
+
+                    <Text style={styles.fieldLabel}>{t('screens.authRegister.rePasswordLabel', 'Nhập lại mật khẩu')}</Text>
+                    <View style={styles.pwWrap}>
+                        <TextInput
+                            secureTextEntry={!showRePw}
+                            style={styles.pwInput}
+                            value={rePassword}
+                            onChangeText={setRePassword}
+                            placeholder="••••••••"
+                            placeholderTextColor={COLORS.glass25}
+                        />
+                        <Pressable onPress={() => setShowRePw(!showRePw)} style={styles.eyeBtn}>
+                            <MaterialIcons
+                                name={showRePw ? 'visibility-off' : 'visibility'}
+                                size={ICON_SIZES.medium}
+                                color={COLORS.glass40}
+                            />
+                        </Pressable>
+                    </View>
+
+                    {passwordMatchStatus && (
+                        <Text style={[styles.strengthLabel, { color: passwordMatchStatus.color, marginTop: 8 }]}> 
+                            {passwordMatchStatus.label}
+                        </Text>
                     )}
 
                     <Text style={styles.fieldLabel}>{t('screens.authRegister.dobLabel', 'Date of birth (DD/MM/YYYY)')}</Text>

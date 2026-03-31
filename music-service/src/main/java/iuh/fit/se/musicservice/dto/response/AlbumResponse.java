@@ -18,6 +18,9 @@ public class AlbumResponse {
     private String coverUrl;
     private LocalDate releaseDate;
     private ZonedDateTime scheduledPublishAt;
+    private ZonedDateTime scheduleCommittedAt;
+    private String credits;
+    private ZonedDateTime publishedAt;
     private AlbumStatus status;
 
     private int totalSongs;

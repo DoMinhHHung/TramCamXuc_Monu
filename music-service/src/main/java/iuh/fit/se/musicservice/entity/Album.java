@@ -27,6 +27,18 @@ import java.util.UUID;
         @Index(name = "idx_albums_status",     columnList = "status")
 })
 public class Album extends BaseEntity {
+    @Column(name = "is_discovery_copy", nullable = false)
+    @Builder.Default
+    private boolean isDiscoveryCopy = false;
+
+    @Column(name = "discovery_source_id")
+    private UUID discoverySourceId;
+
+    @Column(name = "discovery_source_type", length = 20)
+    private String discoverySourceType;
+
+    @Column(name = "discovery_source_name", length = 255)
+    private String discoverySourceName;
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -50,6 +62,18 @@ public class Album extends BaseEntity {
     /** Scheduled publish: status tự động chuyển PUBLIC tại thời điểm này */
     @Column(name = "scheduled_publish_at")
     private ZonedDateTime scheduledPublishAt;
+
+    /** Lần cuối xác nhận lịch phát hành — chỉnh giờ lại sau ≥ 6h */
+    @Column(name = "schedule_committed_at")
+    private ZonedDateTime scheduleCommittedAt;
+
+    /** Ghi công / collaborators (nhập trước khi phát hành) */
+    @Column(name = "credits", length = 500)
+    private String credits;
+
+    /** Thời điểm chuyển PUBLIC lần đầu (Home “mới phát hành”, admin) */
+    @Column(name = "published_at")
+    private ZonedDateTime publishedAt;
 
     /** Owner – artist ID trong bảng artists */
     @Column(name = "owner_artist_id", nullable = false)

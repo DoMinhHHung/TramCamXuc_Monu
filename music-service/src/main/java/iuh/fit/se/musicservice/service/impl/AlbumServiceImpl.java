@@ -4,10 +4,12 @@ import iuh.fit.se.musicservice.config.RabbitMQConfig;
 import iuh.fit.se.musicservice.dto.message.FeedContentEvent;
 import iuh.fit.se.musicservice.dto.request.AlbumCreateRequest;
 import iuh.fit.se.musicservice.dto.request.AlbumReorderRequest;
+import iuh.fit.se.musicservice.dto.request.AlbumScheduleCommitRequest;
 import iuh.fit.se.musicservice.dto.request.AlbumUpdateRequest;
 import iuh.fit.se.musicservice.dto.response.AlbumResponse;
 import iuh.fit.se.musicservice.dto.response.AlbumSongResponse;
 import iuh.fit.se.musicservice.entity.Album;
+import iuh.fit.se.musicservice.entity.AlbumFavorite;
 import iuh.fit.se.musicservice.entity.AlbumSong;
 import iuh.fit.se.musicservice.entity.Artist;
 import iuh.fit.se.musicservice.entity.Song;
@@ -18,24 +20,26 @@ import iuh.fit.se.musicservice.enums.TranscodeStatus;
 import iuh.fit.se.musicservice.exception.AppException;
 import iuh.fit.se.musicservice.exception.ErrorCode;
 import iuh.fit.se.musicservice.mapper.AlbumMapper;
+import iuh.fit.se.musicservice.repository.AlbumFavoriteRepository;
 import iuh.fit.se.musicservice.repository.AlbumRepository;
 import iuh.fit.se.musicservice.repository.AlbumSongRepository;
 import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
+import iuh.fit.se.musicservice.service.AlbumScheduledPublishCoordinator;
 import iuh.fit.se.musicservice.service.AlbumService;
 import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
@@ -52,10 +56,9 @@ public class AlbumServiceImpl implements AlbumService {
     private final ArtistRepository   artistRepository;
     private final SongRepository     songRepository;
     private final AlbumMapper        albumMapper;
-    private final StringRedisTemplate stringRedisTemplate;
     private final RabbitTemplate rabbitTemplate;
-
-    private static final String LOCK_AUTO_PUBLISH = "lock:album:auto-publish";
+    private final AlbumScheduledPublishCoordinator albumScheduledPublishCoordinator;
+    private final AlbumFavoriteRepository albumFavoriteRepository;
 
     // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -74,6 +77,26 @@ public class AlbumServiceImpl implements AlbumService {
                 .orElseThrow(() -> new AppException(ErrorCode.ALBUM_UNAUTHORIZED));
     }
 
+    /** Album PRIVATE đang chờ phát hành theo lịch — không cho thêm / reorder track */
+    private void assertNotPendingScheduledRelease(Album album) {
+        if (album.getStatus() == AlbumStatus.PRIVATE && album.getScheduledPublishAt() != null) {
+            throw new AppException(ErrorCode.ALBUM_PENDING_PUBLISH_LOCKED);
+        }
+    }
+
+    private void runAfterCommit(Runnable runnable) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    runnable.run();
+                }
+            });
+        } else {
+            runnable.run();
+        }
+    }
+
     private List<AlbumSong> traverseLinkedList(UUID headId, Map<UUID, AlbumSong> nodeMap) {
         List<AlbumSong> ordered = new ArrayList<>();
         UUID current = headId;
@@ -89,10 +112,17 @@ public class AlbumServiceImpl implements AlbumService {
 
     /**
      * Build AlbumSongResponse từ AlbumSong node + Song entity.
+     * ALBUM_ONLY + album PUBLIC → available (phát hành rồi, nghe trong album).
      */
-    private AlbumSongResponse buildSongResponse(AlbumSong node, Song song) {
-        boolean available = song.getStatus() == SongStatus.PUBLIC
-                && song.getTranscodeStatus() == TranscodeStatus.COMPLETED;
+    private AlbumSongResponse buildSongResponse(AlbumSong node, Song song, Album album) {
+        boolean transcodeOk = song.getTranscodeStatus() == TranscodeStatus.COMPLETED;
+        boolean inReleasedAlbum = album != null && album.getStatus() == AlbumStatus.PUBLIC;
+        boolean available = transcodeOk && (
+                song.getStatus() == SongStatus.PUBLIC
+                        || (song.getStatus() == SongStatus.ALBUM_ONLY && inReleasedAlbum));
+        String reason = available ? null
+                : (!transcodeOk ? "Transcoding not finished"
+                : (song.getStatus() == SongStatus.ALBUM_ONLY ? "Album not released yet" : "Song is not yet available"));
         return AlbumSongResponse.builder()
                 .albumSongId(node.getId())
                 .prevId(node.getPrevId())
@@ -104,7 +134,7 @@ public class AlbumServiceImpl implements AlbumService {
                 .durationSeconds(song.getDurationSeconds())
                 .addedAt(node.getAddedAt())
                 .available(available)
-                .unavailableReason(available ? null : "Song is not yet available")
+                .unavailableReason(reason)
                 .artistId(song.getPrimaryArtistId())
                 .artistStageName(song.getPrimaryArtistStageName())
                 .artistAvatarUrl(song.getPrimaryArtistAvatarUrl())
@@ -137,7 +167,7 @@ public class AlbumServiceImpl implements AlbumService {
         List<AlbumSongResponse> songResponses = ordered.stream()
                 .map(node -> {
                     Song song = songMap.get(node.getSongId());
-                    return song != null ? buildSongResponse(node, song) : null;
+                    return song != null ? buildSongResponse(node, song, album) : null;
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
@@ -197,6 +227,9 @@ public class AlbumServiceImpl implements AlbumService {
         if (request.getReleaseDate() != null) {
             album.setReleaseDate(request.getReleaseDate());
         }
+        if (request.getCredits() != null) {
+            album.setCredits(request.getCredits());
+        }
 
         return albumMapper.toResponse(albumRepository.save(album));
     }
@@ -223,6 +256,25 @@ public class AlbumServiceImpl implements AlbumService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<AlbumResponse> getMyAlbumsContainingSong(UUID songId) {
+        Artist artist = requireCurrentArtist();
+        List<AlbumSong> nodes = albumSongRepository.findBySongId(songId);
+        if (nodes.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Set<UUID> albumIds = nodes.stream()
+                .map(AlbumSong::getAlbumId)
+                .collect(Collectors.toSet());
+        List<AlbumResponse> out = new ArrayList<>();
+        for (UUID aid : albumIds) {
+            albumRepository.findByIdAndOwnerArtistId(aid, artist.getId())
+                    .ifPresent(a -> out.add(albumMapper.toResponse(a)));
+        }
+        return out;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public AlbumResponse getAlbumDetail(UUID albumId) {
         Artist artist = requireCurrentArtist();
         Album album = requireOwnAlbum(albumId, artist.getId());
@@ -236,6 +288,8 @@ public class AlbumServiceImpl implements AlbumService {
     public AlbumResponse addSongToAlbum(UUID albumId, UUID songId) {
         Artist artist = requireCurrentArtist();
         Album album = requireOwnAlbum(albumId, artist.getId());
+        assertNotPendingScheduledRelease(album);
+
 
         // Kiểm tra bài hát tồn tại và thuộc về artist này
         Song song = songRepository.findByIdAndOwnerUserId(songId, currentUserId())
@@ -244,6 +298,12 @@ public class AlbumServiceImpl implements AlbumService {
         // Kiểm tra chưa có trong album này
         if (albumSongRepository.existsByAlbumIdAndSongId(albumId, songId)) {
             throw new AppException(ErrorCode.ALBUM_SONG_ALREADY_EXISTS);
+        }
+
+        // Nếu album chưa phát hành (không phải PUBLIC), đổi status bài hát thành ALBUM_ONLY nếu chưa phải ALBUM_ONLY
+        if (album.getStatus() != AlbumStatus.PUBLIC && song.getStatus() != SongStatus.ALBUM_ONLY) {
+            song.setStatus(SongStatus.ALBUM_ONLY);
+            songRepository.save(song);
         }
 
         // Tìm node cuối để nối vào (append vào cuối linked list)
@@ -332,6 +392,7 @@ public class AlbumServiceImpl implements AlbumService {
     public AlbumResponse reorderSong(UUID albumId, AlbumReorderRequest request) {
         Artist artist = requireCurrentArtist();
         Album album = requireOwnAlbum(albumId, artist.getId());
+        assertNotPendingScheduledRelease(album);
 
         AlbumSong dragged = albumSongRepository.findById(request.getDraggedId())
                 .filter(n -> n.getAlbumId().equals(albumId))
@@ -394,23 +455,41 @@ public class AlbumServiceImpl implements AlbumService {
             throw new AppException(ErrorCode.ALBUM_EMPTY);
         }
 
-        // Tất cả bài phải PUBLIC + COMPLETED
         List<AlbumSong> nodes = albumSongRepository.findAllByAlbumId(albumId);
         Set<UUID> songIds = nodes.stream().map(AlbumSong::getSongId).collect(Collectors.toSet());
         List<Song> songs = songRepository.findAllById(songIds);
         boolean allReady = songs.stream().allMatch(s ->
-                s.getStatus() == SongStatus.PUBLIC
-                        && s.getTranscodeStatus() == TranscodeStatus.COMPLETED);
+                s.getTranscodeStatus() == TranscodeStatus.COMPLETED
+                        && (s.getStatus() == SongStatus.PUBLIC || s.getStatus() == SongStatus.ALBUM_ONLY));
         if (!allReady) {
             throw new AppException(ErrorCode.ALBUM_HAS_UNREADY_SONGS);
         }
 
+        // Khi album phát hành, chuyển các bài hát ALBUM_ONLY trong album thành PUBLIC
+        List<AlbumSong> nodesToUpdate = albumSongRepository.findAllByAlbumId(albumId);
+        Set<UUID> songIdsToUpdate = nodesToUpdate.stream().map(AlbumSong::getSongId).collect(Collectors.toSet());
+        List<Song> songsToUpdate = songRepository.findAllById(songIdsToUpdate);
+        for (Song s : songsToUpdate) {
+            if (s.getStatus() == SongStatus.ALBUM_ONLY) {
+                s.setStatus(SongStatus.PUBLIC);
+                songRepository.save(s);
+            }
+        }
+
         album.setStatus(AlbumStatus.PUBLIC);
-        album.setScheduledPublishAt(null); // huỷ lịch nếu có
+        album.setScheduledPublishAt(null);
+        album.setScheduleCommittedAt(null);
+        if (album.getPublishedAt() == null) {
+            album.setPublishedAt(ZonedDateTime.now());
+        }
         albumRepository.save(album);
+        UUID aid = album.getId();
+        runAfterCommit(() -> albumScheduledPublishCoordinator.cancelPublishTask(aid));
         log.info("Album {} published by artist {}", albumId, artist.getId());
 
-        return withSongs(albumRepository.findById(albumId).orElseThrow());
+        Album saved = albumRepository.findById(albumId).orElseThrow();
+        publishToFeed(saved);
+        return withSongs(saved);
     }
 
     @Override
@@ -433,18 +512,42 @@ public class AlbumServiceImpl implements AlbumService {
     @Override
     @Transactional
     public AlbumResponse schedulePublish(UUID albumId, ZonedDateTime scheduledAt) {
+        return commitSchedule(albumId, AlbumScheduleCommitRequest.builder().publishAt(scheduledAt).build());
+    }
+
+    @Override
+    @Transactional
+    public AlbumResponse commitSchedule(UUID albumId, AlbumScheduleCommitRequest request) {
         Artist artist = requireCurrentArtist();
         Album album = requireOwnAlbum(albumId, artist.getId());
 
-        if (scheduledAt.isBefore(ZonedDateTime.now())) {
+        ZonedDateTime newAt = request.getPublishAt();
+        if (!newAt.isAfter(ZonedDateTime.now())) {
             throw new AppException(ErrorCode.ALBUM_SCHEDULE_INVALID_TIME);
         }
 
-        album.setScheduledPublishAt(scheduledAt);
-        album.setStatus(AlbumStatus.PRIVATE);
-        log.info("Album {} scheduled to publish at {} by artist {}", albumId, scheduledAt, artist.getId());
+        ZonedDateTime oldAt = album.getScheduledPublishAt();
+        boolean timeChanged = oldAt == null || !oldAt.isEqual(newAt);
+        if (timeChanged
+                && album.getScheduleCommittedAt() != null
+                && ZonedDateTime.now().isBefore(album.getScheduleCommittedAt().plusHours(6))) {
+            throw new AppException(ErrorCode.ALBUM_SCHEDULE_EDIT_COOLDOWN);
+        }
 
-        return albumMapper.toResponse(albumRepository.save(album));
+        album.setScheduledPublishAt(newAt);
+        album.setScheduleCommittedAt(ZonedDateTime.now());
+        if (request.getCredits() != null) {
+            album.setCredits(request.getCredits());
+        }
+        album.setStatus(AlbumStatus.PRIVATE);
+
+        albumRepository.save(album);
+        final UUID aid = album.getId();
+        final Instant publishInstant = newAt.toInstant();
+        runAfterCommit(() -> albumScheduledPublishCoordinator.registerPublishTask(aid, publishInstant));
+
+        log.info("Album {} scheduled to publish at {} by artist {}", albumId, newAt, artist.getId());
+        return albumMapper.toResponse(albumRepository.findById(albumId).orElseThrow());
     }
 
     @Override
@@ -458,7 +561,11 @@ public class AlbumServiceImpl implements AlbumService {
         }
 
         album.setScheduledPublishAt(null);
-        return albumMapper.toResponse(albumRepository.save(album));
+        album.setScheduleCommittedAt(null);
+        albumRepository.save(album);
+        final UUID aid = albumId;
+        runAfterCommit(() -> albumScheduledPublishCoordinator.cancelPublishTask(aid));
+        return albumMapper.toResponse(albumRepository.findById(albumId).orElseThrow());
     }
 
     // ── Public ─────────────────────────────────────────────────────────────────
@@ -501,37 +608,76 @@ public class AlbumServiceImpl implements AlbumService {
         return withSongs(album);
     }
 
-    // ── Scheduled job ──────────────────────────────────────────────────────────
-
     @Override
-    @Scheduled(fixedDelay = 60_000)
-    public void autoPublishScheduledAlbums() {
-        Boolean acquired = stringRedisTemplate.opsForValue()
-                .setIfAbsent(LOCK_AUTO_PUBLISH, "1", Duration.ofSeconds(65));
-        if (!Boolean.TRUE.equals(acquired)) {
-            log.debug("autoPublishScheduledAlbums skipped — lock held by another instance");
-            return;
-        }
-        doAutoPublish();
+    @Transactional(readOnly = true)
+    public Page<AlbumResponse> getRecentlyPublishedAlbums(Pageable pageable, int withinDays) {
+        int days = Math.min(Math.max(withinDays, 1), 30);
+        ZonedDateTime since = ZonedDateTime.now().minusDays(days);
+        return albumRepository
+                .findPublicPublishedSince(since, AlbumStatus.PUBLIC, pageable)
+                .map(albumMapper::toResponse);
     }
 
+    @Override
     @Transactional
-    public void doAutoPublish() {
-        List<Album> readyAlbums = albumRepository.findAlbumsReadyToPublish(ZonedDateTime.now());
-        if (readyAlbums.isEmpty()) return;
-
-        log.info("Auto-publishing {} scheduled album(s)", readyAlbums.size());
-        for (Album album : readyAlbums) {
-            try {
-                album.setStatus(AlbumStatus.PUBLIC);
-                album.setScheduledPublishAt(null);
-                albumRepository.save(album);
-                log.info("Album {} auto-published", album.getId());
-                publishToFeed(album);
-            } catch (Exception e) {
-                log.error("Failed to auto-publish album {}: {}", album.getId(), e.getMessage());
-            }
+    public void favoriteAlbum(UUID albumId) {
+        albumRepository.findByIdAndStatus(albumId, AlbumStatus.PUBLIC)
+                .orElseThrow(() -> new AppException(ErrorCode.ALBUM_NOT_FOUND));
+        UUID userId = currentUserId();
+        if (albumFavoriteRepository.existsByUserIdAndAlbumId(userId, albumId)) {
+            return;
         }
+        albumFavoriteRepository.save(AlbumFavorite.builder()
+                .userId(userId)
+                .albumId(albumId)
+                .build());
+    }
+
+    @Override
+    @Transactional
+    public void unfavoriteAlbum(UUID albumId) {
+        UUID userId = currentUserId();
+        albumFavoriteRepository.deleteByUserIdAndAlbumId(userId, albumId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isAlbumFavoritedByMe(UUID albumId) {
+        UUID userId = currentUserId();
+        return albumFavoriteRepository.existsByUserIdAndAlbumId(userId, albumId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AlbumResponse> adminRecentlyPublishedAlbums(Pageable pageable, int withinDays) {
+        return getRecentlyPublishedAlbums(pageable, withinDays);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AlbumResponse> adminTopFavoritedAlbumsThisWeek(int limit) {
+        return adminTopFavoritedAlbumsSince(limit, LocalDateTime.now().minusDays(7));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AlbumResponse> adminTopFavoritedAlbumsThisMonth(int limit) {
+        return adminTopFavoritedAlbumsSince(limit, LocalDateTime.now().minusDays(30));
+    }
+
+    private List<AlbumResponse> adminTopFavoritedAlbumsSince(int limit, LocalDateTime since) {
+        int cap = Math.min(Math.max(limit, 1), 100);
+        List<Object[]> rows = albumFavoriteRepository.topAlbumIdsByFavoriteSinceRaw(since, PageRequest.of(0, cap));
+        List<AlbumResponse> out = new ArrayList<>();
+        for (Object[] row : rows) {
+            if (row == null || row.length == 0 || row[0] == null) {
+                continue;
+            }
+            Object rawId = row[0];
+            UUID aid = rawId instanceof UUID u ? u : UUID.fromString(rawId.toString());
+            albumRepository.findById(aid).ifPresent(a -> out.add(albumMapper.toResponse(a)));
+        }
+        return out;
     }
 
     private void publishToFeed(Album album) {

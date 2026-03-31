@@ -3,11 +3,16 @@ package iuh.fit.se.musicservice.service.impl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import iuh.fit.se.musicservice.dto.response.LyricResponse;
+import iuh.fit.se.musicservice.entity.AlbumSong;
 import iuh.fit.se.musicservice.entity.Song;
 import iuh.fit.se.musicservice.entity.SongLyric;
+import iuh.fit.se.musicservice.enums.AlbumStatus;
 import iuh.fit.se.musicservice.enums.LyricFormat;
+import iuh.fit.se.musicservice.enums.SongStatus;
 import iuh.fit.se.musicservice.exception.AppException;
 import iuh.fit.se.musicservice.exception.ErrorCode;
+import iuh.fit.se.musicservice.repository.AlbumRepository;
+import iuh.fit.se.musicservice.repository.AlbumSongRepository;
 import iuh.fit.se.musicservice.repository.SongLyricRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.LyricService;
@@ -30,6 +35,8 @@ public class LyricServiceImpl implements LyricService {
 
     private final SongLyricRepository lyricRepository;
     private final SongRepository      songRepository;
+    private final AlbumSongRepository albumSongRepository;
+    private final AlbumRepository     albumRepository;
     private final StringRedisTemplate  redisTemplate;
     private final ObjectMapper         objectMapper;
 
@@ -88,6 +95,12 @@ public class LyricServiceImpl implements LyricService {
     @Override
     @Transactional(readOnly = true)
     public LyricResponse getLyric(UUID songId) {
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new AppException(ErrorCode.LYRIC_NOT_FOUND));
+        if (!canAccessLyric(song)) {
+            throw new AppException(ErrorCode.LYRIC_NOT_FOUND);
+        }
+
         String cacheKey = CACHE_PREFIX + songId;
         try {
             String cached = redisTemplate.opsForValue().get(cacheKey);
@@ -157,6 +170,43 @@ public class LyricServiceImpl implements LyricService {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
+
+    private boolean canAccessLyric(Song song) {
+        UUID viewer = tryGetCurrentUserId();
+        if (viewer != null && song.getOwnerUserId() != null && song.getOwnerUserId().equals(viewer)) {
+            return true;
+        }
+        if (song.getStatus() == SongStatus.PUBLIC) {
+            return true;
+        }
+        if (song.getStatus() == SongStatus.ALBUM_ONLY) {
+            return isSongInPublicAlbum(song.getId());
+        }
+        return false;
+    }
+
+    private UUID tryGetCurrentUserId() {
+        try {
+            var auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()
+                    || "anonymousUser".equals(auth.getPrincipal())) {
+                return null;
+            }
+            return UUID.fromString(auth.getName());
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean isSongInPublicAlbum(UUID songId) {
+        List<AlbumSong> links = albumSongRepository.findBySongId(songId);
+        if (links.isEmpty()) {
+            return false;
+        }
+        Set<UUID> albumIds = links.stream().map(AlbumSong::getAlbumId).collect(Collectors.toSet());
+        return albumRepository.findAllById(albumIds).stream()
+                .anyMatch(a -> a.getStatus() == AlbumStatus.PUBLIC);
+    }
 
     private LyricResponse toResponse(SongLyric lyric, LyricParser.ParseResult parsed) {
         List<LyricResponse.LyricLine> lines = parsed.lines.stream()

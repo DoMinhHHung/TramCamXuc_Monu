@@ -84,12 +84,14 @@ const getAdaptiveTimeout = (path: string): number => {
 
 // ─── Retry config ──────────────────────────────────────────────────────────────
 const MAX_RETRY_COUNT = 2;
-const RETRY_DELAY_MS  = 1200; // tăng dần theo số lần retry
+const RETRY_DELAY_MS  = 1200;
 
+const SAFE_RETRY_METHODS = new Set(['get', 'head', 'options']);
 const isRetryableError = (error: AxiosError): boolean => {
-  // Timeout hoặc network error (không phải 4xx/5xx)
+  const method = (error.config?.method ?? 'get').toLowerCase();
+  if (!SAFE_RETRY_METHODS.has(method)) return false;
+
   if (!error.response) return true;
-  // 502, 503, 504 gateway errors cũng có thể retry
   const status = error.response.status;
   return status === 502 || status === 503 || status === 504;
 };

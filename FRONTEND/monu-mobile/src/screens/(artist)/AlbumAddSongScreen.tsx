@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
-import { getMySongs, Song } from '../../services/music';
+import { getMyAlbumById, getMySongs, publishAlbum, Song, unpublishAlbum } from '../../services/music';
 import { apiClient } from '../../services/api';
 
 export const AlbumAddSongScreen = () => {
@@ -22,6 +22,8 @@ export const AlbumAddSongScreen = () => {
     const [songs, setSongs]     = useState<Song[]>([]);
     const [loading, setLoading] = useState(true);
     const [adding, setAdding]   = useState<string | null>(null);
+    const [albumStatus, setAlbumStatus] = useState<'PUBLIC' | 'PRIVATE' | 'DRAFT'>('DRAFT');
+    const [publishing, setPublishing] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -32,9 +34,11 @@ export const AlbumAddSongScreen = () => {
                     // Hiện TẤT CẢ bài đã transcode xong (PUBLIC hoặc PRIVATE đều được add vào album)
                     const available = (res.content ?? []).filter(
                         s => s.transcodeStatus === 'COMPLETED' &&
-                            (s.status === 'PUBLIC' || s.status === 'PRIVATE')
+                            (s.status === 'PUBLIC' || s.status === 'PRIVATE' || s.status === 'ALBUM_ONLY')
                     );
                     setSongs(available);
+                    const album = await getMyAlbumById(albumId);
+                    setAlbumStatus(album.status);
                 } catch (e) {
                     console.warn('AlbumAddSong load:', e);
                 } finally {
@@ -79,6 +83,32 @@ export const AlbumAddSongScreen = () => {
                 <Text style={styles.headerSub}>
                     {songs.length} bài sẵn sàng · Bấm để thêm vào album
                 </Text>
+                <Pressable
+                    style={[styles.releaseBtn, publishing && { opacity: 0.6 }]}
+                    disabled={publishing}
+                    onPress={async () => {
+                        try {
+                            setPublishing(true);
+                            if (albumStatus === 'PUBLIC') {
+                                const updated = await unpublishAlbum(albumId);
+                                setAlbumStatus(updated.status);
+                                Alert.alert('Đã chuyển riêng tư', 'Album đã được unrelease.');
+                            } else {
+                                const updated = await publishAlbum(albumId);
+                                setAlbumStatus(updated.status);
+                                Alert.alert('Đã phát hành', 'Album đã được release công khai.');
+                            }
+                        } catch (e: any) {
+                            Alert.alert('Lỗi release', e?.message ?? 'Không thể đổi trạng thái release');
+                        } finally {
+                            setPublishing(false);
+                        }
+                    }}
+                >
+                    <Text style={styles.releaseBtnText}>
+                        {publishing ? 'Đang xử lý...' : albumStatus === 'PUBLIC' ? '🔒 Unrelease album' : '🚀 Release album'}
+                    </Text>
+                </Pressable>
             </LinearGradient>
 
             {loading ? (
@@ -113,7 +143,7 @@ export const AlbumAddSongScreen = () => {
                             <View style={styles.info}>
                                 <Text style={styles.songTitle} numberOfLines={1}>{item.title}</Text>
                                 <Text style={styles.songMeta}>
-                                    {item.status === 'PUBLIC' ? '🌐 Công khai' : '🔒 Riêng tư'}
+                                    {item.status === 'PUBLIC' ? '🌐 Công khai' : item.status === 'PRIVATE' ? '🔒 Riêng tư' : '💿 Album only'}
                                     {item.durationSeconds ? `  ·  ${formatDuration(item.durationSeconds)}` : ''}
                                 </Text>
                             </View>
@@ -136,6 +166,15 @@ const styles = StyleSheet.create({
     headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
     headerTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700' },
     headerSub:   { color: COLORS.glass45, fontSize: 13 },
+    releaseBtn: {
+        marginTop: 10,
+        alignSelf: 'flex-start',
+        backgroundColor: COLORS.accentDim,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    releaseBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 12 },
     row: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12, gap: 12,

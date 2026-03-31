@@ -44,7 +44,10 @@
       "expandedSections": "Nhạc theo thể loại",
       "loadingExpandedSections": "Đang tải mục nhạc mở rộng...",
       "showMore": "Xem thêm",
-      "showLess": "Thu gọn"
+      "showLess": "Thu gọn",
+      "newAlbumReleased": "Album Mới Phát hành",
+      "newReleasedAlbumsSection": "Album mới phát hành",
+      "owner": "Nghệ sĩ"
     },
     "discover": {
       "title": "Khám phá",
@@ -120,6 +123,15 @@
       "lyricDeletedMessage": "Lời bài hát đã được xoá.",
       "lyricDeleteFailed": "Không thể xoá.",
       "notFound": "Không tìm thấy bài hát."
+    },
+    "songVisibility": {
+      "label": "Hiển thị",
+      "public": "🌐 Công khai",
+      "private": "🔒 Riêng tư",
+      "albumOnly": "💿 Chỉ trong album",
+      "selectAlbumTitle": "Chọn album",
+      "selectAlbumRequired": "Vui lòng chọn album khi để chế độ Album only.",
+      "noAlbumPrivateHint": "Hãy tạo album PRIVATE/DRAFT trước khi chọn Album only."
     },
     "profile": {
       "title": "Hồ sơ",
@@ -544,7 +556,26 @@
       "noSongsHint": "Upload bài hát trong tab Tạo",
       "noAlbums": "Chưa có album nào",
       "noAlbumsHint": "Tổ chức bài hát thành album để phát hành",
-      "editPlaylistName": "Sửa tên playlist"
+      "editPlaylistName": "Sửa tên playlist",
+      "publishAlbum": "Phát hành album",
+      "releaseDate": "Ngày phát hành",
+      "pendingReleaseScheduled": "Chờ phát hành",
+      "scheduleRelease": "Hẹn giờ phát hành",
+      "changeReleaseTime": "Đổi giờ phát hành",
+      "cancelSchedule": "Huỷ lịch",
+      "cancelScheduleConfirm": "Xoá thời điểm phát hành đã hẹn?",
+      "scheduleCancelled": "Đã huỷ lịch phát hành.",
+      "scheduleSaved": "Đã xác nhận lịch phát hành.",
+      "scheduleMustBeFuture": "Chọn ngày giờ trong tương lai.",
+      "publishNowTab": "Phát hành ngay",
+      "scheduleTab": "Hẹn giờ",
+      "releaseDateOptional": "Ngày phát hành (tuỳ chọn, YYYY-MM-DD)",
+      "scheduleDateLabel": "Ngày phát hành (YYYY-MM-DD)",
+      "scheduleTimeLabel": "Giờ (HH:mm, giờ máy)",
+      "creditsLabel": "Ghi công / cộng tác",
+      "creditsPlaceholder": "Featuring, nhà sản xuất…",
+      "scheduleCooldownHint": "Chỉ đổi được giờ phát hành sau 6 giờ kể từ lần xác nhận trước.",
+      "confirmSchedule": "Xác nhận lịch"
     },
     "discover": {
       "title": "Khám phá",
@@ -611,8 +642,7 @@
     "selectLanguage": "Chọn ngôn ngữ",
     "selectGenres": "Chọn thể loại",
     "selectArtists": "Chọn nghệ sĩ",
-    "selectGenresDescription": "Chọn thể loại nhạc bạn yêu thích",
-    "selectArtistsDescription": "Playlist của bạn sẽ được cá nhân hóa theo lựa chọn này"
+    "selectGenresDescription": "Chọn thể loại nhạc bạn yêu thích"
   },
   "premium": {
     "title": "Premium",
@@ -640,7 +670,6 @@
     "selectGenresSubtitle": "Chọn thể loại nhạc bạn yêu thích",
     "selectArtists": "Chọn nghệ sĩ",
     "selectArtistsTitle": "Nghệ sĩ bạn yêu thích",
-    "selectArtistsSubtitle": "Playlist của bạn sẽ được cá nhân hóa theo lựa chọn này",
     "selectCount": "Chọn {min}–{max}",
     "selected": "{count}/{max}"
   },
@@ -669,6 +698,7 @@
   },
   "albumDetails": {
     "songs": "bài hát",
+    "loginToFavorite": "Đăng nhập để yêu thích album.",
     "artist": "Nghệ Sĩ",
     "releaseDate": "Ngày Phát Hành",
     "totalListeners": "Tổng Lượt Nghe",

@@ -34,11 +34,46 @@ public interface AlbumRepository extends JpaRepository<Album, UUID> {
 
     @Query("""
             SELECT a FROM Album a
-            WHERE a.status = 'PRIVATE'
+            WHERE a.status = :status
             AND a.scheduledPublishAt IS NOT NULL
             AND a.scheduledPublishAt <= :now
             """)
-    List<Album> findAlbumsReadyToPublish(@Param("now") ZonedDateTime now);
+    List<Album> findAlbumsReadyToPublish(
+            @Param("now") ZonedDateTime now,
+            @Param("status") AlbumStatus status);
+
+    @Query("""
+            SELECT a FROM Album a
+            WHERE a.status = :status
+            AND a.scheduledPublishAt IS NOT NULL
+            AND a.scheduledPublishAt > :now
+            """)
+    List<Album> findScheduledPublishInFuture(
+            @Param("now") ZonedDateTime now,
+            @Param("status") AlbumStatus status);
+
+    @Query("""
+            SELECT a FROM Album a
+            WHERE a.status = :status
+            AND a.scheduledPublishAt IS NOT NULL
+            AND a.scheduledPublishAt > :from
+            AND a.scheduledPublishAt <= :to
+            """)
+    List<Album> findScheduledBetween(
+            @Param("from") ZonedDateTime from,
+            @Param("to") ZonedDateTime to,
+            @Param("status") AlbumStatus status);
+
+    @Query("""
+            SELECT a FROM Album a
+            WHERE a.status = :status
+            AND a.publishedAt IS NOT NULL
+            AND a.publishedAt >= :since
+            """)
+    Page<Album> findPublicPublishedSince(
+            @Param("since") ZonedDateTime since,
+            @Param("status") AlbumStatus status,
+            Pageable pageable);
 
     // ── Head pointer update ────────────────────────────────────────────────────
 
