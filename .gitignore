@@ -40,3 +40,4 @@ build/
 ### Frontend - React Native / Expo ###
 node_modules
 devices.json
+/service-social/.next/
