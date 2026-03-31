@@ -131,11 +131,13 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
                 OR s.primaryArtistStageName ILIKE :keywordPattern)
             AND (:status IS NULL OR s.status = :status)
             AND (:showDeleted = true OR s.deletedAt IS NULL)
+            AND (:jamendo IS NULL OR (:jamendo = true AND s.jamendoId IS NOT NULL) OR (:jamendo = false AND s.jamendoId IS NULL))
             """)
     Page<Song> findForAdmin(
             @Param("keywordPattern") String keywordPattern,
             @Param("status") SongStatus status,
             @Param("showDeleted") boolean showDeleted,
+            @Param("jamendo") Boolean jamendo,
             Pageable pageable
     );
 

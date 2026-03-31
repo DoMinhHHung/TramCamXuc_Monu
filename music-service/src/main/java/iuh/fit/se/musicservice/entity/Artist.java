@@ -16,7 +16,8 @@ import java.util.UUID;
 @Table(name = "artists", indexes = {
         @Index(name = "idx_artists_user_id",    columnList = "user_id",    unique = true),
         @Index(name = "idx_artists_stage_name", columnList = "stage_name", unique = true),
-        @Index(name = "idx_artists_status",     columnList = "status")
+        @Index(name = "idx_artists_status",     columnList = "status"),
+        @Index(name = "idx.artists_status_active", columnList = "status")
 })
 public class Artist extends BaseEntity {
 
@@ -28,7 +29,6 @@ public class Artist extends BaseEntity {
     @Builder.Default
     private boolean isJamendo = false;
 
-    /** userId từ identity-service — mỗi user chỉ có 1 artist profile */
     @Column(name = "user_id", unique = true)
     private UUID userId;
 

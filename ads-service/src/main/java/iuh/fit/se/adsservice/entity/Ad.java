@@ -12,18 +12,16 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-/**
- * Một mẩu quảng cáo do admin upload lên thay mặt nhãn hàng.
- *
- * Pricing model: CPM (cost per mille = giá / 1000 lượt phát).
- * Revenue = (totalImpressions / 1000) * cpmVnd
- */
 @Entity
 @Table(
     name = "ads",
     indexes = {
         @Index(name = "idx_ads_status", columnList = "status"),
-        @Index(name = "idx_ads_advertiser", columnList = "advertiser_name")
+        @Index(name = "idx_ads_advertiser", columnList = "advertiser_name"),
+        @Index(name = "idx_ads_status_dates", 
+               columnList = "status, start_date, end_date"),
+        @Index(name = "idx_ads_status_budget", 
+               columnList = "status, budget_vnd, cpm_vnd, total_impressions")
     }
 )
 @EntityListeners(AuditingEntityListener.class)

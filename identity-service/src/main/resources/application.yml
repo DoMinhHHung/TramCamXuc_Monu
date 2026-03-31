@@ -76,8 +76,8 @@ eureka:
 
 jwt:
   signerKey: ${JWT_SECRET}
-  valid-duration: 3600000
-  refreshable-duration: 1209600000
+  valid-duration: 2592000000   
+  refreshable-duration: 31536000000   
 
 app:
   admin:

@@ -75,7 +75,6 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       try {
         await logoutApi({ refreshToken: storedRefreshToken });
       } catch {
-        // no-op: local cleanup still must execute
       }
     }
 

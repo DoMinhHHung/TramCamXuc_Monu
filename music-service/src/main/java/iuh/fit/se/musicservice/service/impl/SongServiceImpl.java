@@ -562,8 +562,13 @@ public class SongServiceImpl implements SongService {
     @Override
     @Transactional(readOnly = true)
     public Page<SongResponse> getAdminSongs(String keyword, SongStatus status,
-                                             boolean showDeleted, Pageable pageable) {
-        return songRepository.findForAdmin(toKeywordPattern(keyword), status, showDeleted, pageable)
+                                             boolean showDeleted, String source, Pageable pageable) {
+        Boolean jamendo = null;
+        if (source != null) {
+            if (source.equalsIgnoreCase("jamendo")) jamendo = true;
+            else if (source.equalsIgnoreCase("user")) jamendo = false;
+        }
+        return songRepository.findForAdmin(toKeywordPattern(keyword), status, showDeleted, jamendo, pageable)
                 .map(songMapper::toResponse);
     }
 

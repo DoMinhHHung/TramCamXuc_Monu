@@ -42,11 +42,12 @@ public class AdminSongController {
             @RequestParam(required = false) SongStatus status,
             @RequestParam(defaultValue = "false") boolean showDeleted,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String source) {
 
         return ApiResponse.<Page<SongResponse>>builder()
                 .result(songService.getAdminSongs(
-                        keyword, status, showDeleted,
+                        keyword, status, showDeleted, source,
                         PageRequest.of(page - 1, size, Sort.by("createdAt").descending())))
                 .build();
     }

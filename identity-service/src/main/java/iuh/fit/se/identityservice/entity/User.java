@@ -22,7 +22,11 @@ import java.util.UUID;
 @Entity
 @Table(
         name = "users",
-        indexes = { @Index(name = "idx_users_email", columnList = "email") }
+        indexes = { 
+            @Index(name = "idx_users_email", columnList = "email"),
+            @Index(name = "idx_users_role_status", columnList = "role, status"),
+            @Index(name = "idx_users_created_at",  columnList = "created_at DESC"),
+         }
 )
 public class User extends BaseEntity {
 

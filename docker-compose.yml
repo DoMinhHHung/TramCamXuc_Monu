@@ -119,9 +119,17 @@ services:
 
   # ─── 3. IDENTITY SERVICE ────────────────────────────────────
   identity-service:
-    <<: [ *common, *limits ]
+    <<: [ *common ]
     build: { context: ., dockerfile: identity-service/Dockerfile }
     container_name: identity-service
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 320M
     environment:
       <<: [ *infra, *db, *gateway, *java-env, *internal ]
       DB_URL_IDENTITY: ${DB_URL_IDENTITY}
@@ -145,9 +153,17 @@ services:
 
   # ─── 4. MUSIC SERVICE ───────────────────────────────────────
   music-service:
-    <<: [ *common, *limits ]
+    <<: [ *common,  ]
     build: { context: ., dockerfile: music-service/Dockerfile }
     container_name: music-service
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 512M
     environment:
       <<: [ *infra, *db, *gateway, *java-env, *minio, *internal ]
       DB_URL_MUSIC: ${DB_URL_MUSIC}
@@ -231,9 +247,17 @@ services:
 
   # ─── 8. TRANSCODE SERVICE ───────────────────────────────────
   transcode-service:
-    <<: [ *common, *limits ]
+    <<: [ *common ]
     build: { context: ., dockerfile: transcode-service/Dockerfile }
     container_name: transcode-service
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 512M
     environment:
       <<: [ *infra, *minio, *java-env ]
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
@@ -300,6 +324,14 @@ services:
     <<: [ *common, *limits ]
     build: { context: ., dockerfile: recommendation-service/Dockerfile }
     container_name: recommendation-service
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+        reservations:
+          cpus: '0.2'
+          memory: 512M
     environment:
       <<: [ *infra, *java-env ]
       ML_SERVICE_URL: ${ML_SERVICE_URL:-https://tramcamxuc-monu-1.onrender.com}
