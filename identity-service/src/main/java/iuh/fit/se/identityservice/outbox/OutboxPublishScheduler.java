@@ -2,9 +2,12 @@ package iuh.fit.se.identityservice.outbox;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.List;
 
 @Component
@@ -14,6 +17,7 @@ public class OutboxPublishScheduler {
 
     private final OutboxEventRepository outboxEventRepository;
     private final OutboxPublisherService outboxPublisherService;
+    private final StringRedisTemplate redis;
 
     @Scheduled(fixedDelayString = "${outbox.publish-delay-ms:5000}")
     public void publishPending() {
