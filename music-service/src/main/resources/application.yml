@@ -94,6 +94,10 @@ minio:
     raw-songs: ${MINIO_RAW_BUCKET:music}
     public-songs: ${MINIO_PUBLIC_BUCKET:public-songs}
 
+spotify:
+  client-id: ${SPOTIFY_CLIENT_ID:}
+  client-secret: ${SPOTIFY_CLIENT_SECRET:}
+
 # ── Jamendo API ────────────────────────────────────────────────────────────────
 jamendo:
   client-id: ${JAMENDO_CLIENT_ID}

@@ -69,7 +69,11 @@ public enum ErrorCode {
     SONG_NOT_AVAILABLE_FOR_PLAYLIST  (2505, "Song is not available to add to playlist",              HttpStatus.BAD_REQUEST),
 
     // ── Subscription ────────────────────────────────────────────────────────
-    FREE_SUBSCRIPTION_NOT_ALLOWED    (2600, "This feature requires a paid subscription",             HttpStatus.PAYMENT_REQUIRED);
+    FREE_SUBSCRIPTION_NOT_ALLOWED    (2600, "This feature requires a paid subscription",             HttpStatus.PAYMENT_REQUIRED),
+
+    // ── Spotify ─────────────────────────────────────────────────────────────
+    SPOTIFY_INTEGRATION_DISABLED  (2700, "Spotify integration is not configured", HttpStatus.SERVICE_UNAVAILABLE),
+    SPOTIFY_API_ERROR             (2701, "Spotify API request failed",            HttpStatus.BAD_GATEWAY);
 
     private final int code;
     private final String message;

@@ -497,3 +497,79 @@ export const isAlbumFavoritedByMe = async (albumId: string): Promise<boolean> =>
   const response = await apiClient.get<boolean>(`/albums/${albumId}/favorite/me`);
   return unwrap<boolean>(response.data);
 };
+
+export interface SpotifyTrack {
+  id: string;
+  name: string;
+  artistName: string;
+  albumName: string;
+  imageUrl?: string | null;
+  previewUrl?: string | null;
+  externalUrl?: string | null;
+  spotifyUri?: string | null;
+  durationMs?: number;
+  explicit?: boolean;
+  source?: "SPOTIFY" | string;
+  ownershipText?: string;
+}
+
+export const searchSpotifyTracks = async (params: {
+  keyword: string;
+  limit?: number;
+  market?: string;
+}): Promise<SpotifyTrack[]> => {
+  const response = await apiClient.get<SpotifyTrack[]>('/spotify/tracks/search', {
+    params: {
+      keyword: params.keyword,
+      limit: params.limit ?? 10,
+      market: params.market ?? 'US',
+    },
+  });
+  return unwrap<SpotifyTrack[]>(response.data);
+};
+
+
+export const isSpotifyOwnedContent = (track: SpotifyTrack): boolean => {
+  return (track.source ?? "").toUpperCase() === "SPOTIFY";
+};
+
+export interface SpotifyOAuthToken {
+  accessToken: string;
+  tokenType?: string;
+  expiresIn?: number;
+  refreshToken?: string;
+  scope?: string;
+}
+
+export const getSpotifyAuthorizeUrl = async (params: {
+  redirectUri: string;
+  codeChallenge: string;
+  codeChallengeMethod?: 'S256' | 'plain';
+  state?: string;
+  scopes?: string;
+}): Promise<string> => {
+  const response = await apiClient.get<string>('/spotify/oauth/authorize-url', {
+    params: {
+      redirectUri: params.redirectUri,
+      codeChallenge: params.codeChallenge,
+      codeChallengeMethod: params.codeChallengeMethod ?? 'S256',
+      state: params.state,
+      scopes: params.scopes,
+    },
+  });
+  return unwrap<string>(response.data);
+};
+
+export const exchangeSpotifyAuthCode = async (payload: {
+  code: string;
+  redirectUri: string;
+  codeVerifier: string;
+}): Promise<SpotifyOAuthToken> => {
+  const response = await apiClient.post<SpotifyOAuthToken>('/spotify/oauth/token', payload);
+  return unwrap<SpotifyOAuthToken>(response.data);
+};
+
+export const refreshSpotifyAccessToken = async (refreshToken: string): Promise<SpotifyOAuthToken> => {
+  const response = await apiClient.post<SpotifyOAuthToken>('/spotify/oauth/refresh', { refreshToken });
+  return unwrap<SpotifyOAuthToken>(response.data);
+};

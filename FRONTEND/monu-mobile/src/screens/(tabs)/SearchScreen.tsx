@@ -3,6 +3,7 @@ import {
     ActivityIndicator, Animated, FlatList, Pressable,
     StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,7 +16,7 @@ import { usePlayer } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import {
-    Artist, getSongsByArtist, searchArtists, searchByLyric, searchSongs, Song,
+    Artist, getSongsByArtist, isSpotifyOwnedContent, searchArtists, searchByLyric, searchSongs, searchSpotifyTracks, Song, SpotifyTrack,
 } from '../../services/music';
 import {
     addSearchHistory, clearSearchHistory,
@@ -24,7 +25,7 @@ import {
 import { Octicons, MaterialIcons } from '@expo/vector-icons';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
-type Tab = 'songs' | 'artists';
+type Tab = 'songs' | 'artists' | 'spotify';
 
 export const SearchScreen = () => {
     const insets     = useSafeAreaInsets();
@@ -39,6 +40,7 @@ export const SearchScreen = () => {
     const [loading,        setLoading]        = useState(false);
     const [songResults,    setSongResults]    = useState<Song[]>([]);
     const [artistResults,  setArtistResults]  = useState<Artist[]>([]);
+    const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
     const [artistDetail,   setArtistDetail]   = useState<{ artist: Artist; songs: Song[] } | null>(null);
     const [history,        setHistory]        = useState<string[]>([]);
 
@@ -84,6 +86,7 @@ export const SearchScreen = () => {
         if (!q.trim()) {
             setSongResults([]);
             setArtistResults([]);
+            setSpotifyResults([]);
             setArtistDetail(null);
             return;
         }
@@ -106,9 +109,12 @@ export const SearchScreen = () => {
                     }
                 }
                 setSongResults(merged);
-            } else {
+            } else if (currentTab === 'artists') {
                 const res = await searchArtists({ keyword: q, size: 20 });
                 setArtistResults(res.content);
+            } else {
+                const rows = await searchSpotifyTracks({ keyword: q, limit: 20, market: 'US' });
+                setSpotifyResults(rows);
             }
         } catch { /* silent */ }
         finally { setLoading(false); }
@@ -124,6 +130,7 @@ export const SearchScreen = () => {
         if (!q.trim()) {
             setSongResults([]);
             setArtistResults([]);
+            setSpotifyResults([]);
             setArtistDetail(null);
         } else {
             scheduleSearch(q, tab);
@@ -141,6 +148,7 @@ export const SearchScreen = () => {
         setTab(t);
         setSongResults([]);
         setArtistResults([]);
+        setSpotifyResults([]);
         setArtistDetail(null);
         if (query.trim()) scheduleSearch(query, t);
     };
@@ -184,7 +192,11 @@ export const SearchScreen = () => {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     const showHistory  = !query.trim();
-    const currentResultCount = tab === 'songs' ? songResults.length : artistResults.length;
+    const currentResultCount = tab === 'songs'
+        ? songResults.length
+        : tab === 'artists'
+            ? artistResults.length
+            : spotifyResults.length;
     const showEmpty    = !loading && !!query.trim() && !artistDetail
         && currentResultCount === 0;
 
@@ -214,6 +226,27 @@ export const SearchScreen = () => {
                 <Text style={styles.resultSub}>{t('screens.search.artistType')}</Text>
             </View>
             <Text style={styles.playIcon}>›</Text>
+        </Pressable>
+    );
+
+    const renderSpotifyItem = ({ item, index }: { item: SpotifyTrack; index: number }) => (
+        <Pressable
+            style={styles.resultRow}
+            onPress={() => item.externalUrl ? Linking.openURL(item.externalUrl) : null}
+        >
+            <View style={styles.resultIndex}>
+                <Text style={styles.resultIndexText}>{index + 1}</Text>
+            </View>
+            <View style={styles.resultInfo}>
+                <Text style={styles.resultTitle} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.resultSub} numberOfLines={1}>
+                    {`${item.artistName} • ${item.albumName}`}
+                </Text>
+                {isSpotifyOwnedContent(item) && (
+                    <Text style={styles.spotifyAttribution}>Provided by Spotify</Text>
+                )}
+            </View>
+            <Text style={styles.playIcon}>{item.externalUrl ? '↗' : '•'}</Text>
         </Pressable>
     );
 
@@ -307,7 +340,7 @@ export const SearchScreen = () => {
             {/* ── Tabs (chỉ hiện khi có query) ── */}
             {!showHistory && (
                 <View style={styles.tabs}>
-                    {(['songs', 'artists'] as Tab[]).map(tabKey => (
+                    {(['songs', 'artists', 'spotify'] as Tab[]).map(tabKey => (
                         <Pressable
                             key={tabKey}
                             style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
@@ -315,11 +348,15 @@ export const SearchScreen = () => {
                         >
                             <AnimatedDecorIcon active={tab === tabKey} intensity="soft">
                                 <Text style={styles.tabIcon}>
-                                    {tabKey === 'songs' ? '🎵' : '🎤'}
+                                    {tabKey === 'songs' ? '🎵' : tabKey === 'artists' ? '🎤' : '🟢'}
                                 </Text>
                             </AnimatedDecorIcon>
                             <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
-                                {tabKey === 'songs' ? t('screens.search.tabSongs') : t('screens.search.tabArtists')}
+                                {tabKey === 'songs'
+                                    ? t('screens.search.tabSongs')
+                                    : tabKey === 'artists'
+                                        ? t('screens.search.tabArtists')
+                                        : 'Spotify'}
                             </Text>
                         </Pressable>
                     ))}
@@ -439,6 +476,14 @@ export const SearchScreen = () => {
                             contentContainerStyle={{ paddingBottom: 100 }}
                         />
                     )}
+                    {tab === 'spotify' && spotifyResults.length > 0 && (
+                        <FlatList
+                            data={spotifyResults}
+                            keyExtractor={(s, idx) => `${s.id}-${idx}`}
+                            renderItem={renderSpotifyItem}
+                            contentContainerStyle={{ paddingBottom: 100 }}
+                        />
+                    )}
                 </>
             )}
         </View>
@@ -555,6 +600,7 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
     resultTitle:    { color: colors.white, fontSize: 14, fontWeight: '600' },
     resultSub:      { color: colors.muted, fontSize: 12, marginTop: 2 },
     playIcon:       { color: colors.glass30, fontSize: 18 },
+    spotifyAttribution: { color: colors.accent, fontSize: 11, marginTop: 3 },
 
     // ── Artist detail ─────────────────────────────────────────────────────────
     artistDetailHeader: {
