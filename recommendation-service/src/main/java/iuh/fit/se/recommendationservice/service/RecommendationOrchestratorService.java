@@ -363,14 +363,25 @@ public class RecommendationOrchestratorService {
         List<RecommendedSongDto> cached = getCached(cacheKey, new TypeReference<>() {});
         if (cached != null) return cached;
 
-        Set<String> alreadyHeard = socialService.getRecentlyHeardSongIds(userId);
-        Set<String> disliked     = socialService.getDislikedSongIds(userId);
+        int perSliceLimit = Math.max(1, (limit + 1) / 2);
 
-        List<RecommendedSongDto> friends = socialService.getFriendsListening(
-                userId, limit / 2, alreadyHeard);
+        CompletableFuture<Set<String>> alreadyHeardFuture = CompletableFuture.supplyAsync(
+                () -> socialService.getRecentlyHeardSongIds(userId), fetchExecutor);
+        CompletableFuture<Set<String>> dislikedFuture = CompletableFuture.supplyAsync(
+                () -> socialService.getDislikedSongIds(userId), fetchExecutor);
+        waitAllParallelFetches(userId, alreadyHeardFuture, dislikedFuture);
 
-        List<RecommendedSongDto> artists = socialService.getSongsFromFollowedArtists(
-                userId, limit / 2, alreadyHeard);
+        Set<String> alreadyHeard = futureResult(alreadyHeardFuture, Collections.emptySet());
+        Set<String> disliked     = futureResult(dislikedFuture, Collections.emptySet());
+
+        CompletableFuture<List<RecommendedSongDto>> friendsFuture = CompletableFuture.supplyAsync(
+                () -> socialService.getFriendsListening(userId, perSliceLimit, alreadyHeard), fetchExecutor);
+        CompletableFuture<List<RecommendedSongDto>> artistsFuture = CompletableFuture.supplyAsync(
+                () -> socialService.getSongsFromFollowedArtists(userId, perSliceLimit, alreadyHeard), fetchExecutor);
+        waitAllParallelFetches(userId, friendsFuture, artistsFuture);
+
+        List<RecommendedSongDto> friends = futureResult(friendsFuture, Collections.emptyList());
+        List<RecommendedSongDto> artists = futureResult(artistsFuture, Collections.emptyList());
 
         List<RecommendedSongDto> combined = Stream.concat(
                         friends.stream(), artists.stream())
