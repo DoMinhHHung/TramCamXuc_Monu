@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import {
@@ -30,6 +31,14 @@ import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LocalizationContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+const PREMIUM_CACHE_KEY = 'premium_screen_cache_v1';
+const PREMIUM_CACHE_TTL_MS = 30 * 60 * 1000;
+
+let premiumCacheMemory: {
+    plans: SubscriptionPlan[];
+    currentSub: UserSubscription | null;
+    updatedAt: number;
+} | null = null;
 
 type FeatureItem = {
     key: string;
@@ -395,6 +404,12 @@ export const PremiumScreen = () => {
     const [loading, setLoading] = useState(true);
     const premiumFocusPassRef = useRef(0);
     const [purchasing, setPurchasing] = useState(false);
+    const [hasHydratedCache, setHasHydratedCache] = useState(false);
+
+    const pickDefaultPaidPlan = useCallback((sourcePlans: SubscriptionPlan[]): SubscriptionPlan | null => {
+        const paid = sourcePlans.filter((p) => p.price > 0 && !p.subsName.toLowerCase().includes('free'));
+        return paid.length > 0 ? paid.reduce((a, b) => (a.price < b.price ? a : b)) : null;
+    }, []);
     const mappedFeatures = useMemo<FeatureItem[]>(() => {
         const raw = selectedPlan?.features ?? {};
         const keys = Object.keys(FEATURE_META);
@@ -461,6 +476,40 @@ export const PremiumScreen = () => {
         };
     }, []);
 
+    const hydrateFromCache = useCallback(async () => {
+        if (premiumCacheMemory && Date.now() - premiumCacheMemory.updatedAt < PREMIUM_CACHE_TTL_MS) {
+            setPlans(premiumCacheMemory.plans);
+            setCurrentSub(premiumCacheMemory.currentSub);
+            setSelectedPlan((prev) => prev ?? pickDefaultPaidPlan(premiumCacheMemory!.plans));
+            setHasHydratedCache(true);
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const raw = await AsyncStorage.getItem(PREMIUM_CACHE_KEY);
+            if (!raw) return;
+            const parsed = JSON.parse(raw) as {
+                plans?: SubscriptionPlan[];
+                currentSub?: UserSubscription | null;
+                updatedAt?: number;
+            };
+            if (!parsed?.updatedAt || Date.now() - parsed.updatedAt >= PREMIUM_CACHE_TTL_MS) return;
+            setPlans(parsed.plans ?? []);
+            setCurrentSub(parsed.currentSub ?? null);
+            setSelectedPlan((prev) => prev ?? pickDefaultPaidPlan(parsed.plans ?? []));
+            premiumCacheMemory = {
+                plans: parsed.plans ?? [],
+                currentSub: parsed.currentSub ?? null,
+                updatedAt: parsed.updatedAt,
+            };
+            setLoading(false);
+            setHasHydratedCache(true);
+        } catch {
+            // ignore cache parse/read errors
+        }
+    }, []);
+
     const fetchData = useCallback(async (silent = false) => {
         try {
             if (!silent) setLoading(true);
@@ -471,11 +520,8 @@ export const PremiumScreen = () => {
 
             if (plansData.status === 'fulfilled') {
                 setPlans(plansData.value);
-                const paid = plansData.value.filter(
-                    (p) => p.price > 0 && !p.subsName.toLowerCase().includes('free'),
-                );
-                if (paid.length > 0 && !selectedPlan) {
-                    setSelectedPlan(paid.reduce((a, b) => (a.price < b.price ? a : b)));
+                if (!selectedPlan) {
+                    setSelectedPlan(pickDefaultPaidPlan(plansData.value));
                 }
             }
             if (subData.status === 'fulfilled') {
@@ -483,22 +529,36 @@ export const PremiumScreen = () => {
             } else {
                 setCurrentSub(null);
             }
+
+            if (plansData.status === 'fulfilled') {
+                const cachePayload = {
+                    plans: plansData.value,
+                    currentSub: subData.status === 'fulfilled' ? (subData.value ?? null) : null,
+                    updatedAt: Date.now(),
+                };
+                premiumCacheMemory = cachePayload;
+                AsyncStorage.setItem(PREMIUM_CACHE_KEY, JSON.stringify(cachePayload)).catch(() => {});
+            }
         } catch {}
         finally { if (!silent) setLoading(false); }
-    }, [authSession, selectedPlan]);
+    }, [authSession, pickDefaultPaidPlan, selectedPlan]);
 
     useEffect(() => {
         premiumFocusPassRef.current = 0;
     }, [authSession?.tokens.accessToken]);
 
+    useEffect(() => {
+        void hydrateFromCache();
+    }, [hydrateFromCache]);
+
     useFocusEffect(
         useCallback(() => {
-            const silent = premiumFocusPassRef.current > 0;
+            const silent = premiumFocusPassRef.current > 0 || hasHydratedCache;
             premiumFocusPassRef.current += 1;
             void fetchData(silent);
             const id = setInterval(() => void fetchData(true), 120000);
             return () => clearInterval(id);
-        }, [fetchData]),
+        }, [fetchData, hasHydratedCache]),
     );
 
     const handlePurchase = async () => {

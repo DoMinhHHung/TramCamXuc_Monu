@@ -21,9 +21,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +43,10 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
     private final SubscriptionPlanMapper planMapper;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    private static final String ACTIVE_PLAN_CACHE_KEY = "payment:subscriptions:plans:active";
+    private static final Duration PAYMENT_CACHE_TTL = Duration.ofMinutes(30);
 
     // ──────────────────────────────────────────────────────────
     // CREATE
@@ -58,6 +64,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
         if (plan.getDisplayOrder() == null)  plan.setDisplayOrder(0);
 
         plan = planRepository.save(plan);
+        evictActivePlansCache();
         log.info("Created subscription plan: id={}, name={}", plan.getId(), plan.getSubsName());
         return planMapper.toResponse(plan);
     }
@@ -91,6 +98,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
         }
 
         plan = planRepository.save(plan);
+        evictActivePlansCache();
         log.info("Updated subscription plan: id={}", id);
 
         // Nếu update FREE plan → broadcast config mới sang identity-service
@@ -116,6 +124,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
         }
 
         planRepository.delete(plan);
+        evictActivePlansCache();
         log.info("Deleted subscription plan: id={}", id);
     }
 
@@ -125,6 +134,7 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
         SubscriptionPlan plan = getPlanOrThrow(id);
         plan.setIsActive(!plan.getIsActive());
         planRepository.save(plan);
+        evictActivePlansCache();
         log.info("Toggled plan status: id={} -> isActive={}", id, plan.getIsActive());
     }
 
@@ -141,10 +151,23 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
     @Override
     @Transactional(readOnly = true)
     public List<SubscriptionPlanResponse> getAllActivePlans() {
-        return planRepository.findAllByIsActiveTrueOrderByDisplayOrderAsc()
+        Object cached = redisTemplate.opsForValue().get(ACTIVE_PLAN_CACHE_KEY);
+        if (cached instanceof List<?> cachedList) {
+            try {
+                @SuppressWarnings("unchecked")
+                List<SubscriptionPlanResponse> casted = (List<SubscriptionPlanResponse>) cachedList;
+                return casted;
+            } catch (ClassCastException ignored) {
+                redisTemplate.delete(ACTIVE_PLAN_CACHE_KEY);
+            }
+        }
+
+        List<SubscriptionPlanResponse> fresh = planRepository.findAllByIsActiveTrueOrderByDisplayOrderAsc()
                 .stream()
                 .map(planMapper::toResponse)
                 .collect(Collectors.toList());
+        redisTemplate.opsForValue().set(ACTIVE_PLAN_CACHE_KEY, fresh, PAYMENT_CACHE_TTL);
+        return fresh;
     }
 
     @Override
@@ -182,5 +205,9 @@ public class SubscriptionPlanServiceImpl implements SubscriptionPlanService {
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize FreePlanResponseEvent for outbox", e);
         }
+    }
+
+    private void evictActivePlansCache() {
+        redisTemplate.delete(ACTIVE_PLAN_CACHE_KEY);
     }
 }

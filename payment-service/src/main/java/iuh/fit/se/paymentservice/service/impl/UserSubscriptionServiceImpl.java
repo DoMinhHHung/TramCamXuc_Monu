@@ -15,6 +15,7 @@ import iuh.fit.se.paymentservice.service.PayOSService;
 import iuh.fit.se.paymentservice.service.UserSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -38,6 +40,10 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     private final UserSubscriptionMapper subscriptionMapper;
     private final PayOSService payOSService;
     private final SubscriptionAuthorizationCacheService subscriptionAuthorizationCacheService;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    private static final Duration PAYMENT_CACHE_TTL = Duration.ofMinutes(30);
+    private static final String USER_SUB_CACHE_PREFIX = "payment:subscriptions:my:";
 
     // ──────────────────────────────────────────────────────────
     // PURCHASE SUBSCRIPTION
@@ -47,6 +53,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     @Transactional
     public PaymentResponse purchaseSubscription(PurchaseSubscriptionRequest request) {
         UUID userId = getCurrentUserId();
+        evictMyActiveSubscriptionCache(userId);
 
         SubscriptionPlan plan = planRepository.findById(request.getPlanId())
                 .orElseThrow(() -> new AppException(ErrorCode.SUBSCRIPTION_PLAN_NOT_FOUND));
@@ -98,13 +105,21 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
     @Transactional(readOnly = true)
     public UserSubscriptionResponse getMyActiveSubscription() {
         UUID userId = getCurrentUserId();
+        String cacheKey = myActiveSubscriptionCacheKey(userId);
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached instanceof UserSubscriptionResponse cachedResponse) {
+            return cachedResponse;
+        }
+
         // Dùng JOIN FETCH để eager load plan, tránh LazyInitializationException
         UserSubscription sub = subscriptionRepository
                 .findActiveWithPlanByUserId(userId)
                 .stream()
                 .findFirst()
                 .orElseThrow(() -> new AppException(ErrorCode.USER_SUBSCRIPTION_NOT_FOUND));
-        return subscriptionMapper.toResponse(sub);
+        UserSubscriptionResponse response = subscriptionMapper.toResponse(sub);
+        redisTemplate.opsForValue().set(cacheKey, response, PAYMENT_CACHE_TTL);
+        return response;
     }
 
     @Override
@@ -137,6 +152,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
         log.info("Cancelled subscription id={} for userId={}", sub.getId(), userId);
 
         subscriptionAuthorizationCacheService.evict(userId);
+        evictMyActiveSubscriptionCache(userId);
     }
 
     // ──────────────────────────────────────────────────────────
@@ -159,6 +175,7 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
             subscriptionRepository.save(sub);
 
             subscriptionAuthorizationCacheService.evict(sub.getUserId());
+            evictMyActiveSubscriptionCache(sub.getUserId());
 
             log.info("Expired subscription id={} for userId={}", sub.getId(), sub.getUserId());
         }
@@ -184,5 +201,13 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private String myActiveSubscriptionCacheKey(UUID userId) {
+        return USER_SUB_CACHE_PREFIX + userId;
+    }
+
+    private void evictMyActiveSubscriptionCache(UUID userId) {
+        redisTemplate.delete(myActiveSubscriptionCacheKey(userId));
     }
 }
