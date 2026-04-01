@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,7 +43,9 @@ import {
   getRecentlyPublishedAlbums,
   getTrendingSongs,
   searchSongs,
+  searchSpotifyTracks,
   Song,
+  SpotifyTrack,
 } from '../services/music';
 import { FeedbackType, RecommendedSong } from '../services/recommendation';
 import { getSongShareQr } from '../services/social';
@@ -55,6 +58,8 @@ import { ContinueListeningSection } from '../components/ContinueListeningSection
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const TOP_ARTIST_CARD_STEP = 292;
+const SPOTIFY_HOME_CACHE_KEY = 'home_spotify_preview_cache_v1';
+const SPOTIFY_HOME_CACHE_TTL_MS = 60 * 60 * 1000;
 
 const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
   const hex = backgroundColor.replace('#', '');
@@ -149,6 +154,7 @@ export const HomeScreen = () => {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
   const [newlyReleasedAlbums, setNewlyReleasedAlbums] = useState<Album[]>([]);
+  const [spotifyPreviewSongs, setSpotifyPreviewSongs] = useState<Array<RecommendedSong & { streamUrl: string }>>([]);
 
   const topArtistsScrollRef = useRef<ScrollView | null>(null);
   const topArtistsPausedRef = useRef(false);
@@ -336,18 +342,107 @@ export const HomeScreen = () => {
     }
   }, []);
 
+  const mapSpotifyTrackToRec = useCallback((track: SpotifyTrack): (RecommendedSong & { streamUrl: string }) | null => {
+    if (!track.previewUrl) return null;
+    return {
+      songId: `spotify_${track.id}`,
+      title: track.name,
+      primaryArtist: {
+        artistId: `spotify_artist_${track.id}`,
+        stageName: track.artistName,
+      },
+      genres: [],
+      thumbnailUrl: track.imageUrl ?? undefined,
+      durationSeconds: track.durationMs ? Math.floor(track.durationMs / 1000) : 30,
+      playCount: 0,
+      score: 0,
+      reasonType: 'TRENDING_NOW',
+      reason: 'Spotify 30s Preview',
+      streamUrl: track.previewUrl,
+    };
+  }, []);
+
+  const fetchSpotifyHomeSection = useCallback(async (forceRefresh = false) => {
+    if (!forceRefresh) {
+      try {
+        const raw = await AsyncStorage.getItem(SPOTIFY_HOME_CACHE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw) as {
+            fetchedAt: number;
+            songs: Array<RecommendedSong & { streamUrl: string }>;
+          };
+          if (Date.now() - parsed.fetchedAt < SPOTIFY_HOME_CACHE_TTL_MS) {
+            setSpotifyPreviewSongs(parsed.songs ?? []);
+            return;
+          }
+        }
+      } catch {
+        // ignore cache read errors
+      }
+    }
+
+    const keywords = ['Sơn Tùng', 'V-Pop', 'Nhạc trẻ', 'Top Hits Việt Nam'];
+    const collected: Array<RecommendedSong & { streamUrl: string }> = [];
+    const seen = new Set<string>();
+
+    const collectByMarket = async (market: 'VN' | 'US') => {
+      for (const keyword of keywords) {
+        if (collected.length >= 20) break;
+        try {
+          const rows = await searchSpotifyTracks({ keyword, limit: 20, market });
+          for (const row of rows) {
+            if (collected.length >= 20) break;
+            const mapped = mapSpotifyTrackToRec(row);
+            if (!mapped || seen.has(mapped.songId)) continue;
+            seen.add(mapped.songId);
+            collected.push(mapped);
+          }
+        } catch {
+          // continue with next keyword
+        }
+      }
+    };
+
+    await collectByMarket('VN');
+    if (collected.length < 20) {
+      await collectByMarket('US');
+    }
+
+    setSpotifyPreviewSongs(collected.slice(0, 20));
+    try {
+      await AsyncStorage.setItem(
+        SPOTIFY_HOME_CACHE_KEY,
+        JSON.stringify({
+          fetchedAt: Date.now(),
+          songs: collected.slice(0, 20),
+        }),
+      );
+    } catch {
+      // ignore cache write errors
+    }
+  }, [mapSpotifyTrackToRec]);
+
   const handleRefresh = useCallback(async () => {
     setPullRefreshing(true);
     try {
-      await Promise.all([rec.refresh(), refreshHomePriority(), loadNewlyReleasedAlbums()]);
+      await Promise.all([
+        rec.refresh(),
+        refreshHomePriority(),
+        loadNewlyReleasedAlbums(),
+        fetchSpotifyHomeSection(true),
+      ]);
     } finally {
       setPullRefreshing(false);
     }
-  }, [rec, refreshHomePriority, loadNewlyReleasedAlbums]);
+  }, [rec, refreshHomePriority, loadNewlyReleasedAlbums, fetchSpotifyHomeSection]);
 
   useEffect(() => {
     void loadNewlyReleasedAlbums();
   }, [loadNewlyReleasedAlbums]);
+
+  useEffect(() => {
+    void fetchSpotifyHomeSection();
+  }, [fetchSpotifyHomeSection]);
 
   const formatDuration = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -608,6 +703,48 @@ export const HomeScreen = () => {
             hasBadge={!!rec.homeFeed?.forYou?.length}
           />
         )}
+
+        <RecommendationSection
+          icon="🟢"
+          title="Nghe cùng Spotify / Listen with Spotify"
+          subtitle="30s preview • cache 1h • ưu tiên VN"
+          songs={spotifyPreviewSongs}
+          activeSongId={currentSong?.id}
+          loading={false}
+          hideIfEmpty={false}
+          onPress={(s) => {
+            const spotifySong: Song = {
+              id: s.songId,
+              title: s.title,
+              primaryArtist: s.primaryArtist,
+              genres: s.genres,
+              thumbnailUrl: s.thumbnailUrl,
+              durationSeconds: s.durationSeconds,
+              playCount: s.playCount,
+              status: 'PUBLIC',
+              transcodeStatus: 'COMPLETED',
+              createdAt: '',
+              updatedAt: '',
+              streamUrl: (s as any).streamUrl,
+            };
+            const queue = spotifyPreviewSongs.map((q) => ({
+              id: q.songId,
+              title: q.title,
+              primaryArtist: q.primaryArtist,
+              genres: q.genres,
+              thumbnailUrl: q.thumbnailUrl,
+              durationSeconds: q.durationSeconds,
+              playCount: q.playCount,
+              status: 'PUBLIC' as const,
+              transcodeStatus: 'COMPLETED' as const,
+              createdAt: '',
+              updatedAt: '',
+              streamUrl: q.streamUrl,
+            }));
+            playSong(spotifySong, queue);
+          }}
+          onLongPress={openRecActionSheet}
+        />
 
 
         <SongSection
