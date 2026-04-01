@@ -355,7 +355,8 @@ export const HomeScreen = () => {
     return `${m}:${s.toString().padStart(2, '0')}`;
   }, []);
 
-  const displayName = authSession?.profile?.fullName
+  const displayName = authSession?.profile?.displayName
+    || authSession?.profile?.fullName
     || authSession?.profile?.email?.split('@')[0]
     || 'bạn';
 

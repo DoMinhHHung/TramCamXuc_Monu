@@ -1289,7 +1289,7 @@ export const DiscoverScreen = () => {
 
   const { authSession } = useAuth();
   const currentUserId   = authSession?.profile?.id ?? null;
-  const myDisplayName   = authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
+  const myDisplayName   = authSession?.profile?.displayName ?? authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
   const myAvatarUrl     = authSession?.profile?.avatarUrl;
   const [canManageAlbums, setCanManageAlbums] = useState(false);
 

@@ -42,7 +42,7 @@ export const ProfileScreen = () => {
     const [deleteOpen,  setDeleteOpen]  = useState(false);
     const [logoutOpen,  setLogoutOpen]  = useState(false);
     const [saving,      setSaving]      = useState(false);
-    const [fullName,    setFullName]    = useState(authSession?.profile?.fullName ?? '');
+    const [fullName,    setFullName]    = useState(authSession?.profile?.displayName ?? authSession?.profile?.fullName ?? '');
     const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
     const [loadingArtist, setLoadingArtist] = useState(true);
 
@@ -108,7 +108,7 @@ export const ProfileScreen = () => {
     const onSaveProfile = async () => {
         try {
             setSaving(true);
-            await updateMyProfile({ fullName: fullName.trim() });
+            await updateMyProfile({ displayName: fullName.trim() });
             await refreshProfile();
             setEditOpen(false);
         } catch (error: any) {
@@ -260,7 +260,7 @@ export const ProfileScreen = () => {
                     </Pressable>
 
                     <Text style={styles.name}>
-                        {authSession?.profile?.fullName ?? authSession?.profile?.email ?? t('screens.profile.defaultUserName', 'Monu User')}
+                        {authSession?.profile?.displayName ?? authSession?.profile?.fullName ?? authSession?.profile?.email ?? t('screens.profile.defaultUserName', 'Monu User')}
                     </Text>
                     <Text style={styles.email}>{authSession?.profile?.email}</Text>
 

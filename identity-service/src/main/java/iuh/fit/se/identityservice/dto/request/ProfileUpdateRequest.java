@@ -16,6 +16,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class ProfileUpdateRequest {
     private String fullName;
+    private String displayName;
 
     @Past(message = "DOB_MUST_BE_IN_PAST")
     @Age(min = 13, message = "AGE_TOO_YOUNG")
