@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Image,
+  Linking,
   Modal,
   Pressable,
   RefreshControl,
@@ -154,7 +155,11 @@ export const HomeScreen = () => {
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
   const [newlyReleasedAlbums, setNewlyReleasedAlbums] = useState<Album[]>([]);
-  const [spotifyPreviewSongs, setSpotifyPreviewSongs] = useState<Array<RecommendedSong & { streamUrl: string }>>([]);
+  const [spotifyPreviewSongs, setSpotifyPreviewSongs] = useState<Array<RecommendedSong & {
+    streamUrl?: string;
+    hasPreview: boolean;
+    externalUrl?: string | null;
+  }>>([]);
   const [spotifyPreviewLoading, setSpotifyPreviewLoading] = useState(false);
 
   const topArtistsScrollRef = useRef<ScrollView | null>(null);
@@ -343,8 +348,12 @@ export const HomeScreen = () => {
     }
   }, []);
 
-  const mapSpotifyTrackToRec = useCallback((track: SpotifyTrack): (RecommendedSong & { streamUrl: string }) | null => {
-    if (!track.previewUrl) return null;
+  const mapSpotifyTrackToRec = useCallback((track: SpotifyTrack): (RecommendedSong & {
+    streamUrl?: string;
+    hasPreview: boolean;
+    externalUrl?: string | null;
+  }) => {
+    const hasPreview = !!track.previewUrl;
     return {
       songId: `spotify_${track.id}`,
       title: track.name,
@@ -358,8 +367,10 @@ export const HomeScreen = () => {
       playCount: 0,
       score: 0,
       reasonType: 'TRENDING_NOW',
-      reason: 'Spotify 30s Preview',
-      streamUrl: track.previewUrl,
+      reason: hasPreview ? '🟢 Có preview 30s' : 'Không có preview · Mở Spotify',
+      streamUrl: track.previewUrl ?? undefined,
+      hasPreview,
+      externalUrl: track.externalUrl ?? null,
     };
   }, []);
 
@@ -371,7 +382,11 @@ export const HomeScreen = () => {
       if (raw) {
         const parsed = JSON.parse(raw) as {
           fetchedAt: number;
-          songs: Array<RecommendedSong & { streamUrl: string }>;
+          songs: Array<RecommendedSong & {
+            streamUrl?: string;
+            hasPreview: boolean;
+            externalUrl?: string | null;
+          }>;
         };
         // Hiện cache ngay cả khi stale để tránh màn trắng "Đang cập nhật..."
         setSpotifyPreviewSongs(parsed.songs ?? []);
@@ -389,7 +404,11 @@ export const HomeScreen = () => {
     const seedKeyword = homeStats?.topArtists?.[0]?.stageName
       || rec.homeFeed?.forYou?.[0]?.primaryArtist?.stageName
       || 'V-Pop';
-    const collected: Array<RecommendedSong & { streamUrl: string }> = [];
+    const collected: Array<RecommendedSong & {
+      streamUrl?: string;
+      hasPreview: boolean;
+      externalUrl?: string | null;
+    }> = [];
     const seen = new Set<string>();
 
     const collectByMarket = async (market: 'VN' | 'US') => {
@@ -398,7 +417,7 @@ export const HomeScreen = () => {
         for (const row of rows) {
           if (collected.length >= 20) break;
           const mapped = mapSpotifyTrackToRec(row);
-          if (!mapped || seen.has(mapped.songId)) continue;
+          if (seen.has(mapped.songId)) continue;
           seen.add(mapped.songId);
           collected.push(mapped);
         }
@@ -712,13 +731,26 @@ export const HomeScreen = () => {
         <RecommendationSection
           icon="🟢"
           title="Nghe cùng Spotify / Listen with Spotify"
-          subtitle="30s preview • cache 1h • ưu tiên VN"
+          subtitle="Hiển thị cả bài có/không có preview • cache 1h • ưu tiên VN"
           songs={spotifyPreviewSongs}
           activeSongId={currentSong?.id}
           loading={spotifyPreviewLoading && spotifyPreviewSongs.length === 0}
           emptyText="Không tải được Spotify preview lúc này (API 502)."
           hideIfEmpty={false}
           onPress={(s) => {
+            const spotifyItem = s as typeof s & {
+              streamUrl?: string;
+              hasPreview?: boolean;
+              externalUrl?: string | null;
+            };
+            if (!spotifyItem.hasPreview) {
+              if (spotifyItem.externalUrl) {
+                Linking.openURL(spotifyItem.externalUrl).catch(() => {});
+              } else {
+                Alert.alert('Spotify', 'Bài này chưa có preview và chưa có link mở Spotify.');
+              }
+              return;
+            }
             const spotifySong: Song = {
               id: s.songId,
               title: s.title,
@@ -731,9 +763,11 @@ export const HomeScreen = () => {
               transcodeStatus: 'COMPLETED',
               createdAt: '',
               updatedAt: '',
-              streamUrl: (s as any).streamUrl,
+              streamUrl: spotifyItem.streamUrl,
             };
-            const queue = spotifyPreviewSongs.map((q) => ({
+            const queue = spotifyPreviewSongs
+              .filter((q) => q.hasPreview && !!q.streamUrl)
+              .map((q) => ({
               id: q.songId,
               title: q.title,
               primaryArtist: q.primaryArtist,
