@@ -30,9 +30,18 @@ export const unifiedSearch = async (
 ): Promise<UnifiedSearchResult> => {
   const { internalLimit = 10, spotifyLimit = 10, includeArtists = true } = options;
 
+  const fetchSpotifyPlayable = async () => {
+    const vn = await searchSpotifyTracks({ keyword, limit: spotifyLimit, market: 'VN' });
+    const vnPlayable = vn.filter((t) => !!t.previewUrl);
+    if (vnPlayable.length > 0) return vnPlayable;
+
+    const us = await searchSpotifyTracks({ keyword, limit: spotifyLimit, market: 'US' });
+    return us.filter((t) => !!t.previewUrl);
+  };
+
   const [internalRes, spotifyRes, artistRes] = await Promise.allSettled([
     searchSongs({ keyword, size: internalLimit }),
-    searchSpotifyTracks({ keyword, limit: spotifyLimit, market: 'VN' }),
+    fetchSpotifyPlayable(),
     includeArtists ? searchArtists({ keyword, size: 5 }) : Promise.resolve(null),
   ]);
 
@@ -44,7 +53,6 @@ export const unifiedSearch = async (
   const spotifySongs: UnifiedSong[] =
     spotifyRes.status === 'fulfilled'
       ? spotifyRes.value
-          .filter((t) => !!t.previewUrl)
           .map(fromSpotifyTrack)
       : [];
 
