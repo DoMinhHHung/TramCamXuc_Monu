@@ -513,19 +513,54 @@ export interface SpotifyTrack {
   ownershipText?: string;
 }
 
+const spotifySearchCache = new Map<string, { data: SpotifyTrack[]; expiresAt: number }>();
+let spotifySearchBlockedUntil = 0;
+let spotifySearchFailStreak = 0;
+
 export const searchSpotifyTracks = async (params: {
   keyword: string;
   limit?: number;
   market?: string;
 }): Promise<SpotifyTrack[]> => {
-  const response = await apiClient.get<SpotifyTrack[]>('/spotify/tracks/search', {
-    params: {
-      keyword: params.keyword,
-      limit: params.limit ?? 10,
-      market: params.market ?? 'US',
-    },
-  });
-  return unwrap<SpotifyTrack[]>(response.data);
+  const keyword = params.keyword?.trim();
+  if (!keyword) return [];
+
+  const limit = params.limit ?? 10;
+  const market = params.market ?? 'US';
+  const cacheKey = `${keyword.toLowerCase()}|${market}|${limit}`;
+  const now = Date.now();
+
+  const cached = spotifySearchCache.get(cacheKey);
+  if (cached && now < cached.expiresAt) {
+    return cached.data;
+  }
+
+  if (now < spotifySearchBlockedUntil) {
+    return [];
+  }
+
+  try {
+    const response = await apiClient.get<SpotifyTrack[]>('/spotify/tracks/search', {
+      params: {
+        keyword,
+        limit,
+        market,
+      },
+    });
+    const rows = unwrap<SpotifyTrack[]>(response.data) ?? [];
+    spotifySearchCache.set(cacheKey, {
+      data: rows,
+      expiresAt: now + 10 * 60 * 1000,
+    });
+    spotifySearchFailStreak = 0;
+    spotifySearchBlockedUntil = 0;
+    return rows;
+  } catch {
+    spotifySearchFailStreak += 1;
+    const cooldownMs = Math.min(5 * 60 * 1000, 30_000 * spotifySearchFailStreak);
+    spotifySearchBlockedUntil = Date.now() + cooldownMs;
+    return [];
+  }
 };
 
 
