@@ -156,16 +156,13 @@ export function useHomeDataPriority(): UseHomeDataPriorityReturn {
       setLegacyTrendingSongs(tSongs);
       setLegacyNewestSongs(nSongs);
 
-      if (authSession) {
-        const pls = await getMyPlaylists({ page: 1, size: 50 });
-        if (!mounted.current || runId.current !== id) return;
-        setPlaylists(pls.content ?? []);
-      } else {
-        setPlaylists([]);
-      }
-
-      const popularGenres = await getPopularGenres(12);
+      const [playlistsResult, popularGenres] = await Promise.all([
+        authSession ? getMyPlaylists({ page: 1, size: 50 }) : Promise.resolve(null),
+        getPopularGenres(12),
+      ]);
       if (!mounted.current || runId.current !== id) return;
+
+      setPlaylists(playlistsResult?.content ?? []);
       setGenres(popularGenres ?? []);
 
       setPhase(2);

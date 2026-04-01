@@ -305,6 +305,8 @@
     "authRegister": {
       "subtitle": "Start your music journey",
       "fullNamePlaceholder": "Your full name",
+      "displayNameLabel": "Display name",
+      "displayNamePlaceholder": "Your display name",
       "dobLabel": "Date of birth (DD/MM/YYYY)",
       "genderLabel": "Gender",
       "gender": {
@@ -317,6 +319,7 @@
       "registerFailed": "Registration failed, please try again.",
       "validation": {
         "fullName": "Please enter your full name.",
+        "displayName": "Please enter your display name.",
         "email": "Please enter your email.",
         "password": "Please enter your password.",
         "dob": "Please enter your date of birth in DD/MM/YYYY format.",

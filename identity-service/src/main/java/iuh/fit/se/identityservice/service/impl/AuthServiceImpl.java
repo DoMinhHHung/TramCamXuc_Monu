@@ -88,6 +88,9 @@ public class AuthServiceImpl implements AuthService {
         }
 
         User user = userMapper.toEntity(request);
+        if (user.getDisplayName() == null || user.getDisplayName().isBlank()) {
+            user.setDisplayName(request.getFullName());
+        }
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(Role.USER);
 
@@ -232,6 +235,7 @@ public class AuthServiceImpl implements AuthService {
                         .provider(request.getProvider())
                         .providerId(info.getId())
                         .fullName(info.getName())
+                        .displayName(info.getName())
                         .avatarUrl(info.getPicture())
                         .build())
         );
@@ -289,6 +293,7 @@ public class AuthServiceImpl implements AuthService {
         return Jwts.builder()
                 .setSubject(user.getId().toString())
                 .claim("email", user.getEmail())
+                .claim("displayName", user.getDisplayName() != null ? user.getDisplayName() : user.getFullName())
                 .claim("role", user.getRole().name())
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + duration))
