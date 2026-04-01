@@ -36,6 +36,10 @@ function buildHlsUrl(song: Song, quality: AudioQuality): string {
     return `${MINIO_PUBLIC}/hls/${song.id}/${QUALITY_STREAM[quality]}`;
 }
 
+function isSpotifyPreviewSong(song: Song): boolean {
+    return song.id.startsWith('spotify_');
+}
+
 function parseMaxQuality(features: Record<string, any>): AudioQuality {
     const bitrate = Number(features.maxBitrate ?? features.max_bitrate ?? 0);
     if (bitrate >= 320) return 320;
@@ -300,12 +304,14 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     const dur = status.duration    ?? 0;
                     const pos = status.currentTime ?? 0;
                     const completed = dur > 0 && pos >= dur * 0.9;
-                    recordListen(song.id, {
-                        durationSeconds: 30,
-                        completed,
-                        artistId:  song.primaryArtist?.artistId,
-                        genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
-                    }).then(() => addListenHistory(song)).catch(() => {});
+                    if (!isSpotifyPreviewSong(song)) {
+                        recordListen(song.id, {
+                            durationSeconds: 30,
+                            completed,
+                            artistId:  song.primaryArtist?.artistId,
+                            genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
+                        }).then(() => addListenHistory(song)).catch(() => {});
+                    }
                     if (completed) completionFiredRef.current = true;
                 }, remaining);
             }
@@ -345,12 +351,14 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         }
         completionFiredRef.current = true;
 
-        recordListen(song.id, {
-            durationSeconds: Math.round(totalMs / 1000),
-            completed: true,
-            artistId:  song.primaryArtist?.artistId,
-            genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
-        }).then(() => addListenHistory(song)).catch(() => {});
+        if (!isSpotifyPreviewSong(song)) {
+            recordListen(song.id, {
+                durationSeconds: Math.round(totalMs / 1000),
+                completed: true,
+                artistId:  song.primaryArtist?.artistId,
+                genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
+            }).then(() => addListenHistory(song)).catch(() => {});
+        }
 
         // Auto advance theo repeatMode
         void (async () => {
@@ -368,7 +376,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     resetListenTracking();
                     shouldAutoPlayRef.current = true;
                     player.replace({ uri: buildHlsUrl(currentS, selectedQualityRef.current) });
-                    recordPlay(currentS.id).catch(() => {});
+                    if (!isSpotifyPreviewSong(currentS)) {
+                        recordPlay(currentS.id).catch(() => {});
+                    }
                 }
                 return;
             }
@@ -401,15 +411,23 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             setQueueIndex(nextIdx);
             resetListenTracking();
             shouldAutoPlayRef.current = true;
-            try {
-                const localUri = await isSongDownloaded(nextSong.id);
-                const uri = localUri ?? buildHlsUrl(nextSong, selectedQualityRef.current);
-                player.replace({ uri });
-            } catch {
-                player.replace({ uri: buildHlsUrl(nextSong, selectedQualityRef.current) });
+            if (isSpotifyPreviewSong(nextSong)) {
+                const spotifyUri = nextSong.streamUrl ?? '';
+                if (!spotifyUri) return;
+                player.replace({ uri: spotifyUri });
+            } else {
+                try {
+                    const localUri = await isSongDownloaded(nextSong.id);
+                    const uri = localUri ?? buildHlsUrl(nextSong, selectedQualityRef.current);
+                    player.replace({ uri });
+                } catch {
+                    player.replace({ uri: buildHlsUrl(nextSong, selectedQualityRef.current) });
+                }
             }
             setCurrentSong(nextSong);
-            recordPlay(nextSong.id).catch(() => {});
+            if (!isSpotifyPreviewSong(nextSong)) {
+                recordPlay(nextSong.id).catch(() => {});
+            }
         })();
     }, [status.playing, checkForAd]);
 
@@ -432,12 +450,20 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
             const quality = selectedQualityRef.current;
             let uri: string;
-            try {
-                const localUri = await isSongDownloaded(song.id);
-                uri = localUri ?? buildHlsUrl(song, quality);
-                if (localUri) console.log('[Player] Offline playback:', song.title);
-            } catch {
-                uri = buildHlsUrl(song, quality);
+            if (isSpotifyPreviewSong(song)) {
+                uri = song.streamUrl ?? '';
+                if (!uri) {
+                    console.warn('[Player] Spotify track has no preview URL');
+                    return;
+                }
+            } else {
+                try {
+                    const localUri = await isSongDownloaded(song.id);
+                    uri = localUri ?? buildHlsUrl(song, quality);
+                    if (localUri) console.log('[Player] Offline playback:', song.title);
+                } catch {
+                    uri = buildHlsUrl(song, quality);
+                }
             }
 
             resetListenTracking();
@@ -451,7 +477,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 setQueueIndex(idx >= 0 ? idx : 0);
             }
 
-            recordPlay(song.id).catch(() => {});
+            if (!isSpotifyPreviewSong(song)) {
+                recordPlay(song.id).catch(() => {});
+            }
         },
         [player, isPlayingAd, resetListenTracking],
     );

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator, Animated, Dimensions, FlatList, Image,
     Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
-    Pressable, ScrollView, StyleSheet, Text, View, TextInput, Alert,
+    Pressable, ScrollView, StyleSheet, Text, View, TextInput, Alert, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -399,6 +399,25 @@ export const FullPlayerModal = () => {
                                     </View>
                                 }
                             </View>
+                            {currentSong.id.startsWith('spotify_') && (
+                                <View style={styles.spotifyContainer}>
+                                    <View style={styles.spotifyPreviewBadge}>
+                                        <Text style={styles.spotifyPreviewBadgeText}>🎵 Bản xem trước 30 giây</Text>
+                                    </View>
+                                    {(currentSong as any).spotifyExternalUrl && (
+                                        <Pressable
+                                            style={styles.spotifyOpenBtn}
+                                            onPress={() => {
+                                                const url = (currentSong as any).spotifyExternalUrl;
+                                                if (url) Linking.openURL(url).catch(() => {});
+                                            }}
+                                        >
+                                            <Text style={styles.spotifyOpenBtnText}>Nghe bài đầy đủ trên Spotify ↗</Text>
+                                        </Pressable>
+                                    )}
+                                    <Text style={styles.spotifyAttribution}>Nhạc và metadata do Spotify cung cấp</Text>
+                                </View>
+                            )}
 
                             {/* Song info */}
                             <View style={styles.songInfo}>
@@ -693,6 +712,44 @@ const styles = StyleSheet.create({
     artwork:            { width: 240, height: 240, borderRadius: 20, backgroundColor: COLORS.surface },
     artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.accentBorder25, backgroundColor: COLORS.accentFill20 },
     artworkIcon:        { fontSize: 70 },
+    spotifyContainer: {
+        marginHorizontal: 24,
+        marginBottom: 16,
+        padding: 14,
+        borderRadius: 14,
+        backgroundColor: 'rgba(30, 215, 96, 0.08)',
+        borderWidth: 1,
+        borderColor: 'rgba(30, 215, 96, 0.25)',
+        alignItems: 'center',
+        gap: 8,
+    },
+    spotifyPreviewBadge: {
+        backgroundColor: 'rgba(30, 215, 96, 0.15)',
+        borderRadius: 20,
+        paddingHorizontal: 14,
+        paddingVertical: 5,
+    },
+    spotifyPreviewBadgeText: {
+        color: '#1ED760',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    spotifyOpenBtn: {
+        backgroundColor: '#1ED760',
+        borderRadius: 999,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+    },
+    spotifyOpenBtnText: {
+        color: '#000',
+        fontWeight: '800',
+        fontSize: 14,
+    },
+    spotifyAttribution: {
+        color: 'rgba(255,255,255,0.35)',
+        fontSize: 10,
+        textAlign: 'center',
+    },
     songInfo:           { marginBottom: 18 },
     songTitle:          { color: COLORS.white, fontSize: 22, fontWeight: '800', marginBottom: 6 },
     artistName:         { color: COLORS.glass60, fontSize: 15, fontWeight: '500', marginBottom: 8 },
