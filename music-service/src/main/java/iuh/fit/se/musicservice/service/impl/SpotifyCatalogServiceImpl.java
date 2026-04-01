@@ -49,7 +49,17 @@ public class SpotifyCatalogServiceImpl implements SpotifyCatalogService {
         String token = ensureAccessToken();
 
         String safeMarket = (market == null || market.isBlank()) ? "US" : market.trim().toUpperCase();
-        String queryUrl = "https://api.spotify.com/v1/search?type=track&q={keyword}&limit={limit}&market={market}";
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+
+        String queryUrl = UriComponentsBuilder
+                .fromHttpUrl("https://api.spotify.com/v1/search")
+                .queryParam("type", "track")
+                .queryParam("q", keyword)
+                .queryParam("limit", safeLimit)
+                .queryParam("market", safeMarket)
+                .build()
+                .encode()
+                .toUriString();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(token);
@@ -59,10 +69,7 @@ public class SpotifyCatalogServiceImpl implements SpotifyCatalogService {
                     queryUrl,
                     HttpMethod.GET,
                     new HttpEntity<>(headers),
-                    JsonNode.class,
-                    keyword,
-                    Math.max(1, Math.min(limit, 50)),
-                    safeMarket
+                    JsonNode.class
             );
 
             JsonNode items = response.getBody() == null
