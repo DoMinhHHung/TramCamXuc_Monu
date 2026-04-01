@@ -112,6 +112,11 @@ export const MiniPlayer = () => {
                             <Text style={styles.modeBadge}>🔁</Text>
                         )}
                     </View>
+                    {currentSong.id.startsWith('spotify_') && (
+                        <View style={styles.spotifyBadge}>
+                            <Text style={styles.spotifyBadgeText}>SPOTIFY PREVIEW</Text>
+                        </View>
+                    )}
                 </View>
 
                 <View style={styles.controls}>
@@ -161,6 +166,15 @@ const styles = StyleSheet.create({
     title:   { color: COLORS.white,   fontSize: 14, fontWeight: '700', lineHeight: 18 },
     artist:  { color: COLORS.glass60, fontSize: 11, fontWeight: '400' },
     modeBadge: { fontSize: 11, color: COLORS.glass50 },
+    spotifyBadge: {
+        backgroundColor: 'rgba(30,215,96,0.15)',
+        borderRadius: 4,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        alignSelf: 'flex-start',
+        marginTop: 1,
+    },
+    spotifyBadgeText: { color: '#1ED760', fontSize: 9, fontWeight: '700' },
     controls: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     iconBtn:  { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
     swipeHandle: { position: 'absolute', top: 5, alignSelf: 'center', width: 32, height: 3, borderRadius: 2, backgroundColor: COLORS.glass30 },
