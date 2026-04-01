@@ -155,6 +155,7 @@ export const HomeScreen = () => {
   const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
   const [newlyReleasedAlbums, setNewlyReleasedAlbums] = useState<Album[]>([]);
   const [spotifyPreviewSongs, setSpotifyPreviewSongs] = useState<Array<RecommendedSong & { streamUrl: string }>>([]);
+  const [spotifyPreviewLoading, setSpotifyPreviewLoading] = useState(false);
 
   const topArtistsScrollRef = useRef<ScrollView | null>(null);
   const topArtistsPausedRef = useRef(false);
@@ -363,43 +364,46 @@ export const HomeScreen = () => {
   }, []);
 
   const fetchSpotifyHomeSection = useCallback(async (forceRefresh = false) => {
-    if (!forceRefresh) {
-      try {
-        const raw = await AsyncStorage.getItem(SPOTIFY_HOME_CACHE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as {
-            fetchedAt: number;
-            songs: Array<RecommendedSong & { streamUrl: string }>;
-          };
-          if (Date.now() - parsed.fetchedAt < SPOTIFY_HOME_CACHE_TTL_MS) {
-            setSpotifyPreviewSongs(parsed.songs ?? []);
-            return;
-          }
-        }
-      } catch {
-        // ignore cache read errors
+    setSpotifyPreviewLoading(true);
+    let hasFreshCache = false;
+    try {
+      const raw = await AsyncStorage.getItem(SPOTIFY_HOME_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          fetchedAt: number;
+          songs: Array<RecommendedSong & { streamUrl: string }>;
+        };
+        // Hiện cache ngay cả khi stale để tránh màn trắng "Đang cập nhật..."
+        setSpotifyPreviewSongs(parsed.songs ?? []);
+        hasFreshCache = Date.now() - parsed.fetchedAt < SPOTIFY_HOME_CACHE_TTL_MS;
       }
+    } catch {
+      // ignore cache read errors
     }
 
-    const keywords = ['Sơn Tùng', 'V-Pop', 'Nhạc trẻ', 'Top Hits Việt Nam'];
+    if (!forceRefresh && hasFreshCache) {
+      setSpotifyPreviewLoading(false);
+      return;
+    }
+
+    const seedKeyword = homeStats?.topArtists?.[0]?.stageName
+      || rec.homeFeed?.forYou?.[0]?.primaryArtist?.stageName
+      || 'V-Pop';
     const collected: Array<RecommendedSong & { streamUrl: string }> = [];
     const seen = new Set<string>();
 
     const collectByMarket = async (market: 'VN' | 'US') => {
-      for (const keyword of keywords) {
-        if (collected.length >= 20) break;
-        try {
-          const rows = await searchSpotifyTracks({ keyword, limit: 20, market });
-          for (const row of rows) {
-            if (collected.length >= 20) break;
-            const mapped = mapSpotifyTrackToRec(row);
-            if (!mapped || seen.has(mapped.songId)) continue;
-            seen.add(mapped.songId);
-            collected.push(mapped);
-          }
-        } catch {
-          // continue with next keyword
+      try {
+        const rows = await searchSpotifyTracks({ keyword: seedKeyword, limit: 20, market });
+        for (const row of rows) {
+          if (collected.length >= 20) break;
+          const mapped = mapSpotifyTrackToRec(row);
+          if (!mapped || seen.has(mapped.songId)) continue;
+          seen.add(mapped.songId);
+          collected.push(mapped);
         }
+      } catch {
+        // giữ nguyên cached data nếu request lỗi (vd 502)
       }
     };
 
@@ -420,7 +424,8 @@ export const HomeScreen = () => {
     } catch {
       // ignore cache write errors
     }
-  }, [mapSpotifyTrackToRec]);
+    setSpotifyPreviewLoading(false);
+  }, [mapSpotifyTrackToRec, homeStats?.topArtists, rec.homeFeed?.forYou]);
 
   const handleRefresh = useCallback(async () => {
     setPullRefreshing(true);
@@ -710,7 +715,8 @@ export const HomeScreen = () => {
           subtitle="30s preview • cache 1h • ưu tiên VN"
           songs={spotifyPreviewSongs}
           activeSongId={currentSong?.id}
-          loading={false}
+          loading={spotifyPreviewLoading && spotifyPreviewSongs.length === 0}
+          emptyText="Không tải được Spotify preview lúc này (API 502)."
           hideIfEmpty={false}
           onPress={(s) => {
             const spotifySong: Song = {
