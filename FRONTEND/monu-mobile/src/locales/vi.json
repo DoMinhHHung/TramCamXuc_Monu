@@ -321,6 +321,8 @@
     "authRegister": {
       "subtitle": "Hãy bắt đầu hành trình âm nhạc của bạn",
       "fullNamePlaceholder": "Họ và tên của bạn",
+      "displayNameLabel": "Tên hiển thị",
+      "displayNamePlaceholder": "Tên hiển thị của bạn",
       "dobLabel": "Ngày sinh (DD/MM/YYYY)",
       "genderLabel": "Giới tính",
       "gender": {
@@ -333,6 +335,7 @@
       "registerFailed": "Đăng ký thất bại, vui lòng thử lại.",
       "validation": {
         "fullName": "Vui lòng nhập họ tên.",
+        "displayName": "Vui lòng nhập tên hiển thị.",
         "email": "Vui lòng nhập email.",
         "password": "Vui lòng nhập mật khẩu.",
         "dob": "Vui lòng nhập ngày sinh đúng định dạng (DD/MM/YYYY).",

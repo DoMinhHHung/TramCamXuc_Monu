@@ -17,12 +17,13 @@ export async function POST(req: NextRequest) {
   try {
     const userId = extractUserId(req);
     const ownerType = extractRole(req);
+    const ownerDisplayNameHeader = req.headers.get('X-User-Display-Name');
     const ownerEmail = req.headers.get('X-User-Email');
     const body = await req.json();
     const result = await createFeedPost({
       ownerId: userId,
       ownerType,
-      ownerDisplayName: ownerEmail ?? body.ownerDisplayName,
+      ownerDisplayName: ownerDisplayNameHeader ?? body.ownerDisplayName ?? ownerEmail,
       ownerAvatarUrl: body.ownerAvatarUrl ?? null,
       contentType: body.contentType,
       contentId: body.contentId,

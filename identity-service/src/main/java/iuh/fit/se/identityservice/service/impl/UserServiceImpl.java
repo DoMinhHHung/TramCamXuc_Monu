@@ -52,6 +52,7 @@ public class UserServiceImpl implements UserService {
     public UserResponse updateProfile(ProfileUpdateRequest request) {
         User user = currentUser();
         if (request.getFullName() != null) user.setFullName(request.getFullName());
+        if (request.getDisplayName() != null) user.setDisplayName(request.getDisplayName());
         if (request.getDob()      != null) user.setDob(request.getDob());
         if (request.getGender()   != null) user.setGender(request.getGender());
         return userMapper.toResponse(userRepository.save(user));

@@ -71,6 +71,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             String userId = claims.getSubject();
             String role   = claims.get("role",  String.class);
             String email  = claims.get("email", String.class);
+            String displayName = claims.get("displayName", String.class);
 
             if (!StringUtils.hasText(userId)) {
                 return respondUnauthorized(exchange, "Invalid token: missing subject");
@@ -80,6 +81,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                                     .header("X-User-Id",         userId)
                                     .header("X-User-Role",       role  != null ? role  : "")
                                     .header("X-User-Email",      email != null ? email : "")
+                                    .header("X-User-Display-Name", displayName != null ? displayName : "")
                                     .header("X-Authenticated",   "true")
                                     .header("X-Gateway-Secret",    gatewayInternalSecret)
                     )

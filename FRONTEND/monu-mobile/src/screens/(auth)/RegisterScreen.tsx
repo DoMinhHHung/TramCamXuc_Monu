@@ -32,6 +32,7 @@ export default function RegisterScreen() {
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const [fullName, setFullName] = useState('');
+    const [displayName, setDisplayName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [rePassword, setRePassword] = useState('');
@@ -54,6 +55,7 @@ export default function RegisterScreen() {
 
     const validate = () => {
         if (!fullName.trim()) return t('screens.authRegister.validation.fullName', 'Please enter your full name.');
+        if (!displayName.trim()) return t('screens.authRegister.validation.displayName', 'Please enter your display name.');
         if (!email.trim()) return t('screens.authRegister.validation.email', 'Please enter your email.');
         if (!password) return t('screens.authRegister.validation.password', 'Please enter your password.');
         if (!rePassword) return t('screens.authRegister.validation.rePassword', 'Please re-enter your password.');
@@ -76,6 +78,7 @@ export default function RegisterScreen() {
                 email: email.trim(),
                 password,
                 fullName: fullName.trim(),
+                displayName: displayName.trim(),
                 dob,
                 ...(gender ? { gender } : {}),
             });
@@ -130,6 +133,17 @@ export default function RegisterScreen() {
                         value={fullName}
                         onChangeText={setFullName}
                         placeholder={t('screens.authRegister.fullNamePlaceholder', 'Your full name')}
+                        placeholderTextColor={COLORS.glass25}
+                        autoCapitalize="words"
+                    />
+
+
+                    <Text style={styles.fieldLabel}>{t('screens.authRegister.displayNameLabel', 'Display name')}</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={displayName}
+                        onChangeText={setDisplayName}
+                        placeholder={t('screens.authRegister.displayNamePlaceholder', 'Your display name')}
                         placeholderTextColor={COLORS.glass25}
                         autoCapitalize="words"
                     />
