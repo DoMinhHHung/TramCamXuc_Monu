@@ -17,6 +17,9 @@ export interface Genre {
 export interface Song {
   id: string;
   title: string;
+  source?: 'LOCAL' | 'JAMENDO' | 'SPOTIFY' | 'SOUNDCLOUD';
+  externalUrl?: string;
+  externalTrackId?: string;
   primaryArtist: Artist;
   genres: Genre[];
   thumbnailUrl?: string;
@@ -96,6 +99,7 @@ export const searchSongs = async (params: {
   keyword?: string;
   genreId?: string;
   artistId?: string;
+  includeExternal?: boolean;
   page?: number;
   size?: number;
 }): Promise<PageResponse<Song>> => {

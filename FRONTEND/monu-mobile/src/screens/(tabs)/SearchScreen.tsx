@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator, Animated, FlatList, Pressable,
-    StyleSheet, Text, TextInput, View,
+    StyleSheet, Text, TextInput, View, Linking, Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -92,7 +92,7 @@ export const SearchScreen = () => {
         try {
             if (currentTab === 'songs') {
                 const [titleRes, lyricRes] = await Promise.allSettled([
-                    searchSongs({ keyword: q, size: 30 }),
+                    searchSongs({ keyword: q, size: 30, includeExternal: true }),
                     searchByLyric({ keyword: q, size: 20 }),
                 ]);
                 const titleSongs = titleRes.status === 'fulfilled' ? titleRes.value.content : [];
@@ -176,9 +176,25 @@ export const SearchScreen = () => {
     };
 
     const handleSongPress = (song: Song, queue: Song[]) => {
+        const source = song.source ?? 'LOCAL';
+        if ((source === 'SPOTIFY' || source === 'SOUNDCLOUD') && song.externalUrl) {
+            Linking.openURL(song.externalUrl).catch(() => {
+                Alert.alert('Không thể mở liên kết', 'Vui lòng thử lại sau.');
+            });
+            return;
+        }
         playSong(song, queue);
         if (query.trim()) {
             addSearchHistory(query.trim()).then(() => getSearchHistory().then(setHistory));
+        }
+    };
+
+    const getSourceBadge = (song: Song) => {
+        switch (song.source) {
+            case 'SPOTIFY': return 'Spotify';
+            case 'SOUNDCLOUD': return 'SoundCloud';
+            case 'JAMENDO': return 'Jamendo';
+            default: return null;
         }
     };
 
@@ -200,6 +216,11 @@ export const SearchScreen = () => {
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.resultSub}   numberOfLines={1}>{item.primaryArtist.stageName}</Text>
             </View>
+            {getSourceBadge(item) && (
+                <View style={styles.sourceBadge}>
+                    <Text style={styles.sourceBadgeText}>{getSourceBadge(item)}</Text>
+                </View>
+            )}
             <AntDesign name="play-circle" size={26} color={themeColors.white} />
         </Pressable>
     );
@@ -555,6 +576,15 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
     resultTitle:    { color: colors.white, fontSize: 14, fontWeight: '600' },
     resultSub:      { color: colors.muted, fontSize: 12, marginTop: 2 },
     playIcon:       { color: colors.glass30, fontSize: 18 },
+    sourceBadge: {
+        backgroundColor: colors.accentFill20,
+        borderColor: colors.accentBorder25,
+        borderWidth: 1,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 999,
+    },
+    sourceBadgeText: { color: colors.accent, fontSize: 10, fontWeight: '700' },
 
     // ── Artist detail ─────────────────────────────────────────────────────────
     artistDetailHeader: {
