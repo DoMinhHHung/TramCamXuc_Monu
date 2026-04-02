@@ -26,30 +26,25 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    "/songs",
-                    "/songs/trending",
-                    "/songs/newest",
-                    "/songs/batch",
-                    "/songs/by-artist/**",
-                    "/songs/*/play",
-                    "/songs/*/listen",
-                    "/genres",
-                    "/genres/**",
-                    "/artists",
-                    "/artists/by-user/**",
-                    "/artists/register",
-                    "/artists/*/songs",
-                    "/albums",
-                    "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
-                ).permitAll()
-                .requestMatchers(HttpMethod.GET, "/songs/*").permitAll()
-                .requestMatchers(HttpMethod.GET, "/artists/*").permitAll()
-                .requestMatchers(HttpMethod.GET, "/albums/*").permitAll()
-                .requestMatchers(HttpMethod.GET, "/playlists/*").permitAll()
-                .anyRequest().authenticated()
-            )
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/songs", "/songs/trending", "/songs/newest",
+                                "/songs/batch", "/songs/by-artist/**",
+                                "/songs/*/play", "/songs/*/listen",
+                                "/genres", "/genres/**",
+                                "/artists", "/artists/by-user/**",
+                                "/artists/register", "/artists/*/songs",
+                                "/albums",
+                                "/external/spotify/search",      // Public search
+                                "/external/soundcloud/search",   // Public search
+                                "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/songs/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/artists/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/albums/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/playlists/*").permitAll()
+                        .anyRequest().authenticated()
+                )
                 .addFilterBefore(internalRequestFilter,
                         UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(gatewayAuthFilter,

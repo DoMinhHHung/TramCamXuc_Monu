@@ -29,6 +29,11 @@ export interface Song {
   createdAt: string;
   updatedAt: string;
   uploadUrl?: string;
+  sourceType?: 'LOCAL' | 'JAMENDO' | 'SOUNDCLOUD';
+  soundcloudId?: string;
+  soundcloudPermalink?: string;
+  soundcloudWaveformUrl?: string;
+  soundcloudUsername?: string;
 }
 
 export interface PlaylistSong {

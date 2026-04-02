@@ -12,13 +12,14 @@ public interface SongMapper {
     @Mapping(target = "deleted", expression = "java(song.isDeleted())")
     @Mapping(target = "uploadUrl", ignore = true)
     @Mapping(target = "streamUrl", ignore = true)
+    @Mapping(target = "sourceType", expression = "java(song.getSourceType() != null ? song.getSourceType().name() : \"LOCAL\")")
     SongResponse toResponse(Song song);
 
     default SongResponse.ArtistInfo toArtistInfo(Song song) {
         if (song == null) return null;
         return SongResponse.ArtistInfo.builder()
                 .artistId(song.getPrimaryArtistId())
-                .userId(null) 
+                .userId(null)
                 .stageName(song.getPrimaryArtistStageName())
                 .avatarUrl(song.getPrimaryArtistAvatarUrl())
                 .build();

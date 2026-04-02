@@ -121,3 +121,12 @@ internal:
   service-secret: ${INTERNAL_SERVICE_SECRET}
 gateway:
   internal-secret: ${GATEWAY_INTERNAL_SECRET:}
+
+# ── Spotify API ───────────────────────────────────────────────────────────────
+spotify:
+  client-id: ${SPOTIFY_CLIENT_ID}
+  client-secret: ${SPOTIFY_CLIENT_SECRET}
+
+# ── SoundCloud API ────────────────────────────────────────────────────────────
+soundcloud:
+  client-id: ${SOUNDCLOUD_CLIENT_ID}

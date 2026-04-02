@@ -31,7 +31,11 @@ const QUALITY_STREAM: Record<AudioQuality, string> = {
 
 const MINIO_PUBLIC = 'https://minio.oopsgolden.id.vn/public-songs';
 
-function buildHlsUrl(song: Song, quality: AudioQuality): string {
+function buildStreamUri(song: Song, quality: AudioQuality): string {
+    if (song.sourceType === 'SOUNDCLOUD' && song.streamUrl) {
+        return song.streamUrl;
+    }
+    // Local / Jamendo: HLS
     if (song.streamUrl) return song.streamUrl;
     return `${MINIO_PUBLIC}/hls/${song.id}/${QUALITY_STREAM[quality]}`;
 }
@@ -222,7 +226,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 const pos = snap.currentTime;
                 pendingSeekRef.current = pos > 0.35 ? pos : null;
                 shouldAutoPlayRef.current = true;
-                player.replace({ uri: buildHlsUrl(currentSongRef.current, best) });
+                player.replace({ uri: buildStreamUri(currentSongRef.current, best) });
             }
         }
     }, [networkTier, player]);
@@ -367,7 +371,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 if (currentS) {
                     resetListenTracking();
                     shouldAutoPlayRef.current = true;
-                    player.replace({ uri: buildHlsUrl(currentS, selectedQualityRef.current) });
+                    player.replace({ uri: buildStreamUri(currentS, selectedQualityRef.current) });
                     recordPlay(currentS.id).catch(() => {});
                 }
                 return;
@@ -403,10 +407,10 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             shouldAutoPlayRef.current = true;
             try {
                 const localUri = await isSongDownloaded(nextSong.id);
-                const uri = localUri ?? buildHlsUrl(nextSong, selectedQualityRef.current);
+                const uri = localUri ?? buildStreamUri(nextSong, selectedQualityRef.current);
                 player.replace({ uri });
             } catch {
-                player.replace({ uri: buildHlsUrl(nextSong, selectedQualityRef.current) });
+                player.replace({ uri: buildStreamUri(nextSong, selectedQualityRef.current) });
             }
             setCurrentSong(nextSong);
             recordPlay(nextSong.id).catch(() => {});
@@ -434,10 +438,10 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             let uri: string;
             try {
                 const localUri = await isSongDownloaded(song.id);
-                uri = localUri ?? buildHlsUrl(song, quality);
+                uri = localUri ?? buildStreamUri(song, quality);
                 if (localUri) console.log('[Player] Offline playback:', song.title);
             } catch {
-                uri = buildHlsUrl(song, quality);
+                uri = buildStreamUri(song, quality);
             }
 
             resetListenTracking();
@@ -526,7 +530,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             const pos = status.currentTime ?? 0;
             pendingSeekRef.current = pos > 0.35 ? pos : null;
             shouldAutoPlayRef.current = wasPlaying;
-            player.replace({ uri: buildHlsUrl(currentSong, q) });
+            player.replace({ uri: buildStreamUri(currentSong, q) });
         }
     }, [maxQuality, currentSong, player, status.playing, status.currentTime, isPlayingAd]);
 

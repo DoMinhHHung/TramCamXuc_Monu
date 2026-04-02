@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator, Animated, Dimensions, FlatList, Image,
     Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
-    Pressable, ScrollView, StyleSheet, Text, View, TextInput, Alert,
+    Pressable, ScrollView, StyleSheet, Text, View, TextInput, Alert, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -547,6 +547,21 @@ export const FullPlayerModal = () => {
                             </View>
 
                             <View style={{ height: insets.bottom + 16 }} />
+
+                            {currentSong.sourceType === 'SOUNDCLOUD' && currentSong.soundcloudPermalink && (
+                                <Pressable
+                                    style={styles.scAttribution}
+                                    onPress={() => Linking.openURL(currentSong.soundcloudPermalink!)}
+                                >
+                                    <Text style={styles.scAttributionText}>
+                                        🔶 Nghe trên SoundCloud bởi{' '}
+                                        <Text style={{ fontWeight: '700' }}>
+                                            {currentSong.soundcloudUsername ?? 'SoundCloud'}
+                                        </Text>
+                                    </Text>
+                                    <MaterialIcons name="open-in-new" size={14} color="#FF5500" style={{ marginLeft: 4 }} />
+                                </Pressable>
+                            )}
                         </View>
 
                         {/* ── Page 2: Lyrics ─────────────────────────── */}
@@ -755,4 +770,11 @@ const styles = StyleSheet.create({
     playlistInput:      { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
     stats:              { alignItems: 'center' },
     statsText:          { color: COLORS.glass30, fontSize: 13 },
+    scAttribution: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        marginTop: 8, paddingVertical: 8, paddingHorizontal: 16,
+        backgroundColor: '#FF550015', borderRadius: 10,
+        borderWidth: 1, borderColor: '#FF550040',
+    },
+    scAttributionText: { color: '#FF5500', fontSize: 12, fontWeight: '500' },
 });

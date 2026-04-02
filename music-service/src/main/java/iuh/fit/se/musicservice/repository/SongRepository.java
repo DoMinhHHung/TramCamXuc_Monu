@@ -184,4 +184,16 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
         AND s.deletedAt IS NULL
         """)
     Optional<Song> findByIdWithGenres(@Param("id") UUID id);
+
+    boolean existsBySoundcloudId(String soundcloudId);
+
+    @Query("SELECT s.soundcloudId FROM Song s WHERE s.soundcloudId IN :ids")
+    List<String> findExistingSoundcloudIds(@Param("ids") List<String> ids);
+
+    @Query("""
+    SELECT s FROM Song s
+    WHERE s.soundcloudId = :soundcloudId
+    AND s.deletedAt IS NULL
+    """)
+    Optional<Song> findBySoundcloudId(@Param("soundcloudId") String soundcloudId);
 }
