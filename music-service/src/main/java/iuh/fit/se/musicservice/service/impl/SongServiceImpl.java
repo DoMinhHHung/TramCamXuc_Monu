@@ -20,12 +20,14 @@ import iuh.fit.se.musicservice.repository.GenreRepository;
 import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.SongService;
+import iuh.fit.se.musicservice.service.ExternalMusicSearchService;
 import iuh.fit.se.musicservice.util.RestPage;
 import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.Authentication;
@@ -55,6 +57,7 @@ public class SongServiceImpl implements SongService {
     private final ObjectMapper objectMapper;
     private final PaymentInternalClient paymentInternalClient;
     private final SubscriptionCacheWarmupService subscriptionCacheWarmupService;
+    private final ExternalMusicSearchService externalMusicSearchService;
 
     // ── Cache constants (recommendation-service internal) ──────────────────────
     private static final String   CACHE_BATCH_PREFIX  = "rec:songs:batch:";
@@ -387,9 +390,33 @@ public class SongServiceImpl implements SongService {
     @Override
     @Transactional(readOnly = true)
     public Page<SongResponse> searchSongs(String keyword, UUID genreId,
-                                          UUID artistId, Pageable pageable) {
-        return songRepository.searchPublic(toKeywordPattern(keyword), genreId, artistId, pageable)
+                                          UUID artistId, Pageable pageable, boolean includeExternal) {
+        Page<SongResponse> localPage = songRepository.searchPublic(toKeywordPattern(keyword), genreId, artistId, pageable)
                 .map(songMapper::toResponse);
+
+        boolean canFetchExternal = includeExternal
+                && pageable.getPageNumber() == 0
+                && keyword != null
+                && !keyword.isBlank();
+
+        if (!canFetchExternal) {
+            return localPage;
+        }
+
+        List<SongResponse> externalSongs = externalMusicSearchService.search(keyword, 10);
+        if (externalSongs.isEmpty()) {
+            return localPage;
+        }
+
+        List<SongResponse> merged = new ArrayList<>(localPage.getContent().size() + externalSongs.size());
+        merged.addAll(localPage.getContent());
+        merged.addAll(externalSongs);
+
+        return new PageImpl<>(
+                merged,
+                pageable,
+                localPage.getTotalElements() + externalSongs.size()
+        );
     }
 
 //    @Override

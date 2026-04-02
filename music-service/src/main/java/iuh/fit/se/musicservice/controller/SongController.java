@@ -36,11 +36,12 @@ public class SongController {
             @RequestParam(required = false) UUID genreId,
             @RequestParam(required = false) UUID artistId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "true") boolean includeExternal) {
 
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by("createdAt").descending());
         return ApiResponse.<Page<SongResponse>>builder()
-                .result(songService.searchSongs(keyword, genreId, artistId, pageable))
+                .result(songService.searchSongs(keyword, genreId, artistId, pageable, includeExternal))
                 .build();
     }
 

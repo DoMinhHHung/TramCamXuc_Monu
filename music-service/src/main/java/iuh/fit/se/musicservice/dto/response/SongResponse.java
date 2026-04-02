@@ -1,6 +1,7 @@
 package iuh.fit.se.musicservice.dto.response;
 
 import iuh.fit.se.musicservice.enums.SongStatus;
+import iuh.fit.se.musicservice.enums.TrackSource;
 import iuh.fit.se.musicservice.enums.TranscodeStatus;
 import lombok.*;
 
@@ -37,6 +38,15 @@ public class SongResponse {
 
     /** URL stream HLS (chỉ có khi getStreamUrl) */
     private String streamUrl;
+
+    /** Nguồn bài hát: local/jamendo/spotify/soundcloud */
+    private TrackSource source;
+
+    /** Deep link sang nền tảng gốc cho bài external. */
+    private String externalUrl;
+
+    /** ID track trên nền tảng third-party (nếu có). */
+    private String externalTrackId;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

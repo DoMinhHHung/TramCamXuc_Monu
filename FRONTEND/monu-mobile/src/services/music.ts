@@ -17,13 +17,16 @@ export interface Genre {
 export interface Song {
   id: string;
   title: string;
+  source?: 'LOCAL' | 'JAMENDO' | 'SPOTIFY' | 'SOUNDCLOUD';
+  externalUrl?: string;
+  externalTrackId?: string;
   primaryArtist: Artist;
   genres: Genre[];
   thumbnailUrl?: string;
   durationSeconds: number;
   playCount: number;
-  status: 'DRAFT' | 'PUBLIC' | 'ARCHIVED' | 'PRIVATE' | "DELETED";
-  transcodeStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  status?: 'DRAFT' | 'PUBLIC' | 'ARCHIVED' | 'PRIVATE' | "DELETED";
+  transcodeStatus?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   streamUrl?: string;
   lyricUrl?: string | null;
   createdAt: string;
@@ -96,6 +99,7 @@ export const searchSongs = async (params: {
   keyword?: string;
   genreId?: string;
   artistId?: string;
+  includeExternal?: boolean;
   page?: number;
   size?: number;
 }): Promise<PageResponse<Song>> => {

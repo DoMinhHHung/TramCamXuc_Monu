@@ -98,6 +98,15 @@ minio:
 jamendo:
   client-id: ${JAMENDO_CLIENT_ID}
 
+spotify:
+  client-id: ${SPOTIFY_CLIENT_ID:}
+  client-secret: ${SPOTIFY_CLIENT_SECRET:}
+  redirect-uri: ${SPOTIFY_REDIRECT_URI:}
+
+soundcloud:
+  client-id: ${SOUNDCLOUD_CLIENT_ID:}
+  client-secret: ${SOUNDCLOUD_CLIENT_SECRET:}
+
 open:
   api:
     title: Music Service API

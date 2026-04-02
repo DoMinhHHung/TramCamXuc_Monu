@@ -36,6 +36,10 @@ function buildHlsUrl(song: Song, quality: AudioQuality): string {
     return `${MINIO_PUBLIC}/hls/${song.id}/${QUALITY_STREAM[quality]}`;
 }
 
+function shouldTrackInternalMetrics(song: Song): boolean {
+    return !song.source || song.source === 'LOCAL' || song.source === 'JAMENDO';
+}
+
 function parseMaxQuality(features: Record<string, any>): AudioQuality {
     const bitrate = Number(features.maxBitrate ?? features.max_bitrate ?? 0);
     if (bitrate >= 320) return 320;
@@ -300,12 +304,14 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     const dur = status.duration    ?? 0;
                     const pos = status.currentTime ?? 0;
                     const completed = dur > 0 && pos >= dur * 0.9;
-                    recordListen(song.id, {
-                        durationSeconds: 30,
-                        completed,
-                        artistId:  song.primaryArtist?.artistId,
-                        genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
-                    }).then(() => addListenHistory(song)).catch(() => {});
+                    if (shouldTrackInternalMetrics(song)) {
+                        recordListen(song.id, {
+                            durationSeconds: 30,
+                            completed,
+                            artistId:  song.primaryArtist?.artistId,
+                            genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
+                        }).then(() => addListenHistory(song)).catch(() => {});
+                    }
                     if (completed) completionFiredRef.current = true;
                 }, remaining);
             }
@@ -345,12 +351,14 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         }
         completionFiredRef.current = true;
 
-        recordListen(song.id, {
-            durationSeconds: Math.round(totalMs / 1000),
-            completed: true,
-            artistId:  song.primaryArtist?.artistId,
-            genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
-        }).then(() => addListenHistory(song)).catch(() => {});
+        if (shouldTrackInternalMetrics(song)) {
+            recordListen(song.id, {
+                durationSeconds: Math.round(totalMs / 1000),
+                completed: true,
+                artistId:  song.primaryArtist?.artistId,
+                genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
+            }).then(() => addListenHistory(song)).catch(() => {});
+        }
 
         // Auto advance theo repeatMode
         void (async () => {
@@ -368,7 +376,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     resetListenTracking();
                     shouldAutoPlayRef.current = true;
                     player.replace({ uri: buildHlsUrl(currentS, selectedQualityRef.current) });
-                    recordPlay(currentS.id).catch(() => {});
+                    if (shouldTrackInternalMetrics(currentS)) {
+                        recordPlay(currentS.id).catch(() => {});
+                    }
                 }
                 return;
             }
@@ -409,7 +419,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 player.replace({ uri: buildHlsUrl(nextSong, selectedQualityRef.current) });
             }
             setCurrentSong(nextSong);
-            recordPlay(nextSong.id).catch(() => {});
+            if (shouldTrackInternalMetrics(nextSong)) {
+                recordPlay(nextSong.id).catch(() => {});
+            }
         })();
     }, [status.playing, checkForAd]);
 
@@ -451,7 +463,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 setQueueIndex(idx >= 0 ? idx : 0);
             }
 
-            recordPlay(song.id).catch(() => {});
+            if (shouldTrackInternalMetrics(song)) {
+                recordPlay(song.id).catch(() => {});
+            }
         },
         [player, isPlayingAd, resetListenTracking],
     );
