@@ -12,6 +12,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -145,6 +146,7 @@ public class ExternalMusicSearchServiceImpl implements ExternalMusicSearchServic
                 JsonNode userNode = item.path("user");
                 String artistName = userNode.path("username").asText("SoundCloud Artist");
                 String artistIdRaw = userNode.path("id").asText(trackId);
+                String streamUrl = resolveSoundCloudStreamUrl(item.path("media").path("transcodings"));
 
                 out.add(SongResponse.builder()
                         .id(deterministicUuid("soundcloud:" + trackId))
@@ -163,6 +165,7 @@ public class ExternalMusicSearchServiceImpl implements ExternalMusicSearchServic
                         .genres(null)
                         .source(TrackSource.SOUNDCLOUD)
                         .externalTrackId(trackId)
+                        .streamUrl(streamUrl)
                         .externalUrl(item.path("permalink_url").asText(null))
                         .createdAt(LocalDateTime.now())
                         .updatedAt(LocalDateTime.now())
@@ -195,5 +198,47 @@ public class ExternalMusicSearchServiceImpl implements ExternalMusicSearchServic
 
     private UUID deterministicUuid(String input) {
         return UUID.nameUUIDFromBytes(Objects.requireNonNullElse(input, "").getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String resolveSoundCloudStreamUrl(JsonNode transcodings) {
+        if (transcodings == null || !transcodings.isArray()) {
+            return null;
+        }
+
+        JsonNode chosen = null;
+        for (JsonNode transcoding : transcodings) {
+            if ("hls".equalsIgnoreCase(transcoding.path("format").path("protocol").asText())) {
+                chosen = transcoding;
+                break;
+            }
+            if (chosen == null) {
+                chosen = transcoding;
+            }
+        }
+
+        if (chosen == null) {
+            return null;
+        }
+
+        String transcodingUrl = chosen.path("url").asText(null);
+        if (transcodingUrl == null || transcodingUrl.isBlank()) {
+            return null;
+        }
+
+        try {
+            String resolverUrl = UriComponentsBuilder.fromHttpUrl(transcodingUrl)
+                    .queryParam("client_id", soundcloudClientId)
+                    .build()
+                    .toUriString();
+
+            JsonNode streamPayload = restTemplate.getForObject(resolverUrl, JsonNode.class);
+            return streamPayload == null ? null : streamPayload.path("url").asText(null);
+        } catch (HttpClientErrorException e) {
+            log.warn("Cannot resolve SoundCloud stream URL: {}", e.getStatusCode());
+            return null;
+        } catch (Exception e) {
+            log.warn("Cannot resolve SoundCloud stream URL: {}", e.getMessage());
+            return null;
+        }
     }
 }

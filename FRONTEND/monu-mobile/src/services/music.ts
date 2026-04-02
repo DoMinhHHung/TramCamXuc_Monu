@@ -25,8 +25,8 @@ export interface Song {
   thumbnailUrl?: string;
   durationSeconds: number;
   playCount: number;
-  status: 'DRAFT' | 'PUBLIC' | 'ARCHIVED' | 'PRIVATE' | "DELETED";
-  transcodeStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  status?: 'DRAFT' | 'PUBLIC' | 'ARCHIVED' | 'PRIVATE' | "DELETED";
+  transcodeStatus?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
   streamUrl?: string;
   lyricUrl?: string | null;
   createdAt: string;

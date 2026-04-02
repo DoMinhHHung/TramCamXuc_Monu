@@ -177,7 +177,14 @@ export const SearchScreen = () => {
 
     const handleSongPress = (song: Song, queue: Song[]) => {
         const source = song.source ?? 'LOCAL';
-        if ((source === 'SPOTIFY' || source === 'SOUNDCLOUD') && song.externalUrl) {
+        if (source === 'SPOTIFY' && song.externalUrl) {
+            Linking.openURL(song.externalUrl).catch(() => {
+                Alert.alert('Không thể mở liên kết', 'Vui lòng thử lại sau.');
+            });
+            return;
+        }
+
+        if (source === 'SOUNDCLOUD' && !song.streamUrl && song.externalUrl) {
             Linking.openURL(song.externalUrl).catch(() => {
                 Alert.alert('Không thể mở liên kết', 'Vui lòng thử lại sau.');
             });
