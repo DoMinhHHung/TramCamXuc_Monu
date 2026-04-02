@@ -19,6 +19,7 @@ export interface SpotifyTrack {
 
 export interface SoundCloudTrack {
     id: string;
+    urn?: string;
     title: string;
     artistUsername: string;
     artistId: string;
@@ -100,7 +101,7 @@ export const openInSpotify = async (track: SpotifyTrack) => {
  * streamUrl sẽ được resolve lại khi playSong() được gọi.
  */
 export const soundCloudTrackToSong = (track: SoundCloudTrack) => ({
-    id: `sc_${track.id}`,        // prefix để phân biệt với local song
+    id: `sc_${track.urn ?? track.id}`,        // prefix để phân biệt với local song
     title: track.title,
     primaryArtist: {
         artistId: `sc_artist_${track.artistId}`,
@@ -113,8 +114,8 @@ export const soundCloudTrackToSong = (track: SoundCloudTrack) => ({
     playCount: track.playbackCount,
     status: 'PUBLIC' as const,
     transcodeStatus: 'COMPLETED' as const,
-    streamUrl: track.streamUrl,   // Direct SC stream URL
-    soundcloudId: track.id,       // Lưu ID gốc
+    streamUrl: track.streamUrl,   // Backend proxy URL cho SoundCloud stream
+    soundcloudId: track.urn ?? track.id, // Ưu tiên URN, fallback numeric id nếu response cũ
     soundcloudPermalink: track.permalink,
     soundcloudUsername: track.artistUsername,
     createdAt: '',

@@ -17,8 +17,12 @@ import iuh.fit.se.musicservice.service.impl.SoundCloudService;
 import iuh.fit.se.musicservice.service.impl.SpotifyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.net.URI;
 
 import java.util.List;
 import java.util.Map;
@@ -74,12 +78,23 @@ public class ExternalMusicController {
      * GET /external/soundcloud/tracks/{soundcloudId}/stream
      */
     @GetMapping("/soundcloud/tracks/{soundcloudId}/stream")
-    @PreAuthorize("isAuthenticated()")
     public ApiResponse<String> getSoundCloudStreamUrl(@PathVariable String soundcloudId) {
         return ApiResponse.<String>builder()
                 .result(soundCloudService.getStreamUrl(soundcloudId))
                 .build();
     }
+
+        /**
+         * Proxy stream SoundCloud cho player.
+         * GET /external/soundcloud/tracks/{soundcloudId}/proxy
+         */
+        @GetMapping("/soundcloud/tracks/{soundcloudId}/proxy")
+        public ResponseEntity<Void> proxySoundCloudStream(@PathVariable String soundcloudId) {
+                String playableUrl = soundCloudService.resolvePlayableStreamUrl(soundcloudId);
+                return ResponseEntity.status(302)
+                                .location(URI.create(playableUrl))
+                                .build();
+        }
 
     /**
      * Lưu SoundCloud track vào DB (để có thể thêm vào playlist).

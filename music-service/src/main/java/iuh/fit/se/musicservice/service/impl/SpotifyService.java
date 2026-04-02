@@ -83,7 +83,7 @@ public class SpotifyService {
             String url = String.format(
                     "https://api.spotify.com/v1/search?q=%s&type=track&limit=%d&market=VN",
                     java.net.URLEncoder.encode(query, "UTF-8"),
-                    Math.min(limit, 50)
+                    Math.min(limit, 10)
             );
 
             ResponseEntity<Map> response = restTemplate.exchange(

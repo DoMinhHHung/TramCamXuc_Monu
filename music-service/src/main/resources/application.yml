@@ -130,3 +130,4 @@ spotify:
 # ── SoundCloud API ────────────────────────────────────────────────────────────
 soundcloud:
   client-id: ${SOUNDCLOUD_CLIENT_ID}
+  client-secret: ${SOUNDCLOUD_CLIENT_SECRET}

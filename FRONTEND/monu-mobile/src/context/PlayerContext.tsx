@@ -40,6 +40,10 @@ function buildStreamUri(song: Song, quality: AudioQuality): string {
     return `${MINIO_PUBLIC}/hls/${song.id}/${QUALITY_STREAM[quality]}`;
 }
 
+function shouldTrackBackendMetrics(song: Song | null): boolean {
+    return !!song && song.sourceType !== 'SOUNDCLOUD';
+}
+
 function parseMaxQuality(features: Record<string, any>): AudioQuality {
     const bitrate = Number(features.maxBitrate ?? features.max_bitrate ?? 0);
     if (bitrate >= 320) return 320;
@@ -300,6 +304,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     if (listenFiredRef.current) return;
                     const song = currentSongRef.current;
                     if (!song) return;
+                    if (!shouldTrackBackendMetrics(song)) return;
                     listenFiredRef.current = true;
                     const dur = status.duration    ?? 0;
                     const pos = status.currentTime ?? 0;
@@ -342,6 +347,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
         const song = currentSongRef.current;
         if (!song) return;
+        if (!shouldTrackBackendMetrics(song)) return;
 
         let totalMs = accumulatedMsRef.current;
         if (playSegmentStartRef.current !== null) {
@@ -372,7 +378,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     resetListenTracking();
                     shouldAutoPlayRef.current = true;
                     player.replace({ uri: buildStreamUri(currentS, selectedQualityRef.current) });
-                    recordPlay(currentS.id).catch(() => {});
+                    if (shouldTrackBackendMetrics(currentS)) {
+                        recordPlay(currentS.id).catch(() => {});
+                    }
                 }
                 return;
             }
@@ -413,7 +421,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 player.replace({ uri: buildStreamUri(nextSong, selectedQualityRef.current) });
             }
             setCurrentSong(nextSong);
-            recordPlay(nextSong.id).catch(() => {});
+            if (shouldTrackBackendMetrics(nextSong)) {
+                recordPlay(nextSong.id).catch(() => {});
+            }
         })();
     }, [status.playing, checkForAd]);
 
@@ -455,7 +465,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 setQueueIndex(idx >= 0 ? idx : 0);
             }
 
-            recordPlay(song.id).catch(() => {});
+            if (shouldTrackBackendMetrics(song)) {
+                recordPlay(song.id).catch(() => {});
+            }
         },
         [player, isPlayingAd, resetListenTracking],
     );

@@ -5,6 +5,7 @@ import lombok.Data;
 @Data
 public class SoundCloudTrackResult {
     private String id;
+    private String urn;
     private String title;
     private String artistUsername;
     private String artistId;

@@ -37,6 +37,8 @@ public class SecurityConfig {
                                 "/albums",
                                 "/external/spotify/search",      // Public search
                                 "/external/soundcloud/search",   // Public search
+                                "/external/soundcloud/tracks/*/stream", // Public stream URL lookup
+                                "/external/soundcloud/tracks/*/proxy", // Public proxy stream
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/songs/*").permitAll()
