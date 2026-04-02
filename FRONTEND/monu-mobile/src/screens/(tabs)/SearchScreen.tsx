@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator, Animated, FlatList, Pressable,
+    ActivityIndicator, Animated, FlatList, Pressable, ScrollView,
     StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -15,7 +16,8 @@ import { usePlayer } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import {
-    Artist, getSongsByArtist, searchArtists, searchByLyric, searchSongs, Song,
+    Artist, getSongsByArtist, getSoundCloudStreamUrl, isSoundCloudOwnedContent, isSpotifyOwnedContent, searchArtists,
+    searchByLyric, searchSongs, searchSoundCloudTracks, searchSpotifyTracks, Song, SoundCloudTrack, SpotifyTrack,
 } from '../../services/music';
 import {
     addSearchHistory, clearSearchHistory,
@@ -24,7 +26,7 @@ import {
 import { Octicons, MaterialIcons } from '@expo/vector-icons';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
-type Tab = 'songs' | 'artists';
+type Tab = 'songs' | 'artists' | 'spotify' | 'soundcloud';
 
 export const SearchScreen = () => {
     const insets     = useSafeAreaInsets();
@@ -39,6 +41,8 @@ export const SearchScreen = () => {
     const [loading,        setLoading]        = useState(false);
     const [songResults,    setSongResults]    = useState<Song[]>([]);
     const [artistResults,  setArtistResults]  = useState<Artist[]>([]);
+    const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
+    const [soundCloudResults, setSoundCloudResults] = useState<SoundCloudTrack[]>([]);
     const [artistDetail,   setArtistDetail]   = useState<{ artist: Artist; songs: Song[] } | null>(null);
     const [history,        setHistory]        = useState<string[]>([]);
 
@@ -84,6 +88,8 @@ export const SearchScreen = () => {
         if (!q.trim()) {
             setSongResults([]);
             setArtistResults([]);
+            setSpotifyResults([]);
+            setSoundCloudResults([]);
             setArtistDetail(null);
             return;
         }
@@ -106,9 +112,15 @@ export const SearchScreen = () => {
                     }
                 }
                 setSongResults(merged);
-            } else {
+            } else if (currentTab === 'artists') {
                 const res = await searchArtists({ keyword: q, size: 20 });
                 setArtistResults(res.content);
+            } else if (currentTab === 'spotify') {
+                const rows = await searchSpotifyTracks({ keyword: q, limit: 20, market: 'US' });
+                setSpotifyResults(rows);
+            } else {
+                const rows = await searchSoundCloudTracks({ keyword: q, limit: 20 });
+                setSoundCloudResults(rows);
             }
         } catch { /* silent */ }
         finally { setLoading(false); }
@@ -124,6 +136,8 @@ export const SearchScreen = () => {
         if (!q.trim()) {
             setSongResults([]);
             setArtistResults([]);
+            setSpotifyResults([]);
+            setSoundCloudResults([]);
             setArtistDetail(null);
         } else {
             scheduleSearch(q, tab);
@@ -141,6 +155,8 @@ export const SearchScreen = () => {
         setTab(t);
         setSongResults([]);
         setArtistResults([]);
+        setSpotifyResults([]);
+        setSoundCloudResults([]);
         setArtistDetail(null);
         if (query.trim()) scheduleSearch(query, t);
     };
@@ -182,9 +198,98 @@ export const SearchScreen = () => {
         }
     };
 
+    const mapSoundCloudTrackToSong = useCallback((
+        track: SoundCloudTrack,
+        resolvedStreamUrl?: string,
+        fallbackStreamUrl?: string,
+    ): Song => {
+        const safeDuration = Math.max(0, Math.floor((track.durationMs ?? 0) / 1000));
+        return {
+            id: track.urn,
+            title: track.title,
+            primaryArtist: {
+                artistId: track.urn,
+                stageName: track.uploaderName || 'SoundCloud Artist',
+            },
+            genres: track.genre ? [{ id: `soundcloud:${track.genre}`, name: track.genre }] : [],
+            thumbnailUrl: track.artworkUrl ?? undefined,
+            durationSeconds: safeDuration,
+            playCount: track.playbackCount ?? 0,
+            status: 'PUBLIC',
+            transcodeStatus: 'COMPLETED',
+            streamUrl: resolvedStreamUrl ?? track.streamUrl ?? track.previewUrl ?? undefined,
+            uploadUrl: fallbackStreamUrl,
+            createdAt: '',
+            updatedAt: '',
+        };
+    }, []);
+
+    const handleSoundCloudPress = useCallback(async (track: SoundCloudTrack) => {
+        console.log('[SoundCloud][Search] tap track', {
+            urn: track.urn,
+            title: track.title,
+            hasDirectStream: !!track.streamUrl,
+            hasPreview: !!track.previewUrl,
+            hasPermalink: !!track.permalinkUrl,
+        });
+
+        let resolvedStreamUrl = track.streamUrl ?? undefined;
+        let fallbackStreamUrl = track.previewUrl ?? undefined;
+
+        if (!resolvedStreamUrl) {
+            try {
+                const stream = await getSoundCloudStreamUrl(track.urn);
+                resolvedStreamUrl = stream.streamUrl ?? stream.streamUrlFallback ?? track.previewUrl ?? undefined;
+                fallbackStreamUrl = stream.streamUrlFallback ?? track.previewUrl ?? undefined;
+                console.log('[SoundCloud][Search] stream resolved', {
+                    urn: track.urn,
+                    primary: resolvedStreamUrl,
+                    fallback: fallbackStreamUrl,
+                });
+            } catch {
+                console.log('[SoundCloud][Search] stream resolve failed', { urn: track.urn });
+                resolvedStreamUrl = undefined;
+            }
+        }
+
+        const queue = soundCloudResults
+            .map((row) => mapSoundCloudTrackToSong(
+                row,
+                row.urn === track.urn ? resolvedStreamUrl : undefined,
+                row.urn === track.urn ? fallbackStreamUrl : row.previewUrl ?? undefined,
+            ))
+            .filter((row) => !!row.streamUrl);
+
+        const selected = queue.find((row) => row.id === track.urn);
+        console.log('[SoundCloud][Search] queue prepared', {
+            urn: track.urn,
+            queueSize: queue.length,
+            selectedHasStream: !!selected?.streamUrl,
+            selectedFallback: selected?.uploadUrl,
+        });
+
+        if (selected?.streamUrl) {
+            playSong(selected, queue);
+            if (query.trim()) {
+                addSearchHistory(query.trim()).then(() => getSearchHistory().then(setHistory));
+            }
+            return;
+        }
+
+        if (track.permalinkUrl) {
+            Linking.openURL(track.permalinkUrl);
+        }
+    }, [mapSoundCloudTrackToSong, playSong, query, soundCloudResults]);
+
     // ── Helpers ───────────────────────────────────────────────────────────────
     const showHistory  = !query.trim();
-    const currentResultCount = tab === 'songs' ? songResults.length : artistResults.length;
+    const currentResultCount = tab === 'songs'
+        ? songResults.length
+        : tab === 'artists'
+            ? artistResults.length
+            : tab === 'spotify'
+                ? spotifyResults.length
+                : soundCloudResults.length;
     const showEmpty    = !loading && !!query.trim() && !artistDetail
         && currentResultCount === 0;
 
@@ -214,6 +319,46 @@ export const SearchScreen = () => {
                 <Text style={styles.resultSub}>{t('screens.search.artistType')}</Text>
             </View>
             <Text style={styles.playIcon}>›</Text>
+        </Pressable>
+    );
+
+    const renderSpotifyItem = ({ item, index }: { item: SpotifyTrack; index: number }) => (
+        <Pressable
+            style={styles.resultRow}
+            onPress={() => item.externalUrl ? Linking.openURL(item.externalUrl) : null}
+        >
+            <View style={styles.resultIndex}>
+                <Text style={styles.resultIndexText}>{index + 1}</Text>
+            </View>
+            <View style={styles.resultInfo}>
+                <Text style={styles.resultTitle} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.resultSub} numberOfLines={1}>
+                    {`${item.artistName} • ${item.albumName}`}
+                </Text>
+                {isSpotifyOwnedContent(item) && (
+                    <Text style={styles.spotifyAttribution}>Provided by Spotify</Text>
+                )}
+            </View>
+            <Text style={styles.playIcon}>{item.externalUrl ? '↗' : '•'}</Text>
+        </Pressable>
+    );
+
+    const renderSoundCloudItem = ({ item, index }: { item: SoundCloudTrack; index: number }) => (
+        <Pressable
+            style={styles.resultRow}
+            onPress={() => { void handleSoundCloudPress(item); }}
+        >
+            <View style={styles.resultIndex}>
+                <Text style={styles.resultIndexText}>{index + 1}</Text>
+            </View>
+            <View style={styles.resultInfo}>
+                <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.resultSub} numberOfLines={1}>{item.uploaderName}</Text>
+                {(isSoundCloudOwnedContent(item) || item.attributionText) && (
+                    <Text style={styles.spotifyAttribution}>{item.attributionText ?? 'Provided by SoundCloud'}</Text>
+                )}
+            </View>
+            <Text style={styles.playIcon}>{item.streamUrl || item.previewUrl ? '▶' : item.permalinkUrl ? '↗' : '•'}</Text>
         </Pressable>
     );
 
@@ -253,6 +398,8 @@ export const SearchScreen = () => {
                             setQuery('');
                             setSongResults([]);
                             setArtistResults([]);
+                            setSpotifyResults([]);
+                            setSoundCloudResults([]);
                             setArtistDetail(null);
                             voice.cancel();
                         }}
@@ -304,27 +451,35 @@ export const SearchScreen = () => {
                 </View>
             )}
 
-            {/* ── Tabs (chỉ hiện khi có query) ── */}
-            {!showHistory && (
-                <View style={styles.tabs}>
-                    {(['songs', 'artists'] as Tab[]).map(tabKey => (
-                        <Pressable
-                            key={tabKey}
-                            style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
-                            onPress={() => handleTabChange(tabKey)}
-                        >
-                            <AnimatedDecorIcon active={tab === tabKey} intensity="soft">
-                                <Text style={styles.tabIcon}>
-                                    {tabKey === 'songs' ? '🎵' : '🎤'}
-                                </Text>
-                            </AnimatedDecorIcon>
-                            <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
-                                {tabKey === 'songs' ? t('screens.search.tabSongs') : t('screens.search.tabArtists')}
+            {/* ── Tabs ── */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabs}
+            >
+                {(['songs', 'artists', 'soundcloud', 'spotify'] as Tab[]).map(tabKey => (
+                    <Pressable
+                        key={tabKey}
+                        style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
+                        onPress={() => handleTabChange(tabKey)}
+                    >
+                        <AnimatedDecorIcon active={tab === tabKey} intensity="soft">
+                            <Text style={styles.tabIcon}>
+                                {tabKey === 'songs' ? '🎵' : tabKey === 'artists' ? '🎤' : tabKey === 'spotify' ? '🟢' : '🟠'}
                             </Text>
-                        </Pressable>
-                    ))}
-                </View>
-            )}
+                        </AnimatedDecorIcon>
+                        <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
+                            {tabKey === 'songs'
+                                ? t('screens.search.tabSongs')
+                                : tabKey === 'artists'
+                                    ? t('screens.search.tabArtists')
+                                    : tabKey === 'soundcloud'
+                                        ? t('screens.search.tabSoundCloud')
+                                        : t('screens.search.tabSpotify')}
+                        </Text>
+                    </Pressable>
+                ))}
+            </ScrollView>
 
             {/* ── Loading ── */}
             {loading && (
@@ -439,6 +594,22 @@ export const SearchScreen = () => {
                             contentContainerStyle={{ paddingBottom: 100 }}
                         />
                     )}
+                    {tab === 'spotify' && spotifyResults.length > 0 && (
+                        <FlatList
+                            data={spotifyResults}
+                            keyExtractor={(s, idx) => `${s.id}-${idx}`}
+                            renderItem={renderSpotifyItem}
+                            contentContainerStyle={{ paddingBottom: 100 }}
+                        />
+                    )}
+                    {tab === 'soundcloud' && soundCloudResults.length > 0 && (
+                        <FlatList
+                            data={soundCloudResults}
+                            keyExtractor={(s, idx) => `${s.urn}-${idx}`}
+                            renderItem={renderSoundCloudItem}
+                            contentContainerStyle={{ paddingBottom: 100 }}
+                        />
+                    )}
                 </>
             )}
         </View>
@@ -495,11 +666,11 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
     },
 
     // ── Tabs ─────────────────────────────────────────────────────────────────
-    tabs:          { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-    tabBtn:        { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: colors.border },
+    tabs:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, gap: 8 },
+    tabBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
     tabBtnActive:  { backgroundColor: colors.accentDim, borderColor: colors.accentDim },
-    tabIcon:       { fontSize: 13 },
-    tabText:       { color: colors.muted, fontWeight: '600', fontSize: 13 },
+    tabIcon:       { fontSize: 12 },
+    tabText:       { color: colors.muted, fontWeight: '600', fontSize: 12 },
     tabTextActive: { color: colors.white },
 
     // ── Common ────────────────────────────────────────────────────────────────
@@ -555,6 +726,7 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
     resultTitle:    { color: colors.white, fontSize: 14, fontWeight: '600' },
     resultSub:      { color: colors.muted, fontSize: 12, marginTop: 2 },
     playIcon:       { color: colors.glass30, fontSize: 18 },
+    spotifyAttribution: { color: colors.accent, fontSize: 11, marginTop: 3 },
 
     // ── Artist detail ─────────────────────────────────────────────────────────
     artistDetailHeader: {

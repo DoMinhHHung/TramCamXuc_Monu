@@ -27,6 +27,8 @@ public class UserRegistrationRequest {
     @NotBlank(message = "FULLNAME_NOT_BLANK")
     private String fullName;
 
+    private String displayName;
+
     @NotNull(message = "DOB_REQUIRED")
     @Past(message = "DOB_MUST_BE_IN_PAST")
     @Age(min = 13, message = "AGE_TOO_YOUNG")

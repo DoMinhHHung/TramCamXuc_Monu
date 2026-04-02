@@ -208,7 +208,7 @@ spring:
         - id: music-service-api
           uri: lb://MUSIC-SERVICE
           predicates:
-            - Path=/songs/**, /albums/**, /genres/**, /artists/**, /playlists/**, /admin/songs/**, /admin/albums/**, /admin/jamendo/**, /admin/reports/**
+            - Path=/songs/**, /albums/**, /genres/**, /artists/**, /playlists/**, /spotify/**, /admin/songs/**, /admin/albums/**, /admin/jamendo/**, /admin/reports/**
           filters:
             - name: RequestRateLimiter
               args:
@@ -230,6 +230,19 @@ spring:
                 redis-rate-limiter.burstCapacity: 60
                 redis-rate-limiter.requestedTokens: 1
 
+        - id: soundcloud-stream-sensitive
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/soundcloud/stream
+            - Method=GET
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 15
+                redis-rate-limiter.requestedTokens: 1
+
         - id: music-lyric-upload
           uri: lb://MUSIC-SERVICE
           predicates:
@@ -241,6 +254,17 @@ spring:
                 key-resolver: "#{@ipAndUserKeyResolver}"
                 redis-rate-limiter.replenishRate: 5
                 redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+        - id: soundcloud-service-api
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/soundcloud/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
                 redis-rate-limiter.requestedTokens: 1
 
         - id: music-lyric-search
@@ -558,6 +582,12 @@ spring:
 
 eureka:
   client:
+    registry-fetch-interval-seconds: 5
+    eureka-server-connect-timeout-seconds: 3
+    eureka-server-read-timeout-seconds: 5
+    eureka-connection-idle-timeout-seconds: 30
+    initial-instance-info-replication-interval-seconds: 5
+    instance-info-replication-interval-seconds: 10
     service-url:
       defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
 

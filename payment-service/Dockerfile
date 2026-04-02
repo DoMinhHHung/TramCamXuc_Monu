@@ -18,7 +18,6 @@ COPY integration-service/pom.xml integration-service/pom.xml
 COPY music-service/pom.xml music-service/pom.xml
 COPY payment-service/pom.xml payment-service/pom.xml
 COPY transcode-service/pom.xml transcode-service/pom.xml
-COPY social-service/pom.xml social-service/pom.xml
 COPY ads-service/pom.xml ads-service/pom.xml
 COPY recommendation-service/pom.xml recommendation-service/pom.xml
 

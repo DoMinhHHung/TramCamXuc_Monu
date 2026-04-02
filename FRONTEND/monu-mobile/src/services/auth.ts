@@ -11,6 +11,7 @@ export interface UserRegistrationRequest {
   email: string;
   password: string;
   fullName: string;
+  displayName?: string;
   dob: string;
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
 }
@@ -28,6 +29,7 @@ export interface PasswordResetRequest {
 
 export interface ProfileUpdateRequest {
   fullName?: string;
+  displayName?: string;
   dob?: string;
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
 }

@@ -1289,7 +1289,7 @@ export const DiscoverScreen = () => {
 
   const { authSession } = useAuth();
   const currentUserId   = authSession?.profile?.id ?? null;
-  const myDisplayName   = authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
+  const myDisplayName   = authSession?.profile?.displayName ?? authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
   const myAvatarUrl     = authSession?.profile?.avatarUrl;
   const [canManageAlbums, setCanManageAlbums] = useState(false);
 
@@ -1484,26 +1484,27 @@ export const DiscoverScreen = () => {
     try {
       if (mode === 'initial')  setLoading(true);
       if (mode === 'refresh')  setRefreshing(true);
-      const data =
-          feedTab === 'following' && currentUserId
-              ? await getTimeline({ page: 0, size: 30 })
-              : await getPublicFeed({ page: 0, size: 30 });
+      const isFollowingFeed = feedTab === 'following' && !!currentUserId;
+
+      const [data, followed] = await Promise.all([
+        isFollowingFeed
+          ? getTimeline({ page: 0, size: 30 })
+          : getPublicFeed({ page: 0, size: 30 }),
+        isFollowingFeed
+          ? getMyFollowedArtists({ page: 0, size: 200 }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+
       const newPosts = data.content ?? [];
+      let filteredPosts = newPosts;
 
       // Nếu user chưa follow ai, không show "famous" trong tab Đang theo dõi (đúng kỳ vọng UX)
-      const filteredPosts = await (async () => {
-        if (feedTab !== 'following' || !currentUserId) return newPosts;
-        try {
-          const followed = await getMyFollowedArtists({ page: 0, size: 200 });
-          const ids = new Set((followed.content ?? []).map((f) => f.artistId));
-          if (ids.size === 0) {
-            return newPosts.filter((p) => p.ownerId === currentUserId);
-          }
-          return newPosts.filter((p) => p.ownerId === currentUserId || ids.has(p.ownerId));
-        } catch {
-          return newPosts;
-        }
-      })();
+      if (isFollowingFeed && followed) {
+        const ids = new Set((followed.content ?? []).map((f) => f.artistId));
+        filteredPosts = ids.size === 0
+          ? newPosts.filter((p) => p.ownerId === currentUserId)
+          : newPosts.filter((p) => p.ownerId === currentUserId || ids.has(p.ownerId));
+      }
       const nextSignature = filteredPosts
           .map(p =>
               [
@@ -1532,6 +1533,10 @@ export const DiscoverScreen = () => {
       if (mode === 'refresh')  setRefreshing(false);
     }
   }, [fetchOwnerInfos, currentUserId, feedTab]);
+
+  const handleTabChange = useCallback((nextTab: FeedTab) => {
+    setFeedTab((prev) => (prev === nextTab ? prev : nextTab));
+  }, []);
 
   useEffect(() => {
     loadFeed('initial');
@@ -1737,7 +1742,7 @@ export const DiscoverScreen = () => {
             <View style={styles.tabBar}>
               <Pressable
                   style={[styles.tab, feedTab === 'for_you' && styles.tabActive]}
-                  onPress={() => { setFeedTab('for_you'); void loadFeed('initial'); }}
+                  onPress={() => handleTabChange('for_you')}
               >
                 <Text style={[styles.tabText, feedTab === 'for_you' && styles.tabTextActive]}>
                   Dành cho bạn
@@ -1745,7 +1750,7 @@ export const DiscoverScreen = () => {
               </Pressable>
               <Pressable
                   style={[styles.tab, feedTab === 'following' && styles.tabActive]}
-                  onPress={() => { setFeedTab('following'); void loadFeed('initial'); }}
+                  onPress={() => handleTabChange('following')}
                   disabled={!currentUserId}
               >
                 <Text style={[styles.tabText, feedTab === 'following' && styles.tabTextActive, !currentUserId && { opacity: 0.6 }]}>

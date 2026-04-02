@@ -29,6 +29,7 @@ export interface ExchangeTokenPayload {
 export interface UserProfile {
   id: string;
   fullName: string;
+  displayName?: string;
   email: string;
   avatarUrl?: string;
   dob?: string;

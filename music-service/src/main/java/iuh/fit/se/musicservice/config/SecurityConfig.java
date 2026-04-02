@@ -41,6 +41,7 @@ public class SecurityConfig {
                     "/artists/by-user/**",
                     "/artists/register",
                     "/artists/*/songs",
+                    "/soundcloud/tracks/search",
                     "/albums",
                     "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
                 ).permitAll()

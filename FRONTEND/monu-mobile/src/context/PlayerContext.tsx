@@ -30,6 +30,16 @@ const QUALITY_STREAM: Record<AudioQuality, string> = {
 };
 
 const MINIO_PUBLIC = 'https://minio.oopsgolden.id.vn/public-songs';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isInternalSongId(songId?: string): boolean {
+    return !!songId && UUID_REGEX.test(songId);
+}
+
+function logExternalAudio(event: string, payload?: Record<string, unknown>) {
+    const timestamp = new Date().toISOString();
+    console.log(`[ExternalAudio][${timestamp}] ${event}`, payload ?? {});
+}
 
 function buildHlsUrl(song: Song, quality: AudioQuality): string {
     if (song.streamUrl) return song.streamUrl;
@@ -158,8 +168,10 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     // ── Player ─────────────────────────────────────────────────────────────────
     const shouldAutoPlayRef = useRef(false);
     const pendingSeekRef    = useRef<number | null>(null);
+    const externalFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const player            = useAudioPlayer(null);
     const status            = useAudioPlayerStatus(player);
+    const lastExternalStatusLogRef = useRef<string>('');
 
     /** Tránh stale `status` trong effect chỉ phụ thuộc networkTier */
     const statusRef = useRef({ playing: false as boolean, currentTime: 0 });
@@ -232,6 +244,74 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     }, []);
 
+    // Nếu stream ngoài hệ thống load quá lâu, tự chuyển sang URL dự phòng (nếu có).
+    useEffect(() => {
+        if (externalFallbackTimerRef.current) {
+            clearTimeout(externalFallbackTimerRef.current);
+            externalFallbackTimerRef.current = null;
+        }
+
+        if (!currentSong || isInternalSongId(currentSong.id) || status.isLoaded) return;
+
+        const primary = currentSong.streamUrl;
+        const fallback = currentSong.uploadUrl;
+        if (!primary || !fallback || primary === fallback) return;
+
+        logExternalAudio('fallback-timer-scheduled', {
+            songId: currentSong.id,
+            title: currentSong.title,
+            primary,
+            fallback,
+        });
+
+        externalFallbackTimerRef.current = setTimeout(() => {
+            if (!currentSongRef.current || currentSongRef.current.id !== currentSong.id) return;
+            if (statusRef.current.playing) return;
+
+            logExternalAudio('fallback-replace', {
+                songId: currentSong.id,
+                fallback,
+            });
+            shouldAutoPlayRef.current = true;
+            player.replace({ uri: fallback });
+            setTimeout(() => {
+                logExternalAudio('fallback-play-nudge', { songId: currentSong.id });
+                try { player.play(); } catch { /* ignore */ }
+            }, 180);
+        }, 4500);
+
+        return () => {
+            if (externalFallbackTimerRef.current) {
+                clearTimeout(externalFallbackTimerRef.current);
+                externalFallbackTimerRef.current = null;
+            }
+        };
+    }, [currentSong, status.isLoaded, player]);
+
+    useEffect(() => {
+        if (!currentSong || isInternalSongId(currentSong.id)) return;
+
+        const snapshot = JSON.stringify({
+            id: currentSong.id,
+            loaded: !!status.isLoaded,
+            playing: !!status.playing,
+            time: Math.round((status.currentTime ?? 0) * 10) / 10,
+            duration: Math.round((status.duration ?? 0) * 10) / 10,
+        });
+
+        if (snapshot === lastExternalStatusLogRef.current) return;
+        lastExternalStatusLogRef.current = snapshot;
+
+        logExternalAudio('status', {
+            id: currentSong.id,
+            title: currentSong.title,
+            isLoaded: status.isLoaded ?? false,
+            isPlaying: status.playing ?? false,
+            currentTime: status.currentTime ?? 0,
+            duration: status.duration ?? 0,
+        });
+    }, [currentSong, status.isLoaded, status.playing, status.currentTime, status.duration]);
+
     // ── Autoplay + seek sau khi HLS load: 2 frame defer để native gắn segment rồi mới play ─
     useEffect(() => {
         if (!status.isLoaded) return;
@@ -296,6 +376,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     if (listenFiredRef.current) return;
                     const song = currentSongRef.current;
                     if (!song) return;
+                    if (!isInternalSongId(song.id)) return;
                     listenFiredRef.current = true;
                     const dur = status.duration    ?? 0;
                     const pos = status.currentTime ?? 0;
@@ -338,6 +419,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
         const song = currentSongRef.current;
         if (!song) return;
+        if (!isInternalSongId(song.id)) return;
 
         let totalMs = accumulatedMsRef.current;
         if (playSegmentStartRef.current !== null) {
@@ -368,7 +450,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     resetListenTracking();
                     shouldAutoPlayRef.current = true;
                     player.replace({ uri: buildHlsUrl(currentS, selectedQualityRef.current) });
-                    recordPlay(currentS.id).catch(() => {});
+                    if (isInternalSongId(currentS.id)) {
+                        recordPlay(currentS.id).catch(() => {});
+                    }
                 }
                 return;
             }
@@ -409,7 +493,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 player.replace({ uri: buildHlsUrl(nextSong, selectedQualityRef.current) });
             }
             setCurrentSong(nextSong);
-            recordPlay(nextSong.id).catch(() => {});
+            if (isInternalSongId(nextSong.id)) {
+                recordPlay(nextSong.id).catch(() => {});
+            }
         })();
     }, [status.playing, checkForAd]);
 
@@ -440,10 +526,34 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 uri = buildHlsUrl(song, quality);
             }
 
+            if (!isInternalSongId(song.id)) {
+                logExternalAudio('playSong-start', {
+                    songId: song.id,
+                    title: song.title,
+                    uri,
+                    fallback: song.uploadUrl,
+                    queueSize: newQueue?.length ?? queueRef.current.length,
+                });
+            }
+
             resetListenTracking();
             shouldAutoPlayRef.current = true;
             player.replace({ uri });
             setCurrentSong(song);
+
+            if (!isInternalSongId(song.id)) {
+                setTimeout(() => {
+                    logExternalAudio('play-nudge-1', { songId: song.id });
+                    try { player.play(); } catch { /* ignore */ }
+                }, 180);
+
+                setTimeout(() => {
+                    if (!statusRef.current.playing) {
+                        logExternalAudio('play-nudge-2', { songId: song.id, stillPlaying: statusRef.current.playing });
+                        try { player.play(); } catch { /* ignore */ }
+                    }
+                }, 1200);
+            }
 
             if (newQueue) {
                 setQueue(newQueue);
@@ -451,7 +561,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 setQueueIndex(idx >= 0 ? idx : 0);
             }
 
-            recordPlay(song.id).catch(() => {});
+            if (isInternalSongId(song.id)) {
+                recordPlay(song.id).catch(() => {});
+            }
         },
         [player, isPlayingAd, resetListenTracking],
     );

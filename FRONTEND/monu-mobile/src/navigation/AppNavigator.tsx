@@ -43,7 +43,6 @@ import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
 import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
 import { GenreDetailScreen }      from '../screens/GenreDetailScreen';
 import { MyPostsScreen }          from '../screens/MyPostsScreen';
-import { SpotifyLinkScreen } from "../screens/SpotifyLinkScreen";
 
 // ─── Artist screens ───────────────────────────────────────────────────────────
 import { ArtistProfileScreen }    from '../screens/(artist)/ArtistProfileScreen';
@@ -217,7 +216,6 @@ export const AppNavigator = () => {
                                 <Stack.Screen name="ArtistDiscovery"  component={ArtistDiscoveryScreen}  />
                                 <Stack.Screen name="AlbumAddSong"     component={AlbumAddSongScreen}     />
                                 <Stack.Screen name="EditSong"         component={EditSongScreen}         />
-                                <Stack.Screen name="SpotifyLink"      component={SpotifyLinkScreen} />
                             </>
                         )
                     ) : (
