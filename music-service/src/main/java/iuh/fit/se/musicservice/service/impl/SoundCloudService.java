@@ -15,7 +15,6 @@ import iuh.fit.se.musicservice.repository.GenreRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.repository.SoundCloudTrackResult;
 import iuh.fit.se.musicservice.util.SlugUtils;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -116,30 +115,35 @@ public class SoundCloudService {
 
     // ── Search ────────────────────────────────────────────────────────────────
 
-    public List<SoundCloudTrackResult> searchTracks(String query, int limit) {
-        try {
-            int safeLimit = Math.max(1, Math.min(limit, 50));
-            List<SoundCloudTrackResult> primary = searchTracksOnce(query, safeLimit);
+    // ⑤ FIX searchTracks — không pre-normalize tiếng Việt
+public List<SoundCloudTrackResult> searchTracks(String query, int limit) {
+    try {
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+        
+        // Primary: search với query gốc (giữ nguyên tiếng Việt có dấu)
+        List<SoundCloudTrackResult> primary = searchTracksOnce(query, safeLimit);
 
-            String normalizedQuery = normalizeSearchQuery(query);
-            if (normalizedQuery.equals(query == null ? "" : query.trim())) {
-                return primary;
-            }
-
+        String normalizedQuery = normalizeSearchQuery(query);
+        boolean isSameQuery = normalizedQuery.equals(query == null ? "" : query.trim());
+        
+        if (!isSameQuery && primary.size() < 5) {
             List<SoundCloudTrackResult> fallback = searchTracksOnce(normalizedQuery, safeLimit);
             return mergeUniqueTracks(primary, fallback, safeLimit);
-        } catch (Exception e) {
-            log.error("[SoundCloud] Search failed for query '{}': {}", query, e.getMessage());
-            return Collections.emptyList();
         }
+        
+        return primary;
+    } catch (Exception e) {
+        log.error("[SoundCloud] Search failed for query '{}': {}", query, e.getMessage());
+        return Collections.emptyList();
     }
+}
 
     private List<SoundCloudTrackResult> searchTracksOnce(String query, int limit) {
         String url = String.format(
-                "%s/tracks?q=%s&limit=%d&linked_partitioning=1",
-                SC_API,
-                URLEncoder.encode(query, StandardCharsets.UTF_8),
-                limit
+            "%s/tracks?q=%s&limit=%d&linked_partitioning=1&access=playable",
+            SC_API,
+            URLEncoder.encode(query, StandardCharsets.UTF_8),
+            limit
         );
 
         ResponseEntity<Map> response = restTemplate.exchange(
@@ -155,7 +159,6 @@ public class SoundCloudService {
     private List<SoundCloudTrackResult> parseSearchResults(Map<String, Object> body) {
         if (body == null) return Collections.emptyList();
 
-        // SoundCloud API trả về collection hoặc trực tiếp list
         Object collection = body.get("collection");
         List<Map<String, Object>> items;
         if (collection instanceof List) {
@@ -167,16 +170,17 @@ public class SoundCloudService {
         List<SoundCloudTrackResult> results = new ArrayList<>();
         for (Map<String, Object> item : items) {
             try {
-                // Chỉ lấy track có thể stream (streamable = true)
-                if (!Boolean.TRUE.equals(item.get("streamable"))) continue;
-
+                String trackAccess = (String) item.get("access");
+                if (trackAccess != null && trackAccess.equals("blocked")) continue;
+                
                 SoundCloudTrackResult track = new SoundCloudTrackResult();
+                
                 String urn = (String) item.get("urn");
-                String trackId = urn != null && !urn.isBlank()
-                    ? urn
-                    : String.valueOf(item.get("id"));
-                track.setId(trackId);
-                track.setUrn(urn != null && !urn.isBlank() ? urn : trackId);
+                Object idObj = item.get("id");
+                String numericId = String.valueOf(idObj);
+
+                track.setId(numericId);
+                track.setUrn(urn != null && !urn.isBlank() ? urn : "soundcloud:tracks:" + numericId);
                 track.setTitle(decodeSoundCloudText((String) item.get("title")));
                 track.setPermalink((String) item.get("permalink_url")); // Attribution link
 
@@ -196,7 +200,7 @@ public class SoundCloudService {
                 track.setWaveformUrl((String) item.get("waveform_url"));
 
                 // Stream URL trả về proxy của backend để frontend không cần gắn Authorization header.
-                track.setStreamUrl(buildProxyStreamUrl(trackId));
+                track.setStreamUrl(buildProxyStreamUrl(numericId));
 
                 // User / Artist
                 Map<String, Object> user = (Map<String, Object>) item.get("user");
@@ -227,8 +231,8 @@ public class SoundCloudService {
     // ── Save to DB (để thêm vào playlist) ───────────────────────────────────
 
     public Song saveOrGetSoundCloudTrack(String soundcloudId, SoundCloudTrackResult trackData) {
-        // Kiểm tra đã tồn tại chưa
-        return songRepository.findBySoundcloudId(soundcloudId)
+        String numericId = extractNumericId(soundcloudId);
+        return songRepository.findBySoundcloudId(numericId)
                 .orElseGet(() -> {
                     Artist artist = upsertArtist(trackData);
                     Genre genre = resolveGenre(trackData.getGenre());
@@ -249,7 +253,7 @@ public class SoundCloudService {
                             .transcodeStatus(TranscodeStatus.COMPLETED)
                             .playCount(trackData.getPlaybackCount())
                             .sourceType(SourceType.SOUNDCLOUD)
-                            .soundcloudId(soundcloudId)
+                            .soundcloudId(numericId)
                             .soundcloudPermalink(trackData.getPermalink())
                             .soundcloudWaveformUrl(trackData.getWaveformUrl())
                             .soundcloudUsername(trackData.getArtistUsername())
@@ -267,29 +271,64 @@ public class SoundCloudService {
      * SoundCloud Terms: chỉ dùng để stream, không download.
      */
     public String getStreamUrl(String soundcloudId) {
-        return buildProxyStreamUrl(soundcloudId);
+        try {
+            return resolvePlayableStreamUrl(soundcloudId);
+        } catch (Exception e) {
+            log.error("[SoundCloud] Failed to resolve stream URL for id={}: {}", soundcloudId, e.getMessage());
+            throw new RuntimeException("SoundCloud stream not available", e);
+        }
     }
 
     public String resolvePlayableStreamUrl(String soundcloudId) {
-        String upstreamUrl = buildUpstreamStreamUrl(soundcloudId);
-        ResponseEntity<Map> response = restTemplate.exchange(
-                upstreamUrl,
-                HttpMethod.GET,
-                new HttpEntity<>(buildSoundCloudAuthHeaders()),
-                Map.class
-        );
+        String numericId = extractNumericId(soundcloudId); 
+        String upstreamUrl = SC_API + "/tracks/" + numericId + "/streams";
+        
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    upstreamUrl,
+                    HttpMethod.GET,
+                    new HttpEntity<>(buildSoundCloudAuthHeaders()),
+                    Map.class
+            );
 
-        Map<String, Object> data = response.getBody();
-        if (data == null) {
-            throw new IllegalStateException("SoundCloud streams response is empty for id=" + soundcloudId);
+            Map<String, Object> data = response.getBody();
+            if (data == null) {
+                throw new IllegalStateException("SoundCloud streams response is empty for id=" + numericId);
+            }
+
+            String streamUrl = firstNonBlank(
+                    (String) data.get("http_mp3_128_url"),
+                    (String) data.get("hls_mp3_128_url"),
+                    (String) data.get("hls_aac_160_url"),
+                    (String) data.get("preview_mp3_128_url")
+            );
+
+            if (streamUrl == null) {
+                throw new IllegalStateException("SoundCloud streams response did not contain a playable URL");
+            }
+            return streamUrl;
+        } catch (Exception e) {
+            log.error("[SoundCloud] Error resolving stream for {}: {}", numericId, e.getMessage());
+            throw e;
         }
+    }
 
-        return firstNonBlank(
-                (String) data.get("hls_aac_160_url"),
-                (String) data.get("hls_mp3_128_url"),
-                (String) data.get("http_mp3_128_url"),
-                (String) data.get("preview_mp3_128_url")
-        );
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String extractNumericId(String soundcloudId) {
+        if (soundcloudId == null) return null;
+        if (soundcloudId.contains(":")) {
+            String[] parts = soundcloudId.split(":");
+            return parts[parts.length - 1];
+        }
+        return soundcloudId;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -358,15 +397,6 @@ public class SoundCloudService {
         }
     }
 
-    private String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value;
-            }
-        }
-        throw new IllegalStateException("SoundCloud streams response did not contain a playable URL");
-    }
-
     private String normalizeSearchQuery(String query) {
         String trimmed = query == null ? "" : query.trim();
         String normalized = Normalizer.normalize(trimmed, Normalizer.Form.NFD)
@@ -397,7 +427,6 @@ public class SoundCloudService {
     private String trackIdentity(SoundCloudTrackResult track) {
         return track.getUrn() != null && !track.getUrn().isBlank()
                 ? track.getUrn()
-                : track.getId();
+                : String.valueOf(track.getId());
     }
-
 }

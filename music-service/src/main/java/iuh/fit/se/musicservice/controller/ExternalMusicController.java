@@ -17,6 +17,7 @@ import iuh.fit.se.musicservice.service.impl.SoundCloudService;
 import iuh.fit.se.musicservice.service.impl.SpotifyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -39,6 +40,19 @@ public class ExternalMusicController {
     private final SongRepository songRepository;
     private final SongMapper songMapper;
     private final PlaylistService playlistService;
+
+    @GetMapping(value = "/soundcloud/tracks/{soundcloudId:.+}/stream-url",
+            produces = MediaType.TEXT_PLAIN_VALUE)
+    public ResponseEntity<String> getSoundCloudPlayableUrl(@PathVariable String soundcloudId) {
+        try {
+                String playableUrl = soundCloudService.resolvePlayableStreamUrl(soundcloudId);
+                return ResponseEntity.ok(playableUrl);
+        } catch (Exception e) {
+                log.error("[SoundCloud] Cannot resolve stream URL for id={}: {}", soundcloudId, e.getMessage());
+                return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                        .body("Stream not available");
+        }
+        }
 
     // ── Spotify ───────────────────────────────────────────────────────────────
 
@@ -77,24 +91,29 @@ public class ExternalMusicController {
      * Lấy stream URL SoundCloud (để player dùng).
      * GET /external/soundcloud/tracks/{soundcloudId}/stream
      */
-    @GetMapping("/soundcloud/tracks/{soundcloudId}/stream")
+    @GetMapping("/soundcloud/tracks/{soundcloudId:.+}/stream")
     public ApiResponse<String> getSoundCloudStreamUrl(@PathVariable String soundcloudId) {
         return ApiResponse.<String>builder()
                 .result(soundCloudService.getStreamUrl(soundcloudId))
                 .build();
     }
 
-        /**
-         * Proxy stream SoundCloud cho player.
-         * GET /external/soundcloud/tracks/{soundcloudId}/proxy
-         */
-        @GetMapping("/soundcloud/tracks/{soundcloudId}/proxy")
-        public ResponseEntity<Void> proxySoundCloudStream(@PathVariable String soundcloudId) {
-                String playableUrl = soundCloudService.resolvePlayableStreamUrl(soundcloudId);
-                return ResponseEntity.status(302)
-                                .location(URI.create(playableUrl))
-                                .build();
+    /**
+     * Proxy stream SoundCloud cho player.
+     * GET /external/soundcloud/tracks/{soundcloudId}/proxy
+     */
+    @GetMapping("/soundcloud/tracks/{soundcloudId:.+}/proxy")
+    public ResponseEntity<Void> proxySoundCloudStream(@PathVariable String soundcloudId) {
+        try {
+            String playableUrl = soundCloudService.resolvePlayableStreamUrl(soundcloudId);
+            return ResponseEntity.status(302)
+                    .location(new URI(playableUrl))
+                    .build();
+        } catch (Exception e) {
+            log.error("[SoundCloud] Proxy failed for id={}: {}", soundcloudId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }
+    }
 
     /**
      * Lưu SoundCloud track vào DB (để có thể thêm vào playlist).

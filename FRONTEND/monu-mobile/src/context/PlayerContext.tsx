@@ -16,6 +16,7 @@ import { isSongDownloaded } from '../services/download';
 import { addListenHistory } from '../utils/listenHistory';
 import { useAuth } from './AuthContext';
 import { useNetworkQuality, suggestQuality, NetworkTier } from '../hooks/useNetworkQuality';
+import { getSoundCloudStreamUrl } from '../services/externalMusic';
 
 // ─── Quality ──────────────────────────────────────────────────────────────────
 
@@ -447,9 +448,13 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             const quality = selectedQualityRef.current;
             let uri: string;
             try {
-                const localUri = await isSongDownloaded(song.id);
-                uri = localUri ?? buildStreamUri(song, quality);
-                if (localUri) console.log('[Player] Offline playback:', song.title);
+                if (song.sourceType === 'SOUNDCLOUD' && song.soundcloudId) {
+                     uri = await getSoundCloudStreamUrl(song.soundcloudId);
+                } else {
+                    const localUri = await isSongDownloaded(song.id);
+                    uri = localUri ?? buildStreamUri(song, quality);
+                    if (localUri) console.log('[Player] Offline playback:', song.title);
+            }
             } catch {
                 uri = buildStreamUri(song, quality);
             }

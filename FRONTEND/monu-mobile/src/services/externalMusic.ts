@@ -52,9 +52,10 @@ export const searchSoundCloud = async (q: string, limit = 20): Promise<SoundClou
 
 export const getSoundCloudStreamUrl = async (soundcloudId: string): Promise<string> => {
     const response = await apiClient.get<string>(
-        `/external/soundcloud/tracks/${soundcloudId}/stream`
+        `/external/soundcloud/tracks/${soundcloudId}/stream-url`,
+        { responseType: 'text' } 
     );
-    return response.data as unknown as string;
+    return response.data as string;
 };
 
 export const saveSoundCloudTrack = async (track: SoundCloudTrack) => {
@@ -101,7 +102,7 @@ export const openInSpotify = async (track: SpotifyTrack) => {
  * streamUrl sẽ được resolve lại khi playSong() được gọi.
  */
 export const soundCloudTrackToSong = (track: SoundCloudTrack) => ({
-    id: `sc_${track.urn ?? track.id}`,        // prefix để phân biệt với local song
+    id: `sc_${track.id}`,          
     title: track.title,
     primaryArtist: {
         artistId: `sc_artist_${track.artistId}`,
@@ -114,8 +115,8 @@ export const soundCloudTrackToSong = (track: SoundCloudTrack) => ({
     playCount: track.playbackCount,
     status: 'PUBLIC' as const,
     transcodeStatus: 'COMPLETED' as const,
-    streamUrl: track.streamUrl,   // Backend proxy URL cho SoundCloud stream
-    soundcloudId: track.urn ?? track.id, // Ưu tiên URN, fallback numeric id nếu response cũ
+    streamUrl: track.streamUrl,         
+    soundcloudId: track.id,             
     soundcloudPermalink: track.permalink,
     soundcloudUsername: track.artistUsername,
     createdAt: '',
