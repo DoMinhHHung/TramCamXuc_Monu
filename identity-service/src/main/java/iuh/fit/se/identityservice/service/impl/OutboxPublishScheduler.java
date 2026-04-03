@@ -1,5 +1,7 @@
-package iuh.fit.se.identityservice.outbox;
+package iuh.fit.se.identityservice.service.impl;
 
+import iuh.fit.se.identityservice.entity.OutboxEvent;
+import iuh.fit.se.identityservice.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

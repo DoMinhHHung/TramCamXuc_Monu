@@ -27,6 +27,8 @@ import org.springframework.web.util.UriUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.text.Normalizer;
@@ -280,9 +282,9 @@ public List<SoundCloudTrackResult> searchTracks(String query, int limit) {
     }
 
     public String resolvePlayableStreamUrl(String soundcloudId) {
-        String numericId = extractNumericId(soundcloudId); 
+        String numericId = extractNumericId(soundcloudId);
         String upstreamUrl = SC_API + "/tracks/" + numericId + "/streams";
-        
+
         try {
             ResponseEntity<Map> response = restTemplate.exchange(
                     upstreamUrl,
@@ -296,20 +298,64 @@ public List<SoundCloudTrackResult> searchTracks(String query, int limit) {
                 throw new IllegalStateException("SoundCloud streams response is empty for id=" + numericId);
             }
 
-            String streamUrl = firstNonBlank(
-                    (String) data.get("http_mp3_128_url"),
-                    (String) data.get("hls_mp3_128_url"),
+            // Ưu tiên HLS AAC (định dạng hiện tại của SoundCloud 2025+),
+            // http_mp3_128_url và hls_mp3_128_url đã bị deprecated.
+            String intermediateUrl = firstNonBlank(
                     (String) data.get("hls_aac_160_url"),
+                    (String) data.get("hls_mp3_128_url"),
+                    (String) data.get("http_mp3_128_url"),
                     (String) data.get("preview_mp3_128_url")
             );
 
-            if (streamUrl == null) {
+            if (intermediateUrl == null) {
                 throw new IllegalStateException("SoundCloud streams response did not contain a playable URL");
             }
-            return streamUrl;
+
+            // Các URL từ /streams là intermediate API endpoint của SoundCloud,
+            // cần follow redirect (với Auth header) để lấy signed CDN URL thực sự.
+            // CDN URL (cf-hls-media.sndcdn.com) có thể play trực tiếp mà không cần Auth.
+            String cdnUrl = followRedirectToCdnUrl(intermediateUrl, getScToken());
+            log.debug("[SoundCloud] Resolved CDN URL for id={}: {}", numericId, cdnUrl);
+            return cdnUrl;
+
         } catch (Exception e) {
             log.error("[SoundCloud] Error resolving stream for {}: {}", numericId, e.getMessage());
             throw e;
+        }
+    }
+
+    /**
+     * Follow HTTP 302 redirect của SoundCloud intermediate URL để lấy signed CDN URL.
+     * SoundCloud trả về URL dạng api.soundcloud.com/.../streams/{uuid}/hls — URL này
+     * redirect về CDN thực sự (cf-hls-media.sndcdn.com/...) có thể play mà không cần Auth.
+     */
+    private String followRedirectToCdnUrl(String intermediateUrl, String oauthToken) {
+        try {
+            HttpURLConnection con = (HttpURLConnection) new URL(intermediateUrl).openConnection();
+            con.setInstanceFollowRedirects(false); // tự xử lý redirect để lấy Location header
+            con.setRequestMethod("GET");
+            con.setRequestProperty("Authorization", "OAuth " + oauthToken);
+            con.setConnectTimeout(5000);
+            con.setReadTimeout(5000);
+            con.connect();
+
+            int status = con.getResponseCode();
+            if (status == HttpURLConnection.HTTP_MOVED_TEMP
+                    || status == HttpURLConnection.HTTP_MOVED_PERM
+                    || status == 307 || status == 308) {
+                String location = con.getHeaderField("Location");
+                if (location != null && !location.isBlank()) {
+                    log.debug("[SoundCloud] Redirect {} → {}", intermediateUrl, location);
+                    return location;
+                }
+            }
+            // Không có redirect (có thể URL đã là CDN), trả về nguyên
+            log.warn("[SoundCloud] No redirect from intermediate URL (status={}), using as-is", status);
+            return intermediateUrl;
+        } catch (Exception e) {
+            log.warn("[SoundCloud] Could not follow redirect for {}: {}", intermediateUrl, e.getMessage());
+            // Fallback: trả URL gốc, để proxy endpoint xử lý
+            return intermediateUrl;
         }
     }
 

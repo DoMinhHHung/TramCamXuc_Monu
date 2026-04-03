@@ -73,6 +73,16 @@ export const ACTION_ICONS = {
   info: 'info' as const,
   /** Check mark or success */
   check: 'check' as const,
+  /** Flag / report */
+  flag: 'flag' as const,
+  /** QR code */
+  qr: 'qr-code' as const,
+  /** Open external link */
+  externalLink: 'open-in-new' as const,
+  /** Add to playlist */
+  addToPlaylist: 'playlist-add' as const,
+  /** Saved search / smart search */
+  savedSearch: 'saved-search' as const,
 } as const;
 
 /**

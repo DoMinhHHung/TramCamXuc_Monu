@@ -18,9 +18,9 @@ import iuh.fit.se.identityservice.enums.AuthProvider;
 import iuh.fit.se.identityservice.enums.Role;
 import iuh.fit.se.identityservice.event.NotificationEvent;
 import iuh.fit.se.identityservice.exception.AppException;
-import iuh.fit.se.identityservice.outbox.OutboxEvent;
-import iuh.fit.se.identityservice.outbox.OutboxEventRepository;
-import iuh.fit.se.identityservice.outbox.OutboxEventTypes;
+import iuh.fit.se.identityservice.entity.OutboxEvent;
+import iuh.fit.se.identityservice.repository.OutboxEventRepository;
+import iuh.fit.se.identityservice.enums.OutboxEventTypes;
 import iuh.fit.se.identityservice.exception.ErrorCode;
 import iuh.fit.se.identityservice.repository.UserRepository;
 import iuh.fit.se.identityservice.repository.httpclient.IdentityClient;
@@ -199,18 +199,34 @@ public class AuthServiceImpl implements AuthService {
     @Transactional(readOnly = true)
     public AuthenticationResponse refreshToken(RefreshRequest request) {
         String redisKey = refreshTokenRedisKey(request.getRefreshToken());
-        Object userIdRaw = redisTemplate.opsForValue().get(redisKey);
 
-        if (userIdRaw == null) {
+        Object dataObj = redisTemplate.opsForValue().get(redisKey);
+
+        if (dataObj == null) {
             validateRefreshTokenExpiry(request.getRefreshToken());
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        UUID userId = UUID.fromString(String.valueOf(userIdRaw));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        @SuppressWarnings("unchecked")
+        Map<String, String> data = (Map<String, String>) dataObj;
+
+        UUID userId = UUID.fromString(data.get("userId"));
+
+        User user;
+
+        if (data.containsKey("role") && data.containsKey("email")) {
+            user = User.builder()
+                    .id(userId)
+                    .email(data.get("email"))
+                    .role(Role.valueOf(data.get("role")))
+                    .build();
+        } else {
+            user = userRepository.findById(userId)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        }
 
         redisTemplate.delete(redisKey);
+
         return buildTokenResponse(user);
     }
 
@@ -297,9 +313,14 @@ public class AuthServiceImpl implements AuthService {
     }
 
     void saveRefreshToken(User user, String token) {
+        Map<String, String> data = new HashMap<>();
+        data.put("userId", user.getId().toString());
+        data.put("email", user.getEmail());
+        data.put("role", user.getRole().name());
+
         redisTemplate.opsForValue().set(
                 refreshTokenRedisKey(token),
-                user.getId().toString(),
+                data,
                 refreshableDuration,
                 TimeUnit.MILLISECONDS
         );

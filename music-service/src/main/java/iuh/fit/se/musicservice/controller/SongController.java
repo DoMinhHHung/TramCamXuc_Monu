@@ -7,6 +7,7 @@ import iuh.fit.se.musicservice.dto.response.SongResponse;
 import iuh.fit.se.musicservice.service.SongService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -49,6 +50,7 @@ public class SongController {
      * GET /songs/trending
      */
     @GetMapping("/trending")
+    @Cacheable(value = "trendingSongs", key = "#page + '-' + #size", unless = "#result.content.isEmpty()")
     public ApiResponse<Page<SongResponse>> getTrending(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -58,10 +60,6 @@ public class SongController {
                 .build();
     }
 
-    /**
-     * Batch fetch nhiều bài hát theo danh sách IDs — dùng cho recommendation-service.
-     * GET /songs/batch?ids=id1,id2,...
-     */
     @GetMapping("/batch")
     public ApiResponse<List<SongResponse>> getSongsByIds(
             @RequestParam List<UUID> ids) {
@@ -70,11 +68,8 @@ public class SongController {
                 .build();
     }
 
-    /**
-     * Danh sách bài hát mới nhất.
-     * GET /songs/newest
-     */
     @GetMapping("/newest")
+    @Cacheable(value = "newestSongs", key = "#page + '-' + #size")
     public ApiResponse<Page<SongResponse>> getNewest(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {

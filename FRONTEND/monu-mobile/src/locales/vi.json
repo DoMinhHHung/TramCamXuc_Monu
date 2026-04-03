@@ -327,7 +327,7 @@
         "passwordPolicy": "Mật khẩu cần ≥ 8 ký tự, có chữ hoa, thường, số và ký tự đặc biệt."
       },
       "passwordStrength": {
-        "strong": "Mạnh 💪",
+        "strong": "Mạnh",
         "medium": "Trung bình",
         "weak": "Yếu"
       }
@@ -563,7 +563,7 @@
       "cannotDeletePost": "Không thể xoá bài viết",
       "liveBadge": "LIVE",
       "communityLabel": "Cộng đồng âm nhạc",
-      "posts": "bài đăng",
+      "posts": "Bài đăng",
       "composerPlaceholder": "Bạn đang nghĩ gì về âm nhạc?",
       "noPosts": "Chưa có bài đăng nào",
       "beFirstToShare": "Hãy là người đầu tiên chia sẻ!",
@@ -655,7 +655,11 @@
     "followers": "Người Theo Dõi",
     "topSongs": "Bài Hát Hàng Đầu",
     "moreFromGenre": "Thêm từ thể loại này",
-    "noDataAvailable": "Chưa có dữ liệu"
+    "noDataAvailable": "Chưa có dữ liệu",
+    "soundcloudSection": "🔶 Nghe cùng SoundCloud",
+    "spotifySection": "🟢 Nghe cùng Spotify",
+    "openInSpotify": "Mở Spotify",
+    "loadingExternal": "Đang tải nhạc ngoài..."
   },
   "playlistDetails": {
     "songs": "bài hát",

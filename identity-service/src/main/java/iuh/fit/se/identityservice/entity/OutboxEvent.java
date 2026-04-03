@@ -1,4 +1,4 @@
-package iuh.fit.se.identityservice.outbox;
+package iuh.fit.se.identityservice.entity;
 
 import jakarta.persistence.*;
 import lombok.*;

@@ -24,7 +24,7 @@ export type AudioQuality = 64 | 128 | 256 | 320;
 export type RepeatMode = 'none' | 'one' | 'all';
 
 const QUALITY_STREAM: Record<AudioQuality, string> = {
-    64:  'stream_64k.m3u8',
+    64: 'stream_64k.m3u8',
     128: 'stream_128k.m3u8',
     256: 'stream_256k.m3u8',
     320: 'stream_320k.m3u8',
@@ -50,7 +50,7 @@ function parseMaxQuality(features: Record<string, any>): AudioQuality {
     if (bitrate >= 320) return 320;
     if (bitrate >= 256) return 256;
     if (bitrate >= 128) return 128;
-    if (bitrate > 0)    return 64;
+    if (bitrate > 0) return 64;
 
     const q = String(features.quality ?? '').toLowerCase();
     if (q.includes('320') || q.includes('lossless')) return 320;
@@ -72,35 +72,35 @@ function shuffleArray<T>(arr: T[]): T[] {
 // ─── Context types ────────────────────────────────────────────────────────────
 
 interface PlayerContextValue {
-    currentSong:     Song | null;
-    queue:           Song[];
-    isFullScreen:    boolean;
-    setFullScreen:   (v: boolean) => void;
-    isPlaying:       boolean;
-    isLoaded:        boolean;
-    currentTime:     number;
-    duration:        number;
-    playSong:        (song: Song, queue?: Song[]) => void;
-    togglePlay:      () => void;
-    seekTo:          (seconds: number) => void;
-    playNext:        () => void;
-    playPrev:        () => void;
-    stopPlayer:      () => void;
+    currentSong: Song | null;
+    queue: Song[];
+    isFullScreen: boolean;
+    setFullScreen: (v: boolean) => void;
+    isPlaying: boolean;
+    isLoaded: boolean;
+    currentTime: number;
+    duration: number;
+    playSong: (song: Song, queue?: Song[]) => void;
+    togglePlay: () => void;
+    seekTo: (seconds: number) => void;
+    playNext: () => void;
+    playPrev: () => void;
+    stopPlayer: () => void;
     selectedQuality: AudioQuality;
-    maxQuality:      AudioQuality;
-    setQuality:      (q: AudioQuality) => void;
-    autoQuality:     boolean;
-    setAutoQuality:  (v: boolean) => void;
-    networkTier:     NetworkTier;
+    maxQuality: AudioQuality;
+    setQuality: (q: AudioQuality) => void;
+    autoQuality: boolean;
+    setAutoQuality: (v: boolean) => void;
+    networkTier: NetworkTier;
     // ── Repeat / Shuffle ──────────────────────────────────────────────────────
-    repeatMode:      RepeatMode;
-    isShuffled:      boolean;
+    repeatMode: RepeatMode;
+    isShuffled: boolean;
     cycleRepeatMode: () => void;
-    toggleShuffle:   () => void;
+    toggleShuffle: () => void;
     // ── Ads ──────────────────────────────────────────────────────────────────
-    pendingAd:   AdDelivery | null;
+    pendingAd: AdDelivery | null;
     isPlayingAd: boolean;
-    dismissAd:   () => void;
+    dismissAd: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextValue | null>(null);
@@ -109,19 +109,19 @@ const PlayerContext = createContext<PlayerContextValue | null>(null);
 
 export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const { authSession } = useAuth();
-    const [currentSong,  setCurrentSong]  = useState<Song | null>(null);
-    const [queue,        setQueue]        = useState<Song[]>([]);
-    const [queueIndex,   setQueueIndex]   = useState(0);
-    const [isFullScreen, setFullScreen]   = useState(false);
+    const [currentSong, setCurrentSong] = useState<Song | null>(null);
+    const [queue, setQueue] = useState<Song[]>([]);
+    const [queueIndex, setQueueIndex] = useState(0);
+    const [isFullScreen, setFullScreen] = useState(false);
 
     // ── Repeat / Shuffle ───────────────────────────────────────────────────────
-    const [repeatMode,  setRepeatMode]  = useState<RepeatMode>('none');
-    const [isShuffled,  setIsShuffled]  = useState(false);
+    const [repeatMode, setRepeatMode] = useState<RepeatMode>('none');
+    const [isShuffled, setIsShuffled] = useState(false);
     // Ref để dùng trong closures (tránh stale)
-    const repeatModeRef  = useRef<RepeatMode>('none');
-    const isShuffledRef  = useRef(false);
-    const queueRef       = useRef<Song[]>([]);
-    const queueIndexRef  = useRef(0);
+    const repeatModeRef = useRef<RepeatMode>('none');
+    const isShuffledRef = useRef(false);
+    const queueRef = useRef<Song[]>([]);
+    const queueIndexRef = useRef(0);
 
     useEffect(() => { repeatModeRef.current = repeatMode; }, [repeatMode]);
     useEffect(() => { isShuffledRef.current = isShuffled; }, [isShuffled]);
@@ -145,8 +145,8 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     }, []);
 
     // ── Quality ────────────────────────────────────────────────────────────────
-    const [maxQuality,       setMaxQuality]      = useState<AudioQuality>(128);
-    const [selectedQuality,  setSelectedQuality] = useState<AudioQuality>(128);
+    const [maxQuality, setMaxQuality] = useState<AudioQuality>(128);
+    const [selectedQuality, setSelectedQuality] = useState<AudioQuality>(128);
     const selectedQualityRef = useRef<AudioQuality>(128);
     useEffect(() => { selectedQualityRef.current = selectedQuality; }, [selectedQuality]);
 
@@ -159,34 +159,34 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     useEffect(() => { maxQualityRef.current = maxQuality; }, [maxQuality]);
 
     // ── Ads ────────────────────────────────────────────────────────────────────
-    const [pendingAd,   setPendingAd]   = useState<AdDelivery | null>(null);
+    const [pendingAd, setPendingAd] = useState<AdDelivery | null>(null);
     const [isPlayingAd, setIsPlayingAd] = useState(false);
-    const noAdsRef      = useRef(false);
+    const noAdsRef = useRef(false);
     const checkingAdRef = useRef(false);
 
     // ── Player ─────────────────────────────────────────────────────────────────
     const shouldAutoPlayRef = useRef(false);
-    const pendingSeekRef    = useRef<number | null>(null);
-    const player            = useAudioPlayer(null);
-    const status            = useAudioPlayerStatus(player);
+    const pendingSeekRef = useRef<number | null>(null);
+    const player = useAudioPlayer(null);
+    const status = useAudioPlayerStatus(player);
 
     /** Tránh stale `status` trong effect chỉ phụ thuộc networkTier */
     const statusRef = useRef({ playing: false as boolean, currentTime: 0 });
     useEffect(() => {
         statusRef.current = {
-            playing:    status.playing ?? false,
+            playing: status.playing ?? false,
             currentTime: status.currentTime ?? 0,
         };
     }, [status.playing, status.currentTime]);
 
     // ── Listen tracking refs ───────────────────────────────────────────────────
-    const listenTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const playSegmentStartRef  = useRef<number | null>(null);
-    const accumulatedMsRef     = useRef(0);
-    const listenFiredRef       = useRef(false);
-    const completionFiredRef   = useRef(false);
-    const currentSongRef       = useRef<Song | null>(null);
-    const prevPlayingRef       = useRef(false);
+    const listenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const playSegmentStartRef = useRef<number | null>(null);
+    const accumulatedMsRef = useRef(0);
+    const listenFiredRef = useRef(false);
+    const completionFiredRef = useRef(false);
+    const currentSongRef = useRef<Song | null>(null);
+    const prevPlayingRef = useRef(false);
 
     useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
 
@@ -216,7 +216,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     selectedQualityRef.current = best;
                 }
             })
-            .catch(() => {});
+            .catch(() => { });
     }, [authSession]);
 
     // ── Auto quality on network change (tier đã debounce trong useNetworkQuality) ─
@@ -238,7 +238,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
     // ── Audio session ──────────────────────────────────────────────────────────
     useEffect(() => {
-        setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
+        setAudioModeAsync({ playsInSilentMode: true }).catch(() => { });
     }, []);
 
     // ── Autoplay + seek sau khi HLS load: 2 frame defer để native gắn segment rồi mới play ─
@@ -307,15 +307,15 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     if (!song) return;
                     if (!shouldTrackBackendMetrics(song)) return;
                     listenFiredRef.current = true;
-                    const dur = status.duration    ?? 0;
+                    const dur = status.duration ?? 0;
                     const pos = status.currentTime ?? 0;
                     const completed = dur > 0 && pos >= dur * 0.9;
                     recordListen(song.id, {
                         durationSeconds: 30,
                         completed,
-                        artistId:  song.primaryArtist?.artistId,
-                        genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
-                    }).then(() => addListenHistory(song)).catch(() => {});
+                        artistId: song.primaryArtist?.artistId,
+                        genreIds: song.genres?.map((g) => g.id).join(',') ?? '',
+                    }).then(() => addListenHistory(song)).catch(() => { });
                     if (completed) completionFiredRef.current = true;
                 }, remaining);
             }
@@ -337,9 +337,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         prevPlayingRef.current = status.playing;
 
         if (!wasPlaying || status.playing) return;
-        if (completionFiredRef.current)     return;
+        if (completionFiredRef.current) return;
 
-        const dur = status.duration    ?? 0;
+        const dur = status.duration ?? 0;
         const pos = status.currentTime ?? 0;
         if (dur <= 0) return;
 
@@ -359,9 +359,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         recordListen(song.id, {
             durationSeconds: Math.round(totalMs / 1000),
             completed: true,
-            artistId:  song.primaryArtist?.artistId,
-            genreIds:  song.genres?.map((g) => g.id).join(',') ?? '',
-        }).then(() => addListenHistory(song)).catch(() => {});
+            artistId: song.primaryArtist?.artistId,
+            genreIds: song.genres?.map((g) => g.id).join(',') ?? '',
+        }).then(() => addListenHistory(song)).catch(() => { });
 
         // Auto advance theo repeatMode
         void (async () => {
@@ -369,9 +369,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             if (adShown) return;
 
             const curQueue = queueRef.current;
-            const curIdx   = queueIndexRef.current;
-            const repeat   = repeatModeRef.current;
-            const shuffle  = isShuffledRef.current;
+            const curIdx = queueIndexRef.current;
+            const repeat = repeatModeRef.current;
+            const shuffle = isShuffledRef.current;
 
             if (repeat === 'one') {
                 const currentS = currentSongRef.current;
@@ -380,7 +380,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     shouldAutoPlayRef.current = true;
                     player.replace({ uri: buildStreamUri(currentS, selectedQualityRef.current) });
                     if (shouldTrackBackendMetrics(currentS)) {
-                        recordPlay(currentS.id).catch(() => {});
+                        recordPlay(currentS.id).catch(() => { });
                     }
                 }
                 return;
@@ -415,15 +415,20 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             resetListenTracking();
             shouldAutoPlayRef.current = true;
             try {
-                const localUri = await isSongDownloaded(nextSong.id);
-                const uri = localUri ?? buildStreamUri(nextSong, selectedQualityRef.current);
+                let uri: string;
+                if (nextSong.sourceType === 'SOUNDCLOUD' && nextSong.soundcloudId) {
+                    uri = await getSoundCloudStreamUrl(nextSong.soundcloudId);
+                } else {
+                    const localUri = await isSongDownloaded(nextSong.id);
+                    uri = localUri ?? buildStreamUri(nextSong, selectedQualityRef.current);
+                }
                 player.replace({ uri });
             } catch {
                 player.replace({ uri: buildStreamUri(nextSong, selectedQualityRef.current) });
             }
             setCurrentSong(nextSong);
             if (shouldTrackBackendMetrics(nextSong)) {
-                recordPlay(nextSong.id).catch(() => {});
+                recordPlay(nextSong.id).catch(() => { });
             }
         })();
     }, [status.playing, checkForAd]);
@@ -431,12 +436,12 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     // ── Reset tracking ─────────────────────────────────────────────────────────
     const resetListenTracking = useCallback(() => {
         if (listenTimerRef.current) clearTimeout(listenTimerRef.current);
-        listenTimerRef.current      = null;
+        listenTimerRef.current = null;
         playSegmentStartRef.current = null;
-        accumulatedMsRef.current    = 0;
-        listenFiredRef.current      = false;
-        completionFiredRef.current  = false;
-        prevPlayingRef.current      = false;
+        accumulatedMsRef.current = 0;
+        listenFiredRef.current = false;
+        completionFiredRef.current = false;
+        prevPlayingRef.current = false;
     }, []);
 
     // ── Actions ────────────────────────────────────────────────────────────────
@@ -449,12 +454,12 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             let uri: string;
             try {
                 if (song.sourceType === 'SOUNDCLOUD' && song.soundcloudId) {
-                     uri = await getSoundCloudStreamUrl(song.soundcloudId);
+                    uri = await getSoundCloudStreamUrl(song.soundcloudId);
                 } else {
                     const localUri = await isSongDownloaded(song.id);
                     uri = localUri ?? buildStreamUri(song, quality);
                     if (localUri) console.log('[Player] Offline playback:', song.title);
-            }
+                }
             } catch {
                 uri = buildStreamUri(song, quality);
             }
@@ -471,7 +476,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             }
 
             if (shouldTrackBackendMetrics(song)) {
-                recordPlay(song.id).catch(() => {});
+                recordPlay(song.id).catch(() => { });
             }
         },
         [player, isPlayingAd, resetListenTracking],
@@ -500,7 +505,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const playNext = useCallback(() => {
         if (!queueRef.current.length || isPlayingAd) return;
         const curQueue = queueRef.current;
-        const curIdx   = queueIndexRef.current;
+        const curIdx = queueIndexRef.current;
 
         if (repeatModeRef.current === 'one') {
             const s = currentSongRef.current;
@@ -527,7 +532,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const playPrev = useCallback(() => {
         if (!queueRef.current.length || isPlayingAd) return;
         const curQueue = queueRef.current;
-        const curIdx   = queueIndexRef.current;
+        const curIdx = queueIndexRef.current;
 
         if (status.currentTime > 3) { seekTo(0); return; }
         const prev = (curIdx - 1 + curQueue.length) % curQueue.length;
@@ -558,10 +563,10 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         queue,
         isFullScreen,
         setFullScreen,
-        isPlaying:   status.playing     ?? false,
-        isLoaded:    status.isLoaded    ?? false,
+        isPlaying: status.playing ?? false,
+        isLoaded: status.isLoaded ?? false,
         currentTime: status.currentTime ?? 0,
-        duration:    status.duration    ?? 0,
+        duration: status.duration ?? 0,
         playSong,
         togglePlay,
         seekTo,

@@ -1,95 +1,59 @@
-// FRONTEND/monu-mobile/src/screens/(tabs)/SearchScreen.tsx
-// Thay thế hoàn toàn file hiện tại
-
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator, Alert, Animated, FlatList, Linking,
-    Modal, Pressable, ScrollView, StyleSheet, Text,
-    TextInput, View, Image,
+    ActivityIndicator, Animated, FlatList, Pressable, ScrollView,
+    StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { AntDesign, MaterialIcons, Octicons } from '@expo/vector-icons';
+import { AntDesign } from '@expo/vector-icons';
 
 import { BackButton } from '../../components/BackButton';
 import { VoiceSearchButton } from '../../components/VoiceSearchButton';
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { usePlayer } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
-import { useAuth } from '../../context/AuthContext';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
-import { Artist, getSongsByArtist, searchArtists, searchByLyric, searchSongs, Song } from '../../services/music';
 import {
-    SpotifyTrack, SoundCloudTrack,
-    searchSpotify, searchSoundCloud,
-    openInSpotify, soundCloudTrackToSong,
-    saveAndAddSoundCloudToPlaylist,
-} from '../../services/externalMusic';
-import { addSearchHistory, clearSearchHistory, getSearchHistory, removeSearchHistoryItem } from '../../utils/searchHistory';
-import { getMyPlaylists, Playlist } from '../../services/music';
+    Artist, getSongsByArtist, getSoundCloudStreamUrl, isSoundCloudOwnedContent, isSpotifyOwnedContent, searchArtists,
+    searchByLyric, searchSongs, searchSoundCloudTracks, searchSpotifyTracks, Song, SoundCloudTrack, SpotifyTrack,
+} from '../../services/music';
+import {
+    addSearchHistory, clearSearchHistory,
+    getSearchHistory, removeSearchHistoryItem,
+} from '../../utils/searchHistory';
+import { Octicons, MaterialIcons } from '@expo/vector-icons';
+import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
-type Source = 'monu' | 'spotify' | 'soundcloud';
-type Tab = 'songs' | 'artists';
-
-const SOURCE_META: Record<Source, { label: string; icon: string; color: string }> = {
-    monu:       { label: 'Monu',       icon: '🎵', color: '#C9A84C' },
-    spotify:    { label: 'Spotify',    icon: '🟢', color: '#1DB954' },
-    soundcloud: { label: 'SoundCloud', icon: '🔶', color: '#FF5500' },
-};
-
-const formatDuration = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-};
+type Tab = 'songs' | 'artists' | 'spotify' | 'soundcloud';
 
 export const SearchScreen = () => {
-    const insets = useSafeAreaInsets();
+    const insets     = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const { playSong } = usePlayer();
     const { t } = useTranslation();
-    const { authSession } = useAuth();
     const themeColors = useThemeColors();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
-    const [query, setQuery] = useState('');
-    const [source, setSource] = useState<Source>('monu');
-    const [tab, setTab] = useState<Tab>('songs');
-    const [loading, setLoading] = useState(false);
-
-    // Monu results
-    const [songResults, setSongResults] = useState<Song[]>([]);
-    const [artistResults, setArtistResults] = useState<Artist[]>([]);
-    const [artistDetail, setArtistDetail] = useState<{ artist: Artist; songs: Song[] } | null>(null);
-
-    // External results
+    const [query,          setQuery]          = useState('');
+    const [tab,            setTab]            = useState<Tab>('songs');
+    const [loading,        setLoading]        = useState(false);
+    const [songResults,    setSongResults]    = useState<Song[]>([]);
+    const [artistResults,  setArtistResults]  = useState<Artist[]>([]);
     const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
-    const [soundcloudResults, setSoundcloudResults] = useState<SoundCloudTrack[]>([]);
-
-    // History
-    const [history, setHistory] = useState<string[]>([]);
-
-    // Playlist picker (SoundCloud)
-    const [scPlaylistPickerTrack, setScPlaylistPickerTrack] = useState<SoundCloudTrack | null>(null);
-    const [playlists, setPlaylists] = useState<Playlist[]>([]);
+    const [soundCloudResults, setSoundCloudResults] = useState<SoundCloudTrack[]>([]);
+    const [artistDetail,   setArtistDetail]   = useState<{ artist: Artist; songs: Song[] } | null>(null);
+    const [history,        setHistory]        = useState<string[]>([]);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const inputRef = useRef<TextInput>(null);
+    const inputRef    = useRef<TextInput>(null);
+
+    // ── Voice search ─────────────────────────────────────────────────────────
     const voice = useVoiceSearch();
     const voiceBannerAnim = useRef(new Animated.Value(0)).current;
 
-    useEffect(() => {
-        getSearchHistory().then(setHistory);
-        setTimeout(() => inputRef.current?.focus(), 120);
-        // Load playlists cho SoundCloud add-to-playlist
-        if (authSession) {
-            getMyPlaylists({ page: 1, size: 50 })
-                .then(r => setPlaylists(r.content ?? []))
-                .catch(() => {});
-        }
-    }, []);
-
+    // Hiện / ẩn banner trạng thái voice
     useEffect(() => {
         const shouldShow = voice.state === 'recording' || voice.state === 'processing';
         Animated.timing(voiceBannerAnim, {
@@ -98,85 +62,6 @@ export const SearchScreen = () => {
             useNativeDriver: true,
         }).start();
     }, [voice.state]);
-
-    // ── Search ────────────────────────────────────────────────────────────────
-
-    const clearResults = () => {
-        setSongResults([]);
-        setArtistResults([]);
-        setArtistDetail(null);
-        setSpotifyResults([]);
-        setSoundcloudResults([]);
-    };
-
-    const doSearch = useCallback(async (q: string, currentSource: Source, currentTab: Tab) => {
-        if (!q.trim()) { clearResults(); return; }
-        setLoading(true);
-        setArtistDetail(null);
-
-        try {
-            if (currentSource === 'monu') {
-                if (currentTab === 'songs') {
-                    const [titleRes, lyricRes] = await Promise.allSettled([
-                        searchSongs({ keyword: q, size: 30 }),
-                        searchByLyric({ keyword: q, size: 20 }),
-                    ]);
-                    const titleSongs = titleRes.status === 'fulfilled' ? titleRes.value.content : [];
-                    const lyricSongs = lyricRes.status === 'fulfilled' ? lyricRes.value : [];
-                    const seen = new Set(titleSongs.map(s => s.id));
-                    const merged = [...titleSongs];
-                    for (const s of lyricSongs) {
-                        if (!seen.has(s.id)) { seen.add(s.id); merged.push(s); }
-                    }
-                    setSongResults(merged);
-                } else {
-                    const res = await searchArtists({ keyword: q, size: 20 });
-                    setArtistResults(res.content);
-                }
-            } else if (currentSource === 'spotify') {
-                const results = await searchSpotify(q, 30);
-                setSpotifyResults(results);
-            } else if (currentSource === 'soundcloud') {
-                const results = await searchSoundCloud(q, 30);
-                setSoundcloudResults(results);
-            }
-        } catch { /* silent */ }
-        finally { setLoading(false); }
-    }, []);
-
-    const scheduleSearch = (q: string, s: Source, t: Tab) => {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => doSearch(q, s, t), 380);
-    };
-
-    const handleQueryChange = (q: string) => {
-        setQuery(q);
-        if (!q.trim()) { clearResults(); }
-        else { scheduleSearch(q, source, tab); }
-    };
-
-    const handleSourceChange = (newSource: Source) => {
-        setSource(newSource);
-        clearResults();
-        if (query.trim()) scheduleSearch(query, newSource, tab);
-    };
-
-    const handleTabChange = (t: Tab) => {
-        setTab(t);
-        setSongResults([]);
-        setArtistResults([]);
-        setArtistDetail(null);
-        if (query.trim() && source === 'monu') scheduleSearch(query, source, t);
-    };
-
-    const handleSubmit = async () => {
-        if (!query.trim()) return;
-        await addSearchHistory(query.trim());
-        setHistory(await getSearchHistory());
-        doSearch(query.trim(), source, tab);
-    };
-
-    // ── Voice ─────────────────────────────────────────────────────────────────
 
     const handleVoicePressIn = useCallback(async () => {
         await voice.startRecording();
@@ -188,12 +73,112 @@ export const SearchScreen = () => {
             setQuery(text);
             await addSearchHistory(text.trim());
             setHistory(await getSearchHistory());
-            doSearch(text.trim(), source, tab);
+            doSearch(text.trim(), tab);
         }
-    }, [voice, source, tab]);
+    }, [voice, tab]);
+
+    // ── Mount: load history + focus input ────────────────────────────────────
+    useEffect(() => {
+        getSearchHistory().then(setHistory);
+        setTimeout(() => inputRef.current?.focus(), 120);
+    }, []);
+
+    // ── Search ────────────────────────────────────────────────────────────────
+    const doSearch = useCallback(async (q: string, currentTab: Tab) => {
+        if (!q.trim()) {
+            setSongResults([]);
+            setArtistResults([]);
+            setSpotifyResults([]);
+            setSoundCloudResults([]);
+            setArtistDetail(null);
+            return;
+        }
+        setLoading(true);
+        setArtistDetail(null);
+        try {
+            if (currentTab === 'songs') {
+                const [titleRes, lyricRes] = await Promise.allSettled([
+                    searchSongs({ keyword: q, size: 30 }),
+                    searchByLyric({ keyword: q, size: 20 }),
+                ]);
+                const titleSongs = titleRes.status === 'fulfilled' ? titleRes.value.content : [];
+                const lyricSongs = lyricRes.status === 'fulfilled' ? lyricRes.value : [];
+                const seen = new Set(titleSongs.map(s => s.id));
+                const merged = [...titleSongs];
+                for (const s of lyricSongs) {
+                    if (!seen.has(s.id)) {
+                        seen.add(s.id);
+                        merged.push(s);
+                    }
+                }
+                setSongResults(merged);
+            } else if (currentTab === 'artists') {
+                const res = await searchArtists({ keyword: q, size: 20 });
+                setArtistResults(res.content);
+            } else if (currentTab === 'spotify') {
+                const rows = await searchSpotifyTracks({ keyword: q, limit: 20, market: 'US' });
+                setSpotifyResults(rows);
+            } else {
+                const rows = await searchSoundCloudTracks({ keyword: q, limit: 20 });
+                setSoundCloudResults(rows);
+            }
+        } catch { /* silent */ }
+        finally { setLoading(false); }
+    }, []);
+
+    const scheduleSearch = (q: string, t: Tab) => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => doSearch(q, t), 380);
+    };
+
+    const handleQueryChange = (q: string) => {
+        setQuery(q);
+        if (!q.trim()) {
+            setSongResults([]);
+            setArtistResults([]);
+            setSpotifyResults([]);
+            setSoundCloudResults([]);
+            setArtistDetail(null);
+        } else {
+            scheduleSearch(q, tab);
+        }
+    };
+
+    const handleSubmit = async () => {
+        if (!query.trim()) return;
+        await addSearchHistory(query.trim());
+        setHistory(await getSearchHistory());
+        doSearch(query.trim(), tab);
+    };
+
+    const handleTabChange = (t: Tab) => {
+        setTab(t);
+        setSongResults([]);
+        setArtistResults([]);
+        setSpotifyResults([]);
+        setSoundCloudResults([]);
+        setArtistDetail(null);
+        if (query.trim()) scheduleSearch(query, t);
+    };
+
+    // ── History actions ───────────────────────────────────────────────────────
+    const handleHistoryItemPress = (q: string) => {
+        setQuery(q);
+        scheduleSearch(q, tab);
+        addSearchHistory(q).then(() => getSearchHistory().then(setHistory));
+    };
+
+    const handleRemoveHistoryItem = async (q: string) => {
+        const updated = await removeSearchHistoryItem(q);
+        setHistory(updated);
+    };
+
+    const handleClearHistory = async () => {
+        await clearSearchHistory();
+        setHistory([]);
+    };
 
     // ── Artist drill-down ─────────────────────────────────────────────────────
-
     const handleArtistPress = async (artist: Artist) => {
         setLoading(true);
         try {
@@ -201,160 +186,202 @@ export const SearchScreen = () => {
             setArtistDetail({ artist, songs: res.content });
         } catch {
             setArtistDetail({ artist, songs: [] });
-        } finally { setLoading(false); }
+        } finally {
+            setLoading(false);
+        }
     };
 
-    // ── SoundCloud: add to playlist ───────────────────────────────────────────
+    const handleSongPress = (song: Song, queue: Song[]) => {
+        playSong(song, queue);
+        if (query.trim()) {
+            addSearchHistory(query.trim()).then(() => getSearchHistory().then(setHistory));
+        }
+    };
 
-    const handleSoundCloudAddToPlaylist = (track: SoundCloudTrack) => {
-        if (!authSession) {
-            Alert.alert('Đăng nhập', 'Vui lòng đăng nhập để thêm vào playlist.');
+    const mapSoundCloudTrackToSong = useCallback((
+        track: SoundCloudTrack,
+        resolvedStreamUrl?: string,
+        fallbackStreamUrl?: string,
+    ): Song => {
+        const safeDuration = Math.max(0, Math.floor((track.durationMs ?? 0) / 1000));
+        return {
+            id: track.urn,
+            title: track.title,
+            primaryArtist: {
+                artistId: track.urn,
+                stageName: track.uploaderName || 'SoundCloud Artist',
+            },
+            genres: track.genre ? [{ id: `soundcloud:${track.genre}`, name: track.genre }] : [],
+            thumbnailUrl: track.artworkUrl ?? undefined,
+            durationSeconds: safeDuration,
+            playCount: track.playbackCount ?? 0,
+            status: 'PUBLIC',
+            transcodeStatus: 'COMPLETED',
+            streamUrl: resolvedStreamUrl ?? track.streamUrl ?? track.previewUrl ?? undefined,
+            uploadUrl: fallbackStreamUrl,
+            createdAt: '',
+            updatedAt: '',
+        };
+    }, []);
+
+    const handleSoundCloudPress = useCallback(async (track: SoundCloudTrack) => {
+        console.log('[SoundCloud][Search] tap track', {
+            urn: track.urn,
+            title: track.title,
+            hasDirectStream: !!track.streamUrl,
+            hasPreview: !!track.previewUrl,
+            hasPermalink: !!track.permalinkUrl,
+        });
+
+        let resolvedStreamUrl = track.streamUrl ?? undefined;
+        let fallbackStreamUrl = track.previewUrl ?? undefined;
+
+        if (!resolvedStreamUrl) {
+            try {
+                const stream = await getSoundCloudStreamUrl(track.urn);
+                resolvedStreamUrl = stream.streamUrl ?? stream.streamUrlFallback ?? track.previewUrl ?? undefined;
+                fallbackStreamUrl = stream.streamUrlFallback ?? track.previewUrl ?? undefined;
+                console.log('[SoundCloud][Search] stream resolved', {
+                    urn: track.urn,
+                    primary: resolvedStreamUrl,
+                    fallback: fallbackStreamUrl,
+                });
+            } catch {
+                console.log('[SoundCloud][Search] stream resolve failed', { urn: track.urn });
+                resolvedStreamUrl = undefined;
+            }
+        }
+
+        const queue = soundCloudResults
+            .map((row) => mapSoundCloudTrackToSong(
+                row,
+                row.urn === track.urn ? resolvedStreamUrl : undefined,
+                row.urn === track.urn ? fallbackStreamUrl : row.previewUrl ?? undefined,
+            ))
+            .filter((row) => !!row.streamUrl);
+
+        const selected = queue.find((row) => row.id === track.urn);
+        console.log('[SoundCloud][Search] queue prepared', {
+            urn: track.urn,
+            queueSize: queue.length,
+            selectedHasStream: !!selected?.streamUrl,
+            selectedFallback: selected?.uploadUrl,
+        });
+
+        if (selected?.streamUrl) {
+            playSong(selected, queue);
+            if (query.trim()) {
+                addSearchHistory(query.trim()).then(() => getSearchHistory().then(setHistory));
+            }
             return;
         }
-        setScPlaylistPickerTrack(track);
-    };
 
-    const handleAddToPlaylistConfirm = async (playlistId: string) => {
-        if (!scPlaylistPickerTrack) return;
-        try {
-            await saveAndAddSoundCloudToPlaylist(playlistId, scPlaylistPickerTrack);
-            Alert.alert('✅ Thành công', `Đã thêm "${scPlaylistPickerTrack.title}" vào playlist.`);
-        } catch (e: any) {
-            Alert.alert('Lỗi', e?.message || 'Không thể thêm vào playlist');
-        } finally {
-            setScPlaylistPickerTrack(null);
+        if (track.permalinkUrl) {
+            Linking.openURL(track.permalinkUrl);
         }
-    };
+    }, [mapSoundCloudTrackToSong, playSong, query, soundCloudResults]);
 
-    // ── Render helpers ────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    const showHistory  = !query.trim();
+    const currentResultCount = tab === 'songs'
+        ? songResults.length
+        : tab === 'artists'
+            ? artistResults.length
+            : tab === 'spotify'
+                ? spotifyResults.length
+                : soundCloudResults.length;
+    const showEmpty    = !loading && !!query.trim() && !artistDetail
+        && currentResultCount === 0;
 
-    const showHistory = !query.trim();
-    const isEmpty = !loading && !!query.trim() && !artistDetail;
-
-    const renderMonuSong = ({ item, index }: { item: Song; index: number }) => (
+    const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
         <Pressable
             style={styles.resultRow}
-            onPress={() => playSong(item, tab === 'songs' ? songResults : artistDetail?.songs ?? [])}
+            onPress={() => handleSongPress(item, tab === 'songs' ? songResults : artistDetail?.songs ?? [])}
         >
-            {item.thumbnailUrl ? (
-                <Image source={{ uri: item.thumbnailUrl }} style={styles.thumbnail} />
-            ) : (
-                <View style={[styles.thumbnail, styles.thumbnailFallback]}>
-                    <Text style={{ fontSize: 16 }}>🎵</Text>
-                </View>
-            )}
+            <View style={styles.resultIndex}>
+                <Text style={styles.resultIndexText}>{index + 1}</Text>
+            </View>
             <View style={styles.resultInfo}>
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.resultSub} numberOfLines={1}>{item.primaryArtist.stageName}</Text>
+                <Text style={styles.resultSub}   numberOfLines={1}>{item.primaryArtist.stageName}</Text>
             </View>
             <AntDesign name="play-circle" size={26} color={themeColors.white} />
         </Pressable>
     );
 
-    const renderSpotifyTrack = ({ item }: { item: SpotifyTrack }) => (
-        <Pressable style={styles.resultRow} onPress={() => openInSpotify(item)}>
-            {item.thumbnailUrl ? (
-                <Image source={{ uri: item.thumbnailUrl }} style={styles.thumbnail} />
-            ) : (
-                <View style={[styles.thumbnail, { backgroundColor: '#1DB95430' }]}>
-                    <Text style={{ fontSize: 16 }}>🟢</Text>
-                </View>
-            )}
-            <View style={styles.resultInfo}>
-                <Text style={styles.resultTitle} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.resultSub} numberOfLines={1}>
-                    {item.artistName}
-                    {item.explicit ? '  🅴' : ''}
-                </Text>
-                <Text style={styles.resultDuration}>{formatDuration(item.durationSeconds)}</Text>
-            </View>
-            {/* Open in Spotify button */}
-            <View style={styles.spotifyOpenBtn}>
-                <Text style={styles.spotifyOpenText}>Mở Spotify</Text>
-            </View>
-        </Pressable>
-    );
-
-    const renderSoundCloudTrack = ({ item }: { item: SoundCloudTrack }) => (
-        <Pressable
-            style={styles.resultRow}
-            onPress={() => {
-                const song = soundCloudTrackToSong(item);
-                playSong(song as any, soundcloudResults.map(t => soundCloudTrackToSong(t) as any));
-            }}
-        >
-            {item.thumbnailUrl ? (
-                <Image source={{ uri: item.thumbnailUrl }} style={styles.thumbnail} />
-            ) : (
-                <View style={[styles.thumbnail, { backgroundColor: '#FF550030' }]}>
-                    <Text style={{ fontSize: 16 }}>🔶</Text>
-                </View>
-            )}
-            <View style={styles.resultInfo}>
-                <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.resultSub} numberOfLines={1}>{item.artistUsername}</Text>
-                    {/* Attribution badge — BẮT BUỘC theo SoundCloud Terms */}
-                    <View style={styles.scBadge}>
-                        <Text style={styles.scBadgeText}>SoundCloud</Text>
-                    </View>
-                </View>
-                <Text style={styles.resultDuration}>{formatDuration(item.durationSeconds)}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                <Pressable
-                    hitSlop={8}
-                    onPress={(e) => {
-                        e.stopPropagation();
-                        handleSoundCloudAddToPlaylist(item);
-                    }}
-                >
-                    <AntDesign name="pluscircleo" size={22} color={themeColors.accent} />
-
-                </Pressable>
-                <Pressable
-                    hitSlop={8}
-                    onPress={(e) => {
-                        e.stopPropagation();
-                        Linking.openURL(item.permalink);
-                    }}
-                >
-                    <MaterialIcons name="open-in-new" size={20} color={themeColors.glass40} />
-                </Pressable>
-            </View>
-        </Pressable>
-    );
-
     const renderArtistItem = ({ item }: { item: Artist }) => (
         <Pressable style={styles.resultRow} onPress={() => handleArtistPress(item)}>
-            <View style={[styles.thumbnail, { backgroundColor: themeColors.accentFill20 }]}>
-                <Text style={{ fontSize: 20 }}>🎤</Text>
+            <View style={[styles.resultIndex, styles.artistIconWrap]}>
+                <Text style={{ fontSize: 18 }}><MaterialIcons name="settings-voice" color="#000" size={24} /></Text>
             </View>
             <View style={styles.resultInfo}>
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.stageName}</Text>
-                <Text style={styles.resultSub}>Nghệ sĩ</Text>
+                <Text style={styles.resultSub}>{t('screens.search.artistType')}</Text>
             </View>
-            <Text style={{ color: themeColors.glass30, fontSize: 18 }}>›</Text>
+            <Text style={styles.playIcon}>›</Text>
         </Pressable>
     );
 
-    const voiceStateLabel =
-        voice.state === 'recording' ? `🔴  Đang nghe...`
-            : voice.state === 'processing' ? `⏳  Đang xử lý...`
-                : voice.errorMessage ?? '';
+    const renderSpotifyItem = ({ item, index }: { item: SpotifyTrack; index: number }) => (
+        <Pressable
+            style={styles.resultRow}
+            onPress={() => item.externalUrl ? Linking.openURL(item.externalUrl) : null}
+        >
+            <View style={styles.resultIndex}>
+                <Text style={styles.resultIndexText}>{index + 1}</Text>
+            </View>
+            <View style={styles.resultInfo}>
+                <Text style={styles.resultTitle} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.resultSub} numberOfLines={1}>
+                    {`${item.artistName} • ${item.albumName}`}
+                </Text>
+                {isSpotifyOwnedContent(item) && (
+                    <Text style={styles.spotifyAttribution}>Provided by Spotify</Text>
+                )}
+            </View>
+            <Text style={styles.playIcon}>{item.externalUrl ? '↗' : '•'}</Text>
+        </Pressable>
+    );
+
+    const renderSoundCloudItem = ({ item, index }: { item: SoundCloudTrack; index: number }) => (
+        <Pressable
+            style={styles.resultRow}
+            onPress={() => { void handleSoundCloudPress(item); }}
+        >
+            <View style={styles.resultIndex}>
+                <Text style={styles.resultIndexText}>{index + 1}</Text>
+            </View>
+            <View style={styles.resultInfo}>
+                <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.resultSub} numberOfLines={1}>{item.uploaderName}</Text>
+                {(isSoundCloudOwnedContent(item) || item.attributionText) && (
+                    <Text style={styles.spotifyAttribution}>{item.attributionText ?? 'Provided by SoundCloud'}</Text>
+                )}
+            </View>
+            <Text style={styles.playIcon}>{item.streamUrl || item.previewUrl ? '▶' : item.permalinkUrl ? '↗' : '•'}</Text>
+        </Pressable>
+    );
+
+    // ── Voice state label ─────────────────────────────────────────────────────
+    const voiceStateLabel = voice.state === 'recording'
+        ? `🔴  ${t('screens.search.voiceRecording')}`
+        : voice.state === 'processing'
+            ? `⏳  ${t('screens.search.voiceProcessing')}`
+            : voice.errorMessage ?? '';
 
     // ─────────────────────────────────────────────────────────────────────────
     return (
         <View style={[styles.root, { paddingTop: insets.top }]}>
             <StatusBar style="light" />
 
-            {/* Header */}
+            {/* ── Header ── */}
             <View style={styles.header}>
                 <BackButton onPress={() => navigation.goBack()} />
+
                 <TextInput
                     ref={inputRef}
                     style={styles.input}
-                    placeholder="Tìm kiếm bài hát, nghệ sĩ..."
+                    placeholder={t('screens.search.inputPlaceholder')}
                     placeholderTextColor={themeColors.glass35}
                     value={query}
                     onChangeText={handleQueryChange}
@@ -363,11 +390,26 @@ export const SearchScreen = () => {
                     autoCorrect={false}
                     editable={voice.state !== 'recording' && voice.state !== 'processing'}
                 />
+
+                {/* Clear button (chỉ khi có text) */}
                 {query.length > 0 && voice.state === 'idle' && (
-                    <Pressable onPress={() => { setQuery(''); clearResults(); }} hitSlop={8}>
+                    <Pressable
+                        onPress={() => {
+                            setQuery('');
+                            setSongResults([]);
+                            setArtistResults([]);
+                            setSpotifyResults([]);
+                            setSoundCloudResults([]);
+                            setArtistDetail(null);
+                            voice.cancel();
+                        }}
+                        hitSlop={8}
+                    >
                         <Text style={styles.clearIcon}>✕</Text>
                     </Pressable>
                 )}
+
+                {/* Voice search button */}
                 <VoiceSearchButton
                     state={voice.state}
                     onPressIn={handleVoicePressIn}
@@ -375,90 +417,86 @@ export const SearchScreen = () => {
                 />
             </View>
 
-            {/* Voice banner */}
+            {/* ── Voice status banner ── */}
             <Animated.View
-                style={[styles.voiceBanner, {
-                    opacity: voiceBannerAnim,
-                    transform: [{ translateY: voiceBannerAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }],
-                }]}
+                style={[
+                    styles.voiceBanner,
+                    {
+                        opacity: voiceBannerAnim,
+                        transform: [{
+                            translateY: voiceBannerAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [-8, 0],
+                            }),
+                        }],
+                    },
+                ]}
                 pointerEvents="none"
             >
-                <Text style={styles.voiceBannerText}>{voiceStateLabel}</Text>
+                <Text style={[
+                    styles.voiceBannerText,
+                    voice.state === 'error' && { color: themeColors.error },
+                ]}>
+                    {voiceStateLabel}
+                </Text>
             </Animated.View>
 
-            {/* Source selector */}
-            {!showHistory && (
-                <View style={styles.sourceTabs}>
-                    {(Object.keys(SOURCE_META) as Source[]).map(s => {
-                        const meta = SOURCE_META[s];
-                        const active = source === s;
-                        return (
-                            <Pressable
-                                key={s}
-                                style={[styles.sourceTab, active && { borderColor: meta.color, backgroundColor: meta.color + '20' }]}
-                                onPress={() => handleSourceChange(s)}
-                            >
-                                <Text style={styles.sourceTabIcon}>{meta.icon}</Text>
-                                <Text style={[styles.sourceTabText, active && { color: meta.color }]}>
-                                    {meta.label}
-                                </Text>
-                            </Pressable>
-                        );
-                    })}
+            {/* Error banner (ngoài recording/processing) */}
+            {voice.state === 'error' && voice.errorMessage && (
+                <View style={styles.errorBanner}>
+                    <Text style={styles.errorBannerText}>⚠️  {voice.errorMessage}</Text>
+                    <Pressable onPress={voice.cancel} hitSlop={8}>
+                        <Text style={styles.errorBannerDismiss}>✕</Text>
+                    </Pressable>
                 </View>
             )}
 
-            {/* Monu: song/artist tabs */}
-            {!showHistory && source === 'monu' && (
-                <View style={styles.tabs}>
-                    {(['songs', 'artists'] as Tab[]).map(tabKey => (
-                        <Pressable
-                            key={tabKey}
-                            style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
-                            onPress={() => handleTabChange(tabKey)}
-                        >
-                            <Text style={styles.tabIcon}>{tabKey === 'songs' ? '🎵' : '🎤'}</Text>
-                            <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
-                                {tabKey === 'songs' ? 'Bài hát' : 'Nghệ sĩ'}
+            {/* ── Tabs ── */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.tabs}
+            >
+                {(['songs', 'artists', 'soundcloud', 'spotify'] as Tab[]).map(tabKey => (
+                    <Pressable
+                        key={tabKey}
+                        style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
+                        onPress={() => handleTabChange(tabKey)}
+                    >
+                        <AnimatedDecorIcon active={tab === tabKey} intensity="soft">
+                            <Text style={styles.tabIcon}>
+                                {tabKey === 'songs' ? '🎵' : tabKey === 'artists' ? '🎤' : tabKey === 'spotify' ? '🟢' : '🟠'}
                             </Text>
-                        </Pressable>
-                    ))}
-                </View>
-            )}
+                        </AnimatedDecorIcon>
+                        <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
+                            {tabKey === 'songs'
+                                ? t('screens.search.tabSongs')
+                                : tabKey === 'artists'
+                                    ? t('screens.search.tabArtists')
+                                    : tabKey === 'soundcloud'
+                                        ? t('screens.search.tabSoundCloud')
+                                        : t('screens.search.tabSpotify')}
+                        </Text>
+                    </Pressable>
+                ))}
+            </ScrollView>
 
-            {/* Spotify notice */}
-            {!showHistory && source === 'spotify' && (
-                <View style={styles.noticeBanner}>
-                    <Text style={styles.noticeText}>
-                        🎵 Nhạc Spotify — nhấn để mở trong app Spotify
-                    </Text>
-                </View>
-            )}
-
-            {/* SoundCloud notice */}
-            {!showHistory && source === 'soundcloud' && (
-                <View style={[styles.noticeBanner, { borderLeftColor: '#FF5500' }]}>
-                    <Text style={styles.noticeText}>
-                        🔶 Stream trực tiếp từ SoundCloud — nhấn ➕ để thêm vào playlist
-                    </Text>
-                </View>
-            )}
-
+            {/* ── Loading ── */}
             {loading && (
                 <View style={styles.center}>
                     <ActivityIndicator color={themeColors.accent} />
                 </View>
             )}
 
-            {/* History */}
+            {/* ── History ── */}
             {!loading && showHistory && (
                 <View style={{ flex: 1 }}>
                     {history.length > 0 ? (
                         <>
                             <View style={styles.historyHeader}>
-                                <Text style={styles.historyTitle}>Tìm kiếm gần đây</Text>
-                                <Pressable onPress={async () => { await clearSearchHistory(); setHistory([]); }} hitSlop={8}>
-                                    <Text style={styles.historyClearAll}>Xóa tất cả</Text>
+                                <Text style={styles.historyTitle}>{t('screens.search.historyTitle')}</Text>
+                                <Pressable onPress={handleClearHistory} hitSlop={8}>
+                                    <Text style={styles.historyClearAll}>{t('screens.search.clearAll')}</Text>
                                 </Pressable>
                             </View>
                             <FlatList
@@ -467,22 +505,14 @@ export const SearchScreen = () => {
                                 renderItem={({ item }) => (
                                     <Pressable
                                         style={styles.historyRow}
-                                        onPress={() => {
-                                            setQuery(item);
-                                            scheduleSearch(item, source, tab);
-                                            addSearchHistory(item).then(() => getSearchHistory().then(setHistory));
-                                        }}
+                                        onPress={() => handleHistoryItemPress(item)}
                                     >
-                                        <Text style={{ fontSize: 15, opacity: 0.5 }}>
-                                            <Octicons name="history" color={themeColors.white} size={20} />
-                                        </Text>
+                                        <Text style={styles.historyIcon}><Octicons name="history" color="#fff" size={24} /></Text>
                                         <Text style={styles.historyText} numberOfLines={1}>{item}</Text>
                                         <Pressable
+                                            style={styles.historyRemoveBtn}
                                             hitSlop={10}
-                                            onPress={async () => {
-                                                const updated = await removeSearchHistoryItem(item);
-                                                setHistory(updated);
-                                            }}
+                                            onPress={() => handleRemoveHistoryItem(item)}
                                         >
                                             <Text style={styles.historyRemoveIcon}>✕</Text>
                                         </Pressable>
@@ -493,63 +523,70 @@ export const SearchScreen = () => {
                         </>
                     ) : (
                         <View style={styles.center}>
-                            <Text style={styles.emptyText}>Chưa có tìm kiếm nào</Text>
+                            <View style={styles.voiceHintBox}>
+                                <Text style={styles.voiceHintIcon}>🎙</Text>
+                                <Text style={styles.voiceHintTitle}>{t('screens.search.voiceHintTitle')}</Text>
+                                <Text style={styles.voiceHintDesc}>
+                                    {t('screens.search.voiceHintDesc')}
+                                </Text>
+                            </View>
+                            <Text style={styles.hintText}>{t('screens.search.voiceHintInput')}</Text>
                         </View>
                     )}
                 </View>
             )}
 
-            {/* Empty state */}
-            {isEmpty && !loading && (
-                <>
-                    {source === 'monu' && tab === 'songs' && songResults.length === 0 && !artistDetail && (
-                        <View style={styles.center}>
-                            <Text style={styles.emptyText}>{`Không tìm thấy kết quả cho "${query}"`}</Text>
-                        </View>
-                    )}
-                    {source === 'spotify' && spotifyResults.length === 0 && (
-                        <View style={styles.center}>
-                            <Text style={styles.emptyText}>{`Không có kết quả Spotify cho "${query}"`}</Text>
-                        </View>
-                    )}
-                    {source === 'soundcloud' && soundcloudResults.length === 0 && (
-                        <View style={styles.center}>
-                            <Text style={styles.emptyText}>{`Không có kết quả SoundCloud cho "${query}"`}</Text>
-                        </View>
-                    )}
-                </>
+            {/* ── Empty ── */}
+            {!loading && showEmpty && (
+                <View style={styles.center}>
+                    <Text style={styles.emptyText}>{`${t('screens.search.noResultsPrefix')} "${query}"`}</Text>
+                </View>
             )}
 
-            {/* Artist detail */}
+            {/* ── Artist detail ── */}
             {!loading && artistDetail && (
                 <View style={{ flex: 1 }}>
                     <View style={styles.artistDetailHeader}>
                         <Pressable onPress={() => setArtistDetail(null)}>
                             <Text style={styles.backToArtistsText}>‹ {artistDetail.artist.stageName}</Text>
                         </Pressable>
-                        <Text style={styles.artistDetailSub}>{artistDetail.songs.length} bài hát</Text>
+                        <Text style={styles.artistDetailSub}>{`${artistDetail.songs.length} ${t('screens.search.songCountSuffix')}`}</Text>
                     </View>
                     <FlatList
                         data={artistDetail.songs}
                         keyExtractor={s => s.id}
-                        renderItem={renderMonuSong}
+                        renderItem={({ item, index }) => (
+                            <Pressable
+                                style={styles.resultRow}
+                                onPress={() => handleSongPress(item, artistDetail.songs)}
+                            >
+                                <View style={styles.resultIndex}>
+                                    <Text style={styles.resultIndexText}>{index + 1}</Text>
+                                </View>
+                                <View style={styles.resultInfo}>
+                                    <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
+                                    <Text style={styles.resultSub}>{item.primaryArtist.stageName}</Text>
+                                </View>
+                                <Text style={styles.playIcon}>▶</Text>
+                            </Pressable>
+                        )}
                         contentContainerStyle={{ paddingBottom: 100 }}
                     />
                 </View>
             )}
 
-            {/* Results */}
+            {/* ── Song / Artist results ── */}
             {!loading && !artistDetail && !showHistory && (
                 <>
-                    {source === 'monu' && tab === 'songs' && songResults.length > 0 && (
+                    {tab === 'songs' && songResults.length > 0 && (
                         <FlatList
                             data={songResults}
                             keyExtractor={s => s.id}
-                            renderItem={renderMonuSong}
+                            renderItem={renderSongItem}
                             contentContainerStyle={{ paddingBottom: 100 }}
                         />
                     )}
-                    {source === 'monu' && tab === 'artists' && artistResults.length > 0 && (
+                    {tab === 'artists' && artistResults.length > 0 && (
                         <FlatList
                             data={artistResults}
                             keyExtractor={a => a.artistId}
@@ -557,203 +594,217 @@ export const SearchScreen = () => {
                             contentContainerStyle={{ paddingBottom: 100 }}
                         />
                     )}
-                    {source === 'spotify' && spotifyResults.length > 0 && (
+                    {tab === 'spotify' && spotifyResults.length > 0 && (
                         <FlatList
                             data={spotifyResults}
-                            keyExtractor={t => t.id}
-                            renderItem={renderSpotifyTrack}
+                            keyExtractor={(s, idx) => `${s.id}-${idx}`}
+                            renderItem={renderSpotifyItem}
                             contentContainerStyle={{ paddingBottom: 100 }}
-                            ListFooterComponent={() => (
-                                <View style={styles.attributionFooter}>
-                                    <Text style={styles.attributionText}>🎵 Kết quả từ Spotify</Text>
-                                </View>
-                            )}
                         />
                     )}
-                    {source === 'soundcloud' && soundcloudResults.length > 0 && (
+                    {tab === 'soundcloud' && soundCloudResults.length > 0 && (
                         <FlatList
-                            data={soundcloudResults}
-                            keyExtractor={t => t.id}
-                            renderItem={renderSoundCloudTrack}
+                            data={soundCloudResults}
+                            keyExtractor={(s, idx) => `${s.urn}-${idx}`}
+                            renderItem={renderSoundCloudItem}
                             contentContainerStyle={{ paddingBottom: 100 }}
-                            ListFooterComponent={() => (
-                                <View style={styles.attributionFooter}>
-                                    <Text style={styles.attributionText}>🔶 Powered by SoundCloud</Text>
-                                </View>
-                            )}
                         />
                     )}
                 </>
             )}
-
-            {/* SoundCloud: Add to Playlist Modal */}
-            <Modal
-                visible={!!scPlaylistPickerTrack}
-                transparent
-                animationType="slide"
-                onRequestClose={() => setScPlaylistPickerTrack(null)}
-            >
-                <Pressable style={styles.modalBackdrop} onPress={() => setScPlaylistPickerTrack(null)}>
-                    <View style={styles.modalSheet}>
-                        <Text style={styles.modalTitle}>Thêm vào playlist</Text>
-                        <Text style={styles.modalSubtitle} numberOfLines={1}>
-                            {scPlaylistPickerTrack?.title}
-                        </Text>
-                        {playlists.length === 0 ? (
-                            <Text style={{ color: themeColors.glass40, textAlign: 'center', marginVertical: 20 }}>
-                                Bạn chưa có playlist nào.
-                            </Text>
-                        ) : (
-                            <ScrollView style={{ maxHeight: 300 }}>
-                                {playlists.map(p => (
-                                    <Pressable
-                                        key={p.id}
-                                        style={styles.playlistItem}
-                                        onPress={() => handleAddToPlaylistConfirm(p.id)}
-                                    >
-                                        <Text style={styles.playlistItemText}>{p.name}</Text>
-                                        <Text style={styles.playlistItemCount}>{p.totalSongs ?? 0} bài</Text>
-                                    </Pressable>
-                                ))}
-                            </ScrollView>
-                        )}
-                    </View>
-                </Pressable>
-            </Modal>
         </View>
     );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const createStyles = (colors: ColorScheme) => StyleSheet.create({
-    root: { flex: 1, backgroundColor: colors.bg },
+    root:   { flex: 1, backgroundColor: colors.bg },
 
+    // ── Header ──────────────────────────────────────────────────────────────
     header: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingBottom: 12, gap: 8,
         borderBottomWidth: 1, borderBottomColor: colors.border,
     },
-    input: { flex: 1, color: colors.white, fontSize: 16, paddingVertical: 8 },
+    input: {
+        flex: 1, color: colors.white, fontSize: 16, paddingVertical: 8,
+    },
     clearIcon: { color: colors.glass40, fontSize: 18, paddingHorizontal: 2 },
 
+    // ── Voice banner ─────────────────────────────────────────────────────────
     voiceBanner: {
         backgroundColor: colors.accentFill20,
-        borderBottomWidth: 1, borderBottomColor: colors.accentBorder25,
-        paddingHorizontal: 20, paddingVertical: 9,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.accentBorder25,
+        paddingHorizontal: 20,
+        paddingVertical: 9,
     },
-    voiceBannerText: { color: colors.accent, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+    voiceBannerText: {
+        color: colors.accent,
+        fontSize: 13,
+        fontWeight: '600',
+        textAlign: 'center',
+    },
+    errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(239,68,68,0.12)',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(239,68,68,0.3)',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        gap: 8,
+    },
+    errorBannerText: {
+        flex: 1,
+        color: colors.error,
+        fontSize: 13,
+    },
+    errorBannerDismiss: {
+        color: colors.error,
+        fontSize: 16,
+        fontWeight: '700',
+    },
 
-    // Source tabs
-    sourceTabs: {
-        flexDirection: 'row', gap: 8,
-        paddingHorizontal: 16, paddingVertical: 10,
-        borderBottomWidth: 1, borderBottomColor: colors.border,
-    },
-    sourceTab: {
-        flexDirection: 'row', alignItems: 'center', gap: 5,
-        paddingHorizontal: 14, paddingVertical: 7,
-        borderRadius: 20, borderWidth: 1, borderColor: colors.border,
-    },
-    sourceTabIcon: { fontSize: 13 },
-    sourceTabText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-
-    // Notice
-    noticeBanner: {
-        borderLeftWidth: 3, borderLeftColor: colors.accent,
-        backgroundColor: colors.surface,
-        paddingHorizontal: 14, paddingVertical: 10,
-        marginHorizontal: 16, marginTop: 10, borderRadius: 8,
-    },
-    noticeText: { color: colors.glass60, fontSize: 12 },
-
-    // Monu tabs
-    tabs: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
-    tabBtn: {
-        flexDirection: 'row', alignItems: 'center', gap: 6,
-        paddingHorizontal: 16, paddingVertical: 8,
-        borderRadius: 20, borderWidth: 1, borderColor: colors.border,
-    },
-    tabBtnActive: { backgroundColor: colors.accentDim, borderColor: colors.accentDim },
-    tabIcon: { fontSize: 13 },
-    tabText: { color: colors.muted, fontWeight: '600', fontSize: 13 },
+    // ── Tabs ─────────────────────────────────────────────────────────────────
+    tabs:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, gap: 8 },
+    tabBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
+    tabBtnActive:  { backgroundColor: colors.accentDim, borderColor: colors.accentDim },
+    tabIcon:       { fontSize: 12 },
+    tabText:       { color: colors.muted, fontWeight: '600', fontSize: 12 },
     tabTextActive: { color: colors.white },
 
-    // Results
-    center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+    // ── Common ────────────────────────────────────────────────────────────────
+    center:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
     emptyText: { color: colors.glass35, textAlign: 'center', fontSize: 14, lineHeight: 22 },
+    hintText:  { color: colors.glass25, textAlign: 'center', fontSize: 13, marginTop: 12 },
 
-    resultRow: {
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 16, paddingVertical: 10,
-        borderBottomWidth: 1, borderBottomColor: colors.glass06, gap: 12,
+
+    voiceHintBox: {
+        alignItems: 'center',
+        backgroundColor: colors.surface,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: colors.accentBorder25,
+        padding: 24,
+        marginBottom: 20,
+        width: '100%',
     },
-    thumbnail: { width: 46, height: 46, borderRadius: 8, backgroundColor: colors.surface },
-    thumbnailFallback: { alignItems: 'center', justifyContent: 'center' },
-    resultInfo: { flex: 1 },
-    resultTitle: { color: colors.white, fontSize: 14, fontWeight: '600' },
-    resultSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
-    resultDuration: { color: colors.glass30, fontSize: 11, marginTop: 2 },
-
-    // Spotify
-    spotifyOpenBtn: {
-        backgroundColor: '#1DB95420',
-        borderRadius: 12, borderWidth: 1, borderColor: '#1DB954',
-        paddingHorizontal: 10, paddingVertical: 5,
+    voiceHintIcon:  { fontSize: 42, marginBottom: 10 },
+    voiceHintTitle: { color: colors.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
+    voiceHintDesc:  {
+        color: colors.glass50, fontSize: 13, textAlign: 'center', lineHeight: 20,
     },
-    spotifyOpenText: { color: '#1DB954', fontSize: 11, fontWeight: '700' },
 
-    // SoundCloud
-    scBadge: {
-        backgroundColor: '#FF550020',
-        borderRadius: 6, borderWidth: 1, borderColor: '#FF5500',
-        paddingHorizontal: 5, paddingVertical: 1,
-    },
-    scBadgeText: { color: '#FF5500', fontSize: 9, fontWeight: '700' },
-
-    // Attribution footer
-    attributionFooter: {
-        alignItems: 'center', padding: 20,
-        borderTopWidth: 1, borderTopColor: colors.glass10,
-    },
-    attributionText: { color: colors.glass30, fontSize: 12 },
-
-    // History
+    // ── History ───────────────────────────────────────────────────────────────
     historyHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
     },
-    historyTitle: { color: colors.white, fontSize: 15, fontWeight: '700' },
+    historyTitle:    { color: colors.white, fontSize: 15, fontWeight: '700' },
     historyClearAll: { color: colors.accent, fontSize: 13, fontWeight: '600' },
     historyRow: {
         flexDirection: 'row', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 13,
-        borderBottomWidth: 1, borderBottomColor: colors.glass06, gap: 12,
+        borderBottomWidth: 1, borderBottomColor: colors.glass06,
+        gap: 12,
     },
-    historyText: { flex: 1, color: colors.glass70, fontSize: 14 },
+    historyIcon:       { fontSize: 15, opacity: 0.5 },
+    historyText:       { flex: 1, color: colors.glass70, fontSize: 14 },
+    historyRemoveBtn:  { padding: 4 },
     historyRemoveIcon: { color: colors.glass30, fontSize: 14 },
 
-    // Artist detail
+    // ── Results ───────────────────────────────────────────────────────────────
+    resultRow: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 16, paddingVertical: 12,
+        borderBottomWidth: 1, borderBottomColor: colors.glass06, gap: 12,
+    },
+    resultIndex:    { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.glass06, alignItems: 'center', justifyContent: 'center' },
+    artistIconWrap: { backgroundColor: colors.accentFill20 },
+    resultIndexText: { color: colors.glass40, fontSize: 12, fontWeight: '600' },
+    resultInfo:     { flex: 1 },
+    resultTitle:    { color: colors.white, fontSize: 14, fontWeight: '600' },
+    resultSub:      { color: colors.muted, fontSize: 12, marginTop: 2 },
+    playIcon:       { color: colors.glass30, fontSize: 18 },
+    spotifyAttribution: { color: colors.accent, fontSize: 11, marginTop: 3 },
+
+    // ── Artist detail ─────────────────────────────────────────────────────────
     artistDetailHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 10,
         borderBottomWidth: 1, borderBottomColor: colors.border,
     },
     backToArtistsText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
-    artistDetailSub: { color: colors.glass35, fontSize: 12 },
+    artistDetailSub:   { color: colors.glass35, fontSize: 12 },
+});
+ion: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, gap: 8 },
+    tabBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
+    tabBtnActive:  { backgroundColor: colors.accentDim, borderColor: colors.accentDim },
+    tabIcon:       { fontSize: 12 },
+    tabText:       { color: colors.muted, fontWeight: '600', fontSize: 12 },
+    tabTextActive: { color: colors.white },
 
-    // Playlist modal
-    modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' },
-    modalSheet: {
-        backgroundColor: colors.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
-        padding: 20, gap: 8,
+    // ── Common ────────────────────────────────────────────────────────────────
+    center:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+    emptyText: { color: colors.glass35, textAlign: 'center', fontSize: 14, lineHeight: 22 },
+    hintText:  { color: colors.glass25, textAlign: 'center', fontSize: 13, marginTop: 12 },
+
+
+    voiceHintBox: {
+        alignItems: 'center',
+        backgroundColor: colors.surface,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: colors.accentBorder25,
+        padding: 24,
+        marginBottom: 20,
+        width: '100%',
     },
-    modalTitle: { color: colors.white, fontSize: 18, fontWeight: '800' },
-    modalSubtitle: { color: colors.glass50, fontSize: 13, marginBottom: 8 },
-    playlistItem: {
+    voiceHintIcon:  { fontSize: 42, marginBottom: 10 },
+    voiceHintTitle: { color: colors.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
+    voiceHintDesc:  {
+        color: colors.glass50, fontSize: 13, textAlign: 'center', lineHeight: 20,
+    },
+
+    // ── History ───────────────────────────────────────────────────────────────
+    historyHeader: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.glass10,
+        paddingHorizontal: 16, paddingVertical: 12,
     },
-    playlistItemText: { color: colors.white, fontSize: 15 },
-    playlistItemCount: { color: colors.glass40, fontSize: 12 },
+    historyTitle:    { color: colors.white, fontSize: 15, fontWeight: '700' },
+    historyClearAll: { color: colors.accent, fontSize: 13, fontWeight: '600' },
+    historyRow: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 16, paddingVertical: 13,
+        borderBottomWidth: 1, borderBottomColor: colors.glass06,
+        gap: 12,
+    },
+    historyIcon:       { fontSize: 15, opacity: 0.5 },
+    historyText:       { flex: 1, color: colors.glass70, fontSize: 14 },
+    historyRemoveBtn:  { padding: 4 },
+    historyRemoveIcon: { color: colors.glass30, fontSize: 14 },
+
+    // ── Results ───────────────────────────────────────────────────────────────
+    resultRow: {
+        flexDirection: 'row', alignItems: 'center',
+        paddingHorizontal: 16, paddingVertical: 12,
+        borderBottomWidth: 1, borderBottomColor: colors.glass06, gap: 12,
+    },
+    resultIndex:    { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.glass06, alignItems: 'center', justifyContent: 'center' },
+    artistIconWrap: { backgroundColor: colors.accentFill20 },
+    resultIndexText: { color: colors.glass40, fontSize: 12, fontWeight: '600' },
+    resultInfo:     { flex: 1 },
+    resultTitle:    { color: colors.white, fontSize: 14, fontWeight: '600' },
+    resultSub:      { color: colors.muted, fontSize: 12, marginTop: 2 },
+    playIcon:       { color: colors.glass30, fontSize: 18 },
+    spotifyAttribution: { color: colors.accent, fontSize: 11, marginTop: 3 },
+
+    // ── Artist detail ─────────────────────────────────────────────────────────
+    artistDetailHeader: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        paddingHorizontal: 16, paddingVertical: 10,
+        borderBottomWidth: 1, borderBottomColor: colors.border,
+    },
+    backToArtistsText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
+    artistDetailSub:   { color: colors.glass35, fontSize: 12 },
 });

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import {
     ActivityIndicator, Alert, Image, Modal, Pressable,
@@ -10,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ConfirmModal } from '../../components/ConfirmModal';
-import { COLORS, useThemeColors } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useDownload } from '../../context/DownloadContext';
 import { useTranslation } from '../../context/LocalizationContext';
@@ -33,6 +33,7 @@ export const ProfileScreen = () => {
     const { authSession, refreshProfile, logout } = useAuth();
     const { t } = useTranslation();
     const themeColors = useThemeColors();
+    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const { downloadedSongs, storageUsed, deleteDownload } = useDownload();
@@ -149,13 +150,13 @@ export const ProfileScreen = () => {
     };
 
     const getArtistStatusColor = () => {
-        if (!artistProfile) return COLORS.glass35;
+        if (!artistProfile) return themeColors.glass35;
         switch (artistProfile.status) {
-            case 'ACTIVE':   return COLORS.success;
-            case 'PENDING':  return COLORS.warningMid;
-            case 'BANNED':   return COLORS.error;
-            case 'REJECTED': return COLORS.error;
-            default:         return COLORS.glass35;
+            case 'ACTIVE':   return themeColors.success;
+            case 'PENDING':  return themeColors.warningMid;
+            case 'BANNED':   return themeColors.error;
+            case 'REJECTED': return themeColors.error;
+            default:         return themeColors.glass35;
         }
     };
 
@@ -230,7 +231,7 @@ export const ProfileScreen = () => {
 
                 {/* Hero */}
                 <LinearGradient
-                    colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]}
+                    colors={[themeColors.gradPurple, themeColors.gradIndigo, themeColors.bg]}
                     locations={[0, 0.5, 1]}
                     style={[styles.hero, { paddingTop: insets.top + 12 }]}
                 >
@@ -275,7 +276,7 @@ export const ProfileScreen = () => {
 
                     {loadingArtist ? (
                         <View style={[styles.artistCard, { alignItems: 'center', paddingVertical: 20 }]}>
-                            <ActivityIndicator color={COLORS.accent} />
+                            <ActivityIndicator color={themeColors.accent} />
                         </View>
                     ) : artistProfile ? (
                         /* Has artist profile */
@@ -318,7 +319,7 @@ export const ProfileScreen = () => {
                                 onPress={() => navigation.navigate('RegisterArtist')}
                             >
                                 <LinearGradient
-                                    colors={[COLORS.accent, COLORS.accentAlt]}
+                                    colors={[themeColors.accent, themeColors.accentAlt ?? themeColors.accentDim ?? themeColors.accent]}
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 0 }}
                                     style={styles.registerArtistBtnGradient}
@@ -359,12 +360,12 @@ export const ProfileScreen = () => {
                             key={i}
                             style={({ pressed }) => [
                                 styles.menuRow,
-                                pressed && { backgroundColor: COLORS.glass04 },
+                                pressed && { backgroundColor: themeColors.glass04 },
                             ]}
                             onPress={item.onPress}
                         >
                             <LinearGradient
-                                colors={[COLORS.surface, COLORS.surfaceLow]}
+                                colors={[themeColors.surface, themeColors.surfaceLow]}
                                 style={styles.menuIconWrap}
                             >
                                 <Text>{item.icon}</Text>
@@ -404,7 +405,7 @@ export const ProfileScreen = () => {
                         style={styles.dropItem}
                         onPress={() => { setMenuOpen(false); setDeleteOpen(true); }}
                     >
-                        <Text style={[styles.dropText, { color: COLORS.error }]}>{t('screens.profile.deleteAccount', 'Delete account')}</Text>
+                        <Text style={[styles.dropText, { color: themeColors.error }]}>{t('screens.profile.deleteAccount', 'Delete account')}</Text>
                     </Pressable>
                 </View>
             )}
@@ -420,7 +421,7 @@ export const ProfileScreen = () => {
                             value={fullName}
                             onChangeText={setFullName}
                             placeholder={t('screens.profile.displayNamePlaceholder', 'Enter display name')}
-                            placeholderTextColor={COLORS.glass25}
+                            placeholderTextColor={themeColors.glass25}
                         />
                         <View style={styles.modalActions}>
                             <Pressable style={styles.cancelBtn} onPress={() => setEditOpen(false)}>
@@ -428,7 +429,7 @@ export const ProfileScreen = () => {
                             </Pressable>
                             <Pressable style={styles.saveBtn} onPress={onSaveProfile}>
                                 {saving
-                                    ? <ActivityIndicator color={COLORS.white} size="small" />
+                                    ? <ActivityIndicator color={themeColors.white} size="small" />
                                     : <Text style={styles.saveBtnText}>{t('common.save')}</Text>
                                 }
                             </Pressable>
@@ -445,7 +446,7 @@ export const ProfileScreen = () => {
                 onRequestClose={() => setDownloadsOpen(false)}
             >
                 <Pressable
-                    style={{ flex: 1, backgroundColor: COLORS.scrim }}
+                    style={{ flex: 1, backgroundColor: themeColors.scrim }}
                     onPress={() => setDownloadsOpen(false)}
                 />
                 <View style={styles.dlSheet}>
@@ -528,8 +529,8 @@ export const ProfileScreen = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (c: ColorScheme) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: c.bg },
 
     hero: { paddingHorizontal: 20, paddingBottom: 32, alignItems: 'center' },
     topBar: {
@@ -539,47 +540,47 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 24,
     },
-    topBarTitle: { color: COLORS.white, fontSize: 20, fontWeight: '700' },
+    topBarTitle: { color: c.text, fontSize: 20, fontWeight: '700' },
     gearBtn:     { padding: 8 },
     gearIcon:    { fontSize: 22 },
 
     avatarWrap: { position: 'relative', marginBottom: 16 },
     avatar: {
         width: 100, height: 100, borderRadius: 50,
-        backgroundColor: COLORS.surface,
+        backgroundColor: c.surface,
     },
     avatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
     avatarEmoji: { fontSize: 44 },
     avatarEditBadge: {
         position: 'absolute', bottom: 0, right: 0,
         width: 28, height: 28, borderRadius: 14,
-        backgroundColor: COLORS.accent,
+        backgroundColor: c.accent,
         alignItems: 'center', justifyContent: 'center',
-        borderWidth: 2, borderColor: COLORS.bg,
+        borderWidth: 2, borderColor: c.bg,
     },
 
-    name: { color: COLORS.white, fontSize: 22, fontWeight: '800', marginBottom: 4 },
-    email: { color: COLORS.glass40, fontSize: 13, marginBottom: 18 },
+    name:  { color: c.text, fontSize: 22, fontWeight: '800', marginBottom: 4 },
+    email: { color: c.glass40, fontSize: 13, marginBottom: 18 },
 
     editBtn: {
         paddingHorizontal: 22, paddingVertical: 10,
         borderRadius: 999, borderWidth: 1,
-        borderColor: COLORS.glass20, backgroundColor: COLORS.glass07,
+        borderColor: c.glass20, backgroundColor: c.glass07,
     },
-    editBtnText: { color: COLORS.white, fontWeight: '600', fontSize: 14 },
+    editBtnText: { color: c.text, fontWeight: '600', fontSize: 14 },
 
     // Section wrapper
     sectionWrapper: { marginHorizontal: 20, marginTop: 20 },
     sectionHeading: {
-        color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: 10,
+        color: c.text, fontSize: 16, fontWeight: '700', marginBottom: 10,
     },
 
     // Artist card
     artistCard: {
-        backgroundColor: COLORS.surface,
+        backgroundColor: c.surface,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: COLORS.glass10,
+        borderColor: c.glass10,
         padding: 16,
         gap: 8,
     },
@@ -590,28 +591,28 @@ const styles = StyleSheet.create({
     },
     artistAvatarSmall: {
         width: 46, height: 46, borderRadius: 23,
-        backgroundColor: COLORS.accentFill20,
-        borderWidth: 1, borderColor: COLORS.accentBorder25,
+        backgroundColor: c.accentFill20,
+        borderWidth: 1, borderColor: c.accentBorder25,
         alignItems: 'center', justifyContent: 'center',
     },
     artistInfo:      { flex: 1 },
-    artistStageName: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+    artistStageName: { color: c.text, fontSize: 16, fontWeight: '700' },
     artistStatus:    { fontSize: 12, marginTop: 2 },
-    artistArrow:     { color: COLORS.glass25, fontSize: 22 },
-    artistBio:       { color: COLORS.glass50, fontSize: 13, lineHeight: 19 },
-    artistViewHint:  { color: COLORS.accent, fontSize: 12 },
+    artistArrow:     { color: c.glass25, fontSize: 22 },
+    artistBio:       { color: c.glass50, fontSize: 13, lineHeight: 19 },
+    artistViewHint:  { color: c.accent, fontSize: 12 },
 
     artistNoProfileTitle: {
-        color: COLORS.white, fontSize: 15, fontWeight: '700', marginBottom: 6,
+        color: c.text, fontSize: 15, fontWeight: '700', marginBottom: 6,
     },
     artistNoProfileDesc: {
-        color: COLORS.glass50, fontSize: 13, lineHeight: 20,
+        color: c.glass50, fontSize: 13, lineHeight: 20,
     },
     registerArtistBtn: { borderRadius: 999, overflow: 'hidden', marginTop: 8 },
     registerArtistBtnGradient: {
         minHeight: 46, alignItems: 'center', justifyContent: 'center', borderRadius: 999,
     },
-    registerArtistBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
+    registerArtistBtnText: { color: c.white, fontWeight: '700', fontSize: 14 },
 
     // Stats
     statsRow: {
@@ -620,128 +621,128 @@ const styles = StyleSheet.create({
         marginTop: 20,
         borderRadius: 16,
         overflow: 'hidden',
-        backgroundColor: COLORS.glass04,
+        backgroundColor: c.surface,
         borderWidth: 1,
-        borderColor: COLORS.glass07,
+        borderColor: c.border,
     },
     statItem:  { flex: 1, alignItems: 'center', paddingVertical: 16 },
-    statVal:   { color: COLORS.white, fontSize: 20, fontWeight: '800' },
-    statLabel: { color: COLORS.glass35, fontSize: 11, marginTop: 2 },
+    statVal:   { color: c.text, fontSize: 20, fontWeight: '800' },
+    statLabel: { color: c.muted, fontSize: 11, marginTop: 2 },
 
     // Menu
     menuCard: {
         marginHorizontal: 20, marginTop: 16,
         borderRadius: 16, overflow: 'hidden',
-        backgroundColor: COLORS.glass03,
-        borderWidth: 1, borderColor: COLORS.glass07,
+        backgroundColor: c.surface,
+        borderWidth: 1, borderColor: c.border,
     },
-    menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
+    menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
     menuIconWrap: {
         width: 36, height: 36, borderRadius: 10,
         alignItems: 'center', justifyContent: 'center',
         marginRight: 14, overflow: 'hidden',
     },
-    menuLabel: { color: COLORS.white, fontSize: 15, fontWeight: '500' },
-    menuSub:   { color: COLORS.glass35, fontSize: 11, marginTop: 1 },
-    menuArrow: { color: COLORS.glass20, fontSize: 22 },
+    menuLabel: { color: c.text, fontSize: 15, fontWeight: '500' },
+    menuSub:   { color: c.muted, fontSize: 11, marginTop: 1 },
+    menuArrow: { color: c.muted, fontSize: 22 },
 
     // Dropdown
     dropMenu: {
         position: 'absolute', right: 20,
-        backgroundColor: COLORS.surface,
-        borderWidth: 1, borderColor: COLORS.glass10,
+        backgroundColor: c.surface,
+        borderWidth: 1, borderColor: c.border,
         borderRadius: 12, zIndex: 50,
         overflow: 'hidden', minWidth: 160,
     },
-    dropItem:   { paddingHorizontal: 16, paddingVertical: 14 },
-    dropText:   { color: COLORS.white, fontWeight: '600' },
-    dropDivider: { height: 1, backgroundColor: COLORS.glass08 },
+    dropItem:    { paddingHorizontal: 16, paddingVertical: 14 },
+    dropText:    { color: c.text, fontWeight: '600' },
+    dropDivider: { height: 1, backgroundColor: c.divider },
 
     // Edit modal
     modalOverlay: {
         position: 'absolute', inset: 0,
-        backgroundColor: COLORS.scrim,
+        backgroundColor: c.scrim,
         alignItems: 'center', justifyContent: 'center', padding: 24,
     },
     editModal: {
-        width: '100%', backgroundColor: COLORS.surface,
+        width: '100%', backgroundColor: c.surface,
         borderRadius: 20, padding: 20,
-        borderWidth: 1, borderColor: COLORS.glass10,
+        borderWidth: 1, borderColor: c.border,
     },
-    modalTitle: { color: COLORS.white, fontSize: 18, fontWeight: '800', marginBottom: 16 },
+    modalTitle: { color: c.text, fontSize: 18, fontWeight: '800', marginBottom: 16 },
     modalFieldLabel: {
-        color: COLORS.glass40, fontSize: 11, fontWeight: '700',
+        color: c.textSecondary, fontSize: 11, fontWeight: '700',
         letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8,
     },
     modalInput: {
-        backgroundColor: COLORS.glass07, borderWidth: 1,
-        borderColor: COLORS.glass12, borderRadius: 12,
+        backgroundColor: c.glass07, borderWidth: 1,
+        borderColor: c.glass12, borderRadius: 12,
         paddingHorizontal: 14, paddingVertical: 12,
-        color: COLORS.white, fontSize: 15, marginBottom: 16,
+        color: c.text, fontSize: 15, marginBottom: 16,
     },
-    modalActions: { flexDirection: 'row', gap: 10 },
+    modalActions:  { flexDirection: 'row', gap: 10 },
     cancelBtn: {
         flex: 1, minHeight: 44, borderRadius: 12,
         alignItems: 'center', justifyContent: 'center',
-        borderWidth: 1, borderColor: COLORS.glass15,
+        borderWidth: 1, borderColor: c.border,
     },
-    cancelBtnText: { color: COLORS.glass70, fontWeight: '600' },
+    cancelBtnText: { color: c.textSecondary, fontWeight: '600' },
     saveBtn: {
         flex: 1, minHeight: 44, borderRadius: 12,
         alignItems: 'center', justifyContent: 'center',
-        backgroundColor: COLORS.accent,
+        backgroundColor: c.accent,
     },
-    saveBtnText: { color: COLORS.white, fontWeight: '700' },
+    saveBtnText: { color: c.white, fontWeight: '700' },
 
     // Downloads sheet
     dlSheet: {
-        backgroundColor: COLORS.surface,
+        backgroundColor: c.surface,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         padding: 20,
         paddingBottom: 36,
         borderWidth: 1,
         borderBottomWidth: 0,
-        borderColor: COLORS.glass12,
+        borderColor: c.border,
     },
     dlHandle: {
         width: 40, height: 4, borderRadius: 2,
-        backgroundColor: COLORS.glass20,
+        backgroundColor: c.glass20,
         alignSelf: 'center', marginBottom: 16,
     },
-    dlTitle: { color: COLORS.white, fontSize: 18, fontWeight: '800', marginBottom: 4 },
-    dlStorage: { color: COLORS.glass35, fontSize: 12, marginBottom: 12 },
-    dlEmpty: { alignItems: 'center', paddingVertical: 32 },
-    dlEmptyText: { color: COLORS.glass60, fontSize: 16, fontWeight: '600', marginBottom: 6 },
-    dlEmptyHint: { color: COLORS.glass35, fontSize: 13, textAlign: 'center' },
+    dlTitle:     { color: c.text, fontSize: 18, fontWeight: '800', marginBottom: 4 },
+    dlStorage:   { color: c.muted, fontSize: 12, marginBottom: 12 },
+    dlEmpty:     { alignItems: 'center', paddingVertical: 32 },
+    dlEmptyText: { color: c.textSecondary, fontSize: 16, fontWeight: '600', marginBottom: 6 },
+    dlEmptyHint: { color: c.muted, fontSize: 13, textAlign: 'center' },
     dlRow: {
         flexDirection: 'row', alignItems: 'center',
         paddingVertical: 10, gap: 12,
-        borderBottomWidth: 1, borderBottomColor: COLORS.glass06,
+        borderBottomWidth: 1, borderBottomColor: c.divider,
     },
     dlThumb: {
         width: 44, height: 44, borderRadius: 8,
-        backgroundColor: COLORS.surfaceLow,
+        backgroundColor: c.surfaceLow,
         alignItems: 'center', justifyContent: 'center',
     },
-    dlSongTitle:  { color: COLORS.white, fontSize: 14, fontWeight: '600' },
-    dlSongArtist: { color: COLORS.glass45, fontSize: 12, marginTop: 2 },
-    dlSize:       { color: COLORS.glass35, fontSize: 11 },
+    dlSongTitle:  { color: c.text, fontSize: 14, fontWeight: '600' },
+    dlSongArtist: { color: c.muted, fontSize: 12, marginTop: 2 },
+    dlSize:       { color: c.muted, fontSize: 11 },
     dlDeleteBtn: {
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 8,
-        backgroundColor: COLORS.glass08,
+        backgroundColor: c.glass08,
         borderWidth: 1,
-        borderColor: COLORS.glass12,
+        borderColor: c.glass12,
     },
-    dlDeleteText: { color: COLORS.error, fontSize: 12, fontWeight: '700' },
+    dlDeleteText: { color: c.error, fontSize: 12, fontWeight: '700' },
     dlCloseBtn: {
-        backgroundColor: COLORS.accentDim,
+        backgroundColor: c.accent,
         borderRadius: 999,
         paddingVertical: 14,
         alignItems: 'center',
         marginTop: 16,
     },
-    dlCloseBtnText: { color: COLORS.white, fontWeight: '700' },
+    dlCloseBtnText: { color: c.white, fontWeight: '700' },
 });

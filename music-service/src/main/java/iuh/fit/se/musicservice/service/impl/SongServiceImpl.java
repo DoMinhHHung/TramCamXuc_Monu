@@ -397,10 +397,9 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Page<SongResponse> searchSongs(String keyword, UUID genreId,
-                                          UUID artistId, Pageable pageable) {
-        return songRepository.searchPublic(toKeywordPattern(keyword), genreId, artistId, pageable)
+    public Page<SongResponse> searchSongs(String keyword, UUID genreId, UUID artistId, Pageable pageable) {
+        String pattern = (keyword == null || keyword.isBlank()) ? null : "%" + keyword + "%";
+        return songRepository.searchPublic(pattern, genreId, artistId, pageable)
                 .map(songMapper::toResponse);
     }
 

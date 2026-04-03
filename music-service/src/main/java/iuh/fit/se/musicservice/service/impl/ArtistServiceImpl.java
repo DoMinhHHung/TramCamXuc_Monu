@@ -17,6 +17,7 @@ import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.service.ArtistService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -202,6 +203,7 @@ public class ArtistServiceImpl implements ArtistService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "popularArtists", key = "#limit")
     public List<ArtistResponse> getPopularArtists(int limit) {
         return artistRepository.findPopularArtists(PageRequest.of(0, limit))
                 .stream()

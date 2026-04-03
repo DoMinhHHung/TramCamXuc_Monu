@@ -27,6 +27,8 @@ import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -207,7 +209,6 @@ public class AlbumServiceImpl implements AlbumService {
         Artist artist = requireCurrentArtist();
         Album album = requireOwnAlbum(albumId, artist.getId());
 
-        // Xóa tất cả album-song nodes trước
         albumSongRepository.deleteAll(albumSongRepository.findAllByAlbumId(albumId));
         albumRepository.delete(album);
         log.info("Album {} deleted by artist {}", albumId, artist.getId());
@@ -223,6 +224,7 @@ public class AlbumServiceImpl implements AlbumService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "albumDetail", key = "#albumId")
     public AlbumResponse getAlbumDetail(UUID albumId) {
         Artist artist = requireCurrentArtist();
         Album album = requireOwnAlbum(albumId, artist.getId());
@@ -237,16 +239,13 @@ public class AlbumServiceImpl implements AlbumService {
         Artist artist = requireCurrentArtist();
         Album album = requireOwnAlbum(albumId, artist.getId());
 
-        // Kiểm tra bài hát tồn tại và thuộc về artist này
         Song song = songRepository.findByIdAndOwnerUserId(songId, currentUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
 
-        // Kiểm tra chưa có trong album này
         if (albumSongRepository.existsByAlbumIdAndSongId(albumId, songId)) {
             throw new AppException(ErrorCode.ALBUM_SONG_ALREADY_EXISTS);
         }
 
-        // Tìm node cuối để nối vào (append vào cuối linked list)
         Optional<AlbumSong> tailOpt = albumSongRepository.findByAlbumIdAndNextIdIsNull(albumId);
 
         AlbumSong newNode = AlbumSong.builder()
@@ -258,11 +257,9 @@ public class AlbumServiceImpl implements AlbumService {
                 .build();
         newNode = albumSongRepository.save(newNode);
 
-        // Cập nhật tail.nextId → newNode
         if (tailOpt.isPresent()) {
             albumSongRepository.updateNextId(tailOpt.get().getId(), newNode.getId());
         } else {
-            // Album rỗng → newNode là head
             albumRepository.updateHead(albumId, newNode.getId());
         }
 
@@ -273,7 +270,6 @@ public class AlbumServiceImpl implements AlbumService {
 
         log.info("Song {} added to album {}", songId, albumId);
 
-        // Reload album để lấy trạng thái mới nhất
         Album updated = albumRepository.findById(albumId).orElseThrow();
         return withSongs(updated);
     }
@@ -290,11 +286,9 @@ public class AlbumServiceImpl implements AlbumService {
         UUID prevId = node.getPrevId();
         UUID nextId = node.getNextId();
 
-        // Nối lại: prev.next = next, next.prev = prev
         if (prevId != null) {
             albumSongRepository.updateNextId(prevId, nextId);
         } else {
-            // node là head → chuyển head sang nextId
             albumRepository.updateHead(albumId, nextId);
         }
 
@@ -316,19 +310,9 @@ public class AlbumServiceImpl implements AlbumService {
         return withSongs(updated);
     }
 
-    /**
-     * Drag-and-drop reorder — cập nhật O(1) linked list pointers.
-     *
-     * Payload: { draggedId, prevId (nullable), nextId (nullable) }
-     *   prevId = null → kéo lên đầu
-     *   nextId = null → kéo xuống cuối
-     *
-     * Thuật toán:
-     *   1. Tách draggedNode ra khỏi vị trí cũ (nối oldPrev ↔ oldNext)
-     *   2. Chèn vào vị trí mới (giữa prevId và nextId)
-     */
     @Override
     @Transactional
+    @CacheEvict(value = "albumDetail", key = "#albumId")
     public AlbumResponse reorderSong(UUID albumId, AlbumReorderRequest request) {
         Artist artist = requireCurrentArtist();
         Album album = requireOwnAlbum(albumId, artist.getId());

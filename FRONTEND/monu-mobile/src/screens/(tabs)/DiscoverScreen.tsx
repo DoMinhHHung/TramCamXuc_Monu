@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,7 +22,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome, Ionicons, AntDesign } from '@expo/vector-icons';
 
-import { COLORS, useThemeColors } from '../../config/colors';
+import { useThemeColors, ColorScheme } from '../../config/colors';
 import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LocalizationContext';
@@ -86,8 +86,8 @@ interface PostContentInfo {
   ownerName?: string;
 }
 
+// tr / rc are set inside DiscoverScreen via hook (see below)
 let tr = (key: string, fallback?: string) => fallback ?? key;
-let rc = COLORS;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -100,15 +100,17 @@ const timeAgo = (iso: string): string => {
   return `${Math.floor(hours / 24)} ${tr('screens.history.daysAgoSuffix', 'ngày trước')}`;
 };
 
+// Uses COLORS base palette for gradient generation (avatar colors are independent of theme)
+const AVATAR_PALETTE = [
+  ['#2D1B69', '#C084FC'] as [string, string],
+  ['#1a0a0a', '#6B1A1A'] as [string, string],
+  ['#0a1a0a', '#1A4A1A'] as [string, string],
+  ['#1a0f3d', '#8B5CF6'] as [string, string],
+  ['#0a0a1a', '#1A2A5A'] as [string, string],
+];
+
 const getAvatarColors = (id: string): [string, string] => {
-  const palette: [string, string][] = [
-    [COLORS.gradPurple, COLORS.accent],
-    [COLORS.cardTrendingFrom, COLORS.cardTrendingTo],
-    [COLORS.cardAcousticFrom, COLORS.cardAcousticTo],
-    [COLORS.gradIndigo, COLORS.accentAlt],
-    [COLORS.cardLofiFrom, COLORS.catRnbTo],
-  ];
-  return palette[id.charCodeAt(0) % palette.length];
+  return AVATAR_PALETTE[id.charCodeAt(0) % AVATAR_PALETTE.length];
 };
 
 const getInitials = (name: string) => name.slice(0, 2).toUpperCase();
@@ -131,39 +133,47 @@ const parsePlaylistLimit = (features?: Record<string, any>): number | null => {
 
 const Avatar = ({
                   id, displayName, size = 40, avatarUrl,
-                }: { id: string; displayName?: string; size?: number; avatarUrl?: string }) => (
+                }: { id: string; displayName?: string; size?: number; avatarUrl?: string }) => {
+  const themeColors = useThemeColors();
+  const S = useMemo(() => createStyles(themeColors), [themeColors]);
+  return (
     <LinearGradient
         colors={getAvatarColors(id)}
-        style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}
+        style={[S.avatar, { width: size, height: size, borderRadius: size / 2 }]}
     >
       {avatarUrl ? (
           <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: size / 2 }} />
       ) : (
-          <Text style={[styles.avatarText, { fontSize: size * 0.34 }]}>
+          <Text style={[S.avatarText, { fontSize: size * 0.34 }]}>
             {getInitials(displayName ?? id)}
           </Text>
       )}
     </LinearGradient>
-);
+  );
+};
 
 const ActionBtn = ({
                      icon, label, active, onPress, isLikeBtn = false,
-                   }: { icon: string | React.ReactNode; label: string | number; active?: boolean; onPress: () => void; isLikeBtn?: boolean; }) => (
+                   }: { icon: string | React.ReactNode; label: string | number; active?: boolean; onPress: () => void; isLikeBtn?: boolean; }) => {
+  const themeColors = useThemeColors();
+  const S = useMemo(() => createStyles(themeColors), [themeColors]);
+  return (
     <Pressable
-        style={[styles.actionBtn, active && isLikeBtn ? styles.likeWrapActive : styles.likeWrap]}
+        style={[S.actionBtn, active && isLikeBtn ? S.likeWrapActive : S.likeWrap]}
         onPress={onPress}
         hitSlop={8}
     >
       {typeof icon === 'string' ? (
-          <Text style={[styles.actionIcon, active && isLikeBtn && styles.likeEmoji]}>{icon}</Text>
+          <Text style={[S.actionIcon, active && isLikeBtn && S.likeEmoji]}>{icon}</Text>
       ) : (
           icon
       )}
       {Number(label) > 0 && (
-          <Text style={[styles.actionLabel, active && isLikeBtn && styles.labelLiked]}>{label}</Text>
+          <Text style={[S.actionLabel, active && isLikeBtn && S.labelLiked]}>{label}</Text>
       )}
     </Pressable>
-);
+  );
+};
 
 // ─── Save Content Modal ────────────────────────────────────────────────────────
 // Hỗ trợ lưu vào cả Playlist và Album (2 tab)
@@ -180,6 +190,8 @@ interface SaveContentModalProps {
 const SaveContentModal: React.FC<SaveContentModalProps> = ({
                                                              visible, songs, sourceTitle, sourceOwner, canManageAlbums = false, onClose,
                                                            }) => {
+  const themeColors = useThemeColors();
+  const saveStyles  = useMemo(() => createSaveStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
 
   // Tab state: 'playlist' | 'album'
@@ -507,6 +519,8 @@ interface SharedContentDetailModalProps {
 const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> = ({
                                                                              visible, content, canManageAlbums, onClose,
                                                                            }) => {
+  const themeColors   = useThemeColors();
+  const detailStyles  = useMemo(() => createDetailStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const { playSong, currentSong } = usePlayer();
   const [saveOpen, setSaveOpen] = useState(false);
@@ -647,6 +661,8 @@ interface ComposeModalProps {
 }
 
 const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }: ComposeModalProps) => {
+  const themeColors    = useThemeColors();
+  const composeStyles  = useMemo(() => createComposeStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const [title, setTitle]       = useState('');
   const [caption, setCaption]   = useState('');
@@ -680,7 +696,7 @@ const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }
                   disabled={!canPost || posting}
               >
                 {posting
-                    ? <ActivityIndicator size="small" color={COLORS.white} />
+                    ? <ActivityIndicator size="small" color={themeColors.white} />
                     : <Text style={composeStyles.postBtnText}>Đăng</Text>}
               </Pressable>
             </View>
@@ -709,7 +725,7 @@ const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }
                   value={title}
                   onChangeText={setTitle}
                   placeholder="Tiêu đề bài viết..."
-                  placeholderTextColor={COLORS.glass25}
+                  placeholderTextColor={themeColors.glass25}
                   multiline
               />
               <TextInput
@@ -717,7 +733,7 @@ const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }
                   value={caption}
                   onChangeText={setCaption}
                   placeholder="Chia sẻ cảm xúc âm nhạc của bạn..."
-                  placeholderTextColor={COLORS.glass20}
+                  placeholderTextColor={themeColors.glass20}
                   multiline
               />
               <View style={composeStyles.visRow}>
@@ -763,6 +779,8 @@ interface EditPostModalProps {
 }
 
 const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) => {
+  const themeColors    = useThemeColors();
+  const composeStyles  = useMemo(() => createComposeStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const [title, setTitle]     = useState('');
   const [caption, setCaption] = useState('');
@@ -798,7 +816,7 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
                   disabled={saving}
               >
                 {saving
-                    ? <ActivityIndicator size="small" color={COLORS.white} />
+                    ? <ActivityIndicator size="small" color={themeColors.white} />
                     : <Text style={composeStyles.postBtnText}>Lưu</Text>}
               </Pressable>
             </View>
@@ -809,7 +827,7 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
                   value={title}
                   onChangeText={setTitle}
                   placeholder="Tiêu đề..."
-                  placeholderTextColor={COLORS.glass25}
+                  placeholderTextColor={themeColors.glass25}
                   multiline
                   autoFocus
               />
@@ -818,7 +836,7 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
                   value={caption}
                   onChangeText={setCaption}
                   placeholder="Caption..."
-                  placeholderTextColor={COLORS.glass20}
+                  placeholderTextColor={themeColors.glass20}
                   multiline
               />
               <View style={composeStyles.visRow}>
@@ -862,6 +880,8 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
                                                      visible, post, comments, currentUserId, myDisplayName,
                                                      onClose, onSendComment, onLikeComment, onDeleteComment, onEditComment,
                                                    }) => {
+  const themeColors      = useThemeColors();
+  const commentStyles    = useMemo(() => createCommentStyles(themeColors), [themeColors]);
   const insets    = useSafeAreaInsets();
   const inputRef  = useRef<TextInput>(null);
   const [text, setText]             = useState('');
@@ -1265,8 +1285,8 @@ export const DiscoverScreen = () => {
   const navigation = useNavigation<any>();
   const { t }      = useTranslation();
   const themeColors = useThemeColors();
+  const styles      = useMemo(() => createStyles(themeColors), [themeColors]);
   tr = t;
-  rc = themeColors;
 
   const { authSession } = useAuth();
   const currentUserId   = authSession?.profile?.id ?? null;
@@ -1839,73 +1859,74 @@ export const DiscoverScreen = () => {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+// ─── Styles ────────────────────────────────────────────────────────────────────
+
+const createStyles = (C: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
   avatar: { alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: COLORS.white, fontWeight: '700' },
+  avatarText: { color: C.white, fontWeight: '700' },
   header: { paddingHorizontal: 20, paddingBottom: 20 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerTitle: { color: COLORS.white, fontSize: 26, fontWeight: '800' },
-  liveBadge: { backgroundColor: COLORS.error, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
-  liveBadgeText: { color: COLORS.white, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  headerSub: { color: COLORS.glass40, fontSize: 13, marginTop: 4 },
-  tabBar: { flexDirection: 'row', backgroundColor: COLORS.surfaceLow, borderRadius: 12, padding: 3, marginTop: 12, borderWidth: 1, borderColor: COLORS.glass10 },
+  headerTitle: { color: C.text, fontSize: 26, fontWeight: '800' },
+  liveBadge: { backgroundColor: C.error, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  liveBadgeText: { color: C.white, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  headerSub: { color: C.muted, fontSize: 13, marginTop: 4 },
+  tabBar: { flexDirection: 'row', backgroundColor: C.surfaceLow, borderRadius: 12, padding: 3, marginTop: 12, borderWidth: 1, borderColor: C.borderSubtle },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
-  tabActive: { backgroundColor: COLORS.accentFill20, borderWidth: 1, borderColor: COLORS.accentBorder25 },
-  tabText: { color: COLORS.glass45, fontSize: 13, fontWeight: '700' },
-  tabTextActive: { color: COLORS.accent },
-  tabHint: { color: COLORS.glass35, fontSize: 11, marginTop: 6 },
+  tabActive: { backgroundColor: C.accentFill20, borderWidth: 1, borderColor: C.accentBorder25 },
+  tabText: { color: C.muted, fontSize: 13, fontWeight: '700' },
+  tabTextActive: { color: C.accent },
+  tabHint: { color: C.muted, fontSize: 11, marginTop: 6 },
   composerBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  composerInput: { flex: 1, backgroundColor: COLORS.surface, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: COLORS.glass10 },
-  composerPlaceholder: { color: COLORS.glass35, fontSize: 14 },
-  composerIconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.glass10, alignItems: 'center', justifyContent: 'center' },
-  feedDivider: { height: 6, backgroundColor: COLORS.surface, borderTopWidth: 1, borderBottomWidth: 1, borderColor: COLORS.glass06 },
+  composerInput: { flex: 1, backgroundColor: C.surface, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: C.borderSubtle },
+  composerPlaceholder: { color: C.muted, fontSize: 14 },
+  composerIconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderSubtle, alignItems: 'center', justifyContent: 'center' },
+  feedDivider: { height: 6, backgroundColor: C.surfaceLow, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.divider },
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
   emptyWrap: { paddingVertical: 64, alignItems: 'center', paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { color: COLORS.white, fontSize: 18, fontWeight: '700', marginBottom: 6 },
-  emptySub: { color: COLORS.glass40, fontSize: 14, textAlign: 'center', marginBottom: 20 },
-  emptyBtn: { backgroundColor: COLORS.accentDim, borderRadius: 999, paddingHorizontal: 24, paddingVertical: 12 },
-  emptyBtnText: { color: COLORS.white, fontWeight: '700' },
+  emptyTitle: { color: C.text, fontSize: 18, fontWeight: '700', marginBottom: 6 },
+  emptySub: { color: C.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20 },
+  emptyBtn: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 24, paddingVertical: 12 },
+  emptyBtnText: { color: C.white, fontWeight: '700' },
   // Post card
-  postCard: { backgroundColor: COLORS.bg, borderBottomWidth: 6, borderBottomColor: COLORS.surface, paddingVertical: 12 },
+  postCard: { backgroundColor: C.bg, borderBottomWidth: 6, borderBottomColor: C.surface, paddingVertical: 12 },
   postHeader: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, marginBottom: 10, gap: 10 },
   postMeta: { flex: 1 },
-  postOwner: { color: COLORS.white, fontWeight: '700', fontSize: 14, lineHeight: 18 },
+  postOwner: { color: C.text, fontWeight: '700', fontSize: 14, lineHeight: 18 },
   postMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-  postTime: { color: COLORS.glass40, fontSize: 12 },
-  dot: { color: COLORS.glass25, fontSize: 12 },
-  visBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.glass08, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-  visText: { color: COLORS.glass40, fontSize: 11, fontWeight: '600' },
+  postTime: { color: C.muted, fontSize: 12 },
+  dot: { color: C.muted, fontSize: 12 },
+  visBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.glass08, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  visText: { color: C.muted, fontSize: 11, fontWeight: '600' },
   menuBtn: { paddingHorizontal: 6, paddingVertical: 4 },
-  menuIcon: { color: COLORS.glass50, fontSize: 13, letterSpacing: 1, fontWeight: '700' },
-  menu: { marginHorizontal: 16, marginBottom: 8, backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.glass10, overflow: 'hidden' },
+  menuIcon: { color: C.textSecondary, fontSize: 13, letterSpacing: 1, fontWeight: '700' },
+  menu: { marginHorizontal: 16, marginBottom: 8, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.borderSubtle, overflow: 'hidden' },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
-  menuItemText: { color: COLORS.white, fontSize: 14, fontWeight: '500' },
-  menuDivider: { height: 1, backgroundColor: COLORS.glass06 },
+  menuItemText: { color: C.text, fontSize: 14, fontWeight: '500' },
+  menuDivider: { height: 1, backgroundColor: C.divider },
   postContent: { paddingHorizontal: 16, marginBottom: 10 },
-  postTitle: { color: COLORS.white, fontSize: 15, fontWeight: '700', lineHeight: 21, marginBottom: 4 },
-  postCaption: { color: COLORS.glass80, fontSize: 14, lineHeight: 20 },
-  contentCard: { marginTop: 10, borderRadius: 14, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.glass08, padding: 10, gap: 10 },
+  postTitle: { color: C.text, fontSize: 15, fontWeight: '700', lineHeight: 21, marginBottom: 4 },
+  postCaption: { color: C.textSecondary, fontSize: 14, lineHeight: 20 },
+  contentCard: { marginTop: 10, borderRadius: 14, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderSubtle, padding: 10, gap: 10 },
   contentHeader: { flexDirection: 'row', gap: 10 },
-  contentCover: { width: 68, height: 68, borderRadius: 12, backgroundColor: COLORS.glass06 },
+  contentCover: { width: 68, height: 68, borderRadius: 12, backgroundColor: C.glass06 },
   contentMeta: { flex: 1, gap: 3, justifyContent: 'center' },
-  contentTitle: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
-  contentSub: { color: COLORS.glass70, fontSize: 12 },
-  contentBadge: { color: COLORS.accent, fontSize: 12, fontWeight: '700' },
-  contentOwner: { color: COLORS.glass45, fontSize: 11 },
+  contentTitle: { color: C.text, fontSize: 15, fontWeight: '700' },
+  contentSub: { color: C.textSecondary, fontSize: 12 },
+  contentBadge: { color: C.accent, fontSize: 12, fontWeight: '700' },
+  contentOwner: { color: C.muted, fontSize: 11 },
   contentTracks: { gap: 6 },
-  trackRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6, paddingVertical: 6, backgroundColor: COLORS.surfaceLow, borderRadius: 10 },
-  trackTitle: { color: COLORS.white, fontSize: 14, fontWeight: '600' },
-  trackArtist: { color: COLORS.glass60, fontSize: 12, marginTop: 2 },
-  trackPlay: { color: COLORS.accent, fontSize: 14, fontWeight: '800' },
-  trackMore: { color: COLORS.accent, fontSize: 12, marginLeft: 6, paddingVertical: 4, fontWeight: '600' },
+  trackRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6, paddingVertical: 6, backgroundColor: C.surfaceLow, borderRadius: 10 },
+  trackTitle: { color: C.text, fontSize: 14, fontWeight: '600' },
+  trackArtist: { color: C.muted, fontSize: 12, marginTop: 2 },
+  trackPlay: { color: C.accent, fontSize: 14, fontWeight: '800' },
+  trackMore: { color: C.accent, fontSize: 12, marginLeft: 6, paddingVertical: 4, fontWeight: '600' },
   postStats: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8 },
-  likeDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center' },
-  statText: { color: COLORS.glass45, fontSize: 12 },
-  postDivider: { height: 1, backgroundColor: COLORS.glass06, marginHorizontal: 16, marginBottom: 4 },
-
-  // ─── Actions patches applied ───
+  likeDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  statText: { color: C.muted, fontSize: 12 },
+  postDivider: { height: 1, backgroundColor: C.divider, marginHorizontal: 16, marginBottom: 4 },
+  // ─── Actions ───
   postActions: { flexDirection: 'row', paddingHorizontal: 8 },
   actionBtn: {
     flex: 1,
@@ -1914,155 +1935,142 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 10,
     gap: 5,
-    borderRadius: 8
+    borderRadius: 8,
   },
   likeWrap: {},
   likeWrapActive: {},
-  likeEmoji: {
-    fontSize: 20,
-    color: '#FF4081'
-  },
-  actionIcon: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 18
-  },
-  actionLabel: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 13,
-    fontWeight: '500'
-  },
-  labelLiked: {
-    color: '#FF4081',
-    fontWeight: '700'
-  },
+  likeEmoji: { fontSize: 20, color: '#FF4081' },
+  actionIcon: { color: C.muted, fontSize: 18 },
+  actionLabel: { color: C.muted, fontSize: 13, fontWeight: '500' },
+  labelLiked: { color: '#FF4081', fontWeight: '700' },
 });
 
 // ─── Detail modal styles ───────────────────────────────────────────────────────
 
-const detailStyles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: COLORS.glass08 },
+const createDetailStyles = (C: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: C.divider },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4, paddingVertical: 6 },
-  backText: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
-  saveBtn: { backgroundColor: COLORS.accentDim, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  saveBtnText: { color: COLORS.white, fontSize: 12, fontWeight: '700' },
+  backText: { color: C.text, fontSize: 15, fontWeight: '700' },
+  saveBtn: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  saveBtnText: { color: C.white, fontSize: 12, fontWeight: '700' },
   body: { paddingHorizontal: 18, paddingBottom: 34, paddingTop: 14 },
-  cover: { width: 200, height: 200, borderRadius: 14, alignSelf: 'center', marginBottom: 14, backgroundColor: COLORS.glass08 },
-  typeBadge: { alignSelf: 'center', backgroundColor: COLORS.accentFill20, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, borderWidth: 1, borderColor: COLORS.accentBorder25, marginBottom: 8 },
-  typeText: { color: COLORS.accent, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
-  title: { color: COLORS.white, fontSize: 22, fontWeight: '800', textAlign: 'center' },
-  subtitle: { color: COLORS.glass70, fontSize: 14, textAlign: 'center', marginTop: 4 },
-  owner: { color: COLORS.glass50, fontSize: 13, textAlign: 'center', marginTop: 6 },
-  count: { color: COLORS.glass40, fontSize: 12, textAlign: 'center', marginTop: 4, marginBottom: 18 },
+  cover: { width: 200, height: 200, borderRadius: 14, alignSelf: 'center', marginBottom: 14, backgroundColor: C.glass08 },
+  typeBadge: { alignSelf: 'center', backgroundColor: C.accentFill20, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, borderWidth: 1, borderColor: C.accentBorder25, marginBottom: 8 },
+  typeText: { color: C.accent, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
+  title: { color: C.text, fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  subtitle: { color: C.textSecondary, fontSize: 14, textAlign: 'center', marginTop: 4 },
+  owner: { color: C.muted, fontSize: 13, textAlign: 'center', marginTop: 6 },
+  count: { color: C.muted, fontSize: 12, textAlign: 'center', marginTop: 4, marginBottom: 18 },
   tracks: { gap: 8 },
-  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: COLORS.glass08 },
-  trackRowActive: { backgroundColor: COLORS.accentFill20, borderWidth: 1, borderColor: COLORS.accentBorder25 },
-  trackNum: { color: COLORS.glass60, width: 20, textAlign: 'center', fontWeight: '700' },
+  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: C.glass08 },
+  trackRowActive: { backgroundColor: C.accentFill20, borderWidth: 1, borderColor: C.accentBorder25 },
+  trackNum: { color: C.muted, width: 20, textAlign: 'center', fontWeight: '700' },
   trackInfo: { flex: 1 },
-  trackTitle: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
-  trackArtist: { color: COLORS.glass60, fontSize: 12, marginTop: 2 },
-  empty: { color: COLORS.glass45, fontSize: 14, textAlign: 'center', paddingVertical: 24 },
+  trackTitle: { color: C.text, fontSize: 15, fontWeight: '700' },
+  trackArtist: { color: C.muted, fontSize: 12, marginTop: 2 },
+  empty: { color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 24 },
 });
 
 // ─── Save modal styles ─────────────────────────────────────────────────────────
 
-const saveStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: COLORS.scrim },
-  sheet: { backgroundColor: COLORS.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, maxHeight: '85%', borderWidth: 1, borderBottomWidth: 0, borderColor: COLORS.glass12 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: COLORS.glass20, alignSelf: 'center', marginBottom: 14 },
-  title: { color: COLORS.white, fontSize: 17, fontWeight: '700', marginBottom: 10 },
-  sourceBadge: { backgroundColor: COLORS.glass07, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10, borderWidth: 1, borderColor: COLORS.glass10 },
-  sourceText: { color: COLORS.glass70, fontSize: 12, lineHeight: 17 },
-  lockedNotice: { backgroundColor: COLORS.glass08, borderWidth: 1, borderColor: COLORS.glass12, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
-  lockedNoticeText: { color: COLORS.glass50, fontSize: 12, lineHeight: 17 },
+const createSaveStyles = (C: ColorScheme) => StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: C.scrim },
+  sheet: { backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, maxHeight: '85%', borderWidth: 1, borderBottomWidth: 0, borderColor: C.border },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: C.glass20, alignSelf: 'center', marginBottom: 14 },
+  title: { color: C.text, fontSize: 17, fontWeight: '700', marginBottom: 10 },
+  sourceBadge: { backgroundColor: C.glass07, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10, borderWidth: 1, borderColor: C.borderSubtle },
+  sourceText: { color: C.textSecondary, fontSize: 12, lineHeight: 17 },
+  lockedNotice: { backgroundColor: C.glass08, borderWidth: 1, borderColor: C.borderSubtle, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
+  lockedNoticeText: { color: C.muted, fontSize: 12, lineHeight: 17 },
   // Tab bar
-  tabBar: { flexDirection: 'row', backgroundColor: COLORS.surfaceLow, borderRadius: 10, padding: 3, marginBottom: 10 },
+  tabBar: { flexDirection: 'row', backgroundColor: C.surfaceLow, borderRadius: 10, padding: 3, marginBottom: 10 },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
-  tabActive: { backgroundColor: COLORS.accentFill20, borderWidth: 1, borderColor: COLORS.accentBorder25 },
-  tabText: { color: COLORS.glass45, fontSize: 13, fontWeight: '600' },
-  tabTextActive: { color: COLORS.accent },
-  tabHint: { color: COLORS.glass35, fontSize: 11, textAlign: 'center', marginBottom: 6 },
+  tabActive: { backgroundColor: C.accentFill20, borderWidth: 1, borderColor: C.accentBorder25 },
+  tabText: { color: C.muted, fontSize: 13, fontWeight: '600' },
+  tabTextActive: { color: C.accent },
+  tabHint: { color: C.muted, fontSize: 11, textAlign: 'center', marginBottom: 6 },
   // List
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 12, borderBottomWidth: 1, borderBottomColor: COLORS.glass06 },
-  rowIcon: { width: 40, height: 40, borderRadius: 10, backgroundColor: COLORS.glass08, alignItems: 'center', justifyContent: 'center' },
-  rowName: { color: COLORS.white, fontSize: 14, fontWeight: '500' },
-  rowCount: { color: COLORS.glass40, fontSize: 12, marginTop: 2 },
-  addIcon: { color: COLORS.accent, fontSize: 22, fontWeight: '300' },
-  empty: { color: COLORS.glass40, textAlign: 'center', paddingVertical: 16 },
-  createSection: { marginTop: 10, backgroundColor: COLORS.glass07, borderRadius: 12, borderWidth: 1, borderColor: COLORS.glass10, padding: 10 },
-  createLabel: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
-  createHint: { color: COLORS.glass45, fontSize: 11, marginTop: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 12, borderBottomWidth: 1, borderBottomColor: C.divider },
+  rowIcon: { width: 40, height: 40, borderRadius: 10, backgroundColor: C.glass08, alignItems: 'center', justifyContent: 'center' },
+  rowName: { color: C.text, fontSize: 14, fontWeight: '500' },
+  rowCount: { color: C.muted, fontSize: 12, marginTop: 2 },
+  addIcon: { color: C.accent, fontSize: 22, fontWeight: '300' },
+  empty: { color: C.muted, textAlign: 'center', paddingVertical: 16 },
+  createSection: { marginTop: 10, backgroundColor: C.glass07, borderRadius: 12, borderWidth: 1, borderColor: C.borderSubtle, padding: 10 },
+  createLabel: { color: C.text, fontSize: 13, fontWeight: '700' },
+  createHint: { color: C.muted, fontSize: 11, marginTop: 2 },
   newRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  input: { flex: 1, backgroundColor: COLORS.surfaceLow, borderWidth: 1, borderColor: COLORS.glass15, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, color: COLORS.white, fontSize: 14 },
-  newBtn: { minWidth: 56, height: 44, borderRadius: 10, paddingHorizontal: 12, backgroundColor: COLORS.accentDim, alignItems: 'center', justifyContent: 'center' },
-  newBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  input: { flex: 1, backgroundColor: C.surfaceLow, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, color: C.text, fontSize: 14 },
+  newBtn: { minWidth: 56, height: 44, borderRadius: 10, paddingHorizontal: 12, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  newBtnText: { color: C.white, fontSize: 13, fontWeight: '700' },
   inputMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
-  inputMetaText: { color: COLORS.glass35, fontSize: 11 },
-  inputMetaError: { color: COLORS.error },
-  closeBtn: { marginTop: 10, paddingVertical: 13, alignItems: 'center', borderTopWidth: 1, borderTopColor: COLORS.glass08 },
-  closeBtnText: { color: COLORS.glass60, fontSize: 15 },
+  inputMetaText: { color: C.muted, fontSize: 11 },
+  inputMetaError: { color: C.error },
+  closeBtn: { marginTop: 10, paddingVertical: 13, alignItems: 'center', borderTopWidth: 1, borderTopColor: C.divider },
+  closeBtnText: { color: C.textSecondary, fontSize: 15 },
 });
 
 // ─── Compose modal styles ──────────────────────────────────────────────────────
 
-const composeStyles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const createComposeStyles = (C: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   cancelBtn: { minWidth: 48 },
-  cancelText: { color: COLORS.glass60, fontSize: 15 },
-  headerTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  postBtn: { backgroundColor: COLORS.accentDim, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 8, minWidth: 64, alignItems: 'center', justifyContent: 'center' },
+  cancelText: { color: C.textSecondary, fontSize: 15 },
+  headerTitle: { color: C.text, fontSize: 16, fontWeight: '700' },
+  postBtn: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 8, minWidth: 64, alignItems: 'center', justifyContent: 'center' },
   postBtnDisabled: { opacity: 0.35 },
-  postBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
-  divider: { height: 1, backgroundColor: COLORS.glass08 },
+  postBtnText: { color: C.white, fontWeight: '700', fontSize: 14 },
+  divider: { height: 1, backgroundColor: C.divider },
   userRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
-  userName: { color: COLORS.white, fontSize: 15, fontWeight: '700' },
-  visBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, backgroundColor: COLORS.glass08, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', borderWidth: 1, borderColor: COLORS.glass12 },
+  userName: { color: C.text, fontSize: 15, fontWeight: '700' },
+  visBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, backgroundColor: C.glass08, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, alignSelf: 'flex-start', borderWidth: 1, borderColor: C.borderSubtle },
   visIcon: { fontSize: 11 },
-  visText: { color: COLORS.glass60, fontSize: 12, fontWeight: '600' },
-  titleInput: { color: COLORS.white, fontSize: 20, fontWeight: '700', lineHeight: 28, minHeight: 60, textAlignVertical: 'top' },
-  captionInput: { color: COLORS.glass70, fontSize: 16, lineHeight: 24, minHeight: 100, textAlignVertical: 'top', marginTop: 4 },
-  visRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingVertical: 16, borderTopWidth: 1, borderTopColor: COLORS.glass08, marginTop: 12 },
-  visLabel: { color: COLORS.glass50, fontSize: 13, fontWeight: '600', marginRight: 4 },
-  visChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: COLORS.glass08, borderWidth: 1, borderColor: COLORS.glass12 },
-  visChipActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
+  visText: { color: C.muted, fontSize: 12, fontWeight: '600' },
+  titleInput: { color: C.text, fontSize: 20, fontWeight: '700', lineHeight: 28, minHeight: 60, textAlignVertical: 'top' },
+  captionInput: { color: C.textSecondary, fontSize: 16, lineHeight: 24, minHeight: 100, textAlignVertical: 'top', marginTop: 4 },
+  visRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingVertical: 16, borderTopWidth: 1, borderTopColor: C.divider, marginTop: 12 },
+  visLabel: { color: C.muted, fontSize: 13, fontWeight: '600', marginRight: 4 },
+  visChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: C.glass08, borderWidth: 1, borderColor: C.borderSubtle },
+  visChipActive: { borderColor: C.accent, backgroundColor: C.accentFill20 },
   visChipIcon: { fontSize: 13 },
-  visChipText: { color: COLORS.glass60, fontSize: 12, fontWeight: '600' },
-  visChipTextActive: { color: COLORS.accent },
-  toolbar: { borderTopWidth: 1, borderTopColor: COLORS.glass08, paddingHorizontal: 16, paddingTop: 12 },
-  toolbarLabel: { color: COLORS.glass40, fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 },
-  toolbarIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.glass10, alignItems: 'center', justifyContent: 'center' },
+  visChipText: { color: C.muted, fontSize: 12, fontWeight: '600' },
+  visChipTextActive: { color: C.accent },
+  toolbar: { borderTopWidth: 1, borderTopColor: C.divider, paddingHorizontal: 16, paddingTop: 12 },
+  toolbarLabel: { color: C.muted, fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 },
+  toolbarIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderSubtle, alignItems: 'center', justifyContent: 'center' },
 });
 
 // ─── Comment styles ────────────────────────────────────────────────────────────
 
-const commentStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: COLORS.scrim },
+const createCommentStyles = (C: ColorScheme) => StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: C.scrim },
   kbWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, maxHeight: '85%' },
-  sheet: { backgroundColor: COLORS.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '100%', minHeight: 400 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: COLORS.glass20, alignSelf: 'center', marginTop: 12, marginBottom: 4 },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.glass08 },
-  sheetTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  close: { color: COLORS.glass40, fontSize: 16 },
-  empty: { color: COLORS.glass35, fontSize: 14, textAlign: 'center', paddingVertical: 32 },
+  sheet: { backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '100%', minHeight: 400 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: C.glass20, alignSelf: 'center', marginTop: 12, marginBottom: 4 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.divider },
+  sheetTitle: { color: C.text, fontSize: 16, fontWeight: '700' },
+  close: { color: C.muted, fontSize: 16 },
+  empty: { color: C.muted, fontSize: 14, textAlign: 'center', paddingVertical: 32 },
   row: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   replyRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  bubble: { backgroundColor: COLORS.surfaceLow, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
-  name: { color: COLORS.white, fontSize: 12, fontWeight: '700', marginBottom: 2 },
-  text: { color: COLORS.glass85, fontSize: 14, lineHeight: 19 },
+  bubble: { backgroundColor: C.surfaceLow, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  name: { color: C.text, fontSize: 12, fontWeight: '700', marginBottom: 2 },
+  text: { color: C.textSecondary, fontSize: 14, lineHeight: 19 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 4 },
-  time: { color: COLORS.glass35, fontSize: 11 },
-  likeBtn: { color: COLORS.glass45, fontSize: 12, fontWeight: '600' },
-  action: { color: COLORS.glass45, fontSize: 12, fontWeight: '600' },
-  replyToggle: { color: COLORS.accent, fontSize: 12, fontWeight: '600' },
-  editInput: { backgroundColor: COLORS.surfaceLow, borderRadius: 12, padding: 10, color: COLORS.white, fontSize: 14, borderWidth: 1, borderColor: COLORS.accentBorder25 },
-  editCancel: { color: COLORS.glass45, fontSize: 12, fontWeight: '600' },
-  editSave: { color: COLORS.accent, fontSize: 12, fontWeight: '700' },
-  replyBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, backgroundColor: COLORS.surfaceLow, borderTopWidth: 1, borderTopColor: COLORS.glass08 },
-  replyBarText: { color: COLORS.glass40, fontSize: 12 },
-  replyBarCancel: { color: COLORS.accent, fontSize: 12, fontWeight: '600' },
-  inputBar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: COLORS.glass08, gap: 10 },
-  inputWrap: { flex: 1, backgroundColor: COLORS.surfaceLow, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: COLORS.glass10, minHeight: 38, justifyContent: 'center' },
-  input: { color: COLORS.white, fontSize: 14, maxHeight: 100, lineHeight: 19 },
-  sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.accentDim, alignItems: 'center', justifyContent: 'center' },
+  time: { color: C.muted, fontSize: 11 },
+  likeBtn: { color: C.muted, fontSize: 12, fontWeight: '600' },
+  action: { color: C.muted, fontSize: 12, fontWeight: '600' },
+  replyToggle: { color: C.accent, fontSize: 12, fontWeight: '600' },
+  editInput: { backgroundColor: C.surfaceLow, borderRadius: 12, padding: 10, color: C.text, fontSize: 14, borderWidth: 1, borderColor: C.accentBorder25 },
+  editCancel: { color: C.muted, fontSize: 12, fontWeight: '600' },
+  editSave: { color: C.accent, fontSize: 12, fontWeight: '700' },
+  replyBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, backgroundColor: C.surfaceLow, borderTopWidth: 1, borderTopColor: C.divider },
+  replyBarText: { color: C.muted, fontSize: 12 },
+  replyBarCancel: { color: C.accent, fontSize: 12, fontWeight: '600' },
+  inputBar: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 14, paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.divider, gap: 10 },
+  inputWrap: { flex: 1, backgroundColor: C.surfaceLow, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: C.borderSubtle, minHeight: 38, justifyContent: 'center' },
+  input: { color: C.text, fontSize: 14, maxHeight: 100, lineHeight: 19 },
+  sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
 });

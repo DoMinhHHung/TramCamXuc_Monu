@@ -23,6 +23,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 
 import java.util.UUID;
 
@@ -44,11 +46,13 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "userProfile", key = "#root.target.currentUserId()")
     public UserResponse getMyProfile() {
         return userMapper.toResponse(currentUser());
     }
 
     @Override
+    @CacheEvict(value = "userProfile", key = "#root.target.currentUserId()")
     public UserResponse updateProfile(ProfileUpdateRequest request) {
         User user = currentUser();
         if (request.getFullName() != null) user.setFullName(request.getFullName());
@@ -58,6 +62,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @CacheEvict(value = "userProfile", key = "#root.target.currentUserId()")
     public void changePassword(ChangePasswordRequest request) {
         User user = currentUser();
         if (user.getPassword() == null)
@@ -69,6 +74,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @CacheEvict(value = "userProfile", key = "#root.target.currentUserId()")
     public UserResponse uploadAvatar(MultipartFile file) {
         User user = currentUser();
         storageService.deleteImage(user.getAvatarUrl());
@@ -78,6 +84,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "userProfile", key = "#root.target.currentUserId()")
     public void deleteAccount() {
         User user = currentUser();
         refreshTokenRepository.deleteByUser(user);
@@ -121,6 +128,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "userProfile", key = "#root.target.currentUserId()")
     public FavoritesResponse getMyFavorites() {
         User user = currentUser();
         return FavoritesResponse.builder()
@@ -132,10 +140,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "userProfile", key = "#root.target.currentUserId()")
     public FavoritesResponse updateMyFavorites(UpdateFavoritesRequest request) {
         User user = currentUser();
-
-        // Cập nhật favorites
         user.setFavoriteGenreIds(request.getFavoriteGenreIds());
         user.setFavoriteArtistIds(request.getFavoriteArtistIds());
         user.setPickFavorite(true);
@@ -147,5 +154,9 @@ public class UserServiceImpl implements UserService {
                 .favoriteGenreIds(saved.getFavoriteGenreIds())
                 .favoriteArtistIds(saved.getFavoriteArtistIds())
                 .build();
+    }
+
+     private String currentUserId() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 }

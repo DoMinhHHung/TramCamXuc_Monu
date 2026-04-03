@@ -11,7 +11,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -46,10 +45,12 @@ import { FeedbackType, RecommendedSong } from '../services/recommendation';
 import { getSongShareQr } from '../services/social';
 import { buildGenreSectionsFromPool, useHomeDataPriority } from '../hooks/useHomeDataPriority';
 import { useRecommendations } from '../hooks/useRecommendations';
+import { useExternalMusicSections } from '../hooks/useExternalMusicSections';
 import { AlbumCard } from '../components/AlbumCard';
 import { ArtistCardEnhanced } from '../components/ArtistCardEnhanced';
 import { StreakBanner } from '../components/StreakBanner';
 import { ContinueListeningSection } from '../components/ContinueListeningSection';
+import { openInSpotify, soundCloudTrackToSong } from '../services/externalMusic';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const TOP_ARTIST_CARD_STEP = 292;
@@ -97,6 +98,10 @@ export const HomeScreen = () => {
   const themeColors = useThemeColors();
 
   const rec = useRecommendations();
+
+  // Lấy language để truyền vào hook (vi/en)
+  const { language } = useTranslation();
+  const externalSections = useExternalMusicSections(language === 'en' ? 'en' : 'vi');
 
   const {
     legacyTrendingSongs,
@@ -327,11 +332,11 @@ export const HomeScreen = () => {
   const handleRefresh = useCallback(async () => {
     setPullRefreshing(true);
     try {
-      await Promise.all([rec.refresh(), refreshHomePriority()]);
+      await Promise.all([rec.refresh(), refreshHomePriority(), externalSections.refresh()]);
     } finally {
       setPullRefreshing(false);
     }
-  }, [rec, refreshHomePriority]);
+  }, [rec, refreshHomePriority, externalSections]);
 
   const formatDuration = useCallback((seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -407,10 +412,10 @@ export const HomeScreen = () => {
           />
         )}
       >
-        <LinearGradient
-          colors={[themeColors.gradPurple, themeColors.gradIndigo, themeColors.bg]}
-          style={[styles.header, { paddingTop: insets.top + 16 }]}
-        >
+        {/* Header: Clean dark, không gradient nặng */}
+          <View
+            style={[styles.header, { paddingTop: insets.top + 16 }]}
+          >
           <Pressable
             style={styles.headerTop}
             hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
@@ -427,7 +432,7 @@ export const HomeScreen = () => {
             </View>
             <View style={styles.avatarCircle}>
               <AnimatedDecorIcon intensity="medium">
-                <Fontisto name="person" color={themeColors.accent} size={24} />
+                <Fontisto name="person" color={themeColors.accent} size={22} />
               </AnimatedDecorIcon>
             </View>
           </Pressable>
@@ -437,12 +442,10 @@ export const HomeScreen = () => {
             hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
             style={styles.searchBar}
           >
-            <AnimatedDecorIcon>
-              <MaterialIcons name="saved-search" color={themeColors.accent} size={26} />
-            </AnimatedDecorIcon>
+            <MaterialIcons name="search" color={themeColors.muted} size={20} />
             <Text style={styles.searchPlaceholder}>{t('screens.home.searchPlaceholder')}</Text>
           </Pressable>
-        </LinearGradient>
+        </View>
 
         {authSession && homeStats && (
           <StreakBanner
@@ -634,6 +637,86 @@ export const HomeScreen = () => {
           formatDuration={formatDuration}
         />
 
+        {/* ── SoundCloud Section ─────────────────────────────────────────── */}
+        {(externalSections.loading || externalSections.soundcloudTracks.length > 0) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('homeScreen.soundcloudSection')}</Text>
+            {externalSections.loading && externalSections.soundcloudTracks.length === 0 ? (
+              <SongCardSkeleton />
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.externalHList}
+              >
+                {externalSections.soundcloudTracks.map((track) => (
+                  <Pressable
+                    key={track.id}
+                    style={styles.externalCard}
+                    onPress={() => {
+                      const song = soundCloudTrackToSong(track) as any;
+                      playSong(song, externalSections.soundcloudTracks.map(t2 => soundCloudTrackToSong(t2) as any));
+                    }}
+                  >
+                    {track.thumbnailUrl ? (
+                      <Image source={{ uri: track.thumbnailUrl }} style={styles.externalThumb} />
+                    ) : (
+                      <View style={[styles.externalThumb, styles.externalThumbFallback]}>
+                        <Text style={{ fontSize: 22 }}>🔶</Text>
+                      </View>
+                    )}
+                    <Text style={styles.externalCardTitle} numberOfLines={2}>{track.title}</Text>
+                    <Text style={styles.externalCardSub} numberOfLines={1}>{track.artistUsername}</Text>
+                    <View style={styles.scBadge}>
+                      <Text style={styles.scBadgeText}>SoundCloud</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
+
+        {/* ── Spotify Section ────────────────────────────────────────────── */}
+        {(externalSections.loading || externalSections.spotifyTracks.length > 0) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('homeScreen.spotifySection')}</Text>
+            <Text style={[styles.sectionSubtitle]}>
+              🎵 Nhấn để mở trong Spotify app
+            </Text>
+            {externalSections.loading && externalSections.spotifyTracks.length === 0 ? (
+              <SongCardSkeleton />
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.externalHList}
+              >
+                {externalSections.spotifyTracks.map((track) => (
+                  <Pressable
+                    key={track.id}
+                    style={styles.externalCard}
+                    onPress={() => openInSpotify(track)}
+                  >
+                    {track.thumbnailUrl ? (
+                      <Image source={{ uri: track.thumbnailUrl }} style={styles.externalThumb} />
+                    ) : (
+                      <View style={[styles.externalThumb, styles.externalThumbFallback]}>
+                        <Text style={{ fontSize: 22 }}>🟢</Text>
+                      </View>
+                    )}
+                    <Text style={styles.externalCardTitle} numberOfLines={2}>{track.name}</Text>
+                    <Text style={styles.externalCardSub} numberOfLines={1}>{track.artistName}</Text>
+                    <View style={styles.spotifyBadge}>
+                      <Text style={styles.spotifyBadgeText}>{t('homeScreen.openInSpotify')}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🎶 {t('screens.home.expandedSections')}</Text>
         </View>
@@ -815,39 +898,89 @@ export const HomeScreen = () => {
 
 const getStyles = (colors: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: 20, paddingBottom: 20 },
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.glass08,
+  },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  greeting: { color: colors.textSecondary, fontSize: 14 },
-  name: { color: colors.text, fontSize: 26, fontWeight: '800' },
-  greetingSuggest: { color: colors.textSecondary, fontSize: 13, marginTop: 6, fontWeight: '500' },
+  greeting: { color: colors.textSecondary, fontSize: 13 },
+  name: { color: colors.text, fontSize: 22, fontWeight: '700' },
+  greetingSuggest: { color: colors.muted, fontSize: 13, marginTop: 4, fontWeight: '400' },
   updatedLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
   avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.surfaceMid,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.glass12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceLow,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.glass12,
+  },
+  searchPlaceholder: { color: colors.muted, fontSize: 14, flex: 1 },
+  section: { paddingHorizontal: 20, marginTop: 22 },
+  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 4 },
+  sectionSubtitle: { color: colors.muted, fontSize: 11, marginBottom: 10, paddingLeft: 1 },
+  // ── External sections (SC / Spotify horizontal cards) ─────────────────────
+  externalHList: { paddingHorizontal: 20, gap: 12, paddingBottom: 4 },
+  externalCard: {
+    width: 130,
+    backgroundColor: colors.surface,
     borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    gap: 10,
+    padding: 10,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  searchPlaceholder: { color: colors.muted, fontSize: 14, flex: 1 },
-  section: { paddingHorizontal: 20, marginTop: 24 },
-  sectionTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginBottom: 14 },
+  externalThumb: {
+    width: 110,
+    height: 110,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceMid,
+    marginBottom: 8,
+  },
+  externalThumbFallback: { alignItems: 'center', justifyContent: 'center' },
+  externalCardTitle: { color: colors.text, fontSize: 12, fontWeight: '700', lineHeight: 16 },
+  externalCardSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
+  scBadge: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: '#FF550020',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#FF5500',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  scBadgeText: { color: '#FF5500', fontSize: 9, fontWeight: '700' },
+  spotifyBadge: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: '#1DB95420',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#1DB954',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  spotifyBadgeText: { color: '#1DB954', fontSize: 9, fontWeight: '700' },
   artistHorizontalList: {
     paddingHorizontal: 20,
     gap: 12,

@@ -122,6 +122,60 @@ export const ONBOARDING_EMOJIS = {
 } as const;
 
 /**
+ * UI Action Emojis – Generic interactive or label emojis
+ * Use these instead of inline emoji strings in JSX/components
+ */
+export const UI_EMOJIS = {
+  /** Save to library */
+  save: '💾' as const,
+  /** Attachment / link indicator */
+  link: '📎' as const,
+  /** Share or export */
+  share: '↗' as const,
+  /** Settings / gear */
+  settings: '⚙️' as const,
+  /** User / person placeholder */
+  person: '👤' as const,
+  /** Download / offline save */
+  download: '⬇️' as const,
+  /** SoundCloud brand indicator */
+  soundcloud: '🔶' as const,
+  /** Spotify brand indicator */
+  spotify: '🟢' as const,
+  /** Announcement / broadcast */
+  announce: '📢' as const,
+  /** Locked / premium */
+  locked: '🔐' as const,
+  /** Crown / premium tier */
+  crown: '👑' as const,
+  /** Catalog / collection */
+  catalog: '📚' as const,
+} as const;
+
+/**
+ * Content Status Emojis – Indicate visibility / moderation state of content
+ * Used in album/playlist/post status badges
+ */
+export const STATUS_TEXT_EMOJIS = {
+  /** Public / global visibility */
+  public: '🌐' as const,
+  /** Followers-only visibility */
+  followers: '👥' as const,
+  /** Private / hidden */
+  private: '🔒' as const,
+  /** Draft / not yet published */
+  draft: '📝' as const,
+  /** Pending review / approval */
+  pending: '⏳' as const,
+  /** Banned / suspended */
+  banned: '🚫' as const,
+  /** Rejected */
+  rejected: '✕' as const,
+  /** Approved / verified */
+  approved: '✓' as const,
+} as const;
+
+/**
  * Semantic Emoji Categories
  * Maps emoji purpose to actual emoji characters for programmatic access
  */
@@ -131,6 +185,8 @@ export const EMOJI_CATEGORIES = {
   stats: STATS_EMOJIS,
   interaction: INTERACTION_EMOJIS,
   onboarding: ONBOARDING_EMOJIS,
+  ui: UI_EMOJIS,
+  status: STATUS_TEXT_EMOJIS,
 } as const;
 
 /**
@@ -141,3 +197,5 @@ export type MoodEmojiKey = keyof typeof MOOD_EMOJIS;
 export type StatsEmojiKey = keyof typeof STATS_EMOJIS;
 export type InteractionEmojiKey = keyof typeof INTERACTION_EMOJIS;
 export type OnboardingEmojiKey = keyof typeof ONBOARDING_EMOJIS;
+export type UiEmojiKey = keyof typeof UI_EMOJIS;
+export type StatusTextEmojiKey = keyof typeof STATUS_TEXT_EMOJIS;

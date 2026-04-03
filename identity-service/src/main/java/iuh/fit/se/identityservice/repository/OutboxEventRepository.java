@@ -1,5 +1,6 @@
-package iuh.fit.se.identityservice.outbox;
+package iuh.fit.se.identityservice.repository;
 
+import iuh.fit.se.identityservice.entity.OutboxEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
