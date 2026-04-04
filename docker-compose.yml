@@ -117,9 +117,13 @@ services:
 
   # ─── 3. IDENTITY SERVICE ────────────────────────────────────
   identity-service:
-    <<: [ *common, *limits ]
+    <<: *common
     build: { context: ., dockerfile: identity-service/Dockerfile }
     container_name: identity-service
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     environment:
       <<: [ *infra, *db, *gateway, *java-env, *internal ]
       DB_URL_IDENTITY: ${DB_URL_IDENTITY}
@@ -143,9 +147,13 @@ services:
 
   # ─── 4. MUSIC SERVICE ───────────────────────────────────────
   music-service:
-    <<: [ *common, *limits ]
+    <<: *common
     build: { context: ., dockerfile: music-service/Dockerfile }
     container_name: music-service
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     environment:
       <<: [ *infra, *db, *gateway, *java-env, *minio, *internal ]
       DB_URL_MUSIC: ${DB_URL_MUSIC}
@@ -168,9 +176,13 @@ services:
 
   # ─── 5. PAYMENT SERVICE ─────────────────────────────────────
   payment-service:
-    <<: [ *common, *limits ]
+    <<: *common
     build: { context: ., dockerfile: payment-service/Dockerfile }
     container_name: payment-service
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     environment:
       <<: [ *infra, *db, *java-env, *internal ]
       DB_URL_PAYMENT: ${DB_URL_PAYMENT}
@@ -232,9 +244,13 @@ services:
 
   # ─── 8. TRANSCODE SERVICE ───────────────────────────────────
   transcode-service:
-    <<: [ *common, *limits ]
+    <<: *common
     build: { context: ., dockerfile: transcode-service/Dockerfile }
     container_name: transcode-service
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     environment:
       <<: [ *infra, *minio, *java-env ]
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}

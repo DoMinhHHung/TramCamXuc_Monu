@@ -65,9 +65,10 @@ async def _warm_up_social_service():
     """Ping service-social health endpoint to wake it from Render cold start."""
     import httpx
     url = f"{settings.social_service_url}/health"
+    timeout = httpx.Timeout(60.0, connect=10.0)
     for attempt in range(1, 7):
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=60)) as c:
+            async with httpx.AsyncClient(timeout=timeout) as c:
                 r = await c.get(url)
                 if r.status_code == 200:
                     log.info("social_service_warm", attempt=attempt, url=settings.social_service_url)
