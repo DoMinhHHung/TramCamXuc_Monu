@@ -102,8 +102,7 @@ services:
     ports: [ "8080:8080" ]
     environment:
       <<: [ *infra, *gateway, *java-env ]
-      # Mặc định trỏ service-social (Next.js) trên Render — social-service Java trong compose đang comment
-      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu-1-9yui.onrender.com}
+      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu.onrender.com}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -304,9 +303,9 @@ services:
     container_name: recommendation-service
     environment:
       <<: [ *infra, *java-env ]
-      ML_SERVICE_URL: ${ML_SERVICE_URL:-https://tramcamxuc-monu-1.onrender.com}
+      ML_SERVICE_URL: ${ML_SERVICE_URL:-https://tramcamxuc-monu-a73k.onrender.com/health}
       # ML_SERVICE_URL: http://recommendation-ml:8771
-      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu-1-9yui.onrender.com}
+      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu.onrender.com}
     depends_on:
       discovery-server:
         condition: service_healthy

@@ -44,7 +44,7 @@ def get_sync_redis() -> sync_redis.Redis:
             ssl=settings.redis_ssl,
             decode_responses=True,
             socket_connect_timeout=5,
-            socket_timeout=30,   # training jobs cần thời gian hơn
+            socket_timeout=30,
             retry_on_timeout=True,
         )
     return _sync_redis_client

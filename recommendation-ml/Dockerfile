@@ -18,10 +18,6 @@ COPY . .
 RUN chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 8770
+EXPOSE 8771
 
-CMD ["uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8771", \
-     "--workers", "2", \
-     "--timeout-keep-alive", "30"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8771} --workers 2 --timeout-keep-alive 30"]

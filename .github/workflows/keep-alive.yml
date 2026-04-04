@@ -2,8 +2,7 @@ name: Keep Render Services Alive
 
 on:
   schedule:
-    # Chạy mỗi 10 phút để tránh idle timeout 15p của Render free tier
-    - cron: '*/10 * * * *'
+    - cron: '1-59/14 0-16 * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,9 +12,9 @@ jobs:
       matrix:
         service:
           - name: 'recommendation-ml'
-            url: 'https://your-recommendation-ml.onrender.com/health'
+            url: 'https://tramcamxuc-monu-a73k.onrender.com/health'
           - name: 'service-social'
-            url: 'https://your-service-social.onrender.com/health'
+            url: 'https://tramcamxuc-monu.onrender.com/health'
       max-parallel: 2
     
     steps:

@@ -39,15 +39,19 @@ async def lifespan(app: FastAPI):
     log.info("scheduler_started",
              jobs=[j.id for j in scheduler.get_jobs()])
 
-    redis = get_sync_redis()
-    cf_version = redis.get(RedisKeys.CF_MODEL_VERSION)
-    if not cf_version:
-        log.info("no_model_found_starting_initial_training")
-        asyncio.create_task(_run_initial_training())
-    else:
-        log.info("existing_model_found",
-                 cf_version=cf_version,
-                 cb_version=redis.get(RedisKeys.CB_MODEL_VERSION))
+    try:
+        redis = get_sync_redis()
+        cf_version = redis.get(RedisKeys.CF_MODEL_VERSION)
+        if not cf_version:
+            log.info("no_model_found_starting_initial_training")
+            asyncio.create_task(_run_initial_training())
+        else:
+            log.info("existing_model_found",
+                     cf_version=cf_version,
+                     cb_version=redis.get(RedisKeys.CB_MODEL_VERSION))
+    except Exception as e:
+        # Do not fail whole app startup when Redis is temporarily unavailable.
+        log.error("redis_startup_model_check_failed", error=str(e))
 
     log.info("service_ready", port=settings.app_port)
 
