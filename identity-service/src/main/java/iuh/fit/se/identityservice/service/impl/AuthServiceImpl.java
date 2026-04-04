@@ -199,34 +199,18 @@ public class AuthServiceImpl implements AuthService {
     @Transactional(readOnly = true)
     public AuthenticationResponse refreshToken(RefreshRequest request) {
         String redisKey = refreshTokenRedisKey(request.getRefreshToken());
+        Object userIdRaw = redisTemplate.opsForValue().get(redisKey);
 
-        Object dataObj = redisTemplate.opsForValue().get(redisKey);
-
-        if (dataObj == null) {
+        if (userIdRaw == null) {
             validateRefreshTokenExpiry(request.getRefreshToken());
             throw new AppException(ErrorCode.INVALID_REFRESH_TOKEN);
         }
 
-        @SuppressWarnings("unchecked")
-        Map<String, String> data = (Map<String, String>) dataObj;
-
-        UUID userId = UUID.fromString(data.get("userId"));
-
-        User user;
-
-        if (data.containsKey("role") && data.containsKey("email")) {
-            user = User.builder()
-                    .id(userId)
-                    .email(data.get("email"))
-                    .role(Role.valueOf(data.get("role")))
-                    .build();
-        } else {
-            user = userRepository.findById(userId)
-                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
-        }
+        UUID userId = UUID.fromString(String.valueOf(userIdRaw));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         redisTemplate.delete(redisKey);
-
         return buildTokenResponse(user);
     }
 
@@ -313,14 +297,9 @@ public class AuthServiceImpl implements AuthService {
     }
 
     void saveRefreshToken(User user, String token) {
-        Map<String, String> data = new HashMap<>();
-        data.put("userId", user.getId().toString());
-        data.put("email", user.getEmail());
-        data.put("role", user.getRole().name());
-
         redisTemplate.opsForValue().set(
                 refreshTokenRedisKey(token),
-                data,
+                user.getId().toString(),
                 refreshableDuration,
                 TimeUnit.MILLISECONDS
         );

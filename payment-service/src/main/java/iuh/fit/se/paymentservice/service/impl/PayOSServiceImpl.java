@@ -285,7 +285,7 @@ public class PayOSServiceImpl implements PayOSService {
             NotificationEvent evt = NotificationEvent.builder()
                     .channel("EMAIL")
                     .recipient(transaction.getUserEmail())
-                    .subject("Thanh toán thành công - TramCamXuc")
+                    .subject("Thanh toán thành công - Monu")
                     .templateCode("payment-success")
                     .paramMap(Map.of(
                             "planName",    sub.getPlan().getSubsName(),

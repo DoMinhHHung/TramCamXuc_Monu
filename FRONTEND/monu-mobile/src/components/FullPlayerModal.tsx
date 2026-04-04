@@ -15,6 +15,7 @@ import {
 import { getSongShareQr } from '../services/social';
 import { SongActionSheet } from './SongActionSheet';
 import { AppIcon } from './AppIcon';
+import { HeartButton } from './HeartButton';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -328,6 +329,11 @@ export const FullPlayerModal = () => {
     if (!currentSong) return null;
 
     const showLyricsTab = hasLyrics || lyricData;
+    const looksLikeSoundCloud = !!currentSong.soundcloudId || !!currentSong.soundcloudPermalink;
+    const isExternalTrack =
+        currentSong.sourceType === 'SOUNDCLOUD'
+        || currentSong.sourceType === 'JAMENDO'
+        || looksLikeSoundCloud;
 
     return (
         <Modal
@@ -400,7 +406,12 @@ export const FullPlayerModal = () => {
                             {/* Song info */}
                             <View style={styles.songInfo}>
                                 <Text style={styles.songTitle} numberOfLines={2}>{currentSong.title}</Text>
-                                <Text style={styles.artistName} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
+                                <View style={styles.songMetaRow}>
+                                    <Text style={styles.artistName} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
+                                    <View style={styles.heartWrap}>
+                                        <HeartButton songId={currentSong.id} size={20} />
+                                    </View>
+                                </View>
                                 {currentSong.genres?.length > 0 && (
                                     <View style={styles.genreRow}>
                                         {currentSong.genres.slice(0, 3).map(g => (
@@ -478,57 +489,59 @@ export const FullPlayerModal = () => {
                             </View>
 
                             {/* Quality selector */}
-                            <View style={styles.qualitySection}>
-                                <View style={styles.qualityHeader}>
-                                    <Text style={styles.qualityLabel}>Chất lượng âm thanh</Text>
-                                    <Pressable
-                                        style={[styles.autoBtn, autoQuality && styles.autoBtnActive]}
-                                        onPress={() => setAutoQuality(!autoQuality)}
-                                        hitSlop={8}
-                                    >
-                                        <Text style={[styles.autoBtnText, autoQuality && styles.autoBtnTextActive]}>
-                                            Tự động
-                                        </Text>
-                                    </Pressable>
+                            {!isExternalTrack && (
+                                <View style={styles.qualitySection}>
+                                    <View style={styles.qualityHeader}>
+                                        <Text style={styles.qualityLabel}>Chất lượng âm thanh</Text>
+                                        <Pressable
+                                            style={[styles.autoBtn, autoQuality && styles.autoBtnActive]}
+                                            onPress={() => setAutoQuality(!autoQuality)}
+                                            hitSlop={8}
+                                        >
+                                            <Text style={[styles.autoBtnText, autoQuality && styles.autoBtnTextActive]}>
+                                                Tự động
+                                            </Text>
+                                        </Pressable>
+                                    </View>
+                                    <View style={styles.qualityRow}>
+                                        {QUALITY_OPTIONS.map(opt => {
+                                            const isSelected  = selectedQuality === opt.value;
+                                            const isAvailable = opt.value <= maxQuality;
+                                            const dimmed      = autoQuality && !isSelected;
+                                            return (
+                                                <Pressable
+                                                    key={opt.value}
+                                                    style={[
+                                                        styles.qualityBtn,
+                                                        isSelected   && styles.qualityBtnActive,
+                                                        !isAvailable && styles.qualityBtnLocked,
+                                                        dimmed       && { opacity: 0.45 },
+                                                    ]}
+                                                    onPress={() => isAvailable && setQuality(opt.value)}
+                                                    disabled={!isAvailable}
+                                                >
+                                                    <Text style={[
+                                                        styles.qualityBtnText,
+                                                        isSelected   && styles.qualityBtnTextActive,
+                                                        !isAvailable && styles.qualityBtnTextLocked,
+                                                    ]}>
+                                                        {opt.label}{!isAvailable ? '🔒' : ''}
+                                                    </Text>
+                                                </Pressable>
+                                            );
+                                        })}
+                                    </View>
+                                    <Text style={styles.qualityHint}>
+                                        {'Đang phát: '}
+                                        <Text style={{ color: COLORS.accent }}>{selectedQuality}kbps</Text>
+                                        {autoQuality
+                                            ? `  •  ${NETWORK_LABEL[networkTier] ?? networkTier}`
+                                            : maxQuality < 320
+                                                ? '  •  Nâng cấp Premium để mở chất lượng cao hơn'
+                                                : '  •  Chất lượng tối đa'}
+                                    </Text>
                                 </View>
-                                <View style={styles.qualityRow}>
-                                    {QUALITY_OPTIONS.map(opt => {
-                                        const isSelected  = selectedQuality === opt.value;
-                                        const isAvailable = opt.value <= maxQuality;
-                                        const dimmed      = autoQuality && !isSelected;
-                                        return (
-                                            <Pressable
-                                                key={opt.value}
-                                                style={[
-                                                    styles.qualityBtn,
-                                                    isSelected   && styles.qualityBtnActive,
-                                                    !isAvailable && styles.qualityBtnLocked,
-                                                    dimmed       && { opacity: 0.45 },
-                                                ]}
-                                                onPress={() => isAvailable && setQuality(opt.value)}
-                                                disabled={!isAvailable}
-                                            >
-                                                <Text style={[
-                                                    styles.qualityBtnText,
-                                                    isSelected   && styles.qualityBtnTextActive,
-                                                    !isAvailable && styles.qualityBtnTextLocked,
-                                                ]}>
-                                                    {opt.label}{!isAvailable ? '🔒' : ''}
-                                                </Text>
-                                            </Pressable>
-                                        );
-                                    })}
-                                </View>
-                                <Text style={styles.qualityHint}>
-                                    {'Đang phát: '}
-                                    <Text style={{ color: COLORS.accent }}>{selectedQuality}kbps</Text>
-                                    {autoQuality
-                                        ? `  •  ${NETWORK_LABEL[networkTier] ?? networkTier}`
-                                        : maxQuality < 320
-                                            ? '  •  Nâng cấp Premium để mở chất lượng cao hơn'
-                                            : '  •  Chất lượng tối đa'}
-                                </Text>
-                            </View>
+                            )}
 
                             {/* Lyric hint */}
                             {showLyricsTab && activePage === 0 && (
@@ -553,7 +566,7 @@ export const FullPlayerModal = () => {
                                     onPress={() => Linking.openURL(currentSong.soundcloudPermalink!)}
                                 >
                                     <Text style={styles.scAttributionText}>
-                                        🔶 Nghe trên SoundCloud bởi{' '}
+                                        🔶 Provided by SoundCloud{' '}
                                         <Text style={{ fontWeight: '700' }}>
                                             {currentSong.soundcloudUsername ?? 'SoundCloud'}
                                         </Text>
@@ -711,7 +724,34 @@ const styles = StyleSheet.create({
     artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface },
     songInfo:           { marginBottom: 20 },
     songTitle:          { color: COLORS.white, fontSize: 20, fontWeight: '700', marginBottom: 4 },
-    artistName:         { color: COLORS.glass55, fontSize: 14, fontWeight: '500', marginBottom: 8 },
+    songMetaRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+    artistName:         { color: COLORS.glass50, fontSize: 14, fontWeight: '500', flex: 1 },
+    heartWrap:          {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.accentBorder25,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOpacity: 0.24,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    externalBadge:      {
+        alignSelf: 'flex-start',
+        marginBottom: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+        backgroundColor: COLORS.accentFill20,
+        borderWidth: 1,
+        borderColor: COLORS.accentBorder25,
+    },
+    externalBadgeText:  { color: COLORS.accent, fontSize: 11, fontWeight: '700' },
     genreRow:           { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
     genreChip:          { backgroundColor: COLORS.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 },
     genreText:          { color: COLORS.glass50, fontSize: 11, fontWeight: '600' },

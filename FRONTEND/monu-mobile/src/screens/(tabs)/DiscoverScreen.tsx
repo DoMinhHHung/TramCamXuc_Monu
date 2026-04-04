@@ -22,7 +22,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome, Ionicons, AntDesign } from '@expo/vector-icons';
 
-import { useThemeColors, ColorScheme } from '../../config/colors';
+import { useThemeColors, ColorScheme, COLORS } from '../../config/colors';
 import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LocalizationContext';
@@ -1108,6 +1108,9 @@ const PostCard: React.FC<PostCardProps> = ({
                                              likeBusy = false,
                                              onOpenContent, onLike, onComment, onShare, onDelete, onEdit, onViewProfile,
                                            }) => {
+  const themeColors = useThemeColors();
+  const COLORS = themeColors;
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const isOwner = currentUserId === post.ownerId;
   const [menuOpen, setMenuOpen] = useState(false);
   const { playSong } = usePlayer();
@@ -2074,3 +2077,5 @@ const createCommentStyles = (C: ColorScheme) => StyleSheet.create({
   input: { color: C.text, fontSize: 14, maxHeight: 100, lineHeight: 19 },
   sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
 });
+
+

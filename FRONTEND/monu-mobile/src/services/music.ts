@@ -1,4 +1,9 @@
 import { apiClient } from './api';
+import {
+  getSoundCloudStreamUrl as getSoundCloudStreamUrlExternal,
+  searchSoundCloud as searchSoundCloudExternal,
+  searchSpotify as searchSpotifyExternal,
+} from './externalMusic';
 
 const unwrap = <T>(data: any): T => (data && typeof data === 'object' && 'result' in data ? (data as any).result as T : data as T);
 
@@ -333,4 +338,118 @@ export const updateSong = async (songId: string, payload: {
 }): Promise<Song> => {
   const response = await apiClient.put<Song>(`/songs/${songId}`, payload);
   return unwrap<Song>(response.data);
+};
+
+export interface SpotifyTrack {
+  id: string;
+  name: string;
+  artistName: string;
+  albumName?: string;
+  externalUrl?: string;
+  spotifyUrl?: string;
+  previewUrl?: string;
+  durationMs?: number;
+}
+
+export interface SoundCloudTrack {
+  id: string;
+  urn: string;
+  title: string;
+  uploaderName?: string;
+  artworkUrl?: string;
+  permalinkUrl?: string;
+  streamUrl?: string;
+  previewUrl?: string;
+  durationMs?: number;
+  playbackCount?: number;
+  genre?: string;
+  attributionText?: string;
+}
+
+const cleanExternalText = (value?: string): string => {
+  if (!value) return '';
+
+  let next = value;
+
+  if (next.includes('%')) {
+    try {
+      next = decodeURIComponent(next);
+    } catch {
+      // keep original when malformed URI segment
+    }
+  }
+
+  next = next.replace(/\b(?:[0-9A-Fa-f]{2}\s+){1,}[0-9A-Fa-f]{2}\b/g, (chunk) => {
+    try {
+      const encoded = chunk
+        .trim()
+        .split(/\s+/)
+        .map((hex) => `%${hex.toUpperCase()}`)
+        .join('');
+      return decodeURIComponent(encoded);
+    } catch {
+      return chunk;
+    }
+  });
+
+  next = next.replace(/\b20(?=[A-Za-z])/g, ' ');
+  next = next.replace(/\s{2,}/g, ' ').trim();
+  return next;
+};
+
+export const searchSpotifyTracks = async (params: {
+  keyword: string;
+  limit?: number;
+  market?: string;
+}): Promise<SpotifyTrack[]> => {
+  const rows = await searchSpotifyExternal(params.keyword, params.limit ?? 20);
+  return rows.map((row) => ({
+    id: row.id,
+    name: cleanExternalText(row.name),
+    artistName: cleanExternalText(row.artistName),
+    albumName: cleanExternalText(row.albumName),
+    externalUrl: row.spotifyUrl,
+    spotifyUrl: row.spotifyUrl,
+    previewUrl: row.previewUrl,
+    durationMs: row.durationSeconds ? row.durationSeconds * 1000 : undefined,
+  }));
+};
+
+export const searchSoundCloudTracks = async (params: {
+  keyword: string;
+  limit?: number;
+}): Promise<SoundCloudTrack[]> => {
+  const rows = await searchSoundCloudExternal(params.keyword, params.limit ?? 20);
+  return rows.map((row) => ({
+    id: row.id,
+    urn: row.urn ?? row.id,
+    title: cleanExternalText(row.title),
+    uploaderName: cleanExternalText(row.artistUsername),
+    artworkUrl: row.thumbnailUrl,
+    permalinkUrl: row.permalink,
+    streamUrl: row.streamUrl,
+    durationMs: row.durationSeconds ? row.durationSeconds * 1000 : undefined,
+    playbackCount: row.playbackCount,
+    genre: row.genre,
+    attributionText: 'Provided by SoundCloud',
+  }));
+};
+
+export const getSoundCloudStreamUrl = async (soundcloudId: string): Promise<{
+  streamUrl?: string;
+  streamUrlFallback?: string;
+}> => {
+  const streamUrl = await getSoundCloudStreamUrlExternal(soundcloudId);
+  return {
+    streamUrl,
+    streamUrlFallback: streamUrl,
+  };
+};
+
+export const isSpotifyOwnedContent = (track: SpotifyTrack): boolean => {
+  return Boolean(track.spotifyUrl || track.externalUrl);
+};
+
+export const isSoundCloudOwnedContent = (track: SoundCloudTrack): boolean => {
+  return Boolean(track.urn || track.streamUrl || track.permalinkUrl);
 };

@@ -42,6 +42,7 @@ export const HistoryScreen = () => {
   const [items, setItems] = useState<ListenHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const fromServer = false;
 
   const load = useCallback(async () => {
     const data = await getListenHistory();

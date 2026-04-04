@@ -24,9 +24,37 @@ import {
     getSearchHistory, removeSearchHistoryItem,
 } from '../../utils/searchHistory';
 import { Octicons, MaterialIcons } from '@expo/vector-icons';
-import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
-type Tab = 'songs' | 'artists' | 'spotify' | 'soundcloud';
+const normalizeText = (value?: string): string => {
+    return (value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+};
+
+const scoreByQuery = (query: string, ...fields: Array<string | undefined>): number => {
+    const normalizedQuery = normalizeText(query);
+    if (!normalizedQuery) return 0;
+
+    const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+    let score = 0;
+
+    for (const field of fields) {
+        const normalizedField = normalizeText(field);
+        if (!normalizedField) continue;
+
+        if (normalizedField === normalizedQuery) score += 200;
+        else if (normalizedField.startsWith(normalizedQuery)) score += 120;
+        else if (normalizedField.includes(normalizedQuery)) score += 80;
+
+        for (const token of tokens) {
+            if (normalizedField.includes(token)) score += 10;
+        }
+    }
+
+    return score;
+};
 
 export const SearchScreen = () => {
     const insets     = useSafeAreaInsets();
@@ -37,7 +65,6 @@ export const SearchScreen = () => {
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
     const [query,          setQuery]          = useState('');
-    const [tab,            setTab]            = useState<Tab>('songs');
     const [loading,        setLoading]        = useState(false);
     const [songResults,    setSongResults]    = useState<Song[]>([]);
     const [artistResults,  setArtistResults]  = useState<Artist[]>([]);
@@ -73,9 +100,9 @@ export const SearchScreen = () => {
             setQuery(text);
             await addSearchHistory(text.trim());
             setHistory(await getSearchHistory());
-            doSearch(text.trim(), tab);
+            doSearch(text.trim());
         }
-    }, [voice, tab]);
+    }, [voice]);
 
     // ── Mount: load history + focus input ────────────────────────────────────
     useEffect(() => {
@@ -84,7 +111,7 @@ export const SearchScreen = () => {
     }, []);
 
     // ── Search ────────────────────────────────────────────────────────────────
-    const doSearch = useCallback(async (q: string, currentTab: Tab) => {
+    const doSearch = useCallback(async (q: string) => {
         if (!q.trim()) {
             setSongResults([]);
             setArtistResults([]);
@@ -96,39 +123,52 @@ export const SearchScreen = () => {
         setLoading(true);
         setArtistDetail(null);
         try {
-            if (currentTab === 'songs') {
-                const [titleRes, lyricRes] = await Promise.allSettled([
-                    searchSongs({ keyword: q, size: 30 }),
-                    searchByLyric({ keyword: q, size: 20 }),
-                ]);
-                const titleSongs = titleRes.status === 'fulfilled' ? titleRes.value.content : [];
-                const lyricSongs = lyricRes.status === 'fulfilled' ? lyricRes.value : [];
-                const seen = new Set(titleSongs.map(s => s.id));
-                const merged = [...titleSongs];
-                for (const s of lyricSongs) {
-                    if (!seen.has(s.id)) {
-                        seen.add(s.id);
-                        merged.push(s);
-                    }
+            const [titleRes, lyricRes, artistRes, spotifyRes, soundCloudRes] = await Promise.allSettled([
+                searchSongs({ keyword: q, size: 30 }),
+                searchByLyric({ keyword: q, size: 20 }),
+                searchArtists({ keyword: q, size: 20 }),
+                searchSpotifyTracks({ keyword: q, limit: 10, market: 'VN' }),
+                searchSoundCloudTracks({ keyword: q, limit: 50 }),
+            ]);
+
+            const titleSongs = titleRes.status === 'fulfilled' ? titleRes.value.content : [];
+            const lyricSongs = lyricRes.status === 'fulfilled' ? lyricRes.value : [];
+            const seen = new Set(titleSongs.map((s) => s.id));
+            const merged = [...titleSongs];
+            for (const s of lyricSongs) {
+                if (!seen.has(s.id)) {
+                    seen.add(s.id);
+                    merged.push(s);
                 }
-                setSongResults(merged);
-            } else if (currentTab === 'artists') {
-                const res = await searchArtists({ keyword: q, size: 20 });
-                setArtistResults(res.content);
-            } else if (currentTab === 'spotify') {
-                const rows = await searchSpotifyTracks({ keyword: q, limit: 20, market: 'US' });
-                setSpotifyResults(rows);
-            } else {
-                const rows = await searchSoundCloudTracks({ keyword: q, limit: 20 });
-                setSoundCloudResults(rows);
             }
+
+            setSongResults(
+                [...merged].sort(
+                    (a, b) => scoreByQuery(q, b.title, b.primaryArtist?.stageName) - scoreByQuery(q, a.title, a.primaryArtist?.stageName),
+                ),
+            );
+            setArtistResults(
+                [...(artistRes.status === 'fulfilled' ? artistRes.value.content : [])].sort(
+                    (a, b) => scoreByQuery(q, b.stageName) - scoreByQuery(q, a.stageName),
+                ),
+            );
+            setSpotifyResults(
+                [...(spotifyRes.status === 'fulfilled' ? spotifyRes.value : [])].sort(
+                    (a, b) => scoreByQuery(q, b.name, b.artistName, b.albumName) - scoreByQuery(q, a.name, a.artistName, a.albumName),
+                ),
+            );
+            setSoundCloudResults(
+                [...(soundCloudRes.status === 'fulfilled' ? soundCloudRes.value : [])].sort(
+                    (a, b) => scoreByQuery(q, b.title, b.uploaderName) - scoreByQuery(q, a.title, a.uploaderName),
+                ),
+            );
         } catch { /* silent */ }
         finally { setLoading(false); }
     }, []);
 
-    const scheduleSearch = (q: string, t: Tab) => {
+    const scheduleSearch = (q: string) => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => doSearch(q, t), 380);
+        debounceRef.current = setTimeout(() => doSearch(q), 380);
     };
 
     const handleQueryChange = (q: string) => {
@@ -140,7 +180,7 @@ export const SearchScreen = () => {
             setSoundCloudResults([]);
             setArtistDetail(null);
         } else {
-            scheduleSearch(q, tab);
+            scheduleSearch(q);
         }
     };
 
@@ -148,23 +188,13 @@ export const SearchScreen = () => {
         if (!query.trim()) return;
         await addSearchHistory(query.trim());
         setHistory(await getSearchHistory());
-        doSearch(query.trim(), tab);
-    };
-
-    const handleTabChange = (t: Tab) => {
-        setTab(t);
-        setSongResults([]);
-        setArtistResults([]);
-        setSpotifyResults([]);
-        setSoundCloudResults([]);
-        setArtistDetail(null);
-        if (query.trim()) scheduleSearch(query, t);
+        doSearch(query.trim());
     };
 
     // ── History actions ───────────────────────────────────────────────────────
     const handleHistoryItemPress = (q: string) => {
         setQuery(q);
-        scheduleSearch(q, tab);
+        scheduleSearch(q);
         addSearchHistory(q).then(() => getSearchHistory().then(setHistory));
     };
 
@@ -219,6 +249,10 @@ export const SearchScreen = () => {
             transcodeStatus: 'COMPLETED',
             streamUrl: resolvedStreamUrl ?? track.streamUrl ?? track.previewUrl ?? undefined,
             uploadUrl: fallbackStreamUrl,
+            sourceType: 'SOUNDCLOUD',
+            soundcloudId: track.urn,
+            soundcloudPermalink: track.permalinkUrl,
+            soundcloudUsername: track.uploaderName,
             createdAt: '',
             updatedAt: '',
         };
@@ -283,20 +317,14 @@ export const SearchScreen = () => {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     const showHistory  = !query.trim();
-    const currentResultCount = tab === 'songs'
-        ? songResults.length
-        : tab === 'artists'
-            ? artistResults.length
-            : tab === 'spotify'
-                ? spotifyResults.length
-                : soundCloudResults.length;
+    const currentResultCount = songResults.length + artistResults.length + spotifyResults.length + soundCloudResults.length;
     const showEmpty    = !loading && !!query.trim() && !artistDetail
         && currentResultCount === 0;
 
     const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
         <Pressable
             style={styles.resultRow}
-            onPress={() => handleSongPress(item, tab === 'songs' ? songResults : artistDetail?.songs ?? [])}
+            onPress={() => handleSongPress(item, songResults)}
         >
             <View style={styles.resultIndex}>
                 <Text style={styles.resultIndexText}>{index + 1}</Text>
@@ -451,36 +479,6 @@ export const SearchScreen = () => {
                 </View>
             )}
 
-            {/* ── Tabs ── */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.tabs}
-            >
-                {(['songs', 'artists', 'soundcloud', 'spotify'] as Tab[]).map(tabKey => (
-                    <Pressable
-                        key={tabKey}
-                        style={[styles.tabBtn, tab === tabKey && styles.tabBtnActive]}
-                        onPress={() => handleTabChange(tabKey)}
-                    >
-                        <AnimatedDecorIcon active={tab === tabKey} intensity="soft">
-                            <Text style={styles.tabIcon}>
-                                {tabKey === 'songs' ? '🎵' : tabKey === 'artists' ? '🎤' : tabKey === 'spotify' ? '🟢' : '🟠'}
-                            </Text>
-                        </AnimatedDecorIcon>
-                        <Text style={[styles.tabText, tab === tabKey && styles.tabTextActive]}>
-                            {tabKey === 'songs'
-                                ? t('screens.search.tabSongs')
-                                : tabKey === 'artists'
-                                    ? t('screens.search.tabArtists')
-                                    : tabKey === 'soundcloud'
-                                        ? t('screens.search.tabSoundCloud')
-                                        : t('screens.search.tabSpotify')}
-                        </Text>
-                    </Pressable>
-                ))}
-            </ScrollView>
-
             {/* ── Loading ── */}
             {loading && (
                 <View style={styles.center}>
@@ -577,40 +575,43 @@ export const SearchScreen = () => {
 
             {/* ── Song / Artist results ── */}
             {!loading && !artistDetail && !showHistory && (
-                <>
-                    {tab === 'songs' && songResults.length > 0 && (
-                        <FlatList
-                            data={songResults}
-                            keyExtractor={s => s.id}
-                            renderItem={renderSongItem}
-                            contentContainerStyle={{ paddingBottom: 100 }}
-                        />
+                <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+                    {songResults.length > 0 && (
+                        <View>
+                            <Text style={styles.sectionTitle}>{t('screens.search.tabSongs', 'Track')}</Text>
+                            {songResults.map((item, index) => (
+                                <View key={item.id}>{renderSongItem({ item, index })}</View>
+                            ))}
+                        </View>
                     )}
-                    {tab === 'artists' && artistResults.length > 0 && (
-                        <FlatList
-                            data={artistResults}
-                            keyExtractor={a => a.artistId}
-                            renderItem={renderArtistItem}
-                            contentContainerStyle={{ paddingBottom: 100 }}
-                        />
+
+                    {artistResults.length > 0 && (
+                        <View>
+                            <Text style={styles.sectionTitle}>{t('screens.search.tabArtists', 'Artist')}</Text>
+                            {artistResults.map((item) => (
+                                <View key={item.artistId}>{renderArtistItem({ item })}</View>
+                            ))}
+                        </View>
                     )}
-                    {tab === 'spotify' && spotifyResults.length > 0 && (
-                        <FlatList
-                            data={spotifyResults}
-                            keyExtractor={(s, idx) => `${s.id}-${idx}`}
-                            renderItem={renderSpotifyItem}
-                            contentContainerStyle={{ paddingBottom: 100 }}
-                        />
+
+                    {soundCloudResults.length > 0 && (
+                        <View>
+                            <Text style={styles.sectionTitle}>{t('screens.search.tabSoundCloud', 'SoundCloud')}</Text>
+                            {soundCloudResults.map((item, index) => (
+                                <View key={`${item.urn}-${index}`}>{renderSoundCloudItem({ item, index })}</View>
+                            ))}
+                        </View>
                     )}
-                    {tab === 'soundcloud' && soundCloudResults.length > 0 && (
-                        <FlatList
-                            data={soundCloudResults}
-                            keyExtractor={(s, idx) => `${s.urn}-${idx}`}
-                            renderItem={renderSoundCloudItem}
-                            contentContainerStyle={{ paddingBottom: 100 }}
-                        />
+
+                    {spotifyResults.length > 0 && (
+                        <View>
+                            <Text style={styles.sectionTitle}>{t('screens.search.tabSpotify', 'Spotify')}</Text>
+                            {spotifyResults.map((item, index) => (
+                                <View key={`${item.id}-${index}`}>{renderSpotifyItem({ item, index })}</View>
+                            ))}
+                        </View>
                     )}
-                </>
+                </ScrollView>
             )}
         </View>
     );
@@ -665,89 +666,11 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
         fontWeight: '700',
     },
 
-    // ── Tabs ─────────────────────────────────────────────────────────────────
-    tabs:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, gap: 8 },
-    tabBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
-    tabBtnActive:  { backgroundColor: colors.accentDim, borderColor: colors.accentDim },
-    tabIcon:       { fontSize: 12 },
-    tabText:       { color: colors.muted, fontWeight: '600', fontSize: 12 },
-    tabTextActive: { color: colors.white },
-
     // ── Common ────────────────────────────────────────────────────────────────
     center:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
     emptyText: { color: colors.glass35, textAlign: 'center', fontSize: 14, lineHeight: 22 },
     hintText:  { color: colors.glass25, textAlign: 'center', fontSize: 13, marginTop: 12 },
-
-
-    voiceHintBox: {
-        alignItems: 'center',
-        backgroundColor: colors.surface,
-        borderRadius: 18,
-        borderWidth: 1,
-        borderColor: colors.accentBorder25,
-        padding: 24,
-        marginBottom: 20,
-        width: '100%',
-    },
-    voiceHintIcon:  { fontSize: 42, marginBottom: 10 },
-    voiceHintTitle: { color: colors.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
-    voiceHintDesc:  {
-        color: colors.glass50, fontSize: 13, textAlign: 'center', lineHeight: 20,
-    },
-
-    // ── History ───────────────────────────────────────────────────────────────
-    historyHeader: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingHorizontal: 16, paddingVertical: 12,
-    },
-    historyTitle:    { color: colors.white, fontSize: 15, fontWeight: '700' },
-    historyClearAll: { color: colors.accent, fontSize: 13, fontWeight: '600' },
-    historyRow: {
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 16, paddingVertical: 13,
-        borderBottomWidth: 1, borderBottomColor: colors.glass06,
-        gap: 12,
-    },
-    historyIcon:       { fontSize: 15, opacity: 0.5 },
-    historyText:       { flex: 1, color: colors.glass70, fontSize: 14 },
-    historyRemoveBtn:  { padding: 4 },
-    historyRemoveIcon: { color: colors.glass30, fontSize: 14 },
-
-    // ── Results ───────────────────────────────────────────────────────────────
-    resultRow: {
-        flexDirection: 'row', alignItems: 'center',
-        paddingHorizontal: 16, paddingVertical: 12,
-        borderBottomWidth: 1, borderBottomColor: colors.glass06, gap: 12,
-    },
-    resultIndex:    { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.glass06, alignItems: 'center', justifyContent: 'center' },
-    artistIconWrap: { backgroundColor: colors.accentFill20 },
-    resultIndexText: { color: colors.glass40, fontSize: 12, fontWeight: '600' },
-    resultInfo:     { flex: 1 },
-    resultTitle:    { color: colors.white, fontSize: 14, fontWeight: '600' },
-    resultSub:      { color: colors.muted, fontSize: 12, marginTop: 2 },
-    playIcon:       { color: colors.glass30, fontSize: 18 },
-    spotifyAttribution: { color: colors.accent, fontSize: 11, marginTop: 3 },
-
-    // ── Artist detail ─────────────────────────────────────────────────────────
-    artistDetailHeader: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingHorizontal: 16, paddingVertical: 10,
-        borderBottomWidth: 1, borderBottomColor: colors.border,
-    },
-    backToArtistsText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
-    artistDetailSub:   { color: colors.glass35, fontSize: 12 },
-});
-ion: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6, gap: 8 },
-    tabBtn:        { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.border },
-    tabBtnActive:  { backgroundColor: colors.accentDim, borderColor: colors.accentDim },
-    tabIcon:       { fontSize: 12 },
-    tabText:       { color: colors.muted, fontWeight: '600', fontSize: 12 },
-    tabTextActive: { color: colors.white },
-
-    // ── Common ────────────────────────────────────────────────────────────────
-    center:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-    emptyText: { color: colors.glass35, textAlign: 'center', fontSize: 14, lineHeight: 22 },
-    hintText:  { color: colors.glass25, textAlign: 'center', fontSize: 13, marginTop: 12 },
+    sectionTitle: { color: colors.accent, fontSize: 13, fontWeight: '700', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
 
 
     voiceHintBox: {

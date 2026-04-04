@@ -53,11 +53,21 @@ export const ProfileScreen = () => {
     // Stats từ API
     const [playlistCount, setPlaylistCount] = useState<number | null>(null);
     const [favoriteCount, setFavoriteCount] = useState<number | null>(null);
+    const profileName = authSession?.profile?.fullName?.trim();
+    const profileEmail = authSession?.profile?.email;
+    const displayName = profileName && profileName.length > 0
+        ? profileName
+        : profileEmail ?? t('screens.profile.defaultUserName', 'Monu User');
 
     useEffect(() => {
+        void refreshProfile();
         void loadArtistProfile();
         void loadStats();
     }, [authSession?.tokens.accessToken]);
+
+    useEffect(() => {
+        setFullName(authSession?.profile?.fullName ?? '');
+    }, [authSession?.profile?.fullName]);
 
     const loadArtistProfile = async () => {
         setLoadingArtist(true);
@@ -260,9 +270,7 @@ export const ProfileScreen = () => {
                         </View>
                     </Pressable>
 
-                    <Text style={styles.name}>
-                        {authSession?.profile?.fullName ?? authSession?.profile?.email ?? t('screens.profile.defaultUserName', 'Monu User')}
-                    </Text>
+                    <Text style={styles.name}>{displayName}</Text>
                     <Text style={styles.email}>{authSession?.profile?.email}</Text>
 
                     <Pressable style={styles.editBtn} onPress={() => setEditOpen(true)}>
