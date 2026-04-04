@@ -69,8 +69,10 @@
     },
     "search": {
       "inputPlaceholder": "Tìm bài hát, nghệ sĩ...",
-      "tabSongs": "🎵 Bài hát",
-      "tabArtists": "🎤 Nghệ sĩ",
+      "tabSongs": "Bài hát",
+      "tabArtists": "Nghệ sĩ",
+      "tabSoundCloud": "SoundCloud",
+      "tabSpotify": "Spotify",
       "artistType": "Nghệ sĩ",
       "historyTitle": "Lịch sử tìm kiếm",
       "clearAll": "Xóa tất cả",
@@ -327,7 +329,7 @@
         "passwordPolicy": "Mật khẩu cần ≥ 8 ký tự, có chữ hoa, thường, số và ký tự đặc biệt."
       },
       "passwordStrength": {
-        "strong": "Mạnh 💪",
+        "strong": "Mạnh",
         "medium": "Trung bình",
         "weak": "Yếu"
       }
@@ -348,6 +350,7 @@
       "reviewStep3": "Sau khi xác thực, bạn có thể upload nhạc và tạo album",
       "reviewStep4": "Cần có gói Premium để kích hoạt tính năng Artist",
       "successTitle": "🎉 Đăng ký thành công!",
+      "successMessage": "Hồ sơ nghệ sĩ của bạn đã được đăng ký thành công.",
       "registerFailed": "Không thể đăng ký. Vui lòng thử lại."
     },
     "authOptions": {
@@ -496,9 +499,9 @@
       "empty": "Thư viện của bạn trống",
       "recentlyPlayed": "Vừa phát",
       "downloads": "Tải xuống",
-      "tabPlaylists": "playlist",
-      "tabSongs": "bài",
-      "tabAlbums": "album",
+      "tabPlaylists": "Playlist",
+      "tabSongs": "Bài hát",
+      "tabAlbums": "Album",
       "songDeleted": "Đã xoá",
       "private": "Riêng tư",
       "releasePending": "Đang trong hàng chờ phát hành...",
@@ -536,6 +539,7 @@
       "cannotSetPrivate": "Không thể đặt riêng tư.",
       "deleteAlbumConfirmTitle": "Xoá album?",
       "addedTitle": "Đã thêm",
+      "createdPlaylist": "Tạo playlist thành công.",
       "songAddedToPlaylist": "Bài hát đã được thêm vào playlist.",
       "createNewPlaylist": "Tạo playlist mới",
       "noPlaylists": "Chưa có playlist nào",
@@ -563,7 +567,7 @@
       "cannotDeletePost": "Không thể xoá bài viết",
       "liveBadge": "LIVE",
       "communityLabel": "Cộng đồng âm nhạc",
-      "posts": "bài đăng",
+      "posts": "Bài đăng",
       "composerPlaceholder": "Bạn đang nghĩ gì về âm nhạc?",
       "noPosts": "Chưa có bài đăng nào",
       "beFirstToShare": "Hãy là người đầu tiên chia sẻ!",
@@ -611,7 +615,8 @@
     "selectLanguage": "Chọn ngôn ngữ",
     "selectGenres": "Chọn thể loại",
     "selectArtists": "Chọn nghệ sĩ",
-    "selectGenresDescription": "Chọn thể loại nhạc bạn yêu thích"
+    "selectGenresDescription": "Chọn thể loại nhạc bạn yêu thích",
+    "selectArtistsDescription": "Playlist của bạn sẽ được cá nhân hóa dựa trên lựa chọn này"
   },
   "premium": {
     "title": "Premium",
@@ -639,6 +644,7 @@
     "selectGenresSubtitle": "Chọn thể loại nhạc bạn yêu thích",
     "selectArtists": "Chọn nghệ sĩ",
     "selectArtistsTitle": "Nghệ sĩ bạn yêu thích",
+    "selectArtistsSubtitle": "Playlist của bạn sẽ được cá nhân hóa dựa trên lựa chọn của bạn",
     "selectCount": "Chọn {min}–{max}",
     "selected": "{count}/{max}"
   },
@@ -655,7 +661,11 @@
     "followers": "Người Theo Dõi",
     "topSongs": "Bài Hát Hàng Đầu",
     "moreFromGenre": "Thêm từ thể loại này",
-    "noDataAvailable": "Chưa có dữ liệu"
+    "noDataAvailable": "Chưa có dữ liệu",
+    "soundcloudSection": "🔶 Nghe cùng SoundCloud",
+    "spotifySection": "🟢 Nghe cùng Spotify",
+    "openInSpotify": "Mở Spotify",
+    "loadingExternal": "Đang tải nhạc ngoài..."
   },
   "playlistDetails": {
     "songs": "bài hát",

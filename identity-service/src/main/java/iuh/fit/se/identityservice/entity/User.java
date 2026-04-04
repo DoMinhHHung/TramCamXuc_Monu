@@ -20,10 +20,11 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-        name = "users",
-        indexes = { @Index(name = "idx_users_email", columnList = "email") }
-)
+@Table(name = "users", indexes = {
+        @Index(name = "idx_users_email", columnList = "email"),
+        @Index(name = "idx_user_role", columnList = "role"),
+        @Index(name = "idx_user_status", columnList = "status")
+})
 public class User extends BaseEntity {
 
     @Id
@@ -71,30 +72,16 @@ public class User extends BaseEntity {
     private String providerId;
 
     // ── Favorites for onboarding & cold-start recommendations ──────────────────
-
-    /**
-     * Flag để check xem user đã pick favorites chưa.
-     * - false/null: chưa pick → cần show onboarding screen
-     * - true: đã pick → skip onboarding
-     */
     @Column(name = "pick_favorite", nullable = false)
     @Builder.Default
     private Boolean pickFavorite = false;
 
-    /**
-     * Danh sách genre IDs yêu thích (1-5 genres).
-     * Lưu dưới dạng JSON array trong DB: ["uuid1", "uuid2", ...]
-     */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_favorite_genres", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "genre_id")
     @Builder.Default
     private Set<UUID> favoriteGenreIds = new HashSet<>();
 
-    /**
-     * Danh sách artist IDs yêu thích (1-3 artists).
-     * Lưu dưới dạng JSON array trong DB: ["uuid1", "uuid2", ...]
-     */
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_favorite_artists", joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "artist_id")

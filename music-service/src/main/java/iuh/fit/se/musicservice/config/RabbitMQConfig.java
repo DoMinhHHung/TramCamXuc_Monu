@@ -8,35 +8,6 @@ import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * Central RabbitMQ topology for music-service.
- *
- * ──────────────────────────────────────────────────────────────────────────
- * EXCHANGES
- * ──────────────────────────────────────────────────────────────────────────
- *  music.exchange        – transcode requests / callbacks
- *  music.event.exchange  – listen events for analytics / trending
- *  identity.exchange     – artist register, subscription sync
- *  notification.exchange – email notifications
- *  jamendo.exchange      – Jamendo import pipeline (NEW)
- *
- * ──────────────────────────────────────────────────────────────────────────
- * JAMENDO IMPORT PIPELINE (NEW)
- * ──────────────────────────────────────────────────────────────────────────
- *
- *  JamendoImportService  ──[jamendo.download.routing]──►  jamendo.download.queue
- *                                                               │
- *                                                   JamendoDownloadWorker
- *                                                               │ (on success)
- *                                                   ──[song.transcode]──► transcode-service
- *                                                               │ (on failure)
- *                                                   ──► jamendo.download.dlq
- *
- *  DLQ policy:
- *    - requeue = false on NACK → message moves to DLQ automatically via
- *      x-dead-letter-exchange / x-dead-letter-routing-key headers.
- *    - Operations team can inspect and replay DLQ messages manually.
- */
 @Configuration
 public class RabbitMQConfig {
 

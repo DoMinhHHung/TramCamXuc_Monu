@@ -10,6 +10,7 @@ import iuh.fit.se.musicservice.repository.GenreRepository;
 import iuh.fit.se.musicservice.service.GenreService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,7 +58,6 @@ public class GenreServiceImpl implements GenreService {
         if (!genreRepository.existsById(id)) {
             throw new AppException(ErrorCode.GENRE_NOT_FOUND);
         }
-        // TODO: Kiểm tra GENRE_IN_USE khi có đủ dữ liệu song
         genreRepository.deleteById(id);
         log.info("Genre {} deleted", id);
     }
@@ -80,6 +80,7 @@ public class GenreServiceImpl implements GenreService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "popularGenres", key = "#limit")
     public List<GenreResponse> getPopularGenres(int limit) {
         return genreRepository.findPopularGenres(PageRequest.of(0, limit))
                 .stream()

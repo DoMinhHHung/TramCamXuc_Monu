@@ -556,6 +556,19 @@ const AddToPlaylistModal = ({
   onCreateAndAdd: (name: string) => Promise<void>;
 }) => {
   const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateAndAdd = async () => {
+    if (!newName.trim() || creating) return;
+    setCreating(true);
+    try {
+      await onCreateAndAdd(newName.trim());
+      setNewName('');
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
       <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
         <Pressable style={sheetStyles.overlay} onPress={onClose} />
@@ -582,10 +595,13 @@ const AddToPlaylistModal = ({
             />
             <Pressable
                 style={[sheetStyles.newBtn, !newName.trim() && { opacity: 0.4 }]}
-                disabled={!newName.trim()}
-                onPress={() => { onCreateAndAdd(newName.trim()); setNewName(''); }}
+                disabled={!newName.trim() || creating}
+                onPress={() => { void handleCreateAndAdd(); }}
             >
-              <Text style={sheetStyles.newBtnText}>+</Text>
+              {creating
+                ? <ActivityIndicator size="small" color={COLORS.white} />
+                : <Text style={sheetStyles.newBtnText}>+</Text>
+              }
             </Pressable>
           </View>
         </View>
@@ -1260,6 +1276,7 @@ export const LibraryScreen = () => {
   const [addSongTo, setAddSongTo]   = useState<Song | null>(null);
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [createAlbumOpen, setCreateAlbumOpen] = useState(false);
   const [detailAlbumId, setDetailAlbumId]     = useState<string | null>(null);
   const [editPlaylist, setEditPlaylist]        = useState<Playlist | null>(null);
@@ -1402,17 +1419,25 @@ export const LibraryScreen = () => {
   };
 
   const handleCreatePlaylist = async () => {
-    if (!newPlaylistName.trim()) return;
+    if (!newPlaylistName.trim() || creatingPlaylist) return;
+    const playlistName = newPlaylistName.trim();
+    setCreatingPlaylist(true);
     try {
-      await createPlaylist({
-        name: newPlaylistName.trim(),
+      const created = await createPlaylist({
+        name: playlistName,
         visibility: 'PUBLIC',
       });
+
+      // Update immediately so users see feedback without waiting for full reload.
+      setPlaylists((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
       setNewPlaylistName('');
       setCreatePlaylistOpen(false);
+      showToast(t('screens.library.createdPlaylist', 'Playlist created successfully.'), 'success');
       await load(true);
     } catch (e: any) {
       showToast(e?.message ?? t('screens.library.cannotCreatePlaylist', 'Cannot create playlist.'), 'error');
+    } finally {
+      setCreatingPlaylist(false);
     }
   };
 
@@ -1743,9 +1768,12 @@ export const LibraryScreen = () => {
                 <Pressable
                     style={[modalStyles.createBtn, !newPlaylistName.trim() && { opacity: 0.4 }]}
                     onPress={handleCreatePlaylist}
-                    disabled={!newPlaylistName.trim()}
+                    disabled={!newPlaylistName.trim() || creatingPlaylist}
                 >
-                  <Text style={modalStyles.createText}>{t('common.create', 'Create')}</Text>
+                  {creatingPlaylist
+                    ? <ActivityIndicator size="small" color={COLORS.white} />
+                    : <Text style={modalStyles.createText}>{t('common.create', 'Create')}</Text>
+                  }
                 </Pressable>
               </View>
             </View>

@@ -2,9 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator, Animated, Dimensions, FlatList, Image,
     Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
-    Pressable, ScrollView, StyleSheet, Text, View, TextInput, Alert,
+    Pressable, ScrollView, StyleSheet, Text, View, TextInput, Alert, Linking,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config/colors';
@@ -15,6 +14,8 @@ import {
 } from '../services/music';
 import { getSongShareQr } from '../services/social';
 import { SongActionSheet } from './SongActionSheet';
+import { AppIcon } from './AppIcon';
+import { HeartButton } from './HeartButton';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -24,7 +25,7 @@ const formatTime = (seconds: number): string => {
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
 };
-import { Foundation, MaterialCommunityIcons, MaterialIcons, Entypo, Feather } from '@expo/vector-icons';
+import { Foundation, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
 const THUMB_RADIUS = 9;
 
@@ -35,10 +36,10 @@ const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
     { value: 320, label: '320k' },
 ];
 
-const repeatLabel = (mode: RepeatMode): string => {
-    if (mode === 'one') return <MaterialIcons name="repeat-one" color="#fff" size={24} /> as any;
-    if (mode === 'all') return <MaterialCommunityIcons name="repeat" color="#fff" size={24} /> as any;
-    return <Entypo name="flickr" color="#fff" size={24} /> as any;
+const RepeatIcon = ({ mode }: { mode: RepeatMode }) => {
+    if (mode === 'one') return <MaterialIcons name="repeat-one" color="#fff" size={22} />;
+    if (mode === 'all') return <MaterialCommunityIcons name="repeat" color="#fff" size={22} />;
+    return <MaterialIcons name="repeat" color={COLORS.glass35} size={22} />;
 };
 
 // ─── Lyric Viewer ──────────────────────────────────────────────────────────────
@@ -328,6 +329,11 @@ export const FullPlayerModal = () => {
     if (!currentSong) return null;
 
     const showLyricsTab = hasLyrics || lyricData;
+    const looksLikeSoundCloud = !!currentSong.soundcloudId || !!currentSong.soundcloudPermalink;
+    const isExternalTrack =
+        currentSong.sourceType === 'SOUNDCLOUD'
+        || currentSong.sourceType === 'JAMENDO'
+        || looksLikeSoundCloud;
 
     return (
         <Modal
@@ -340,15 +346,12 @@ export const FullPlayerModal = () => {
                 style={[{ flex: 1 }, { transform: [{ translateY }] }]}
                 {...dismissPan.panHandlers}
             >
-                <LinearGradient
-                    colors={[COLORS.gradPurple, COLORS.gradIndigo, COLORS.bg]}
-                    locations={[0, 0.4, 1]}
-                    style={[styles.root, { paddingTop: insets.top }]}
-                >
+                {/* Clean dark background — không gradient nặng */}
+                <View style={[styles.root, { paddingTop: insets.top }]}>
                     {/* Header */}
                     <View style={styles.header}>
-                        <Pressable onPress={() => setFullScreen(false)} hitSlop={10}>
-                            <Text style={styles.chevron}>⌄</Text>
+                        <Pressable onPress={() => setFullScreen(false)} hitSlop={12} style={styles.chevronBtn}>
+                            <AppIcon set="MaterialIcons" name="keyboard-arrow-down" size={28} color={COLORS.glass60} />
                         </Pressable>
 
                         {/* Page indicators */}
@@ -395,7 +398,7 @@ export const FullPlayerModal = () => {
                                 {currentSong.thumbnailUrl
                                     ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.artwork} />
                                     : <View style={[styles.artwork, styles.artworkPlaceholder]}>
-                                        <Text style={styles.artworkIcon}>🎵</Text>
+                                        <AppIcon set="MaterialIcons" name="music-note" size={64} color={COLORS.glass35} />
                                     </View>
                                 }
                             </View>
@@ -403,7 +406,12 @@ export const FullPlayerModal = () => {
                             {/* Song info */}
                             <View style={styles.songInfo}>
                                 <Text style={styles.songTitle} numberOfLines={2}>{currentSong.title}</Text>
-                                <Text style={styles.artistName} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
+                                <View style={styles.songMetaRow}>
+                                    <Text style={styles.artistName} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
+                                    <View style={styles.heartWrap}>
+                                        <HeartButton songId={currentSong.id} size={20} />
+                                    </View>
+                                </View>
                                 {currentSong.genres?.length > 0 && (
                                     <View style={styles.genreRow}>
                                         {currentSong.genres.slice(0, 3).map(g => (
@@ -436,32 +444,33 @@ export const FullPlayerModal = () => {
                             {/* Controls */}
                             <View style={styles.controls}>
                                 <Pressable style={styles.sideBtn} onPress={toggleShuffle} hitSlop={8}>
-                                    <Text style={[styles.modeIcon, isShuffled && styles.modeIconActive]}>
-                                        <Foundation name="shuffle" color="#34D399" size={24} />
-                                    </Text>
+                                    <Foundation
+                                        name="shuffle"
+                                        color={isShuffled ? COLORS.accent : COLORS.glass40}
+                                        size={22}
+                                    />
                                     {isShuffled && <View style={styles.modeDot} />}
                                 </Pressable>
 
                                 <Pressable style={styles.sideBtn} onPress={playPrev}>
-                                    <MaterialCommunityIcons name="skip-previous" color="#fff" size={30} />
+                                    <MaterialCommunityIcons name="skip-previous" color={COLORS.glass80} size={32} />
                                 </Pressable>
 
                                 <Pressable style={styles.playBtn} onPress={togglePlay}>
-                                    <LinearGradient colors={[COLORS.accent, COLORS.accentAlt]} style={styles.playBtnGradient}>
-                                        <Text style={styles.playBtnIcon}>{!isLoaded ? '⏳' : isPlaying ? '⏸' : '▶'}</Text>
-                                    </LinearGradient>
+                                    {!isLoaded
+                                        ? <ActivityIndicator color={COLORS.bg} size="small" />
+                                        : isPlaying
+                                            ? <AppIcon set="MaterialIcons" name="pause" size={32} color={COLORS.bg} />
+                                            : <AppIcon set="MaterialIcons" name="play-arrow" size={34} color={COLORS.bg} />
+                                    }
                                 </Pressable>
 
                                 <Pressable style={styles.sideBtn} onPress={playNext}>
-                                    <Text style={styles.sideBtnIcon}>
-                                        <MaterialCommunityIcons name="skip-next" color="#fff" size={30} />
-                                    </Text>
+                                    <MaterialCommunityIcons name="skip-next" color={COLORS.glass80} size={32} />
                                 </Pressable>
 
                                 <Pressable style={styles.sideBtn} onPress={cycleRepeatMode} hitSlop={8}>
-                                    <Text style={[styles.modeIcon, repeatMode !== 'none' && styles.modeIconActive]}>
-                                        {repeatLabel(repeatMode)}
-                                    </Text>
+                                    <RepeatIcon mode={repeatMode} />
                                     {repeatMode !== 'none' && <View style={styles.modeDot} />}
                                 </Pressable>
                             </View>
@@ -480,57 +489,59 @@ export const FullPlayerModal = () => {
                             </View>
 
                             {/* Quality selector */}
-                            <View style={styles.qualitySection}>
-                                <View style={styles.qualityHeader}>
-                                    <Text style={styles.qualityLabel}>Chất lượng âm thanh</Text>
-                                    <Pressable
-                                        style={[styles.autoBtn, autoQuality && styles.autoBtnActive]}
-                                        onPress={() => setAutoQuality(!autoQuality)}
-                                        hitSlop={8}
-                                    >
-                                        <Text style={[styles.autoBtnText, autoQuality && styles.autoBtnTextActive]}>
-                                            Tự động
-                                        </Text>
-                                    </Pressable>
+                            {!isExternalTrack && (
+                                <View style={styles.qualitySection}>
+                                    <View style={styles.qualityHeader}>
+                                        <Text style={styles.qualityLabel}>Chất lượng âm thanh</Text>
+                                        <Pressable
+                                            style={[styles.autoBtn, autoQuality && styles.autoBtnActive]}
+                                            onPress={() => setAutoQuality(!autoQuality)}
+                                            hitSlop={8}
+                                        >
+                                            <Text style={[styles.autoBtnText, autoQuality && styles.autoBtnTextActive]}>
+                                                Tự động
+                                            </Text>
+                                        </Pressable>
+                                    </View>
+                                    <View style={styles.qualityRow}>
+                                        {QUALITY_OPTIONS.map(opt => {
+                                            const isSelected  = selectedQuality === opt.value;
+                                            const isAvailable = opt.value <= maxQuality;
+                                            const dimmed      = autoQuality && !isSelected;
+                                            return (
+                                                <Pressable
+                                                    key={opt.value}
+                                                    style={[
+                                                        styles.qualityBtn,
+                                                        isSelected   && styles.qualityBtnActive,
+                                                        !isAvailable && styles.qualityBtnLocked,
+                                                        dimmed       && { opacity: 0.45 },
+                                                    ]}
+                                                    onPress={() => isAvailable && setQuality(opt.value)}
+                                                    disabled={!isAvailable}
+                                                >
+                                                    <Text style={[
+                                                        styles.qualityBtnText,
+                                                        isSelected   && styles.qualityBtnTextActive,
+                                                        !isAvailable && styles.qualityBtnTextLocked,
+                                                    ]}>
+                                                        {opt.label}{!isAvailable ? '🔒' : ''}
+                                                    </Text>
+                                                </Pressable>
+                                            );
+                                        })}
+                                    </View>
+                                    <Text style={styles.qualityHint}>
+                                        {'Đang phát: '}
+                                        <Text style={{ color: COLORS.accent }}>{selectedQuality}kbps</Text>
+                                        {autoQuality
+                                            ? `  •  ${NETWORK_LABEL[networkTier] ?? networkTier}`
+                                            : maxQuality < 320
+                                                ? '  •  Nâng cấp Premium để mở chất lượng cao hơn'
+                                                : '  •  Chất lượng tối đa'}
+                                    </Text>
                                 </View>
-                                <View style={styles.qualityRow}>
-                                    {QUALITY_OPTIONS.map(opt => {
-                                        const isSelected  = selectedQuality === opt.value;
-                                        const isAvailable = opt.value <= maxQuality;
-                                        const dimmed      = autoQuality && !isSelected;
-                                        return (
-                                            <Pressable
-                                                key={opt.value}
-                                                style={[
-                                                    styles.qualityBtn,
-                                                    isSelected   && styles.qualityBtnActive,
-                                                    !isAvailable && styles.qualityBtnLocked,
-                                                    dimmed       && { opacity: 0.45 },
-                                                ]}
-                                                onPress={() => isAvailable && setQuality(opt.value)}
-                                                disabled={!isAvailable}
-                                            >
-                                                <Text style={[
-                                                    styles.qualityBtnText,
-                                                    isSelected   && styles.qualityBtnTextActive,
-                                                    !isAvailable && styles.qualityBtnTextLocked,
-                                                ]}>
-                                                    {opt.label}{!isAvailable ? '🔒' : ''}
-                                                </Text>
-                                            </Pressable>
-                                        );
-                                    })}
-                                </View>
-                                <Text style={styles.qualityHint}>
-                                    {'Đang phát: '}
-                                    <Text style={{ color: COLORS.accent }}>{selectedQuality}kbps</Text>
-                                    {autoQuality
-                                        ? `  •  ${NETWORK_LABEL[networkTier] ?? networkTier}`
-                                        : maxQuality < 320
-                                            ? '  •  Nâng cấp Premium để mở chất lượng cao hơn'
-                                            : '  •  Chất lượng tối đa'}
-                                </Text>
-                            </View>
+                            )}
 
                             {/* Lyric hint */}
                             {showLyricsTab && activePage === 0 && (
@@ -541,12 +552,28 @@ export const FullPlayerModal = () => {
 
                             {/* Stats */}
                             <View style={styles.stats}>
+                                <AppIcon set="MaterialIcons" name="headset" size={14} color={COLORS.glass30} />
                                 <Text style={styles.statsText}>
-                                    🎧 {currentSong.playCount?.toLocaleString('vi-VN') ?? 0} lượt nghe
+                                    {'  '}{currentSong.playCount?.toLocaleString('vi-VN') ?? 0} lượt nghe
                                 </Text>
                             </View>
 
                             <View style={{ height: insets.bottom + 16 }} />
+
+                            {currentSong.sourceType === 'SOUNDCLOUD' && currentSong.soundcloudPermalink && (
+                                <Pressable
+                                    style={styles.scAttribution}
+                                    onPress={() => Linking.openURL(currentSong.soundcloudPermalink!)}
+                                >
+                                    <Text style={styles.scAttributionText}>
+                                        🔶 Provided by SoundCloud{' '}
+                                        <Text style={{ fontWeight: '700' }}>
+                                            {currentSong.soundcloudUsername ?? 'SoundCloud'}
+                                        </Text>
+                                    </Text>
+                                    <MaterialIcons name="open-in-new" size={14} color="#FF5500" style={{ marginLeft: 4 }} />
+                                </Pressable>
+                            )}
                         </View>
 
                         {/* ── Page 2: Lyrics ─────────────────────────── */}
@@ -565,7 +592,10 @@ export const FullPlayerModal = () => {
                                         <Text style={styles.lyricMiniArtist} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
                                     </View>
                                     <Pressable onPress={togglePlay} hitSlop={8}>
-                                        <Text style={styles.lyricMiniPlay}>{isPlaying ? '⏸' : '▶'}</Text>
+                                        {isPlaying
+                                            ? <AppIcon set="MaterialIcons" name="pause" size={24} color={COLORS.white} />
+                                            : <AppIcon set="MaterialIcons" name="play-arrow" size={24} color={COLORS.white} />
+                                        }
                                     </Pressable>
                                 </View>
 
@@ -671,88 +701,123 @@ export const FullPlayerModal = () => {
                             </View>
                         </Pressable>
                     </Modal>
-                </LinearGradient>
+                </View>
             </Animated.View>
         </Modal>
     );
 };
 
 const styles = StyleSheet.create({
-    root:               { flex: 1 },
-    header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 24 },
-    chevron:            { color: COLORS.white, fontSize: 32, lineHeight: 32, fontWeight: '700' },
-    headerTitle:        { color: COLORS.glass60, fontSize: 13, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+    root:               { flex: 1, backgroundColor: '#0E0E16' },
+    header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 20 },
+    chevronBtn:         { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+    headerTitle:        { color: COLORS.glass50, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
     moreBtn:            { color: COLORS.white, fontSize: 30, lineHeight: 30 },
 
     pageIndicator:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    pageIndicatorText:  { color: COLORS.glass35, fontSize: 13, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+    pageIndicatorText:  { color: COLORS.glass35, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
     pageIndicatorActive: { color: COLORS.white },
-    pageDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.glass30 },
+    pageDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.glass20 },
 
-    artworkSection:     { alignItems: 'center', marginTop: 8, marginBottom: 20 },
-    artwork:            { width: 240, height: 240, borderRadius: 20, backgroundColor: COLORS.surface },
-    artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.accentBorder25, backgroundColor: COLORS.accentFill20 },
-    artworkIcon:        { fontSize: 70 },
-    songInfo:           { marginBottom: 18 },
-    songTitle:          { color: COLORS.white, fontSize: 22, fontWeight: '800', marginBottom: 6 },
-    artistName:         { color: COLORS.glass60, fontSize: 15, fontWeight: '500', marginBottom: 8 },
+    artworkSection:     { alignItems: 'center', marginTop: 4, marginBottom: 24 },
+    artwork:            { width: 260, height: 260, borderRadius: 16, backgroundColor: COLORS.surface },
+    artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface },
+    songInfo:           { marginBottom: 20 },
+    songTitle:          { color: COLORS.white, fontSize: 20, fontWeight: '700', marginBottom: 4 },
+    songMetaRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
+    artistName:         { color: COLORS.glass50, fontSize: 14, fontWeight: '500', flex: 1 },
+    heartWrap:          {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.accentBorder25,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOpacity: 0.24,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    externalBadge:      {
+        alignSelf: 'flex-start',
+        marginBottom: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+        backgroundColor: COLORS.accentFill20,
+        borderWidth: 1,
+        borderColor: COLORS.accentBorder25,
+    },
+    externalBadgeText:  { color: COLORS.accent, fontSize: 11, fontWeight: '700' },
     genreRow:           { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-    genreChip:          { backgroundColor: COLORS.accentFill20, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: COLORS.accentBorder25 },
-    genreText:          { color: COLORS.accent, fontSize: 11, fontWeight: '600' },
-    progressSection:    { marginBottom: 18 },
+    genreChip:          { backgroundColor: COLORS.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 },
+    genreText:          { color: COLORS.glass50, fontSize: 11, fontWeight: '600' },
+
+    progressSection:    { marginBottom: 20 },
     seekTouchArea:      { height: 40, justifyContent: 'center' },
-    seekTrack:          { height: 4, backgroundColor: COLORS.glass15, borderRadius: 2 },
-    seekFill:           { height: 4, backgroundColor: COLORS.accent, borderRadius: 2 },
-    seekThumb:          { position: 'absolute', top: '50%', marginTop: -THUMB_RADIUS, width: THUMB_RADIUS * 2, height: THUMB_RADIUS * 2, borderRadius: THUMB_RADIUS, backgroundColor: COLORS.white, shadowColor: COLORS.accentDeep, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 4, elevation: 4 },
-    timeRow:            { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-    timeText:           { color: COLORS.glass40, fontSize: 12, fontWeight: '500' },
+    seekTrack:          { height: 3, backgroundColor: COLORS.glass15, borderRadius: 2 },
+    seekFill:           { height: 3, backgroundColor: COLORS.white, borderRadius: 2 },
+    seekThumb:          { position: 'absolute', top: '50%', marginTop: -THUMB_RADIUS, width: THUMB_RADIUS * 2, height: THUMB_RADIUS * 2, borderRadius: THUMB_RADIUS, backgroundColor: COLORS.white },
+    timeRow:            { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+    timeText:           { color: COLORS.glass40, fontSize: 11, fontWeight: '500' },
 
-    controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 4 },
-    sideBtn:            { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
-    sideBtnIcon:        { fontSize: 28, color: COLORS.glass70 },
-    playBtn:            { borderRadius: 36, overflow: 'hidden', shadowColor: COLORS.accentDeep, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 8 },
-    playBtnGradient:    { width: 72, height: 72, alignItems: 'center', justifyContent: 'center' },
-    playBtnIcon:        { fontSize: 28, color: COLORS.white },
+    controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 8 },
+    sideBtn:            { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    /** Play button — solid white circle, icon màu tối */
+    playBtn:            {
+        width: 64, height: 64, borderRadius: 32,
+        backgroundColor: COLORS.white,
+        alignItems: 'center', justifyContent: 'center',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3, shadowRadius: 10, elevation: 8,
+    },
 
-    modeIcon:           { fontSize: 22, color: COLORS.glass35 },
-    modeIconActive:     { color: COLORS.accent },
-    modeDot:            { width: 5, height: 5, borderRadius: 3, backgroundColor: COLORS.accent, marginTop: 2 },
-    modeLabels:         { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 14, minHeight: 18 },
-    modeLabelText:      { color: COLORS.glass45, fontSize: 11, fontWeight: '600' },
+    modeDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.accent, marginTop: 2, alignSelf: 'center' },
+    modeLabels:         { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 14, minHeight: 16 },
+    modeLabelText:      { color: COLORS.glass40, fontSize: 11, fontWeight: '600' },
 
     qualitySection:         { marginBottom: 14 },
     qualityHeader:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-    qualityLabel:           { color: COLORS.glass40, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-    autoBtn:                { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface },
+    qualityLabel:           { color: COLORS.glass35, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
+    autoBtn:                { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: COLORS.glass15, backgroundColor: COLORS.surface },
     autoBtnActive:          { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
     autoBtnText:            { color: COLORS.muted, fontSize: 11, fontWeight: '600' },
     autoBtnTextActive:      { color: COLORS.accent },
     qualityRow:             { flexDirection: 'row', gap: 8, marginBottom: 8 },
-    qualityBtn:             { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface },
-    qualityBtnActive:       { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
-    qualityBtnLocked:       { opacity: 0.35 },
+    qualityBtn:             { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: COLORS.glass12, backgroundColor: COLORS.surface },
+    qualityBtnActive:       { borderColor: COLORS.glass40, backgroundColor: COLORS.glass08 },
+    qualityBtnLocked:       { opacity: 0.3 },
     qualityBtnText:         { color: COLORS.muted, fontSize: 12, fontWeight: '600' },
-    qualityBtnTextActive:   { color: COLORS.accent },
-    qualityBtnTextLocked:   { color: COLORS.glass25 },
-    qualityHint:            { color: COLORS.glass30, fontSize: 11, lineHeight: 16 },
+    qualityBtnTextActive:   { color: COLORS.white, fontWeight: '700' },
+    qualityBtnTextLocked:   { color: COLORS.glass20 },
+    qualityHint:            { color: COLORS.glass25, fontSize: 11, lineHeight: 16 },
 
     lyricHint:          { alignItems: 'center', marginBottom: 8 },
-    lyricHintText:      { color: COLORS.glass30, fontSize: 12, fontWeight: '500' },
+    lyricHintText:      { color: COLORS.glass25, fontSize: 11, fontWeight: '500' },
 
-    lyricMiniBar:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 10 },
-    lyricMiniArt:       { width: 40, height: 40, borderRadius: 8, backgroundColor: COLORS.surface },
-    lyricMiniTitle:     { color: COLORS.white, fontSize: 14, fontWeight: '700' },
-    lyricMiniArtist:    { color: COLORS.glass50, fontSize: 12 },
-    lyricMiniPlay:      { color: COLORS.white, fontSize: 22 },
-    lyricProgress:      { height: 2, backgroundColor: COLORS.glass10, marginHorizontal: 20 },
-    lyricProgressFill:  { height: 2, backgroundColor: COLORS.accent, borderRadius: 1 },
+    lyricMiniBar:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12 },
+    lyricMiniArt:       { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    lyricMiniTitle:     { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+    lyricMiniArtist:    { color: COLORS.glass45, fontSize: 11 },
+    lyricProgress:      { height: 2, backgroundColor: COLORS.glass08, marginHorizontal: 20 },
+    lyricProgressFill:  { height: 2, backgroundColor: COLORS.glass50, borderRadius: 1 },
 
     menuBackdrop:       { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
-    menuSheet:          { backgroundColor: COLORS.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, gap: 10 },
-    menuTitle:          { color: COLORS.white, fontSize: 16, fontWeight: '800', marginBottom: 6 },
-    menuItem:           { color: COLORS.glass90, fontSize: 14, marginBottom: 8 },
+    menuSheet:          { backgroundColor: '#18181f', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, gap: 10 },
+    menuTitle:          { color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
+    menuItem:           { color: COLORS.glass80, fontSize: 14, marginBottom: 8 },
     menuItemAccent:     { color: COLORS.accent, fontSize: 14, fontWeight: '700' },
-    playlistInput:      { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass20, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 10 },
-    stats:              { alignItems: 'center' },
-    statsText:          { color: COLORS.glass30, fontSize: 13 },
+    playlistInput:      { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass15, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
+    stats:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+    statsText:          { color: COLORS.glass25, fontSize: 12 },
+    scAttribution: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        marginTop: 8, paddingVertical: 8, paddingHorizontal: 16,
+        backgroundColor: '#FF550010', borderRadius: 8,
+        borderWidth: 1, borderColor: '#FF550030',
+    },
+    scAttributionText: { color: '#FF5500', fontSize: 12 },
 });

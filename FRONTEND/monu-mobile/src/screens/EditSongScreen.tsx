@@ -242,7 +242,7 @@ export const EditSongScreen = () => {
         >
           <View style={styles.headerRow}>
             <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
-              <AntDesign name="arrowleft" color={COLORS.white} size={22} />
+              <AntDesign name="arrow-left" color={COLORS.white} size={22} />
             </Pressable>
             <Text style={styles.headerTitle}>{t('screens.editSong.title', 'Chỉnh sửa bài hát')}</Text>
             <View style={{ width: 22 }} />

@@ -12,6 +12,7 @@ import iuh.fit.se.musicservice.entity.Genre;
 import iuh.fit.se.musicservice.entity.Artist;
 import iuh.fit.se.musicservice.entity.Song;
 import iuh.fit.se.musicservice.enums.SongStatus;
+import iuh.fit.se.musicservice.enums.SourceType;
 import iuh.fit.se.musicservice.enums.TranscodeStatus;
 import iuh.fit.se.musicservice.exception.AppException;
 import iuh.fit.se.musicservice.exception.ErrorCode;
@@ -55,6 +56,7 @@ public class SongServiceImpl implements SongService {
     private final ObjectMapper objectMapper;
     private final PaymentInternalClient paymentInternalClient;
     private final SubscriptionCacheWarmupService subscriptionCacheWarmupService;
+    private final SoundCloudService soundCloudService;
 
     // ── Cache constants (recommendation-service internal) ──────────────────────
     private static final String   CACHE_BATCH_PREFIX  = "rec:songs:batch:";
@@ -293,6 +295,8 @@ public class SongServiceImpl implements SongService {
         return songMapper.toResponse(song);
     }
 
+    // Trong SongServiceImpl.java — cập nhật method getStreamUrl()
+
     @Override
     @Transactional(readOnly = true)
     public String getStreamUrl(UUID songId) {
@@ -306,12 +310,20 @@ public class SongServiceImpl implements SongService {
             throw new AppException(ErrorCode.SONG_NOT_READY);
         }
 
-        // Bài PUBLIC thì ai cũng nghe được
+        if (song.getSourceType() == SourceType.SOUNDCLOUD
+                && song.getSoundcloudId() != null) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()
+                    || "anonymousUser".equals(auth.getPrincipal())) {
+                throw new AppException(ErrorCode.UNAUTHENTICATED);
+            }
+            return soundCloudService.getStreamUrl(song.getSoundcloudId());
+        }
+
         if (song.getStatus() == SongStatus.PUBLIC) {
             return buildStreamUrl(song, resolveStreamQuality());
         }
 
-        // Bài PRIVATE hoặc DRAFT → chỉ owner hoặc admin
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated()
                 || "anonymousUser".equals(auth.getPrincipal())) {
@@ -385,10 +397,9 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public Page<SongResponse> searchSongs(String keyword, UUID genreId,
-                                          UUID artistId, Pageable pageable) {
-        return songRepository.searchPublic(toKeywordPattern(keyword), genreId, artistId, pageable)
+    public Page<SongResponse> searchSongs(String keyword, UUID genreId, UUID artistId, Pageable pageable) {
+        String pattern = (keyword == null || keyword.isBlank()) ? null : "%" + keyword + "%";
+        return songRepository.searchPublic(pattern, genreId, artistId, pageable)
                 .map(songMapper::toResponse);
     }
 

@@ -3,7 +3,7 @@
 // Bottom sheet đẹp với animation slide + backdrop fade.
 // API mới dùng "actions" array thay vì flat props.
 
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Image,
@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS } from '../config/colors';
+import { useThemeColors } from '../config/colors';
 import { MUSIC_EMOJIS } from '../config/emojis';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -51,14 +51,16 @@ interface SongActionSheetProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const SongActionSheet = ({
-                                  visible,
-                                  title,
-                                  subtitle,
-                                  thumbnailUrl,
-                                  thumbnailEmoji = MUSIC_EMOJIS.song,
-                                  onClose,
-                                  actions,
-                                }: SongActionSheetProps) => {
+  visible,
+  title,
+  subtitle,
+  thumbnailUrl,
+  thumbnailEmoji = MUSIC_EMOJIS.song,
+  onClose,
+  actions,
+}: SongActionSheetProps) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const safeActions = Array.isArray(actions) ? actions : [];
   const insets    = useSafeAreaInsets();
   const slideAnim = useRef(new Animated.Value(500)).current;
@@ -278,165 +280,56 @@ export const SongActionSheet = ({
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  // Backdrop
+const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.62)',
   },
-
-  // Sheet
   sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: COLORS.glass12,
-    // Shadow
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 26, borderTopRightRadius: 26,
+    borderWidth: 1, borderBottomWidth: 0, borderColor: colors.divider,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 20,
+    shadowOpacity: 0.35, shadowRadius: 12, elevation: 20,
   },
-
   handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.glass25,
-    alignSelf: 'center',
-    marginTop: 12,
-    marginBottom: 6,
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: colors.divider,
+    alignSelf: 'center', marginTop: 12, marginBottom: 6,
   },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    gap: 14,
-  },
-  thumbWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 12,
-    overflow: 'hidden',
-    flexShrink: 0,
-  },
-  thumbImg: {
-    width: 54,
-    height: 54,
-    borderRadius: 12,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, gap: 14 },
+  thumbWrap: { width: 54, height: 54, borderRadius: 12, overflow: 'hidden', flexShrink: 0 },
+  thumbImg: { width: 54, height: 54, borderRadius: 12 },
   thumbPlaceholder: {
-    width: 54,
-    height: 54,
-    borderRadius: 12,
-    backgroundColor: COLORS.accentFill20,
-    borderWidth: 1,
-    borderColor: COLORS.accentBorder25,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 54, height: 54, borderRadius: 12,
+    backgroundColor: colors.accentFill20,
+    borderWidth: 1, borderColor: colors.accentBorder25,
+    alignItems: 'center', justifyContent: 'center',
   },
   thumbEmoji: { fontSize: 26 },
-  headerText:  { flex: 1 },
-  headerTitle: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '700',
-    lineHeight: 21,
-    marginBottom: 3,
-  },
-  headerSub: { color: COLORS.glass50, fontSize: 13 },
-  headerDivider: { height: 1, backgroundColor: COLORS.glass08 },
-
-  // Actions
-  actionsContainer: {
-    paddingHorizontal: 10,
-    paddingTop: 6,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: COLORS.glass08,
-    marginHorizontal: 8,
-    marginVertical: 4,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    borderRadius: 14,
-    gap: 14,
-  },
-  actionRowPressed: {
-    backgroundColor: COLORS.glass06,
-  },
-  actionRowDisabled: {
-    opacity: 0.45,
-  },
-  iconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: COLORS.glass07,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  iconWrapDestructive: {
-    backgroundColor: COLORS.errorDim,
-  },
-  iconWrapDisabled: {
-    backgroundColor: COLORS.glass04,
-  },
+  headerText: { flex: 1 },
+  headerTitle: { color: colors.text, fontSize: 16, fontWeight: '700', lineHeight: 21, marginBottom: 3 },
+  headerSub: { color: colors.muted, fontSize: 13 },
+  headerDivider: { height: 1, backgroundColor: colors.divider },
+  actionsContainer: { paddingHorizontal: 10, paddingTop: 6 },
+  separator: { height: 1, backgroundColor: colors.divider, marginHorizontal: 8, marginVertical: 4 },
+  actionRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 12, borderRadius: 14, gap: 14 },
+  actionRowPressed: { backgroundColor: colors.surfaceMid },
+  actionRowDisabled: { opacity: 0.45 },
+  iconWrap: { width: 42, height: 42, borderRadius: 13, backgroundColor: colors.surfaceMid, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  iconWrapDestructive: { backgroundColor: `${colors.error}20` },
+  iconWrapDisabled: { backgroundColor: colors.surfaceLow },
   iconText: { fontSize: 20 },
   labelWrap: { flex: 1 },
-  actionLabel: {
-    color: COLORS.white,
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  actionLabelDestructive: { color: COLORS.error },
-  actionLabelDisabled:    { color: COLORS.glass35 },
-  actionSublabel: {
-    color: COLORS.glass40,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  actionChevron: {
-    color: COLORS.glass20,
-    fontSize: 22,
-    fontWeight: '300',
-  },
-
-  // Cancel
-  cancelWrapper: {
-    paddingHorizontal: 10,
-    paddingTop: 6,
-  },
-  cancelBtn: {
-    borderRadius: 16,
-    backgroundColor: COLORS.glass08,
-    paddingVertical: 16,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.glass10,
-  },
-  cancelBtnPressed: {
-    backgroundColor: COLORS.glass12,
-  },
-  cancelText: {
-    color: COLORS.white,
-    fontWeight: '700',
-    fontSize: 15,
-  },
+  actionLabel: { color: colors.text, fontSize: 15, fontWeight: '500' },
+  actionLabelDestructive: { color: colors.error },
+  actionLabelDisabled: { color: colors.muted },
+  actionSublabel: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  actionChevron: { color: colors.muted, fontSize: 22, fontWeight: '300' },
+  cancelWrapper: { paddingHorizontal: 10, paddingTop: 6 },
+  cancelBtn: { borderRadius: 16, backgroundColor: colors.surfaceLow, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: colors.divider },
+  cancelBtnPressed: { backgroundColor: colors.surfaceMid },
+  cancelText: { color: colors.text, fontWeight: '700', fontSize: 15 },
 });
-

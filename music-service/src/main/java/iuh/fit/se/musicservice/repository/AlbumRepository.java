@@ -21,7 +21,6 @@ public interface AlbumRepository extends JpaRepository<Album, UUID> {
     // ── Owner queries ──────────────────────────────────────────────────────────
 
     Optional<Album> findByIdAndOwnerArtistId(UUID id, UUID ownerArtistId);
-
     Page<Album> findByOwnerArtistId(UUID ownerArtistId, Pageable pageable);
 
     // ── Public queries ─────────────────────────────────────────────────────────
@@ -35,8 +34,8 @@ public interface AlbumRepository extends JpaRepository<Album, UUID> {
     @Query("""
             SELECT a FROM Album a
             WHERE a.status = 'PRIVATE'
-            AND a.scheduledPublishAt IS NOT NULL
-            AND a.scheduledPublishAt <= :now
+              AND a.scheduledPublishAt IS NOT NULL
+              AND a.scheduledPublishAt <= :now
             """)
     List<Album> findAlbumsReadyToPublish(@Param("now") ZonedDateTime now);
 

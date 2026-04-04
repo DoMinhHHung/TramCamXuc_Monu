@@ -7,6 +7,7 @@ import iuh.fit.se.identityservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ public class ArtistRoleListener {
 
     @RabbitListener(queues = RabbitMQConfig.IDENTITY_ARTIST_QUEUE)
     @Transactional
+    @CacheEvict(value = "userProfile", key = "#event.getUserId().toString()")
     public void handleArtistRegistered(ArtistRegisteredEvent event) {
         log.info("Artist registered event received for user: {}", event.getUserId());
 

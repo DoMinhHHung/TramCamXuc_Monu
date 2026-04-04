@@ -38,6 +38,11 @@ public class SongResponse {
     /** URL stream HLS (chỉ có khi getStreamUrl) */
     private String streamUrl;
 
+    private String sourceType;
+    private String soundcloudPermalink;
+    private String soundcloudWaveformUrl;
+    private String soundcloudUsername;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

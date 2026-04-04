@@ -1,13 +1,14 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import {
     Animated, PanResponder, Pressable,
     StyleSheet, Text, View, Image,
 } from 'react-native';
-import { COLORS } from '../config/colors';
 import { haptic } from '../utils/haptics';
 import { usePlayer } from '../context/PlayerContext';
+import { useThemeColors, ColorScheme } from '../config/colors';
 import { Fold } from 'react-native-animated-spinkit';
-import { AntDesign } from '@expo/vector-icons';
+import { AppIcon } from './AppIcon';
+import { RADIUS, SHADOW } from '../config/design';
 
 const TAB_BAR_HEIGHT  = 78;
 const MINI_HEIGHT     = 64;
@@ -20,6 +21,9 @@ export const MiniPlayer = () => {
         togglePlay, playNext, setFullScreen, stopPlayer,
         repeatMode, isShuffled,
     } = usePlayer();
+
+    const themeColors = useThemeColors();
+    const styles = useMemo(() => getStyles(themeColors), [themeColors]);
 
     const translateY = useRef(new Animated.Value(0)).current;
     const translateX = useRef(new Animated.Value(0)).current;
@@ -71,17 +75,18 @@ export const MiniPlayer = () => {
 
     if (!currentSong) return null;
 
-    // Màu progress bar theo mode
+    // Progress bar colour reflects repeat / shuffle mode
     const progressColor =
-        repeatMode === 'one' ? '#A78BFA' :
-            repeatMode === 'all' ? COLORS.success :
-                COLORS.accent;
+        repeatMode === 'one' ? themeColors.accent :
+            repeatMode === 'all' ? themeColors.success :
+                themeColors.accent;
 
     return (
         <Animated.View
             style={[styles.container, { transform: [{ translateY }, { translateX }] }]}
             {...panResponder.panHandlers}
         >
+            {/* Progress bar */}
             <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, {
                     width: `${progress * 100}%` as any,
@@ -90,30 +95,32 @@ export const MiniPlayer = () => {
             </View>
 
             <Pressable style={styles.content} onPress={() => setFullScreen(true)} accessible={false}>
+                {/* Thumbnail */}
                 {currentSong.thumbnailUrl
                     ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.thumbnail} />
                     : <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
-                        <Text style={styles.thumbnailIcon}>🎵</Text>
+                        <AppIcon set="MaterialIcons" name="music-note" size={20} color={themeColors.muted} />
                     </View>
                 }
 
+                {/* Song info */}
                 <View style={styles.info}>
                     <Text style={styles.title} numberOfLines={1}>{currentSong.title}</Text>
                     <View style={styles.metaRow}>
                         <Text style={styles.artist} numberOfLines={1}>{currentSong.primaryArtist?.stageName ?? ''}</Text>
-                        {/* Mode badges */}
                         {isShuffled && (
-                            <Text style={styles.modeBadge}>🔀</Text>
+                            <AppIcon set="MaterialIcons" name="shuffle" size={11} color={themeColors.accent} />
                         )}
                         {repeatMode === 'one' && (
-                            <Text style={styles.modeBadge}>🔂</Text>
+                            <AppIcon set="MaterialIcons" name="repeat-one" size={11} color={themeColors.accent} />
                         )}
                         {repeatMode === 'all' && (
-                            <Text style={styles.modeBadge}>🔁</Text>
+                            <AppIcon set="MaterialCommunityIcons" name="repeat" size={11} color={themeColors.accent} />
                         )}
                     </View>
                 </View>
 
+                {/* Controls */}
                 <View style={styles.controls}>
                     <Pressable
                         style={styles.iconBtn}
@@ -124,44 +131,46 @@ export const MiniPlayer = () => {
                         }}
                     >
                         {!isLoaded ? (
-                            <Fold size={20} color="#fff" />
+                            <Fold size={20} color={themeColors.muted} />
                         ) : isPlaying ? (
-                            <AntDesign name="pause-circle" size={26} color="#fff" />
+                            <AppIcon set="MaterialIcons" name="pause" size={26} color={themeColors.text} />
                         ) : (
-                            <AntDesign name="play-circle" size={26} color="#fff" />
+                            <AppIcon set="MaterialIcons" name="play-arrow" size={28} color={themeColors.text} />
                         )}
                     </Pressable>
                     <Pressable style={styles.iconBtn} hitSlop={12} onPress={e => { e.stopPropagation(); playNext(); }}>
-                        <AntDesign name="step-forward" size={24} color="#fff" />
+                        <AppIcon set="MaterialIcons" name="skip-next" size={24} color={themeColors.text} />
                     </Pressable>
                 </View>
             </Pressable>
 
+            {/* Drag handle */}
             <View style={styles.swipeHandle} />
         </Animated.View>
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ColorScheme) => StyleSheet.create({
     container: {
         position: 'absolute', bottom: TAB_BAR_HEIGHT, left: 8, right: 8,
-        height: MINI_HEIGHT, backgroundColor: COLORS.surface, borderRadius: 16,
-        overflow: 'hidden', borderWidth: 1, borderColor: COLORS.accentBorder25,
-        shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.3, shadowRadius: 8, elevation: 10,
+        height: MINI_HEIGHT,
+        backgroundColor: colors.surface,
+        borderRadius: RADIUS.lg,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: colors.borderSubtle,
+        ...SHADOW.md,
     },
-    progressTrack: { height: 2, backgroundColor: COLORS.glass15 },
-    progressFill:  { height: 2 },
-    content:       { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 },
-    thumbnail:            { width: 40, height: 40, borderRadius: 8, backgroundColor: COLORS.accentFill20 },
+    progressTrack:        { height: 2, backgroundColor: colors.glass08 },
+    progressFill:         { height: 2 },
+    content:              { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 },
+    thumbnail:            { width: 40, height: 40, borderRadius: RADIUS.sm, backgroundColor: colors.surfaceLow },
     thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-    thumbnailIcon:        { fontSize: 20 },
-    info:    { flex: 1 },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    title:   { color: COLORS.white,   fontSize: 14, fontWeight: '700', lineHeight: 18 },
-    artist:  { color: COLORS.glass60, fontSize: 11, fontWeight: '400' },
-    modeBadge: { fontSize: 11, color: COLORS.glass50 },
-    controls: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    iconBtn:  { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-    swipeHandle: { position: 'absolute', top: 5, alignSelf: 'center', width: 32, height: 3, borderRadius: 2, backgroundColor: COLORS.glass30 },
+    info:                 { flex: 1 },
+    metaRow:              { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+    title:                { color: colors.text,   fontSize: 13, fontWeight: '600', lineHeight: 17 },
+    artist:               { color: colors.muted,  fontSize: 11, fontWeight: '400' },
+    controls:             { flexDirection: 'row', alignItems: 'center', gap: 2 },
+    iconBtn:              { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+    swipeHandle:          { position: 'absolute', top: 5, alignSelf: 'center', width: 28, height: 3, borderRadius: 2, backgroundColor: colors.glass15 },
 });

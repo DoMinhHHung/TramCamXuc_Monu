@@ -1,6 +1,7 @@
 package iuh.fit.se.musicservice.entity;
 
 import iuh.fit.se.musicservice.enums.SongStatus;
+import iuh.fit.se.musicservice.enums.SourceType;
 import iuh.fit.se.musicservice.enums.TranscodeStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -119,6 +120,23 @@ public class Song extends BaseEntity {
 
     @Column(name = "jamendo_id", unique = true)
     private String jamendoId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source_type", nullable = false)
+    @Builder.Default
+    private SourceType sourceType = SourceType.LOCAL;
+
+    @Column(name = "soundcloud_id", unique = true)
+    private String soundcloudId;
+
+    @Column(name = "soundcloud_permalink", length = 500)
+    private String soundcloudPermalink;
+
+    @Column(name = "soundcloud_waveform_url", length = 500)
+    private String soundcloudWaveformUrl;
+
+    @Column(name = "soundcloud_username", length = 200)
+    private String soundcloudUsername;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
     public boolean isDeleted() {

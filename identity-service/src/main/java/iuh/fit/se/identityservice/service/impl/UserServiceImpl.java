@@ -135,7 +135,6 @@ public class UserServiceImpl implements UserService {
     public FavoritesResponse updateMyFavorites(UpdateFavoritesRequest request) {
         User user = currentUser();
 
-        // Cập nhật favorites
         user.setFavoriteGenreIds(request.getFavoriteGenreIds());
         user.setFavoriteArtistIds(request.getFavoriteArtistIds());
         user.setPickFavorite(true);

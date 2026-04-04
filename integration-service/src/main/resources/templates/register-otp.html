@@ -3,36 +3,90 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Xác minh tài khoản Trạm Cảm Xúc</title>
+    <title>Xác minh tài khoản - Monu</title>
     <style>
-        body { margin: 0; padding: 0; background: #0f172a; font-family: 'Segoe UI', Arial, sans-serif; }
-        .wrapper { max-width: 560px; margin: 40px auto; background: #1e293b; border-radius: 16px; overflow: hidden; }
-        .header { background: linear-gradient(135deg, #06b6d4, #8b5cf6); padding: 36px 40px; text-align: center; }
-        .header h1 { margin: 0; color: #fff; font-size: 24px; letter-spacing: 1px; }
-        .body { padding: 36px 40px; color: #cbd5e1; }
-        .body p { line-height: 1.7; margin: 0 0 16px; }
-        .otp-box { background: #0f172a; border: 2px solid #06b6d4; border-radius: 12px;
-            text-align: center; padding: 24px; margin: 28px 0; }
-        .otp-box span { font-size: 40px; font-weight: 700; letter-spacing: 12px; color: #22d3ee; }
-        .note { font-size: 13px; color: #64748b; margin-top: 24px; }
-        .footer { background: #0f172a; text-align: center; padding: 20px; color: #475569; font-size: 12px; }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0f172a;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        .wrapper {
+            max-width: 560px;
+            margin: 40px auto;
+            background: #1e293b;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        .header {
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            padding: 40px 36px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            color: #fff;
+            font-size: 26px;
+            font-weight: 700;
+        }
+        .body {
+            padding: 40px 36px;
+            color: #cbd5e1;
+            line-height: 1.7;
+        }
+        .otp-box {
+            background: #0f172a;
+            border: 3px solid #06b6d4;
+            border-radius: 12px;
+            text-align: center;
+            padding: 28px;
+            margin: 28px 0;
+        }
+        .otp-box span {
+            font-size: 42px;
+            font-weight: 700;
+            letter-spacing: 14px;
+            color: #22d3ee;
+        }
+        .note {
+            font-size: 14px;
+            color: #64748b;
+            margin-top: 20px;
+        }
+        .footer {
+            background: #0f172a;
+            text-align: center;
+            padding: 24px;
+            color: #64748b;
+            font-size: 13px;
+        }
+        @media (max-width: 480px) {
+            .wrapper { margin: 20px 10px; border-radius: 12px; }
+        }
     </style>
 </head>
 <body>
 <div class="wrapper">
     <div class="header">
-        <h1>🎵 PhazelSound</h1>
+        <h1>🎵 Monu</h1>
     </div>
     <div class="body">
         <p>Xin chào <strong th:text="${name}">bạn</strong>,</p>
-        <p>Cảm ơn bạn đã đăng ký tài khoản PhazelSound. Vui lòng sử dụng mã OTP dưới đây để xác minh tài khoản của bạn:</p>
+        <p>Cảm ơn bạn đã đăng ký tài khoản Monu.</p>
+        <p>Vui lòng sử dụng mã OTP dưới đây để xác minh tài khoản:</p>
+
         <div class="otp-box">
             <span th:text="${otp}">000000</span>
         </div>
+
         <p>Mã có hiệu lực trong <strong>5 phút</strong>. Vui lòng không chia sẻ mã này với bất kỳ ai.</p>
-        <p class="note">Nếu bạn không thực hiện yêu cầu này, hãy bỏ qua email này.</p>
+        <p class="note">Nếu bạn không thực hiện đăng ký này, hãy bỏ qua email.</p>
     </div>
-    <div class="footer">© 2025 PhazelSound. All rights reserved.</div>
+    <div class="footer">
+        © 2026 Monu. All rights reserved.<br>
+        Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ admin@monu.com
+    </div>
 </div>
 </body>
 </html>

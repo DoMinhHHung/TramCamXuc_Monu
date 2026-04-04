@@ -27,13 +27,11 @@ public interface ArtistRepository extends JpaRepository<Artist, UUID> {
     @Query("""
             SELECT a FROM Artist a
             WHERE (:stageName IS NULL OR LOWER(a.stageName) LIKE LOWER(CONCAT('%', :stageName, '%')))
-            AND   (:status    IS NULL OR a.status = :status)
+              AND (:status IS NULL OR a.status = :status)
             """)
-    Page<Artist> searchArtists(
-            @Param("stageName") String stageName,
-            @Param("status")    ArtistStatus status,
-            Pageable pageable
-    );
+    Page<Artist> searchArtists(@Param("stageName") String stageName,
+                               @Param("status") ArtistStatus status,
+                               Pageable pageable);
 
     Optional<Artist> findByStageNameIgnoreCase(String stageName);
 

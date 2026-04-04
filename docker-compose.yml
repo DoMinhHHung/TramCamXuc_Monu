@@ -104,7 +104,7 @@ services:
     environment:
       <<: [ *infra, *gateway, *java-env ]
       # Mặc định trỏ service-social (Next.js) trên Render — social-service Java trong compose đang comment
-      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu-1-pq2b.onrender.com}
+      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu-1-9yui.onrender.com}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -155,6 +155,9 @@ services:
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
       MINIO_RAW_BUCKET: ${MINIO_RAW_BUCKET:-music}
       MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET:-public-songs}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
+      SOUNDCLOUD_CLIENT_ID: ${SOUNDCLOUD_CLIENT_ID}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -304,7 +307,7 @@ services:
       <<: [ *infra, *java-env ]
       ML_SERVICE_URL: ${ML_SERVICE_URL:-https://tramcamxuc-monu-1.onrender.com}
       # ML_SERVICE_URL: http://recommendation-ml:8771
-      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu-1-pq2b.onrender.com}
+      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu-1-9yui.onrender.com}
     depends_on:
       discovery-server:
         condition: service_healthy
