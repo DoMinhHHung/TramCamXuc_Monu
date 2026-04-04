@@ -35,4 +35,10 @@ public interface SongReportRepository extends JpaRepository<SongReport, UUID> {
 
     /** Số lượng report PENDING của một bài hát */
     long countBySongIdAndStatus(UUID songId, ReportStatus status);
+
+        /** Danh sách report của một user */
+        Page<SongReport> findByReporterIdOrderByCreatedAtDesc(UUID reporterId, Pageable pageable);
+
+        /** Tìm report theo id + reporter để đảm bảo user chỉ thao tác report của chính mình */
+        java.util.Optional<SongReport> findByIdAndReporterId(UUID id, UUID reporterId);
 }

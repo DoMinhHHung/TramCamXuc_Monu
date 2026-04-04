@@ -34,6 +34,7 @@ import {
   getMyAlbums,
   getMyPlaylists,
   getMySongs,
+  isSoundCloudExternalSong,
   Playlist,
   Song,
   updatePlaylist,
@@ -1491,6 +1492,11 @@ export const LibraryScreen = () => {
   // ── Add song to playlist ──────────────────────────────────────────────────
   const handleAddToPlaylist = async (playlistId: string) => {
     if (!addSongTo) return;
+    if (isSoundCloudExternalSong(addSongTo)) {
+      showToast(t('screens.library.soundcloudPlaylistNotSupported', 'SoundCloud track cannot be added to internal playlists.'), 'error');
+      setAddSongTo(null);
+      return;
+    }
     try {
       await addSongToPlaylist(playlistId, addSongTo.id);
       setAddSongTo(null);
@@ -1502,6 +1508,11 @@ export const LibraryScreen = () => {
 
   const handleCreateAndAddToPlaylist = async (name: string) => {
     if (!addSongTo) return;
+    if (isSoundCloudExternalSong(addSongTo)) {
+      showToast(t('screens.library.soundcloudPlaylistNotSupported', 'SoundCloud track cannot be added to internal playlists.'), 'error');
+      setAddSongTo(null);
+      return;
+    }
     try {
       const pl = await createPlaylist({ name, visibility: 'PUBLIC' });
       await addSongToPlaylist(pl.id, addSongTo.id);

@@ -20,7 +20,8 @@ public enum ErrorCode {
     PAYMENT_PROCESSING_ERROR(2007, "Error processing payment", HttpStatus.INTERNAL_SERVER_ERROR),
     CANNOT_DELETE_PLAN_WITH_ACTIVE_SUBSCRIPTIONS(2008, "Cannot delete plan with active subscriptions", HttpStatus.BAD_REQUEST),
     SUBSCRIPTION_NOT_SUPPORTED(2009, "Subscription plan not supported", HttpStatus.BAD_REQUEST),
-    FREE_SUBSCRIPTION_NOT_ALLOWED(2010, "Free subscription plan not allowed for this operation", HttpStatus.BAD_REQUEST);
+    FREE_SUBSCRIPTION_NOT_ALLOWED(2010, "Free subscription plan not allowed for this operation", HttpStatus.BAD_REQUEST),
+    PAYMENT_TRANSACTION_NOT_CANCELLABLE(2011, "Payment transaction is no longer cancellable", HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;

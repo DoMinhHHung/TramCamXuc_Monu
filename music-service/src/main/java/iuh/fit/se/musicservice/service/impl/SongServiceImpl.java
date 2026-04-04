@@ -11,6 +11,7 @@ import iuh.fit.se.musicservice.dto.response.SongResponse;
 import iuh.fit.se.musicservice.entity.Genre;
 import iuh.fit.se.musicservice.entity.Artist;
 import iuh.fit.se.musicservice.entity.Song;
+import iuh.fit.se.musicservice.repository.SongReportRepository;
 import iuh.fit.se.musicservice.enums.SongStatus;
 import iuh.fit.se.musicservice.enums.SourceType;
 import iuh.fit.se.musicservice.enums.TranscodeStatus;
@@ -57,6 +58,7 @@ public class SongServiceImpl implements SongService {
     private final PaymentInternalClient paymentInternalClient;
     private final SubscriptionCacheWarmupService subscriptionCacheWarmupService;
     private final SoundCloudService soundCloudService;
+    private final SongReportRepository songReportRepository;
 
     // ── Cache constants (recommendation-service internal) ──────────────────────
     private static final String   CACHE_BATCH_PREFIX  = "rec:songs:batch:";
@@ -277,7 +279,7 @@ public class SongServiceImpl implements SongService {
             throw new AppException(ErrorCode.UPGRADE_REQUIRED);
         }
 
-        Song song = songRepository.findPublicById(songId)
+        Song song = songRepository.findPublicByIdVisible(songId, tryGetCurrentUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
 
         String mp3Key = "download/" + song.getId() + "/song-320kbps.mp3";
@@ -290,7 +292,7 @@ public class SongServiceImpl implements SongService {
     @Override
     @Transactional(readOnly = true)
     public SongResponse getSongById(UUID songId) {
-        Song song = songRepository.findPublicById(songId)
+        Song song = songRepository.findPublicByIdVisible(songId, tryGetCurrentUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
         return songMapper.toResponse(song);
     }
@@ -302,6 +304,11 @@ public class SongServiceImpl implements SongService {
     public String getStreamUrl(UUID songId) {
         Song song = songRepository.findById(songId)
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
+
+        UUID viewerId = tryGetCurrentUserId();
+        if (viewerId != null && songReportRepository.existsBySongIdAndReporterId(songId, viewerId)) {
+            throw new AppException(ErrorCode.SONG_NOT_FOUND);
+        }
 
         if (song.isDeleted()) {
             throw new AppException(ErrorCode.SONG_NOT_AVAILABLE);
@@ -399,7 +406,8 @@ public class SongServiceImpl implements SongService {
     @Override
     public Page<SongResponse> searchSongs(String keyword, UUID genreId, UUID artistId, Pageable pageable) {
         String pattern = (keyword == null || keyword.isBlank()) ? null : "%" + keyword + "%";
-        return songRepository.searchPublic(pattern, genreId, artistId, pageable)
+        UUID viewerId = tryGetCurrentUserId();
+        return songRepository.searchPublic(pattern, genreId, artistId, viewerId, pageable)
                 .map(songMapper::toResponse);
     }
 
@@ -411,8 +419,10 @@ public class SongServiceImpl implements SongService {
     @Override
     @Transactional(readOnly = true)
     public Page<SongResponse> getTrending(Pageable pageable) {
+        UUID viewerId = tryGetCurrentUserId();
         String cacheKey = CACHE_TRENDING + ":" + pageable.getPageNumber()
-                + ":" + pageable.getPageSize();
+            + ":" + pageable.getPageSize()
+            + ":" + (viewerId != null ? viewerId : "anon");
 
         try {
             String cached = stringRedisTemplate.opsForValue().get(cacheKey);
@@ -423,7 +433,7 @@ public class SongServiceImpl implements SongService {
         } catch (Exception e) {
         }
 
-        Page<SongResponse> result = songRepository.findTrending(pageable)
+        Page<SongResponse> result = songRepository.findTrendingVisible(viewerId, pageable)
                 .map(songMapper::toResponse);
 
         try {
@@ -448,8 +458,10 @@ public class SongServiceImpl implements SongService {
     @Override
     @Transactional(readOnly = true)
     public Page<SongResponse> getNewest(Pageable pageable) {
+        UUID viewerId = tryGetCurrentUserId();
         String cacheKey = CACHE_NEWEST + ":" + pageable.getPageNumber()
-                + ":" + pageable.getPageSize();
+            + ":" + pageable.getPageSize()
+            + ":" + (viewerId != null ? viewerId : "anon");
         try {
             String cached = stringRedisTemplate.opsForValue().get(cacheKey);
             if (cached != null) {
@@ -458,7 +470,7 @@ public class SongServiceImpl implements SongService {
             }
         } catch (Exception ignored) {}
 
-        Page<SongResponse> result = songRepository.findNewest(pageable)
+        Page<SongResponse> result = songRepository.findNewestVisible(viewerId, pageable)
                 .map(songMapper::toResponse);
 
         try {
@@ -475,7 +487,8 @@ public class SongServiceImpl implements SongService {
     @Override
     @Transactional(readOnly = true)
     public Page<SongResponse> getSongsByArtist(UUID artistId, Pageable pageable) {
-        return songRepository.findPublicByArtistId(artistId, pageable)
+        UUID viewerId = tryGetCurrentUserId();
+        return songRepository.findPublicByArtistIdVisible(artistId, viewerId, pageable)
                 .map(songMapper::toResponse);
     }
 
@@ -486,9 +499,12 @@ public class SongServiceImpl implements SongService {
     public List<SongResponse> getSongsByIds(List<UUID> ids) {
         if (ids == null || ids.isEmpty()) return Collections.emptyList();
 
+        UUID viewerId = tryGetCurrentUserId();
+
         // Build a stable cache key from sorted IDs so order doesn't matter
         String cacheKey = CACHE_BATCH_PREFIX +
-                ids.stream().map(UUID::toString).sorted().collect(Collectors.joining(",")).hashCode();
+            ids.stream().map(UUID::toString).sorted().collect(Collectors.joining(",")).hashCode()
+            + ":" + (viewerId != null ? viewerId : "anon");
         try {
             String cached = stringRedisTemplate.opsForValue().get(cacheKey);
             if (cached != null) {
@@ -501,7 +517,7 @@ public class SongServiceImpl implements SongService {
             log.warn("Cache read failed for batch key: {}", e.getMessage());
         }
 
-        List<Song> songs = songRepository.findPublicByIdIn(ids);
+        List<Song> songs = songRepository.findPublicByIdInVisible(ids, viewerId);
         // Preserve ML ranking order
         Map<UUID, Song> byId = songs.stream().collect(Collectors.toMap(Song::getId, s -> s));
         List<SongResponse> result = ids.stream()

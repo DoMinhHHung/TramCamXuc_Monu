@@ -43,6 +43,7 @@ import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
 import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
 import { GenreDetailScreen }      from '../screens/GenreDetailScreen';
 import { MyPostsScreen }          from '../screens/MyPostsScreen';
+import { ContentManagementScreen } from '../screens/(settings)/ContentManagementScreen';
 
 // ─── Artist screens ───────────────────────────────────────────────────────────
 import { ArtistProfileScreen }    from '../screens/(artist)/ArtistProfileScreen';
@@ -77,6 +78,7 @@ export type RootStackParamList = {
     AlbumDetail:     { albumId: string };
     GenreDetail:     { genreId: string; genreName: string };
     MyPosts:        undefined;
+    ContentManagement: undefined;
     // Artist
     ArtistProfile:   { artistId: string };
     RegisterArtist:  undefined;
@@ -205,6 +207,7 @@ export const AppNavigator = () => {
                                 <Stack.Screen name="AlbumDetail"    component={AlbumDetailScreen}   />
                                 <Stack.Screen name="GenreDetail"    component={GenreDetailScreen}   />
                                 <Stack.Screen name="MyPosts"        component={MyPostsScreen}       />
+                                <Stack.Screen name="ContentManagement" component={ContentManagementScreen} />
                                 <Stack.Screen name="ArtistProfile"   component={ArtistProfileScreen}   />
                                 <Stack.Screen name="RegisterArtist"  component={RegisterArtistScreen}  />
                                 <Stack.Screen name="ArtistTerms"     component={ArtistTermsScreen}     />

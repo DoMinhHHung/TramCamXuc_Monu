@@ -55,7 +55,6 @@ x-java-env: &java-env
     -Dspring.jmx.enabled=false
   MANAGEMENT_TRACING_ENABLED: "false"
   MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ""
-  # Giảm log stack HttpClient/Jersey khi Eureka retry / đọc response chậm (không phải lỗi nghiêm trọng)
   LOGGING_LEVEL_COM_NETFLIX_DISCOVERY: WARN
   LOGGING_LEVEL_COM_NETFLIX_EUREKA: WARN
 

@@ -14,6 +14,12 @@ public interface SongReportService {
     /** User báo cáo bài hát */
     SongReportResponse reportSong(UUID songId, SongReportRequest request);
 
+    /** User xem lịch sử báo cáo của chính mình */
+    Page<SongReportResponse> getMyReports(Pageable pageable);
+
+    /** User gỡ báo cáo của chính mình (chỉ khi report còn PENDING) */
+    void removeMyReport(UUID reportId);
+
     /** Admin lấy danh sách report */
     Page<SongReportResponse> getReports(ReportStatus status, UUID songId, Pageable pageable);
 

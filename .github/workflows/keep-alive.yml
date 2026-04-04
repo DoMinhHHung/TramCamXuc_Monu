@@ -1,0 +1,29 @@
+name: Keep Render Services Alive
+
+on:
+  schedule:
+    # Chạy mỗi 10 phút để tránh idle timeout 15p của Render free tier
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-services:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: 'recommendation-ml'
+            url: 'https://your-recommendation-ml.onrender.com/health'
+          - name: 'service-social'
+            url: 'https://your-service-social.onrender.com/health'
+      max-parallel: 2
+    
+    steps:
+      - name: Ping ${{ matrix.service.name }}
+        run: |
+          echo "🔄 Pinging ${{ matrix.service.name }}..."
+          curl -s -o /dev/null -w "Status: %{http_code}\n" "${{ matrix.service.url }}" || echo "⚠️  Service might be sleeping"
+        continue-on-error: true
+
+      - name: Wait before next request
+        run: sleep 2

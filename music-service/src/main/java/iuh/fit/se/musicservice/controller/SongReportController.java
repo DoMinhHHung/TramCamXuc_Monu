@@ -45,6 +45,35 @@ public class SongReportController {
                 .build();
     }
 
+    /**
+     * User xem lịch sử báo cáo của chính mình.
+     * GET /songs/my-reports?page=1&size=20
+     */
+    @GetMapping("/songs/my-reports")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Page<SongReportResponse>> getMyReports(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        return ApiResponse.<Page<SongReportResponse>>builder()
+                .result(songReportService.getMyReports(
+                        PageRequest.of(page - 1, size, Sort.by("createdAt").descending())))
+                .build();
+    }
+
+    /**
+     * User gỡ report của chính mình khi report còn PENDING.
+     * DELETE /songs/my-reports/{reportId}
+     */
+    @DeleteMapping("/songs/my-reports/{reportId}")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Void> removeMyReport(@PathVariable UUID reportId) {
+        songReportService.removeMyReport(reportId);
+        return ApiResponse.<Void>builder()
+                .message("Report removed.")
+                .build();
+    }
+
     // ===================== ADMIN =====================
 
     /**

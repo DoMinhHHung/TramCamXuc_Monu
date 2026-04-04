@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AntDesign, Fontisto, MaterialIcons } from '@expo/vector-icons';
+import { AntDesign, FontAwesome, Fontisto, MaterialIcons } from '@expo/vector-icons';
 
 import { ColorScheme, useThemeColors } from '../config/colors';
 import { MOOD_EMOJIS, MUSIC_EMOJIS } from '../config/emojis';
@@ -38,6 +38,7 @@ import {
   createPlaylist,
   getNewestSongs,
   getTrendingSongs,
+  isSoundCloudExternalSong,
   searchSongs,
   Song,
 } from '../services/music';
@@ -50,6 +51,7 @@ import { AlbumCard } from '../components/AlbumCard';
 import { ArtistCardEnhanced } from '../components/ArtistCardEnhanced';
 import { StreakBanner } from '../components/StreakBanner';
 import { ContinueListeningSection } from '../components/ContinueListeningSection';
+import { ReportReasonSheet } from '../components/ReportReasonSheet';
 import { openInSpotify, soundCloudTrackToSong } from '../services/externalMusic';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
@@ -149,6 +151,8 @@ export const HomeScreen = () => {
   const [selectedRecSong, setSelectedRecSong] = useState<RecommendedSong | null>(null);
   const [songToAdd, setSongToAdd] = useState<Song | null>(null);
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+  const [reportSheetOpen, setReportSheetOpen] = useState(false);
+  const [reportSongId, setReportSongId] = useState<string | null>(null);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
 
@@ -239,6 +243,12 @@ export const HomeScreen = () => {
 
   const handleAddToPlaylist = useCallback(async (playlistId: string) => {
     if (!songToAdd) return;
+    if (isSoundCloudExternalSong(songToAdd)) {
+      Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
+      setPlaylistPickerOpen(false);
+      setSongToAdd(null);
+      return;
+    }
     try {
       await addSongToPlaylist(playlistId, songToAdd.id);
       Alert.alert('Thành công', 'Đã thêm vào playlist.');
@@ -251,6 +261,12 @@ export const HomeScreen = () => {
 
   const handleCreateAndAdd = useCallback(async () => {
     if (!songToAdd || !newPlaylistName.trim()) return;
+    if (isSoundCloudExternalSong(songToAdd)) {
+      Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
+      setPlaylistPickerOpen(false);
+      setSongToAdd(null);
+      return;
+    }
     try {
       const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
       await addSongToPlaylist(pl.id, songToAdd.id);
@@ -261,6 +277,11 @@ export const HomeScreen = () => {
       Alert.alert('Lỗi', e instanceof Error ? e.message : 'Không thể tạo playlist');
     }
   }, [songToAdd, newPlaylistName]);
+
+  const openReportReasonPicker = useCallback((songId: string) => {
+    setReportSongId(songId);
+    setReportSheetOpen(true);
+  }, []);
 
   useEffect(() => {
     const artistsCount = homeStats?.topArtists?.length ?? 0;
@@ -640,7 +661,10 @@ export const HomeScreen = () => {
         {/* ── SoundCloud Section ─────────────────────────────────────────── */}
         {(externalSections.loading || externalSections.soundcloudTracks.length > 0) && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('homeScreen.soundcloudSection')}</Text>
+            <View style={styles.externalSectionTitleRow}>
+              <FontAwesome name="soundcloud" size={18} color="#FF5500" />
+              <Text style={styles.sectionTitle}>{t('homeScreen.soundcloudSection')}</Text>
+            </View>
             {externalSections.loading && externalSections.soundcloudTracks.length === 0 ? (
               <SongCardSkeleton />
             ) : (
@@ -662,7 +686,7 @@ export const HomeScreen = () => {
                       <Image source={{ uri: track.thumbnailUrl }} style={styles.externalThumb} />
                     ) : (
                       <View style={[styles.externalThumb, styles.externalThumbFallback]}>
-                        <Text style={{ fontSize: 22 }}>🔶</Text>
+                        <FontAwesome name="soundcloud" size={24} color="#FF5500" />
                       </View>
                     )}
                     <Text style={styles.externalCardTitle} numberOfLines={2}>{track.title}</Text>
@@ -680,7 +704,10 @@ export const HomeScreen = () => {
         {/* ── Spotify Section ────────────────────────────────────────────── */}
         {(externalSections.loading || externalSections.spotifyTracks.length > 0) && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('homeScreen.spotifySection')}</Text>
+            <View style={styles.externalSectionTitleRow}>
+              <FontAwesome name="spotify" size={18} color="#1DB954" />
+              <Text style={styles.sectionTitle}>{t('homeScreen.spotifySection')}</Text>
+            </View>
             <Text style={[styles.sectionSubtitle]}>
               🎵 Nhấn để mở trong Spotify app
             </Text>
@@ -702,7 +729,7 @@ export const HomeScreen = () => {
                       <Image source={{ uri: track.thumbnailUrl }} style={styles.externalThumb} />
                     ) : (
                       <View style={[styles.externalThumb, styles.externalThumbFallback]}>
-                        <Text style={{ fontSize: 22 }}>🟢</Text>
+                        <FontAwesome name="spotify" size={24} color="#1DB954" />
                       </View>
                     )}
                     <Text style={styles.externalCardTitle} numberOfLines={2}>{track.name}</Text>
@@ -784,8 +811,16 @@ export const HomeScreen = () => {
           {
             icon: <AntDesign name="appstore-add" size={20} color={themeColors.text} />,
             label: 'Thêm vào playlist',
+            disabled: isSoundCloudExternalSong(selectedSong),
+            sublabel: isSoundCloudExternalSong(selectedSong)
+              ? 'Bài hát SoundCloud không thể lưu vào playlist nội bộ'
+              : undefined,
             onPress: () => {
               if (!selectedSong) return;
+              if (isSoundCloudExternalSong(selectedSong)) {
+                Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
+                return;
+              }
               setSongToAdd(selectedSong);
               setPlaylistPickerOpen(true);
             },
@@ -821,12 +856,21 @@ export const HomeScreen = () => {
             destructive: true,
             onPress: async () => {
               if (!selectedSong) return;
-              const { reportSong } = await import('../services/music');
-              await reportSong(selectedSong.id, { reason: 'SPAM', description: 'Reported from home' });
-              Alert.alert('Đã báo cáo', 'Cảm ơn bạn!');
+              openReportReasonPicker(selectedSong.id);
             },
           },
         ]}
+      />
+
+      <ReportReasonSheet
+        visible={reportSheetOpen && !!reportSongId}
+        songId={reportSongId ?? ''}
+        source="home"
+        onClose={() => {
+          setReportSheetOpen(false);
+          setReportSongId(null);
+        }}
+        t={t}
       />
 
       <Modal
@@ -937,6 +981,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   searchPlaceholder: { color: colors.muted, fontSize: 14, flex: 1 },
   section: { paddingHorizontal: 20, marginTop: 22 },
+  externalSectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 4 },
   sectionSubtitle: { color: colors.muted, fontSize: 11, marginBottom: 10, paddingLeft: 1 },
   // ── External sections (SC / Spotify horizontal cards) ─────────────────────

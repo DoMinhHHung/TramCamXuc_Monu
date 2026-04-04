@@ -92,6 +92,41 @@ public class SongReportServiceImpl implements SongReportService {
 
     @Override
     @Transactional(readOnly = true)
+    public Page<SongReportResponse> getMyReports(Pageable pageable) {
+        UUID reporterId = currentUserId();
+        if (reporterId == null) {
+            return Page.empty(pageable);
+        }
+
+        return reportRepository.findByReporterIdOrderByCreatedAtDesc(reporterId, pageable)
+                .map(r -> {
+                    String title = songRepository.findById(r.getSongId())
+                            .map(Song::getTitle).orElse("Unknown");
+                    return toResponse(r, title);
+                });
+    }
+
+    @Override
+    @Transactional
+    public void removeMyReport(UUID reportId) {
+        UUID reporterId = currentUserId();
+        if (reporterId == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        SongReport report = reportRepository.findByIdAndReporterId(reportId, reporterId)
+                .orElseThrow(() -> new AppException(ErrorCode.REPORT_NOT_FOUND));
+
+        if (report.getStatus() != ReportStatus.PENDING) {
+            throw new AppException(ErrorCode.REPORT_ALREADY_HANDLED);
+        }
+
+        reportRepository.delete(report);
+        log.info("User {} removed pending report {}", reporterId, reportId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<SongReportResponse> getReports(ReportStatus status, UUID songId, Pageable pageable) {
         return reportRepository.findForAdmin(status, songId, pageable)
                 .map(r -> {

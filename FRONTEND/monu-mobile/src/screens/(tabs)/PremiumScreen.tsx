@@ -10,8 +10,10 @@ import {
     Linking,
     ActivityIndicator,
     Dimensions,
+    Image,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,9 +22,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import {
+    cancelMySubscription,
+    cancelPaymentLink,
     getActiveSubscriptionPlans,
     getMySubscription,
     purchaseSubscription,
+    PaymentResponse,
     SubscriptionPlan,
     UserSubscription,
 } from '../../services/payment';
@@ -30,6 +35,44 @@ import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LocalizationContext';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+const PURCHASE_COOLDOWN_MS = 30_000;
+const PENDING_PAYMENT_TTL_MS = 10 * 60 * 1000;
+
+type PendingPaymentCache = {
+    payment: PaymentResponse;
+    planId: string;
+    createdAt: number;
+};
+
+const getPendingPaymentStorageKey = (userScope: string) => `premium.pendingPayment.${userScope}`;
+
+const formatCountdown = (ms: number): string => {
+    const totalSec = Math.max(0, Math.ceil(ms / 1000));
+    const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
+    const s = (totalSec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+};
+
+const buildQrImageUri = (qrCode?: string | null): string | null => {
+    const raw = qrCode?.trim();
+    if (!raw) return null;
+
+    if (/^data:image\//i.test(raw)) return raw;
+    if (/^https?:\/\//i.test(raw)) return raw;
+
+    const compact = raw.replace(/\s+/g, '');
+    const looksLikeImageBase64 =
+        compact.startsWith('iVBORw0KGgo') ||
+        compact.startsWith('/9j/') ||
+        compact.startsWith('R0lGOD') ||
+        compact.startsWith('UklGR');
+
+    if (looksLikeImageBase64) {
+        return `data:image/png;base64,${compact}`;
+    }
+
+    return `https://api.qrserver.com/v1/create-qr-code/?size=420x420&data=${encodeURIComponent(raw)}`;
+};
 
 type FeatureItem = {
     key: string;
@@ -395,6 +438,15 @@ export const PremiumScreen = () => {
     const [loading, setLoading] = useState(true);
     const premiumFocusPassRef = useRef(0);
     const [purchasing, setPurchasing] = useState(false);
+    const [canceling, setCanceling] = useState(false);
+    const [cancelingInAppOrder, setCancelingInAppOrder] = useState(false);
+    const [openingBrowser, setOpeningBrowser] = useState(false);
+    const [inAppPayment, setInAppPayment] = useState<PaymentResponse | null>(null);
+    const [pendingPaymentMeta, setPendingPaymentMeta] = useState<{ createdAt: number; planId: string } | null>(null);
+    const [qrImageFailed, setQrImageFailed] = useState(false);
+    const [remainingMs, setRemainingMs] = useState<number | null>(null);
+    const autoCancelKeyRef = useRef<string | null>(null);
+    const lastPurchaseAtRef = useRef(0);
     const mappedFeatures = useMemo<FeatureItem[]>(() => {
         const raw = selectedPlan?.features ?? {};
         const keys = Object.keys(FEATURE_META);
@@ -414,6 +466,13 @@ export const PremiumScreen = () => {
                 };
             });
     }, [selectedPlan]);
+    const qrImageUri = useMemo(() => buildQrImageUri(inAppPayment?.qrCode), [inAppPayment?.qrCode]);
+    const transferDescription = useMemo(() => {
+        const planName = plans.find((p) => p.id === pendingPaymentMeta?.planId)?.subsName
+            ?? selectedPlan?.subsName
+            ?? null;
+        return planName ? `Get plans ${planName}` : 'Get plans Premium';
+    }, [plans, pendingPaymentMeta?.planId, selectedPlan?.subsName]);
 
     // Animations
     const crownScale = useRef(new Animated.Value(0.8)).current;
@@ -491,6 +550,90 @@ export const PremiumScreen = () => {
         premiumFocusPassRef.current = 0;
     }, [authSession?.tokens.accessToken]);
 
+    useEffect(() => {
+        setQrImageFailed(false);
+    }, [inAppPayment?.qrCode]);
+
+    useEffect(() => {
+        if (!inAppPayment || !pendingPaymentMeta) {
+            setRemainingMs(null);
+            return;
+        }
+
+        const tick = () => {
+            const elapsed = Date.now() - pendingPaymentMeta.createdAt;
+            setRemainingMs(Math.max(0, PENDING_PAYMENT_TTL_MS - elapsed));
+        };
+
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [inAppPayment?.orderCode, pendingPaymentMeta?.createdAt]);
+
+    const userScope = useMemo(() => {
+        const id = authSession?.profile?.id;
+        if (id) return id;
+        const token = authSession?.tokens?.accessToken;
+        if (!token) return 'anonymous';
+        return token.slice(-24);
+    }, [authSession?.profile?.id, authSession?.tokens?.accessToken]);
+
+    const loadPendingPayment = useCallback(async () => {
+        if (!authSession) {
+            setInAppPayment(null);
+            setPendingPaymentMeta(null);
+            return;
+        }
+        const key = getPendingPaymentStorageKey(userScope);
+        try {
+            const raw = await AsyncStorage.getItem(key);
+            if (!raw) {
+                setPendingPaymentMeta(null);
+                return;
+            }
+            const parsed = JSON.parse(raw) as PendingPaymentCache;
+            const isExpired = Date.now() - parsed.createdAt > PENDING_PAYMENT_TTL_MS;
+            if (isExpired) {
+                await AsyncStorage.removeItem(key);
+                setInAppPayment(null);
+                setPendingPaymentMeta(null);
+                return;
+            }
+            setInAppPayment(parsed.payment);
+            setPendingPaymentMeta({ createdAt: parsed.createdAt, planId: parsed.planId });
+        } catch {
+            setPendingPaymentMeta(null);
+        }
+    }, [authSession, userScope]);
+
+    const savePendingPayment = useCallback(async (payment: PaymentResponse, planId: string) => {
+        if (!authSession) return;
+        const key = getPendingPaymentStorageKey(userScope);
+        const payload: PendingPaymentCache = {
+            payment,
+            planId,
+            createdAt: Date.now(),
+        };
+        setInAppPayment(payment);
+        setPendingPaymentMeta({ createdAt: payload.createdAt, planId });
+        try {
+            await AsyncStorage.setItem(key, JSON.stringify(payload));
+        } catch {}
+    }, [authSession, userScope]);
+
+    const clearPendingPayment = useCallback(async () => {
+        const key = getPendingPaymentStorageKey(userScope);
+        setInAppPayment(null);
+        setPendingPaymentMeta(null);
+        try {
+            await AsyncStorage.removeItem(key);
+        } catch {}
+    }, [userScope]);
+
+    useEffect(() => {
+        void loadPendingPayment();
+    }, [loadPendingPayment]);
+
     useFocusEffect(
         useCallback(() => {
             const silent = premiumFocusPassRef.current > 0;
@@ -501,6 +644,20 @@ export const PremiumScreen = () => {
         }, [fetchData]),
     );
 
+    const openCheckoutInBrowser = useCallback(async (checkoutUrl: string) => {
+        if (!checkoutUrl) throw new Error('Thiếu đường dẫn thanh toán');
+        setOpeningBrowser(true);
+        try {
+            try {
+                await Linking.openURL(checkoutUrl);
+            } catch {
+                await WebBrowser.openBrowserAsync(checkoutUrl);
+            }
+        } finally {
+            setOpeningBrowser(false);
+        }
+    }, []);
+
     const handlePurchase = async () => {
         if (!authSession) {
             Alert.alert('Đăng nhập', 'Vui lòng đăng nhập để mua Premium.');
@@ -510,20 +667,154 @@ export const PremiumScreen = () => {
             Alert.alert('Chọn gói', 'Vui lòng chọn gói Premium trả phí.');
             return;
         }
+        const now = Date.now();
+        if (now - lastPurchaseAtRef.current < PURCHASE_COOLDOWN_MS) {
+            const remain = Math.ceil((PURCHASE_COOLDOWN_MS - (now - lastPurchaseAtRef.current)) / 1000);
+            Alert.alert('Thao tác quá nhanh', `Vui lòng đợi ${remain}s trước khi tạo đơn mới.`);
+            return;
+        }
+        if (inAppPayment && pendingPaymentMeta) {
+            const isPendingStillValid = now - pendingPaymentMeta.createdAt <= PENDING_PAYMENT_TTL_MS;
+            if (isPendingStillValid) {
+                Alert.alert(
+                    'Đang có đơn chờ thanh toán',
+                    'Bạn đã có đơn thanh toán trong app. Hãy dùng QR/chuyển khoản hiện tại hoặc fallback browser, không tạo đơn mới liên tục.',
+                );
+                return;
+            }
+        }
         try {
             setPurchasing(true);
+            lastPurchaseAtRef.current = now;
             const res = await purchaseSubscription({ planId: selectedPlan.id });
-            try { await Linking.openURL(res.checkoutUrl); }
-            catch { await WebBrowser.openBrowserAsync(res.checkoutUrl); }
-            Alert.alert(
-                '💳 Thanh toán',
-                'Hoàn tất thanh toán trong trình duyệt. Quay lại app sau khi hoàn thành.',
-                [{ text: 'OK', onPress: () => fetchData(true) }],
-            );
+            const hasInAppData = Boolean(res.qrCode || res.referenceCode);
+            if (hasInAppData) {
+                await savePendingPayment(res, selectedPlan.id);
+                Alert.alert(
+                    'Thanh toán trong app',
+                    'Đã tạo mã QR và thông tin chuyển khoản. Nếu không thanh toán được, bạn có thể dùng trình duyệt để thanh toán.',
+                );
+            } else {
+                await clearPendingPayment();
+                await openCheckoutInBrowser(res.checkoutUrl);
+                Alert.alert(
+                    'Fallback trình duyệt',
+                    'Không có dữ liệu thanh toán nội bộ nên đã chuyển sang browser checkout.',
+                    [{ text: 'OK', onPress: () => fetchData(true) }],
+                );
+            }
         } catch (e: any) {
             Alert.alert('Lỗi', e.message || 'Không thể khởi tạo thanh toán');
         } finally { setPurchasing(false); }
     };
+
+    const handleCancelSubscription = useCallback(() => {
+        if (!authSession) {
+            Alert.alert('Đăng nhập', 'Vui lòng đăng nhập để thực hiện thao tác này.');
+            return;
+        }
+
+        Alert.alert(
+            'Hủy gói cước',
+            'Bạn có chắc muốn hủy gói Premium hiện tại không?',
+            [
+                { text: 'Không', style: 'cancel' },
+                {
+                    text: 'Hủy gói',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setCanceling(true);
+                            await cancelMySubscription();
+                            Alert.alert('Thành công', 'Gói cước đã được hủy.');
+                            await fetchData(true);
+                        } catch (e: any) {
+                            Alert.alert('Lỗi', e?.message || 'Không thể hủy gói cước lúc này.');
+                        } finally {
+                            setCanceling(false);
+                        }
+                    },
+                },
+            ],
+        );
+    }, [authSession, fetchData]);
+
+    const handleCancelInAppPayment = useCallback(() => {
+        if (!inAppPayment?.orderCode) {
+            Alert.alert('Không tìm thấy đơn', 'Không có mã đơn để hủy.');
+            return;
+        }
+
+        Alert.alert(
+            'Hủy đơn thanh toán',
+            'Bạn có muốn hủy đơn thanh toán đang chờ này không?',
+            [
+                { text: 'Không', style: 'cancel' },
+                {
+                    text: 'Hủy đơn',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            setCancelingInAppOrder(true);
+                            await cancelPaymentLink(inAppPayment.orderCode, {
+                                cancellationReason: 'User cancelled in-app pending payment',
+                            });
+                            await clearPendingPayment();
+                            Alert.alert('Đã hủy', 'Đơn thanh toán đã được hủy thành công.');
+                            await fetchData(true);
+                        } catch (e: any) {
+                            const msg = String(e?.message || '');
+                            const staleOrder = /no longer cancellable|not found|error processing payment/i.test(msg);
+                            if (staleOrder) {
+                                await clearPendingPayment();
+                                await fetchData(true);
+                                Alert.alert('Đơn đã thay đổi', 'Đơn thanh toán này không còn ở trạng thái chờ hủy. App đã làm mới dữ liệu.');
+                            } else {
+                                Alert.alert('Lỗi', msg || 'Không thể hủy đơn thanh toán lúc này.');
+                            }
+                        } finally {
+                            setCancelingInAppOrder(false);
+                        }
+                    },
+                },
+            ],
+        );
+    }, [inAppPayment?.orderCode, clearPendingPayment, fetchData]);
+
+    useEffect(() => {
+        if (!inAppPayment?.orderCode || !pendingPaymentMeta?.createdAt) return;
+        if (remainingMs == null || remainingMs > 0) return;
+
+        const key = `${inAppPayment.orderCode}-${pendingPaymentMeta.createdAt}`;
+        if (autoCancelKeyRef.current === key) return;
+        autoCancelKeyRef.current = key;
+
+        void (async () => {
+            try {
+                setCancelingInAppOrder(true);
+                await cancelPaymentLink(inAppPayment.orderCode, {
+                    cancellationReason: 'Auto-cancel after 10 minutes pending',
+                });
+                await clearPendingPayment();
+                await fetchData(true);
+                Alert.alert(
+                    t('premium.expiredTitle', 'Đơn hết hạn'),
+                    t('premium.expiredMessage', 'Đơn thanh toán đã tự hủy do quá 10 phút chưa thanh toán.'),
+                );
+            } catch (e: any) {
+                const msg = String(e?.message || '');
+                const staleOrder = /no longer cancellable|not found|error processing payment/i.test(msg);
+                if (staleOrder) {
+                    await clearPendingPayment();
+                    await fetchData(true);
+                } else {
+                    Alert.alert('Lỗi', msg || t('premium.autoCancelError', 'Không thể tự hủy đơn thanh toán hết hạn.'));
+                }
+            } finally {
+                setCancelingInAppOrder(false);
+            }
+        })();
+    }, [inAppPayment?.orderCode, pendingPaymentMeta?.createdAt, remainingMs, clearPendingPayment, fetchData, t]);
 
     const isActive = currentSub?.status === 'ACTIVE';
     const remainDays = useMemo(() => {
@@ -532,6 +823,11 @@ export const PremiumScreen = () => {
     }, [currentSub]);
 
     const glowOpacity = crownGlow.interpolate({ inputRange: [0, 1], outputRange: [0.3, 0.8] });
+
+    useEffect(() => {
+        if (!isActive) return;
+        void clearPendingPayment();
+    }, [isActive, clearPendingPayment]);
 
     if (loading) {
         return (
@@ -636,10 +932,10 @@ export const PremiumScreen = () => {
                                         <ActivityIndicator color="#fff" />
                                     ) : (
                                         <>
-                                            <Text style={styles.ctaIcon}>👑</Text>
+                                            <Text style={styles.ctaIcon}>💳</Text>
                                             <Text style={styles.ctaText}>
                                                 {selectedPlan && selectedPlan.price > 0
-                                                    ? `Nâng cấp ngay · ${new Intl.NumberFormat('vi-VN').format(selectedPlan.price)}đ`
+                                                    ? `Thanh toán · ${new Intl.NumberFormat('vi-VN').format(selectedPlan.price)}đ`
                                                     : 'Chọn gói Premium'}
                                             </Text>
                                         </>
@@ -647,6 +943,93 @@ export const PremiumScreen = () => {
                                 </LinearGradient>
                             </Pressable>
                         </Animated.View>
+                    )}
+
+                    {isActive && (
+                        <Pressable
+                            onPress={handleCancelSubscription}
+                            disabled={canceling}
+                            style={({ pressed }) => [
+                                styles.cancelBtn,
+                                pressed && { opacity: 0.88 },
+                                canceling && { opacity: 0.7 },
+                            ]}
+                        >
+                            {canceling ? (
+                                <ActivityIndicator color="#FCA5A5" />
+                            ) : (
+                                <Text style={styles.cancelBtnText}>Hủy gói cước</Text>
+                            )}
+                        </Pressable>
+                    )}
+
+                    {!isActive && inAppPayment && (
+                        <View style={styles.inAppPayCard}>
+                            <View style={styles.inAppPayHeaderRow}>
+                                <Text style={styles.inAppPayTitle}>{t('premium.inAppTitle', 'Thanh toán trong app')}</Text>
+                                <Text style={styles.inAppPayBadge}>
+                                    {remainingMs == null
+                                        ? t('premium.pendingLabel', 'Đang chờ')
+                                        : `${t('premium.remainingPrefix', 'Còn')} ${formatCountdown(remainingMs)}`}
+                                </Text>
+                            </View>
+
+                            {qrImageUri && !qrImageFailed ? (
+                                <View style={styles.qrWrap}>
+                                    <Image
+                                        source={{ uri: qrImageUri }}
+                                        style={styles.qrImage}
+                                        resizeMode="contain"
+                                        onError={() => setQrImageFailed(true)}
+                                    />
+                                </View>
+                            ) : (
+                                <Text style={styles.inAppPayHint}>
+                                    {t('premium.qrUnavailable', 'Chưa tải được ảnh QR. Bạn vẫn có thể thanh toán bằng nội dung chuyển khoản hoặc dùng fallback trình duyệt.')}
+                                </Text>
+                            )}
+
+                            <Text style={styles.inAppPayHint}>{t('premium.transferContent', 'Nội dung chuyển khoản')}</Text>
+                            <Text style={styles.inAppPayCode}>{transferDescription}</Text>
+
+                            <Text style={styles.inAppPayHint}>{t('premium.referenceCode', 'Mã tham chiếu')}</Text>
+                            <Text style={styles.inAppPayMeta}>{inAppPayment.referenceCode || 'Đang cập nhật'}</Text>
+
+                            <Text style={styles.inAppPayMeta}>{t('premium.orderCodePrefix', 'Mã đơn hàng:')} {inAppPayment.orderCode}</Text>
+                            <Text style={styles.inAppPayMeta}>{t('premium.autoActivateHint', 'Sau khi chuyển khoản thành công, hệ thống sẽ tự kích hoạt Premium.')}</Text>
+
+                            <Pressable
+                                disabled={openingBrowser || !inAppPayment.checkoutUrl}
+                                onPress={async () => {
+                                    try {
+                                        await openCheckoutInBrowser(inAppPayment.checkoutUrl);
+                                    } catch (e: any) {
+                                        Alert.alert('Lỗi', e?.message || 'Không thể mở browser checkout');
+                                    }
+                                }}
+                                style={({ pressed }) => [styles.fallbackBtn, pressed && { opacity: 0.9 }]}
+                            >
+                                <Text style={styles.fallbackBtnText}>
+                                    {openingBrowser ? 'Đang mở browser...' : t('premium.openBrowser', 'Open Browser')}
+                                </Text>
+                            </Pressable>
+
+                            <Pressable
+                                disabled={cancelingInAppOrder}
+                                onPress={handleCancelInAppPayment}
+                                style={({ pressed }) => [
+                                    styles.cancelInAppOrderBtn,
+                                    pressed && { opacity: 0.9 },
+                                    cancelingInAppOrder && { opacity: 0.7 },
+                                ]}
+                            >
+                                {cancelingInAppOrder ? (
+                                    <ActivityIndicator color="#FCA5A5" />
+                                ) : (
+                                    <Text style={styles.cancelInAppOrderBtnText}>{t('premium.cancelOrder', 'Hủy đơn thanh toán này')}</Text>
+                                )}
+                            </Pressable>
+                        </View>
                     )}
 
                     {/* ── Divider ── */}
@@ -944,6 +1327,106 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontWeight: '800',
         fontSize: 16,
+    },
+    cancelBtn: {
+        minHeight: 48,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(248,113,113,0.45)',
+        backgroundColor: 'rgba(127,29,29,0.25)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+    cancelBtnText: {
+        color: '#FCA5A5',
+        fontSize: 14,
+        fontWeight: '800',
+    },
+
+    // ── In-app payment card ──────────────────────────────────────────────────
+    inAppPayCard: {
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderColor: 'rgba(245,158,11,0.35)',
+        borderWidth: 1,
+        borderRadius: 16,
+        padding: 14,
+        marginBottom: 24,
+    },
+    inAppPayHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    inAppPayTitle: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '800',
+    },
+    inAppPayBadge: {
+        color: '#F59E0B',
+        fontSize: 11,
+        fontWeight: '800',
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+    },
+    qrWrap: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        padding: 10,
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    qrImage: {
+        width: 200,
+        height: 200,
+    },
+    inAppPayHint: {
+        color: 'rgba(255,255,255,0.65)',
+        fontSize: 12,
+        marginBottom: 6,
+    },
+    inAppPayCode: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: '800',
+        marginBottom: 8,
+    },
+    inAppPayMeta: {
+        color: 'rgba(255,255,255,0.72)',
+        fontSize: 12,
+        marginBottom: 4,
+    },
+    fallbackBtn: {
+        marginTop: 10,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        alignItems: 'center',
+    },
+    fallbackBtnText: {
+        color: '#FFFFFF',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    cancelInAppOrderBtn: {
+        marginTop: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(248,113,113,0.45)',
+        backgroundColor: 'rgba(127,29,29,0.2)',
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        alignItems: 'center',
+    },
+    cancelInAppOrderBtnText: {
+        color: '#FCA5A5',
+        fontSize: 13,
+        fontWeight: '700',
     },
 
     // ── Divider ───────────────────────────────────────────────────────────────

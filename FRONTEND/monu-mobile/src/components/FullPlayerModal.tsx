@@ -5,17 +5,19 @@ import {
     Pressable, ScrollView, StyleSheet, Text, View, TextInput, Alert, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from '../context/LocalizationContext';
 
 import { COLORS } from '../config/colors';
 import { AudioQuality, RepeatMode, usePlayer } from '../context/PlayerContext';
 import {
     addSongToPlaylist, createPlaylist, getLyric, getMyPlaylists,
-    LyricLine, LyricResponse, Playlist, reportSong,
+    LyricLine, LyricResponse, Playlist,
 } from '../services/music';
 import { getSongShareQr } from '../services/social';
 import { SongActionSheet } from './SongActionSheet';
 import { AppIcon } from './AppIcon';
 import { HeartButton } from './HeartButton';
+import { ReportReasonSheet } from './ReportReasonSheet';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -25,7 +27,7 @@ const formatTime = (seconds: number): string => {
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
 };
-import { Foundation, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { FontAwesome, Foundation, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
 const THUMB_RADIUS = 9;
 
@@ -196,8 +198,10 @@ const lyricStyles = StyleSheet.create({
 
 export const FullPlayerModal = () => {
     const insets = useSafeAreaInsets();
+    const { t } = useTranslation();
     const [menuOpen, setMenuOpen] = useState(false);
     const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
+    const [reportSheetOpen, setReportSheetOpen] = useState(false);
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
     const [newPlaylistName, setNewPlaylistName] = useState('');
     const [shareQr, setShareQr] = useState<string | null>(null);
@@ -304,17 +308,30 @@ export const FullPlayerModal = () => {
     const progress  = duration > 0 ? currentTime / duration : 0;
     const thumbLeft = Math.max(0, progress * barWidthRef.current - THUMB_RADIUS);
 
+    const looksLikeSoundCloud = !!currentSong?.soundcloudId || !!currentSong?.soundcloudPermalink;
+    const isSoundCloudTrack = currentSong?.sourceType === 'SOUNDCLOUD' || looksLikeSoundCloud;
+
     useEffect(() => {
         if (!isFullScreen) return;
+        if (isSoundCloudTrack) {
+            setPlaylists([]);
+            return;
+        }
         void (async () => {
             try {
                 const data = await getMyPlaylists({ page: 1, size: 50 });
                 setPlaylists(data.content ?? []);
             } catch { setPlaylists([]); }
         })();
-    }, [isFullScreen, currentSong?.id]);
+    }, [isFullScreen, currentSong?.id, isSoundCloudTrack]);
 
-    const openPlaylistPicker = () => setPlaylistPickerOpen(true);
+    const openPlaylistPicker = () => {
+        if (isSoundCloudTrack) {
+            Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
+            return;
+        }
+        setPlaylistPickerOpen(true);
+    };
 
     const handlePageScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
@@ -329,11 +346,14 @@ export const FullPlayerModal = () => {
     if (!currentSong) return null;
 
     const showLyricsTab = hasLyrics || lyricData;
-    const looksLikeSoundCloud = !!currentSong.soundcloudId || !!currentSong.soundcloudPermalink;
     const isExternalTrack =
-        currentSong.sourceType === 'SOUNDCLOUD'
+        isSoundCloudTrack
         || currentSong.sourceType === 'JAMENDO'
         || looksLikeSoundCloud;
+
+    const openReportReasonPicker = () => {
+        setReportSheetOpen(true);
+    };
 
     return (
         <Modal
@@ -565,8 +585,9 @@ export const FullPlayerModal = () => {
                                     style={styles.scAttribution}
                                     onPress={() => Linking.openURL(currentSong.soundcloudPermalink!)}
                                 >
+                                    <FontAwesome name="soundcloud" size={14} color="#FF5500" />
                                     <Text style={styles.scAttributionText}>
-                                        🔶 Provided by SoundCloud{' '}
+                                        {' '}Provided by SoundCloud{' '}
                                         <Text style={{ fontWeight: '700' }}>
                                             {currentSong.soundcloudUsername ?? 'SoundCloud'}
                                         </Text>
@@ -634,21 +655,36 @@ export const FullPlayerModal = () => {
                                     setShareQr(qr.qrCodeBase64 || null);
                                 },
                             },
-                            {
+                            ...(!isSoundCloudTrack ? [{
                                 icon: '➕',
                                 label: 'Thêm vào playlist',
                                 onPress: () => openPlaylistPicker(),
-                            },
+                            }] : []),
+                            ...(isSoundCloudTrack && currentSong.soundcloudPermalink ? [{
+                                icon: <FontAwesome name="soundcloud" size={20} color="#FF5500" />,
+                                label: 'Mở trên SoundCloud',
+                                onPress: async () => {
+                                    if (currentSong.soundcloudPermalink) {
+                                        await Linking.openURL(currentSong.soundcloudPermalink);
+                                    }
+                                },
+                            }] : []),
                             {
                                 icon: '🚩',
                                 label: 'Báo cáo bài hát',
                                 destructive: true,
                                 separator: true,
-                                onPress: async () => {
-                                    await reportSong(currentSong.id, { reason: 'SPAM', description: 'Reported from full player' });
-                                },
+                                onPress: openReportReasonPicker,
                             },
                         ]}
+                    />
+
+                    <ReportReasonSheet
+                        visible={reportSheetOpen}
+                        songId={currentSong.id}
+                        source="full player"
+                        onClose={() => setReportSheetOpen(false)}
+                        t={t}
                     />
 
                     {/* Playlist picker */}
@@ -658,6 +694,11 @@ export const FullPlayerModal = () => {
                                 <Text style={styles.menuTitle}>Thêm vào playlist</Text>
                                 {playlists.map((p) => (
                                     <Pressable key={p.id} onPress={async () => {
+                                        if (isSoundCloudTrack) {
+                                            Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
+                                            setPlaylistPickerOpen(false);
+                                            return;
+                                        }
                                         try {
                                             await addSongToPlaylist(p.id, currentSong.id);
                                             Alert.alert('Thành công', `Đã thêm vào ${p.name}`);
@@ -676,6 +717,11 @@ export const FullPlayerModal = () => {
                                 />
                                 <Pressable onPress={async () => {
                                     if (!newPlaylistName.trim()) return;
+                                    if (isSoundCloudTrack) {
+                                        Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
+                                        setPlaylistPickerOpen(false);
+                                        return;
+                                    }
                                     try {
                                         const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
                                         await addSongToPlaylist(pl.id, currentSong.id);

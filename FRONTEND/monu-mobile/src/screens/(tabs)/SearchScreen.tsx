@@ -166,22 +166,28 @@ export const SearchScreen = () => {
         finally { setLoading(false); }
     }, []);
 
+    const DEBOUNCE_MS = 700;
+    const MIN_QUERY_LENGTH = 2;
+
     const scheduleSearch = (q: string) => {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => doSearch(q), 380);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    
+    if (q.trim().length < MIN_QUERY_LENGTH) return;
+    
+    debounceRef.current = setTimeout(() => doSearch(q), DEBOUNCE_MS);
     };
 
     const handleQueryChange = (q: string) => {
-        setQuery(q);
-        if (!q.trim()) {
-            setSongResults([]);
-            setArtistResults([]);
-            setSpotifyResults([]);
-            setSoundCloudResults([]);
-            setArtistDetail(null);
-        } else {
-            scheduleSearch(q);
-        }
+    setQuery(q);
+    if (!q.trim() || q.trim().length < MIN_QUERY_LENGTH) {
+        setSongResults([]);
+        setArtistResults([]);
+        setSpotifyResults([]);
+        setSoundCloudResults([]);
+        setArtistDetail(null);
+        return;
+    }
+    scheduleSearch(q);
     };
 
     const handleSubmit = async () => {

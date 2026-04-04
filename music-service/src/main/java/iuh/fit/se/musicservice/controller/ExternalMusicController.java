@@ -3,16 +3,8 @@
 package iuh.fit.se.musicservice.controller;
 
 import iuh.fit.se.musicservice.dto.response.ApiResponse;
-import iuh.fit.se.musicservice.dto.response.SongResponse;
 import iuh.fit.se.musicservice.dto.response.SpotifyTrackResult;
-import iuh.fit.se.musicservice.entity.Song;
-import iuh.fit.se.musicservice.exception.AppException;
-import iuh.fit.se.musicservice.exception.ErrorCode;
-import iuh.fit.se.musicservice.mapper.SongMapper;
-import iuh.fit.se.musicservice.repository.PlaylistRepository;
-import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.repository.SoundCloudTrackResult;
-import iuh.fit.se.musicservice.service.PlaylistService;
 import iuh.fit.se.musicservice.service.impl.SoundCloudService;
 import iuh.fit.se.musicservice.service.impl.SpotifyService;
 import lombok.RequiredArgsConstructor;
@@ -20,14 +12,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/external")
@@ -37,9 +26,6 @@ public class ExternalMusicController {
 
     private final SpotifyService spotifyService;
     private final SoundCloudService soundCloudService;
-    private final SongRepository songRepository;
-    private final SongMapper songMapper;
-    private final PlaylistService playlistService;
 
     @GetMapping(value = "/soundcloud/tracks/{soundcloudId:.+}/stream-url",
             produces = MediaType.TEXT_PLAIN_VALUE)
@@ -115,53 +101,4 @@ public class ExternalMusicController {
         }
     }
 
-    /**
-     * Lưu SoundCloud track vào DB (để có thể thêm vào playlist).
-     * POST /external/soundcloud/tracks/save
-     * Body: SoundCloudTrackResult JSON
-     */
-    @PostMapping("/soundcloud/tracks/save")
-    @PreAuthorize("isAuthenticated()")
-    public ApiResponse<SongResponse> saveSoundCloudTrack(
-            @RequestBody SoundCloudTrackResult trackData) {
-
-        if (trackData.getId() == null || trackData.getStreamUrl() == null) {
-            throw new AppException(ErrorCode.INVALID_REQUEST);
-        }
-
-        Song song = soundCloudService.saveOrGetSoundCloudTrack(
-                trackData.getId(), trackData);
-
-        return ApiResponse.<SongResponse>builder()
-                .result(songMapper.toResponse(song))
-                .build();
-    }
-
-    /**
-     * Thêm SoundCloud track vào playlist:
-     *  1. Lưu track vào DB nếu chưa có
-     *  2. Thêm vào playlist như Song bình thường
-     * POST /external/soundcloud/tracks/save-and-add-to-playlist/{playlistId}
-     */
-    @PostMapping("/soundcloud/tracks/save-and-add-to-playlist/{playlistId}")
-    @PreAuthorize("isAuthenticated()")
-    public ApiResponse<Map<String, Object>> saveAndAddToPlaylist(
-            @PathVariable UUID playlistId,
-            @RequestBody SoundCloudTrackResult trackData) {
-
-        // Lưu track
-        Song song = soundCloudService.saveOrGetSoundCloudTrack(
-                trackData.getId(), trackData);
-
-        // Thêm vào playlist
-        var playlistResponse = playlistService.addSong(playlistId, song.getId());
-
-        return ApiResponse.<Map<String, Object>>builder()
-                .result(Map.of(
-                        "song", songMapper.toResponse(song),
-                        "playlist", playlistResponse
-                ))
-                .message("Đã thêm vào playlist thành công.")
-                .build();
-    }
 }

@@ -58,22 +58,6 @@ export const getSoundCloudStreamUrl = async (soundcloudId: string): Promise<stri
     return response.data as string;
 };
 
-export const saveSoundCloudTrack = async (track: SoundCloudTrack) => {
-    const response = await apiClient.post('/external/soundcloud/tracks/save', track);
-    return response.data;
-};
-
-export const saveAndAddSoundCloudToPlaylist = async (
-    playlistId: string,
-    track: SoundCloudTrack,
-) => {
-    const response = await apiClient.post(
-        `/external/soundcloud/tracks/save-and-add-to-playlist/${playlistId}`,
-        track,
-    );
-    return response.data;
-};
-
 // ─── Spotify Deep Link ────────────────────────────────────────────────────────
 
 import { Linking } from 'react-native';

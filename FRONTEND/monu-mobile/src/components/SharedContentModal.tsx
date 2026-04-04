@@ -1,12 +1,3 @@
-/**
- * File này chứa:
- * 1. Component SaveContentModal — modal chọn playlist để lưu bài
- * 2. SharedContentDetailModal đã cập nhật — thêm nút lưu vào playlist/album
- *
- * Thay thế SharedContentDetailModal trong DiscoverScreen.tsx bằng component bên dưới.
- * Import thêm:
- *   import { addSongToPlaylist, createPlaylist, getMyPlaylists } from '../../services/music';
- */
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -27,7 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config/colors';
 import { usePlayer } from '../context/PlayerContext';
-import { addSongToPlaylist, createPlaylist, getMyPlaylists, Playlist, Song } from '../services/music';
+import { addSongToPlaylist, createPlaylist, getMyPlaylists, isSoundCloudExternalSong, Playlist, Song } from '../services/music';
 
 // ─── Kiểu dùng chung ─────────────────────────────────────────────────────────
 
@@ -67,6 +58,7 @@ export const SaveContentModal: React.FC<SaveContentModalProps> = ({
     const [saving, setSaving]       = useState<string | null>(null); // playlistId đang lưu
     const [newName, setNewName]     = useState('');
     const [creating, setCreating]   = useState(false);
+    const savableSongs = songs.filter((song) => !isSoundCloudExternalSong(song));
 
     useEffect(() => {
         if (!visible) return;
@@ -78,23 +70,27 @@ export const SaveContentModal: React.FC<SaveContentModalProps> = ({
     }, [visible]);
 
     const handleSaveToPlaylist = useCallback(async (playlistId: string, playlistName: string) => {
+        if (savableSongs.length === 0) {
+            Alert.alert('Không hỗ trợ', 'Các bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
+            onClose();
+            return;
+        }
         setSaving(playlistId);
         let successCount = 0;
-        for (const song of songs) {
+        for (const song of savableSongs) {
             try {
                 await addSongToPlaylist(playlistId, song.id);
                 successCount++;
             } catch {
-                // ignore duplicates / errors for individual songs
             }
         }
         setSaving(null);
         Alert.alert(
             '✓ Đã lưu',
-            `${successCount}/${songs.length} bài từ "${sourceTitle}" → "${playlistName}"`,
+            `${successCount}/${savableSongs.length} bài từ "${sourceTitle}" → "${playlistName}"`,
             [{ text: 'OK', onPress: onClose }]
         );
-    }, [songs, sourceTitle, onClose]);
+    }, [savableSongs, sourceTitle, onClose]);
 
     const handleCreateAndSave = useCallback(async () => {
         if (!newName.trim()) return;
@@ -123,7 +119,7 @@ export const SaveContentModal: React.FC<SaveContentModalProps> = ({
                     <Text style={saveStyles.sourceText} numberOfLines={1}>
                         📎 {sourceTitle}
                         {sourceOwner ? ` · bởi ${sourceOwner}` : ''}
-                        {' · '}{songs.length} bài
+                        {' · '}{savableSongs.length} bài có thể lưu
                     </Text>
                 </View>
 
@@ -205,7 +201,7 @@ export const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> =
 
     if (!content) return null;
 
-    const canSave = content.songs.length > 0;
+    const canSave = content.songs.some((song) => !isSoundCloudExternalSong(song));
     const typeLabel =
         content.type === 'ALBUM' ? 'Album'
             : content.type === 'PLAYLIST' ? 'Playlist'

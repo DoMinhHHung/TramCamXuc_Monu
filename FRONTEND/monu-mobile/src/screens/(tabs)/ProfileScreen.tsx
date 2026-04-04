@@ -213,6 +213,12 @@ export const ProfileScreen = () => {
             onPress: () => navigation.navigate('MyPosts'),
         },
         {
+            icon: <FontAwesome name="flag" color={themeColors.warningMid} size={18} />,
+            label: 'Quản lý nội dung',
+            sub: 'Bài hát bị báo cáo và trạng thái xử lý',
+            onPress: () => navigation.navigate('ContentManagement'),
+        },
+        {
             icon: <AntDesign name="download" color={themeColors.white} size={18} />,
             label: t('screens.library.downloads', 'Downloads'),
             sub: downloadedSongs.length > 0

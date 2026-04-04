@@ -140,8 +140,18 @@ public class PayOSServiceImpl implements PayOSService {
             PaymentTransaction transaction = transactionRepository.findByOrderCode(orderCode)
                     .orElseThrow(() -> new AppException(ErrorCode.PAYMENT_TRANSACTION_NOT_FOUND));
 
+            if (transaction.getStatus() == PaymentStatus.CANCELLED) {
+                log.info("Cancel payment idempotent hit: orderCode={} is already CANCELLED", orderCode);
+                return Map.of(
+                        "orderCode", orderCode,
+                        "status", "CANCELLED",
+                        "message", "Payment is already cancelled"
+                );
+            }
+
             if (transaction.getStatus() != PaymentStatus.PENDING) {
-                throw new AppException(ErrorCode.PAYMENT_PROCESSING_ERROR);
+                log.warn("Cancel rejected: orderCode={} currentStatus={} (expected PENDING)", orderCode, transaction.getStatus());
+                throw new AppException(ErrorCode.PAYMENT_TRANSACTION_NOT_CANCELLABLE);
             }
 
             PaymentLink cancelled = payOS.paymentRequests().cancel(orderCode, reason);
@@ -159,6 +169,7 @@ public class PayOSServiceImpl implements PayOSService {
             return cancelled;
 
         } catch (AppException e) {
+            log.warn("Cancel payment app error orderCode={}, reason={}, code={}", orderCode, reason, e.getErrorCode());
             throw e;
         } catch (Exception e) {
             log.error("Error cancelling payment link orderCode={}", orderCode, e);

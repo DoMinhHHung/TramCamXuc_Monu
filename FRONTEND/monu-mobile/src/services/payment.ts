@@ -37,6 +37,10 @@ export interface PurchaseSubscriptionRequest {
   planId: string;
 }
 
+export interface PaymentCancelRequest {
+  cancellationReason?: string;
+}
+
 // ─── Payment API ──────────────────────────────────────────────────────────────
 
 /**
@@ -83,4 +87,15 @@ export const getMySubscriptionHistory = async (): Promise<UserSubscription[]> =>
  */
 export const cancelMySubscription = async (): Promise<void> => {
   await apiClient.delete('/subscriptions/my/cancel');
+};
+
+/**
+ * Cancel a pending payment link by order code
+ * PUT /payments/{orderCode}/cancel
+ */
+export const cancelPaymentLink = async (
+  orderCode: number,
+  request?: PaymentCancelRequest
+): Promise<void> => {
+  await apiClient.put(`/payments/${orderCode}/cancel`, request ?? {});
 };

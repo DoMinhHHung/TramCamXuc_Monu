@@ -160,10 +160,6 @@ public class SongController {
                 .build();
     }
 
-    /**
-     * Lấy presigned URL để tải bài hát (yêu cầu subscription có feature download).
-     * GET /songs/{songId}/download
-     */
     @GetMapping("/{songId}/download")
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<String> getDownloadUrl(@PathVariable UUID songId) {

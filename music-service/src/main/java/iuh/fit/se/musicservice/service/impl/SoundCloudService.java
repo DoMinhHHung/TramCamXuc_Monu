@@ -2,19 +2,7 @@
 
 package iuh.fit.se.musicservice.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import iuh.fit.se.musicservice.entity.Artist;
-import iuh.fit.se.musicservice.entity.Genre;
-import iuh.fit.se.musicservice.entity.Song;
-import iuh.fit.se.musicservice.enums.ArtistStatus;
-import iuh.fit.se.musicservice.enums.SongStatus;
-import iuh.fit.se.musicservice.enums.SourceType;
-import iuh.fit.se.musicservice.enums.TranscodeStatus;
-import iuh.fit.se.musicservice.repository.ArtistRepository;
-import iuh.fit.se.musicservice.repository.GenreRepository;
-import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.repository.SoundCloudTrackResult;
-import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,11 +10,9 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.util.StreamUtils;
 import org.springframework.web.util.UriUtils;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -42,10 +28,6 @@ import java.util.*;
 public class SoundCloudService {
 
     private final RestTemplate restTemplate;
-    private final SongRepository songRepository;
-    private final ArtistRepository artistRepository;
-    private final GenreRepository genreRepository;
-    private final ObjectMapper objectMapper;
 
     private volatile String scAccessToken;
     private volatile Instant scTokenExpiry = Instant.EPOCH;
@@ -59,7 +41,6 @@ public class SoundCloudService {
     private String gatewayUrl;
 
     private static final String SC_API = "https://api.soundcloud.com";
-    private static final UUID SC_SYSTEM_USER = UUID.fromString("00000000-0000-0000-0000-000000000002");
 
     private synchronized String getScToken() {
         if (scAccessToken != null && Instant.now().isBefore(scTokenExpiry.minusSeconds(60))) {
@@ -117,27 +98,23 @@ public class SoundCloudService {
 
     // ── Search ────────────────────────────────────────────────────────────────
 
-    // ⑤ FIX searchTracks — không pre-normalize tiếng Việt
+    
 public List<SoundCloudTrackResult> searchTracks(String query, int limit) {
-    try {
-        int safeLimit = Math.max(1, Math.min(limit, 50));
-        
-        // Primary: search với query gốc (giữ nguyên tiếng Việt có dấu)
-        List<SoundCloudTrackResult> primary = searchTracksOnce(query, safeLimit);
+    if (query == null || query.isBlank()) return Collections.emptyList();
+    
+    int safeLimit = Math.max(1, Math.min(limit, 50));
+    String trimmed = query.trim();
 
-        String normalizedQuery = normalizeSearchQuery(query);
-        boolean isSameQuery = normalizedQuery.equals(query == null ? "" : query.trim());
-        
-        if (!isSameQuery && primary.size() < 5) {
-            List<SoundCloudTrackResult> fallback = searchTracksOnce(normalizedQuery, safeLimit);
-            return mergeUniqueTracks(primary, fallback, safeLimit);
-        }
-        
-        return primary;
-    } catch (Exception e) {
-        log.error("[SoundCloud] Search failed for query '{}': {}", query, e.getMessage());
-        return Collections.emptyList();
+    List<SoundCloudTrackResult> primary = searchTracksOnce(trimmed, safeLimit);
+
+    boolean hasDiacritics = !trimmed.equals(normalizeSearchQuery(trimmed));
+    if (hasDiacritics && primary.size() < 3) {
+        String normalized = normalizeSearchQuery(trimmed);
+        List<SoundCloudTrackResult> fallback = searchTracksOnce(normalized, safeLimit);
+        return mergeUniqueTracks(primary, fallback, safeLimit);
     }
+    
+    return primary;
 }
 
     private List<SoundCloudTrackResult> searchTracksOnce(String query, int limit) {
@@ -230,42 +207,6 @@ public List<SoundCloudTrackResult> searchTracks(String query, int limit) {
         return results;
     }
 
-    // ── Save to DB (để thêm vào playlist) ───────────────────────────────────
-
-    public Song saveOrGetSoundCloudTrack(String soundcloudId, SoundCloudTrackResult trackData) {
-        String numericId = extractNumericId(soundcloudId);
-        return songRepository.findBySoundcloudId(numericId)
-                .orElseGet(() -> {
-                    Artist artist = upsertArtist(trackData);
-                    Genre genre = resolveGenre(trackData.getGenre());
-
-                    UUID songId = UUID.randomUUID();
-                    Song song = Song.builder()
-                            .id(songId)
-                            .title(trackData.getTitle())
-                            .slug(SlugUtils.generate(trackData.getTitle(), songId))
-                            .ownerUserId(SC_SYSTEM_USER)
-                            .primaryArtistId(artist.getId())
-                            .primaryArtistStageName(artist.getStageName())
-                            .primaryArtistAvatarUrl(artist.getAvatarUrl())
-                            .thumbnailUrl(trackData.getThumbnailUrl())
-                            .durationSeconds(trackData.getDurationSeconds())
-                            .genres(genre != null ? Set.of(genre) : Collections.emptySet())
-                            .status(SongStatus.PUBLIC)
-                            .transcodeStatus(TranscodeStatus.COMPLETED)
-                            .playCount(trackData.getPlaybackCount())
-                            .sourceType(SourceType.SOUNDCLOUD)
-                            .soundcloudId(numericId)
-                            .soundcloudPermalink(trackData.getPermalink())
-                            .soundcloudWaveformUrl(trackData.getWaveformUrl())
-                            .soundcloudUsername(trackData.getArtistUsername())
-                            .build();
-
-                    log.info("[SoundCloud] Saved new track: id={} title='{}'", soundcloudId, trackData.getTitle());
-                    return songRepository.save(song);
-                });
-    }
-
     // ── Stream URL ───────────────────────────────────────────────────────────
 
     /**
@@ -349,12 +290,10 @@ public List<SoundCloudTrackResult> searchTracks(String query, int limit) {
                     return location;
                 }
             }
-            // Không có redirect (có thể URL đã là CDN), trả về nguyên
             log.warn("[SoundCloud] No redirect from intermediate URL (status={}), using as-is", status);
             return intermediateUrl;
         } catch (Exception e) {
             log.warn("[SoundCloud] Could not follow redirect for {}: {}", intermediateUrl, e.getMessage());
-            // Fallback: trả URL gốc, để proxy endpoint xử lý
             return intermediateUrl;
         }
     }
@@ -377,62 +316,7 @@ public List<SoundCloudTrackResult> searchTracks(String query, int limit) {
         return soundcloudId;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private Artist upsertArtist(SoundCloudTrackResult track) {
-        String stageName = track.getArtistUsername() != null ?
-                track.getArtistUsername().trim() : "Unknown Artist";
-
-        return artistRepository.findByStageNameIgnoreCase(stageName)
-                .orElseGet(() -> {
-                    UUID artistId = UUID.nameUUIDFromBytes(
-                            ("soundcloud-artist:" + track.getArtistId())
-                                    .getBytes(StandardCharsets.UTF_8)
-                    );
-                    Artist newArtist = Artist.builder()
-                            .id(artistId)
-                            .stageName(stageName)
-                            .avatarUrl(track.getArtistAvatarUrl())
-                            .isJamendo(false)
-                            .userId(null)  // External artist
-                            .status(ArtistStatus.ACTIVE)
-                            .build();
-                    return artistRepository.save(newArtist);
-                });
-    }
-
-    private Genre resolveGenre(String genreTag) {
-        if (genreTag == null || genreTag.isBlank()) return null;
-        // Map genre tag thô về canonical genre (tương tự Jamendo worker)
-        String canonical = mapToCanonical(genreTag.toLowerCase().trim());
-        if (canonical == null) return null;
-        String finalCanonical = canonical;
-        return genreRepository.findByNameIgnoreCase(canonical)
-                .orElseGet(() -> genreRepository.save(
-                        Genre.builder().name(finalCanonical).description("From SoundCloud").build()
-                ));
-    }
-
-    private static final Map<String, String> GENRE_MAP = Map.ofEntries(
-            Map.entry("pop", "Pop"), Map.entry("rock", "Rock"),
-            Map.entry("hip-hop", "Hip-Hop"), Map.entry("hiphop", "Hip-Hop"),
-            Map.entry("electronic", "Electronic"), Map.entry("edm", "Electronic"),
-            Map.entry("jazz", "Jazz"), Map.entry("classical", "Classical"),
-            Map.entry("r&b", "R&B"), Map.entry("rnb", "R&B"),
-            Map.entry("ambient", "Ambient"), Map.entry("lofi", "Lo-fi"),
-            Map.entry("folk", "Folk"), Map.entry("country", "Country"),
-            Map.entry("reggae", "Reggae"), Map.entry("metal", "Metal"),
-            Map.entry("dance", "Dance"), Map.entry("house", "House"),
-            Map.entry("indie", "Rock"), Map.entry("alternative", "Rock")
-    );
-
-    private String mapToCanonical(String tag) {
-        return GENRE_MAP.entrySet().stream()
-                .filter(e -> tag.contains(e.getKey()))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse(null);
-    }
+        // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String decodeSoundCloudText(String value) {
         if (value == null || value.isBlank()) return value;

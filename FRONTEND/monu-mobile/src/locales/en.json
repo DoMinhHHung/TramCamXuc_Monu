@@ -19,6 +19,21 @@
     "remove": "Remove",
     "goBack": "Go back"
   },
+  "report": {
+    "title": "Choose report reason",
+    "message": "Please select the reason that best matches this song.",
+    "successTitle": "Report submitted",
+    "successMessage": "Thanks for your feedback.",
+    "errorMessage": "Unable to submit report right now.",
+    "reasons": {
+      "copyrightViolation": "Copyright violation",
+      "explicitContent": "Explicit content",
+      "hateSpeech": "Hate speech",
+      "spam": "Spam",
+      "misinformation": "Misinformation",
+      "other": "Other"
+    }
+  },
   "navigation": {
     "home": "Home",
     "discover": "Discover",
@@ -627,7 +642,20 @@
     "offlineListening": "Offline Listening",
     "highQualityAudio": "High Quality Audio",
     "subscribe": "Subscribe Now",
-    "currentPlan": "Current Plan"
+    "currentPlan": "Current Plan",
+    "inAppTitle": "In-app payment",
+    "pendingLabel": "Pending",
+    "remainingPrefix": "Remaining",
+    "transferContent": "Transfer content",
+    "referenceCode": "Reference code",
+    "orderCodePrefix": "Order code:",
+    "autoActivateHint": "After transfer succeeds, Premium will be activated automatically.",
+    "qrUnavailable": "QR image is unavailable. You can still pay using transfer content or open browser fallback.",
+    "cancelOrder": "Cancel this payment order",
+    "openBrowser": "Open Browser",
+    "expiredTitle": "Order expired",
+    "expiredMessage": "The payment order was auto-cancelled after 10 minutes without payment.",
+    "autoCancelError": "Unable to auto-cancel this expired payment order."
   },
   "errors": {
     "networkError": "Network error. Please check your connection.",
@@ -662,8 +690,8 @@
     "topSongs": "Top Songs",
     "moreFromGenre": "More from this genre",
     "noDataAvailable": "No data available yet",
-    "soundcloudSection": "🔶 Listen with SoundCloud",
-    "spotifySection": "🟢 Listen with Spotify",
+    "soundcloudSection": "Listen with SoundCloud",
+    "spotifySection": "Listen with Spotify",
     "openInSpotify": "Open Spotify",
     "loadingExternal": "Loading external music..."
   },

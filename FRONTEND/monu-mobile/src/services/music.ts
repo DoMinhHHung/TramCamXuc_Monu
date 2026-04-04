@@ -41,6 +41,37 @@ export interface Song {
   soundcloudUsername?: string;
 }
 
+export type ReportReason =
+  | 'COPYRIGHT_VIOLATION'
+  | 'EXPLICIT_CONTENT'
+  | 'HATE_SPEECH'
+  | 'SPAM'
+  | 'MISINFORMATION'
+  | 'OTHER';
+
+export type ReportStatus = 'PENDING' | 'CONFIRMED' | 'DISMISSED';
+
+export interface SongReportItem {
+  id: string;
+  songId: string;
+  songTitle: string;
+  reporterId?: string | null;
+  reason: ReportReason;
+  description?: string | null;
+  status: ReportStatus;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  adminNote?: string | null;
+  createdAt: string;
+}
+
+export const isSoundCloudExternalSong = (
+  song?: Pick<Song, 'sourceType' | 'soundcloudId' | 'soundcloudPermalink'> | null,
+): boolean => {
+  if (!song) return false;
+  return song.sourceType === 'SOUNDCLOUD' || Boolean(song.soundcloudId) || Boolean(song.soundcloudPermalink);
+};
+
 export interface PlaylistSong {
   playlistSongId: string;
   prevId?: string | null;
@@ -273,8 +304,17 @@ export const reorderPlaylists = async (playlistIds: string[]): Promise<void> => 
   await apiClient.patch('/playlists/reorder', { playlistIds });
 };
 
-export const reportSong = async (songId: string, payload: { reason: 'COPYRIGHT_VIOLATION' | 'EXPLICIT_CONTENT' | 'HATE_SPEECH' | 'SPAM' | 'MISINFORMATION' | 'OTHER'; description?: string }): Promise<void> => {
+export const reportSong = async (songId: string, payload: { reason: ReportReason; description?: string }): Promise<void> => {
   await apiClient.post(`/songs/${songId}/report`, payload);
+};
+
+export const getMyReportHistory = async (params?: { page?: number; size?: number }): Promise<PageResponse<SongReportItem>> => {
+  const response = await apiClient.get<PageResponse<SongReportItem>>('/songs/my-reports', { params });
+  return unwrap<PageResponse<SongReportItem>>(response.data);
+};
+
+export const removeMyReport = async (reportId: string): Promise<void> => {
+  await apiClient.delete(`/songs/my-reports/${reportId}`);
 };
 
 // ── Lyrics ──────────────────────────────────────────────────────────────────

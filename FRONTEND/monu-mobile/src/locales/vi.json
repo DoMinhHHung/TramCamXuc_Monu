@@ -19,6 +19,21 @@
     "remove": "Xoá",
     "goBack": "Quay lại"
   },
+  "report": {
+    "title": "Chọn lý do báo cáo",
+    "message": "Vui lòng chọn lý do phù hợp với nội dung bài hát.",
+    "successTitle": "Đã gửi báo cáo",
+    "successMessage": "Cảm ơn bạn đã phản hồi.",
+    "errorMessage": "Không thể gửi báo cáo lúc này.",
+    "reasons": {
+      "copyrightViolation": "Vi phạm bản quyền",
+      "explicitContent": "Nội dung người lớn",
+      "hateSpeech": "Phát ngôn thù ghét",
+      "spam": "Spam",
+      "misinformation": "Thông tin sai lệch",
+      "other": "Khác"
+    }
+  },
   "navigation": {
     "home": "Trang chủ",
     "discover": "Khám phá",
@@ -627,7 +642,20 @@
     "offlineListening": "Nghe offline",
     "highQualityAudio": "Âm thanh chất lượng cao",
     "subscribe": "Đăng ký ngay",
-    "currentPlan": "Gói hiện tại"
+    "currentPlan": "Gói hiện tại",
+    "inAppTitle": "Thanh toán trong app",
+    "pendingLabel": "Đang chờ",
+    "remainingPrefix": "Còn",
+    "transferContent": "Nội dung chuyển khoản",
+    "referenceCode": "Mã tham chiếu",
+    "orderCodePrefix": "Mã đơn hàng:",
+    "autoActivateHint": "Sau khi chuyển khoản thành công, hệ thống sẽ tự kích hoạt Premium.",
+    "qrUnavailable": "Chưa tải được ảnh QR. Bạn vẫn có thể thanh toán bằng nội dung chuyển khoản hoặc dùng fallback trình duyệt.",
+    "cancelOrder": "Hủy đơn thanh toán này",
+    "openBrowser": "Mở trình duyệt",
+    "expiredTitle": "Đơn hết hạn",
+    "expiredMessage": "Đơn thanh toán đã tự hủy do quá 10 phút chưa thanh toán.",
+    "autoCancelError": "Không thể tự hủy đơn thanh toán hết hạn."
   },
   "errors": {
     "networkError": "Lỗi mạng. Vui lòng kiểm tra kết nối của bạn.",
@@ -662,8 +690,8 @@
     "topSongs": "Bài Hát Hàng Đầu",
     "moreFromGenre": "Thêm từ thể loại này",
     "noDataAvailable": "Chưa có dữ liệu",
-    "soundcloudSection": "🔶 Nghe cùng SoundCloud",
-    "spotifySection": "🟢 Nghe cùng Spotify",
+    "soundcloudSection": "Nghe cùng SoundCloud",
+    "spotifySection": "Nghe cùng Spotify",
     "openInSpotify": "Mở Spotify",
     "loadingExternal": "Đang tải nhạc ngoài..."
   },

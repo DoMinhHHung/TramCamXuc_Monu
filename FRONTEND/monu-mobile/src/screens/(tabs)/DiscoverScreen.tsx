@@ -58,6 +58,7 @@ import {
   createPlaylist,
   getMyAlbums,
   getMyPlaylists,
+  isSoundCloudExternalSong,
   Album,
   Playlist,
 } from '../../services/music';
@@ -243,15 +244,21 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
 
   // ── Lưu vào Playlist ─────────────────────────────────────────────────────────
   const handleSaveToPlaylist = useCallback(async (plId: string, plName: string) => {
+    const savableSongs = songs.filter((song) => !isSoundCloudExternalSong(song));
+    if (savableSongs.length === 0) {
+      Alert.alert('Không hỗ trợ', 'Các bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
+      onClose();
+      return;
+    }
     setSavingPl(plId);
     let ok = 0;
-    for (const s of songs) {
+    for (const s of savableSongs) {
       try { await addSongToPlaylist(plId, s.id); ok++; } catch { /* duplicate bỏ qua */ }
     }
     setSavingPl(null);
     Alert.alert(
         '✓ Đã lưu vào playlist',
-        `${ok}/${songs.length} bài từ "${sourceTitle}" → playlist "${plName}"`,
+        `${ok}/${savableSongs.length} bài từ "${sourceTitle}" → playlist "${plName}"`,
         [{ text: 'OK', onPress: onClose }],
     );
   }, [songs, sourceTitle, onClose]);

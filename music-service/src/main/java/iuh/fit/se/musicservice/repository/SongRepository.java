@@ -1,6 +1,7 @@
 package iuh.fit.se.musicservice.repository;
 
 import iuh.fit.se.musicservice.entity.Song;
+import iuh.fit.se.musicservice.entity.SongReport;
 import iuh.fit.se.musicservice.enums.SongStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -40,6 +41,11 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
                    OR s.primary_artist_stage_name ILIKE '%' || :keyword || '%')
               AND (:genreId IS NULL OR sg.genre_id = :genreId)
               AND (:artistId IS NULL OR s.primary_artist_id = :artistId)
+                                        AND (:viewerId IS NULL OR NOT EXISTS (
+                                                                SELECT 1 FROM song_reports sr
+                                                                WHERE sr.song_id = s.id
+                                                                        AND sr.reporter_id = :viewerId
+                                        ))
             """,
             countQuery = """
             SELECT COUNT(DISTINCT s.id) FROM songs s
@@ -52,30 +58,61 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
                    OR s.primary_artist_stage_name ILIKE '%' || :keyword || '%')
               AND (:genreId IS NULL OR sg.genre_id = :genreId)
               AND (:artistId IS NULL OR s.primary_artist_id = :artistId)
+                                                        AND (:viewerId IS NULL OR NOT EXISTS (
+                                                                                SELECT 1 FROM song_reports sr
+                                                                                WHERE sr.song_id = s.id
+                                                                                        AND sr.reporter_id = :viewerId
+                                                        ))
             """,
             nativeQuery = true)
     Page<Song> searchPublic(@Param("keyword") String keyword,
                             @Param("genreId") UUID genreId,
                             @Param("artistId") UUID artistId,
+                                                                                                                @Param("viewerId") UUID viewerId,
                             Pageable pageable);
 
-    @Query("""
-            SELECT s FROM Song s
-            WHERE s.status = 'PUBLIC'
-              AND s.transcodeStatus = 'COMPLETED'
-              AND s.deletedAt IS NULL
-            ORDER BY s.playCount DESC
-            """)
-    Page<Song> findTrending(Pageable pageable);
+                @Query("""
+                                                SELECT s FROM Song s
+                                                LEFT JOIN FETCH s.genres
+                                                WHERE s.id = :id
+                                                        AND s.status = 'PUBLIC'
+                                                        AND s.transcodeStatus = 'COMPLETED'
+                                                        AND s.deletedAt IS NULL
+                                                        AND (:viewerId IS NULL OR NOT EXISTS (
+                                                                                SELECT r.id FROM SongReport r
+                                                                                WHERE r.songId = s.id
+                                                                                        AND r.reporterId = :viewerId
+                                                        ))
+                                                """)
+                Optional<Song> findPublicByIdVisible(@Param("id") UUID id, @Param("viewerId") UUID viewerId);
 
     @Query("""
             SELECT s FROM Song s
             WHERE s.status = 'PUBLIC'
               AND s.transcodeStatus = 'COMPLETED'
               AND s.deletedAt IS NULL
+                                                        AND (:viewerId IS NULL OR NOT EXISTS (
+                                                                                SELECT r.id FROM SongReport r
+                                                                                WHERE r.songId = s.id
+                                                                                        AND r.reporterId = :viewerId
+                                                        ))
+            ORDER BY s.playCount DESC
+            """)
+                Page<Song> findTrendingVisible(@Param("viewerId") UUID viewerId, Pageable pageable);
+
+    @Query("""
+            SELECT s FROM Song s
+            WHERE s.status = 'PUBLIC'
+              AND s.transcodeStatus = 'COMPLETED'
+              AND s.deletedAt IS NULL
+                                                        AND (:viewerId IS NULL OR NOT EXISTS (
+                                                                                SELECT r.id FROM SongReport r
+                                                                                WHERE r.songId = s.id
+                                                                                        AND r.reporterId = :viewerId
+                                                        ))
             ORDER BY s.createdAt DESC
             """)
-    Page<Song> findNewest(Pageable pageable);
+                Page<Song> findNewestVisible(@Param("viewerId") UUID viewerId, Pageable pageable);
 
     @Query("""
             SELECT s FROM Song s
@@ -84,8 +121,15 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
             AND s.status = 'PUBLIC'
             AND s.transcodeStatus = 'COMPLETED'
             AND s.deletedAt IS NULL
+            AND (:viewerId IS NULL OR NOT EXISTS (
+                  SELECT r.id FROM SongReport r
+                  WHERE r.songId = s.id
+                    AND r.reporterId = :viewerId
+            ))
             """)
-    Page<Song> findPublicByArtistId(@Param("artistId") UUID artistId, Pageable pageable);
+    Page<Song> findPublicByArtistIdVisible(@Param("artistId") UUID artistId,
+                                           @Param("viewerId") UUID viewerId,
+                                           Pageable pageable);
 
     // ── Artist queries (owner) ─────────────────────────────────────────────────
 
@@ -159,8 +203,14 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
             AND s.status = 'PUBLIC'
             AND s.transcodeStatus = 'COMPLETED'
             AND s.deletedAt IS NULL
+                AND (:viewerId IS NULL OR NOT EXISTS (
+                          SELECT r.id FROM SongReport r
+                          WHERE r.songId = s.id
+                                AND r.reporterId = :viewerId
+                ))
             """)
-    List<Song> findPublicByIdIn(@Param("ids") List<UUID> ids);
+        List<Song> findPublicByIdInVisible(@Param("ids") List<UUID> ids,
+                                                                           @Param("viewerId") UUID viewerId);
 
     @Query("""
             SELECT s FROM Song s
