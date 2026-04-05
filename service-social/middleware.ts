@@ -9,11 +9,9 @@ function isPublicGet(pathname: string): boolean {
   if (pathname === '/social/comments/post') return true;
   if (pathname === '/social/comments/post/count') return true;
   if (/^\/social\/comments\/[^/]+\/replies$/.test(pathname)) return true;
-
   if (pathname === '/social/reactions/summary') return true;
   if (pathname === '/social/reactions/likers') return true;
   if (pathname === '/social/reactions/dislikers') return true;
-
   if (pathname === '/social/share') return true;
   if (pathname === '/social/share/qr') return true;
   if (pathname === '/social/share/count') return true;

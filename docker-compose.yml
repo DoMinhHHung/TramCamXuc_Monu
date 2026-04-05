@@ -123,7 +123,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 450M
     environment:
       <<: [ *infra, *db, *gateway, *java-env, *internal ]
       DB_URL_IDENTITY: ${DB_URL_IDENTITY}
@@ -153,7 +153,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 450M
     environment:
       <<: [ *infra, *db, *gateway, *java-env, *minio, *internal ]
       DB_URL_MUSIC: ${DB_URL_MUSIC}
@@ -182,7 +182,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 450M
     environment:
       <<: [ *infra, *db, *java-env, *internal ]
       DB_URL_PAYMENT: ${DB_URL_PAYMENT}
@@ -250,7 +250,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 450M
     environment:
       <<: [ *infra, *minio, *java-env ]
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
