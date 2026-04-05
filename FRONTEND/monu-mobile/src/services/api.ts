@@ -210,20 +210,15 @@ const refreshClient: AxiosInstance = axios.create({
 export const apiClient: AxiosInstance = axios.create({
   baseURL: env.apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000, // tăng lên 15s để bớt timeout giả
+  timeout: 15000,
 });
 
 // ─── Request interceptor ────────────────────────────────────────────────────────
 apiClient.interceptors.request.use((config) => {
   const path = normalizeUrlPath(config.url);
 
-  if (path.startsWith('/recommendations') && env.mlServiceUrl) {
-    config.baseURL = env.mlServiceUrl;
-  } else if (path.startsWith('/social') && env.socialServiceUrl) {
-    config.baseURL = env.socialServiceUrl;
-  } else {
-    config.baseURL = env.apiBaseUrl;
-  }
+  // Local Docker mode: always go through API Gateway
+  config.baseURL = env.apiBaseUrl;
 
   config.timeout = getAdaptiveTimeout(path);
 

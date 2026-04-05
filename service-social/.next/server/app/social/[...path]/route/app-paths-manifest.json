@@ -1,3 +1,0 @@
-{
-  "/social/[...path]/route": "app/social/[...path]/route.js"
-}

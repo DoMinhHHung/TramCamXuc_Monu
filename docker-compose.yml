@@ -38,23 +38,22 @@ x-internal: &internal
   INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
   GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:-}
 
-# Không dùng spring.main.lazy-initialization=true ở đây: làm DiscoveryClient/Eureka
-# khởi tạo muộn → đăng ký lên discovery-server rất chậm và dễ timeout/read stack trace trên log.
 x-java-env: &java-env
   JAVA_OPTS: >-
-    -Xmx256m -Xms64m
+    -Xmx192m -Xms64m
     -XX:+UseG1GC
     -XX:MaxGCPauseMillis=200
     -XX:GCTimeRatio=4
     -XX:AdaptiveSizePolicyWeight=90
     -XX:+UseStringDeduplication
-    -XX:MaxMetaspaceSize=96m
+    -XX:MaxMetaspaceSize=64m
     -XX:TieredStopAtLevel=1
     -XX:CICompilerCount=2
     -Djava.security.egd=file:/dev/./urandom
     -Dspring.jmx.enabled=false
   MANAGEMENT_TRACING_ENABLED: "false"
   MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ""
+  # Giảm log stack HttpClient/Jersey khi Eureka retry / đọc response chậm (không phải lỗi nghiêm trọng)
   LOGGING_LEVEL_COM_NETFLIX_DISCOVERY: WARN
   LOGGING_LEVEL_COM_NETFLIX_EUREKA: WARN
 
@@ -62,11 +61,11 @@ x-limits: &limits
   deploy:
     resources:
       limits:
-        cpus: '1.5'
-        memory: 380M
+        cpus: '1.0'
+        memory: 256M
       reservations:
-        cpus: '0.1'
-        memory: 64M
+        cpus: '0.05'
+        memory: 32M
 
 x-common: &common
   env_file: [ .env ]
@@ -77,11 +76,11 @@ x-common: &common
 # ════════════════════════════════════════════════════════════════
 # SERVICES
 # ════════════════════════════════════════════════════════════════
-services:
-
+                cpus: '1.0'
+                memory: 384M
   # ─── 1. DISCOVERY (phải healthy trước tất cả) ───────────────
-  discovery-server:
-    <<: [ *common, *limits ]
+                cpus: '0.05'
+                memory: 192M
     build: { context: ., dockerfile: discovery-server/Dockerfile }
     container_name: discovery-server
     ports: [ "8761:8761" ]
@@ -102,7 +101,6 @@ services:
     ports: [ "8080:8080" ]
     environment:
       <<: [ *infra, *gateway, *java-env ]
-      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu.onrender.com}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -117,13 +115,17 @@ services:
 
   # ─── 3. IDENTITY SERVICE ────────────────────────────────────
   identity-service:
-    <<: *common
+    <<: [ *common ]
     build: { context: ., dockerfile: identity-service/Dockerfile }
     container_name: identity-service
     deploy:
       resources:
         limits:
-          memory: 450M
+          cpus: '1.0'
+          memory: 384M
+        reservations:
+          cpus: '0.05'
+          memory: 192M
     environment:
       <<: [ *infra, *db, *gateway, *java-env, *internal ]
       DB_URL_IDENTITY: ${DB_URL_IDENTITY}
@@ -147,13 +149,17 @@ services:
 
   # ─── 4. MUSIC SERVICE ───────────────────────────────────────
   music-service:
-    <<: *common
+    <<: [ *common,  ]
     build: { context: ., dockerfile: music-service/Dockerfile }
     container_name: music-service
     deploy:
       resources:
         limits:
-          memory: 450M
+          cpus: '1.0'
+          memory: 384M
+        reservations:
+          cpus: '0.05'
+          memory: 192M
     environment:
       <<: [ *infra, *db, *gateway, *java-env, *minio, *internal ]
       DB_URL_MUSIC: ${DB_URL_MUSIC}
@@ -161,9 +167,6 @@ services:
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
       MINIO_RAW_BUCKET: ${MINIO_RAW_BUCKET:-music}
       MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET:-public-songs}
-      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
-      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
-      SOUNDCLOUD_CLIENT_ID: ${SOUNDCLOUD_CLIENT_ID}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -176,13 +179,9 @@ services:
 
   # ─── 5. PAYMENT SERVICE ─────────────────────────────────────
   payment-service:
-    <<: *common
+    <<: [ *common, *limits ]
     build: { context: ., dockerfile: payment-service/Dockerfile }
     container_name: payment-service
-    deploy:
-      resources:
-        limits:
-          memory: 450M
     environment:
       <<: [ *infra, *db, *java-env, *internal ]
       DB_URL_PAYMENT: ${DB_URL_PAYMENT}
@@ -198,7 +197,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 180s
+      start_period: 120s
 
   # ─── 6. ADS SERVICE ─────────────────────────────────────────
   ads-service:
@@ -244,13 +243,17 @@ services:
 
   # ─── 8. TRANSCODE SERVICE ───────────────────────────────────
   transcode-service:
-    <<: *common
+    <<: [ *common ]
     build: { context: ., dockerfile: transcode-service/Dockerfile }
     container_name: transcode-service
     deploy:
       resources:
         limits:
-          memory: 450M
+          cpus: '1.0'
+          memory: 384M
+        reservations:
+          cpus: '0.05'
+          memory: 192M
     environment:
       <<: [ *infra, *minio, *java-env ]
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
@@ -266,49 +269,85 @@ services:
       retries: 5
       start_period: 80s
 
+  social-service:
+    <<: [ *common, *limits ]
+    build: { context: ., dockerfile: social-service/Dockerfile }
+    container_name: social-service
+    environment:
+      <<: [ *infra, *gateway, *java-env, *minio, *internal ]
+      SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
+      MONGODB_URI: ${MONGODB_URI}
+      MINIO_AI_BUCKET: ${MINIO_AI_BUCKET:-ai-training-data}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    depends_on:
+      discovery-server:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8767/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 80s
+
   # ─── 10. RECOMMENDATION ML (Python) ─────────────────────────
-  # recommendation-ml:
-  #   <<: *common
-  #   build: { context: ./recommendation-ml }
-  #   container_name: recommendation-ml
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: '1.0'
-  #         memory: 500M
-  #       reservations:
-  #         cpus: '0.1'
-  #         memory: 128M
-  #   environment:
-  #     REDIS_HOST: ${REDIS_HOST}
-  #     MINIO_ENDPOINT: host.docker.internal:9000
-  #     MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
-  #     MINIO_SECRET_KEY: ${MINIO_SECRET}
-  #   healthcheck:
-  #     test: [ "CMD", "wget", "-qO-", "http://localhost:8771/health" ]
-  #     interval: 15s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 80s
+  recommendation-ml:
+    <<: *common
+    build: { context: ./recommendation-ml }
+    container_name: recommendation-ml
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 384M
+        reservations:
+          cpus: '0.05'
+          memory: 128M
+    environment:
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET}
+      MINIO_BUCKET: ${MINIO_AI_BUCKET:-ai-training-data}
+      SOCIAL_SERVICE_URL: http://social-service:8767
+      MUSIC_SERVICE_URL: http://music-service:8764
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      APP_PORT: 8771
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8771/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 80s
 
   # ─── 11. RECOMMENDATION SERVICE ─────────────────────────────
   recommendation-service:
     <<: [ *common, *limits ]
     build: { context: ., dockerfile: recommendation-service/Dockerfile }
     container_name: recommendation-service
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 384M
+        reservations:
+          cpus: '0.05'
+          memory: 192M
     environment:
       <<: [ *infra, *java-env ]
-      ML_SERVICE_URL: ${ML_SERVICE_URL:-https://tramcamxuc-monu-a73k.onrender.com}
-      # ML_SERVICE_URL: http://recommendation-ml:8771
-      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-https://tramcamxuc-monu.onrender.com}
+      ML_SERVICE_URL: ${ML_SERVICE_URL:-http://recommendation-ml:8771}
+      SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-http://social-service:8767}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:-}
     depends_on:
       discovery-server:
         condition: service_healthy
-      # recommendation-ml:
-      #   condition: service_healthy
+      recommendation-ml:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:8769/actuator/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 80s
+      start_period: 180s
