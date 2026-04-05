@@ -40,6 +40,20 @@ public class MlServiceClient {
     @Value("${recommendation.health.ml-probe-read-timeout-ms:90000}")
     private int mlProbeReadTimeoutMs;
 
+    private String mlBaseUrl() {
+        String base = mlServiceUrl == null ? "" : mlServiceUrl.trim();
+
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+
+        if (base.endsWith("/health")) {
+            base = base.substring(0, base.length() - "/health".length());
+        }
+
+        return base;
+    }
+
     /**
      * Lấy top-N songs từ Collaborative Filtering model (ALS).
      * Python endpoint: GET /recommend/cf/{userId}?limit={limit}
@@ -48,8 +62,9 @@ public class MlServiceClient {
      */
     public List<MlRecommendResponse.MlSongScore> getCfRecommendations(UUID userId, int limit) {
         try {
+            String base = mlBaseUrl();
             String url = UriComponentsBuilder
-                    .fromHttpUrl(mlServiceUrl + "/recommend/cf/{userId}")
+                    .fromHttpUrl(base + "/recommend/cf/{userId}")
                     .queryParam("limit", limit)
                     .buildAndExpand(userId.toString())
                     .toUriString();
@@ -87,8 +102,9 @@ public class MlServiceClient {
      */
     public List<MlRecommendResponse.MlSongScore> getCbRecommendations(UUID userId, int limit) {
         try {
+            String base = mlBaseUrl();
             String url = UriComponentsBuilder
-                    .fromHttpUrl(mlServiceUrl + "/recommend/cb/{userId}")
+                    .fromHttpUrl(base + "/recommend/cb/{userId}")
                     .queryParam("limit", limit)
                     .buildAndExpand(userId.toString())
                     .toUriString();
@@ -117,8 +133,9 @@ public class MlServiceClient {
      */
     public List<MlRecommendResponse.MlSongScore> getSimilarSongs(UUID songId, int limit) {
         try {
+            String base = mlBaseUrl();
             String url = UriComponentsBuilder
-                    .fromHttpUrl(mlServiceUrl + "/recommend/similar/{songId}")
+                    .fromHttpUrl(base + "/recommend/similar/{songId}")
                     .queryParam("limit", limit)
                     .buildAndExpand(songId.toString())
                     .toUriString();
@@ -148,8 +165,9 @@ public class MlServiceClient {
         factory.setReadTimeout(mlProbeReadTimeoutMs);
         RestTemplate probe = new RestTemplate(factory);
         try {
+            String base = mlBaseUrl();
             ResponseEntity<String> response = probe.getForEntity(
-                    mlServiceUrl + "/health", String.class);
+                    base + "/health", String.class);
             return response.getStatusCode().is2xxSuccessful();
         } catch (Exception e) {
             return false;

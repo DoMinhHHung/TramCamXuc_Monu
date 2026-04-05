@@ -29,7 +29,7 @@ const formatTime = (seconds: number): string => {
 };
 import { FontAwesome, Foundation, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
-const THUMB_RADIUS = 9;
+const THUMB_RADIUS = 10;
 
 const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
     { value: 64,  label: '64k'  },
@@ -205,6 +205,7 @@ export const FullPlayerModal = () => {
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
     const [newPlaylistName, setNewPlaylistName] = useState('');
     const [shareQr, setShareQr] = useState<string | null>(null);
+    const [isSeeking, setIsSeeking] = useState(false);
 
     // Lyrics state
     const [activePage, setActivePage] = useState(0);
@@ -268,8 +269,9 @@ export const FullPlayerModal = () => {
     const seekPan = useRef(
         PanResponder.create({
             onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder:  () => true,
+            onMoveShouldSetPanResponder: () => true,
             onPanResponderGrant: evt => {
+                setIsSeeking(true);
                 const ratio = Math.max(0, Math.min(1, evt.nativeEvent.locationX / barWidthRef.current));
                 seekTo(ratio * durationRef.current);
             },
@@ -277,6 +279,8 @@ export const FullPlayerModal = () => {
                 const ratio = Math.max(0, Math.min(1, evt.nativeEvent.locationX / barWidthRef.current));
                 seekTo(ratio * durationRef.current);
             },
+            onPanResponderRelease: () => setIsSeeking(false),
+            onPanResponderTerminate: () => setIsSeeking(false),
         }),
     ).current;
 
@@ -450,10 +454,17 @@ export const FullPlayerModal = () => {
                                     onLayout={e => { barWidthRef.current = e.nativeEvent.layout.width; }}
                                     {...seekPan.panHandlers}
                                 >
-                                    <View style={styles.seekTrack}>
+                                    <View style={[styles.seekTrack, isSeeking && styles.seekTrackActive]}>
                                         <View style={[styles.seekFill, { width: `${progress * 100}%` as any }]} />
                                     </View>
-                                    <View style={[styles.seekThumb, { left: thumbLeft }]} pointerEvents="none" />
+                                    <View
+                                        style={[
+                                            styles.seekThumb,
+                                            { left: thumbLeft },
+                                            isSeeking && styles.seekThumbActive,
+                                        ]}
+                                        pointerEvents="none"
+                                    />
                                 </View>
                                 <View style={styles.timeRow}>
                                     <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
@@ -803,10 +814,12 @@ const styles = StyleSheet.create({
     genreText:          { color: COLORS.glass50, fontSize: 11, fontWeight: '600' },
 
     progressSection:    { marginBottom: 20 },
-    seekTouchArea:      { height: 40, justifyContent: 'center' },
+    seekTouchArea:      { height: 56, justifyContent: 'center' },
     seekTrack:          { height: 3, backgroundColor: COLORS.glass15, borderRadius: 2 },
+    seekTrackActive:    { height: 5 },
     seekFill:           { height: 3, backgroundColor: COLORS.white, borderRadius: 2 },
-    seekThumb:          { position: 'absolute', top: '50%', marginTop: -THUMB_RADIUS, width: THUMB_RADIUS * 2, height: THUMB_RADIUS * 2, borderRadius: THUMB_RADIUS, backgroundColor: COLORS.white },
+    seekThumb:          { position: 'absolute', top: '50%', marginTop: -THUMB_RADIUS, width: THUMB_RADIUS * 2, height: THUMB_RADIUS * 2, borderRadius: THUMB_RADIUS, backgroundColor: COLORS.white, shadowColor: COLORS.white, shadowOpacity: 0, shadowRadius: 6 },
+    seekThumbActive:    { width: THUMB_RADIUS * 2.8, height: THUMB_RADIUS * 2.8, marginTop: -(THUMB_RADIUS * 1.4), borderRadius: THUMB_RADIUS * 1.4, shadowOpacity: 0.4 },
     timeRow:            { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
     timeText:           { color: COLORS.glass40, fontSize: 11, fontWeight: '500' },
 

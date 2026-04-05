@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   Image,
   Modal,
   Pressable,
@@ -56,6 +57,7 @@ import { openInSpotify, soundCloudTrackToSong } from '../services/externalMusic'
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const TOP_ARTIST_CARD_STEP = 292;
+const HEADER_HEIGHT = 110;
 
 const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
   const hex = backgroundColor.replace('#', '');
@@ -146,6 +148,7 @@ export const HomeScreen = () => {
   const [pullRefreshing, setPullRefreshing] = useState(false);
 
   const styles = useMemo(() => getStyles(themeColors), [themeColors]);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedRecSong, setSelectedRecSong] = useState<RecommendedSong | null>(null);
@@ -422,9 +425,62 @@ export const HomeScreen = () => {
     <View style={styles.root}>
       <StatusBar style={getStatusBarStyle(themeColors.bg)} />
 
-      <ScrollView
+      <Animated.View
+        style={[
+          styles.stickyHeader,
+          { paddingTop: insets.top + 16 },
+          {
+            transform: [
+              {
+                translateY: scrollY.interpolate({
+                  inputRange: [0, HEADER_HEIGHT],
+                  outputRange: [0, -HEADER_HEIGHT],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <Pressable
+          style={styles.headerTop}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          onPressIn={handleOpenProfile}
+        >
+          <View>
+            <Text style={styles.name}>{homeGreeting.greeting}</Text>
+            <Text style={styles.greetingSuggest}>
+              {homeGreeting.emoji} {homeGreeting.suggest}
+            </Text>
+            {updatedLabel && (
+              <Text style={styles.updatedLabel}>{updatedLabel}</Text>
+            )}
+          </View>
+          <View style={styles.avatarCircle}>
+            <AnimatedDecorIcon intensity="medium">
+              <Fontisto name="person" color={themeColors.accent} size={22} />
+            </AnimatedDecorIcon>
+          </View>
+        </Pressable>
+
+        <Pressable
+          onPressIn={handleOpenSearch}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          style={styles.searchBar}
+        >
+          <MaterialIcons name="search" color={themeColors.muted} size={20} />
+          <Text style={styles.searchPlaceholder}>{t('screens.home.searchPlaceholder')}</Text>
+        </Pressable>
+      </Animated.View>
+
+      <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingTop: HEADER_HEIGHT + 16, paddingBottom: 100 }}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true },
+        )}
+        scrollEventThrottle={16}
         refreshControl={(
           <RefreshControl
             refreshing={pullRefreshing}
@@ -433,41 +489,6 @@ export const HomeScreen = () => {
           />
         )}
       >
-        {/* Header: Clean dark, không gradient nặng */}
-          <View
-            style={[styles.header, { paddingTop: insets.top + 16 }]}
-          >
-          <Pressable
-            style={styles.headerTop}
-            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-            onPressIn={handleOpenProfile}
-          >
-            <View>
-              <Text style={styles.name}>{homeGreeting.greeting}</Text>
-              <Text style={styles.greetingSuggest}>
-                {homeGreeting.emoji} {homeGreeting.suggest}
-              </Text>
-              {updatedLabel && (
-                <Text style={styles.updatedLabel}>{updatedLabel}</Text>
-              )}
-            </View>
-            <View style={styles.avatarCircle}>
-              <AnimatedDecorIcon intensity="medium">
-                <Fontisto name="person" color={themeColors.accent} size={22} />
-              </AnimatedDecorIcon>
-            </View>
-          </Pressable>
-
-          <Pressable
-            onPressIn={handleOpenSearch}
-            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-            style={styles.searchBar}
-          >
-            <MaterialIcons name="search" color={themeColors.muted} size={20} />
-            <Text style={styles.searchPlaceholder}>{t('screens.home.searchPlaceholder')}</Text>
-          </Pressable>
-        </View>
-
         {authSession && homeStats && (
           <StreakBanner
             streakDays={homeStats.currentStreakDays ?? 0}
@@ -787,7 +808,7 @@ export const HomeScreen = () => {
             </View>
           );
         })}
-      </ScrollView>
+      </Animated.ScrollView>
 
       <SongActionSheet
         visible={!!selectedSong}
@@ -942,7 +963,13 @@ export const HomeScreen = () => {
 
 const getStyles = (colors: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  header: {
+  stickyHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    backgroundColor: colors.bg,
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,

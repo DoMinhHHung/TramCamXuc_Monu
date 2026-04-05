@@ -608,17 +608,25 @@ export const CreateScreen = () => {
                         end={{ x: 1, y: 0 }}
                         style={styles.publishBtnGradient}
                     >
-                      {isUploadActive ? (
-                          <View style={styles.publishBtnRow}>
+                      <View style={styles.publishBtnRow}>
+                        {isUploadActive ? (
                             <ActivityIndicator color={COLORS.white} size="small" />
-                            <Text style={styles.publishBtnText}>
-                              {t('screens.create.uploadingBackground', 'Uploading in background...')}
-                            </Text>
+                        ) : null}
+                        <Text style={styles.publishBtnText}>
+                          {isUploadActive
+                              ? (job?.stage === 'uploading'
+                                  ? t('screens.create.uploadingButtonLabel', `Đang tải lên... ${job.progress}%`)
+                                  : job?.stage === 'confirming'
+                                      ? t('screens.create.confirmingButtonLabel', 'Đang xử lý...')
+                                      : t('screens.create.connectingButtonLabel', 'Đang kết nối...'))
+                              : t('screens.create.publishButton', 'Publish ↑')}
+                        </Text>
+                      </View>
+
+                      {isUploadActive && job?.stage === 'uploading' && (
+                          <View style={styles.btnProgressTrack}>
+                            <View style={[styles.btnProgressFill, { width: `${job.progress}%` as any }]} />
                           </View>
-                      ) : (
-                          <Text style={styles.publishBtnText}>
-                            {t('screens.create.publishButton', 'Publish ↑')}
-                          </Text>
                       )}
                     </LinearGradient>
                   </Pressable>
@@ -869,9 +877,11 @@ const styles = StyleSheet.create({
   },
   publishBtnGradient: {
     minHeight: 52,
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 999,
+    overflow: 'hidden',
   },
   publishBtnRow: {
     flexDirection: 'row',
@@ -888,6 +898,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     textAlign: 'center',
+  },
+  btnProgressTrack: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  btnProgressFill: {
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderBottomLeftRadius: 999,
+    borderBottomRightRadius: 999,
   },
 
   // ── Shared ───────────────────────────────────────────────────────────────

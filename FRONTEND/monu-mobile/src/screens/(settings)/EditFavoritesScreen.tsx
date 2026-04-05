@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ArtistCard } from '../../components/ArtistCard';
 import { GenreChip } from '../../components/GenreChip';
+import { RetryState } from '../../components/RetryState';
+import { SectionSkeleton } from '../../components/SkeletonLoader';
 
 import {
   getMyFavorites,
@@ -47,6 +49,7 @@ export const EditFavoritesScreen = () => {
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [genres, setGenres] = useState<Genre[]>([]);
@@ -62,6 +65,7 @@ export const EditFavoritesScreen = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
 
       const [favoritesData, genresData, artistsData] = await Promise.all([
         getMyFavorites(),
@@ -78,6 +82,7 @@ export const EditFavoritesScreen = () => {
       if (favoritesData.favoriteArtistIds)
         setSelectedArtists(favoritesData.favoriteArtistIds);
     } catch (error: any) {
+      setLoadError(error?.message || t('screens.editFavorites.loadError'));
       Alert.alert(t('common.error'), error?.message || t('screens.editFavorites.loadError'));
     } finally {
       setLoading(false);
@@ -148,8 +153,38 @@ export const EditFavoritesScreen = () => {
   if (loading) {
     return (
         <View style={styles.loading}>
-          <ActivityIndicator size="large" color={themeColors.accent} />
+          <SectionSkeleton rows={2} />
         </View>
+    );
+  }
+
+  if (loadError && genres.length === 0 && artists.length === 0) {
+    return (
+      <View style={styles.root}>
+        <StatusBar style="light" />
+
+        <LinearGradient
+            colors={[themeColors.gradSlate, themeColors.bg]}
+            style={[styles.topBar, { paddingTop: insets.top + 12 }]}
+        >
+          <Pressable onPress={() => navigation.goBack()}>
+            <Text style={styles.backBtn}>← {t('screens.editFavorites.back')}</Text>
+          </Pressable>
+
+          <Text style={styles.title}>{t('screens.editFavorites.title')}</Text>
+
+          <View style={{ width: 70 }} />
+        </LinearGradient>
+
+        <RetryState
+          title="Không tải được mục yêu thích"
+          description={loadError}
+          onRetry={loadData}
+          fallbackLabel="Quay lại"
+          onFallback={() => navigation.goBack()}
+          icon="🎧"
+        />
+      </View>
     );
   }
 

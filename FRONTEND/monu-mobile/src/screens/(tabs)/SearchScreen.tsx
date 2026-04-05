@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator, Animated, FlatList, Pressable, ScrollView,
+    Animated, FlatList, Pressable, ScrollView,
     StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import * as Linking from 'expo-linking';
@@ -10,6 +10,8 @@ import { useNavigation } from '@react-navigation/native';
 import { AntDesign } from '@expo/vector-icons';
 
 import { BackButton } from '../../components/BackButton';
+import { RetryState } from '../../components/RetryState';
+import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { VoiceSearchButton } from '../../components/VoiceSearchButton';
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { usePlayer } from '../../context/PlayerContext';
@@ -57,28 +59,33 @@ const scoreByQuery = (query: string, ...fields: Array<string | undefined>): numb
 };
 
 export const SearchScreen = () => {
-    const insets     = useSafeAreaInsets();
+    const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const { playSong } = usePlayer();
     const { t } = useTranslation();
     const themeColors = useThemeColors();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
-    const [query,          setQuery]          = useState('');
-    const [loading,        setLoading]        = useState(false);
-    const [songResults,    setSongResults]    = useState<Song[]>([]);
-    const [artistResults,  setArtistResults]  = useState<Artist[]>([]);
+    const [query, setQuery] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [searchError, setSearchError] = useState<string | null>(null);
+    const [songResults, setSongResults] = useState<Song[]>([]);
+    const [artistResults, setArtistResults] = useState<Artist[]>([]);
     const [spotifyResults, setSpotifyResults] = useState<SpotifyTrack[]>([]);
     const [soundCloudResults, setSoundCloudResults] = useState<SoundCloudTrack[]>([]);
-    const [artistDetail,   setArtistDetail]   = useState<{ artist: Artist; songs: Song[] } | null>(null);
-    const [history,        setHistory]        = useState<string[]>([]);
+    const [artistDetail, setArtistDetail] = useState<{ artist: Artist; songs: Song[] } | null>(null);
+    const [history, setHistory] = useState<string[]>([]);
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const inputRef    = useRef<TextInput>(null);
+    const inputRef = useRef<TextInput>(null);
 
     // ── Voice search ─────────────────────────────────────────────────────────
     const voice = useVoiceSearch();
     const voiceBannerAnim = useRef(new Animated.Value(0)).current;
+    const waveAnims = useRef(
+        [...Array(5)].map(() => new Animated.Value(0.3)),
+    ).current;
+    const waveAnimationsRef = useRef<Animated.CompositeAnimation[]>([]);
 
     // Hiện / ẩn banner trạng thái voice
     useEffect(() => {
@@ -89,6 +96,40 @@ export const SearchScreen = () => {
             useNativeDriver: true,
         }).start();
     }, [voice.state]);
+
+    useEffect(() => {
+        waveAnimationsRef.current.forEach((animation) => animation.stop());
+        waveAnimationsRef.current = [];
+
+        if (voice.state !== 'recording') {
+            waveAnims.forEach((anim) => anim.setValue(0.3));
+            return;
+        }
+
+        const animations = waveAnims.map((anim, i) => Animated.loop(
+            Animated.sequence([
+                Animated.delay(i * 80),
+                Animated.timing(anim, {
+                    toValue: 1,
+                    duration: 300 + i * 50,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(anim, {
+                    toValue: 0.3,
+                    duration: 300 + i * 50,
+                    useNativeDriver: true,
+                }),
+            ]),
+        ));
+
+        waveAnimationsRef.current = animations;
+        animations.forEach((animation) => animation.start());
+
+        return () => {
+            animations.forEach((animation) => animation.stop());
+            waveAnims.forEach((anim) => anim.setValue(0.3));
+        };
+    }, [voice.state, waveAnims]);
 
     const handleVoicePressIn = useCallback(async () => {
         await voice.startRecording();
@@ -113,6 +154,7 @@ export const SearchScreen = () => {
     // ── Search ────────────────────────────────────────────────────────────────
     const doSearch = useCallback(async (q: string) => {
         if (!q.trim()) {
+            setSearchError(null);
             setSongResults([]);
             setArtistResults([]);
             setSpotifyResults([]);
@@ -121,6 +163,7 @@ export const SearchScreen = () => {
             return;
         }
         setLoading(true);
+        setSearchError(null);
         setArtistDetail(null);
         try {
             const [titleRes, lyricRes, artistRes, spotifyRes, soundCloudRes] = await Promise.allSettled([
@@ -162,32 +205,38 @@ export const SearchScreen = () => {
                     (a, b) => scoreByQuery(q, b.title, b.uploaderName) - scoreByQuery(q, a.title, a.uploaderName),
                 ),
             );
+
+            const allFailed = [titleRes, lyricRes, artistRes, spotifyRes, soundCloudRes].every((res) => res.status === 'rejected');
+            if (allFailed) {
+                setSearchError(t('errors.loadingFailed', 'Không thể tìm kiếm lúc này'));
+            }
         } catch { /* silent */ }
         finally { setLoading(false); }
-    }, []);
+    }, [t]);
 
     const DEBOUNCE_MS = 700;
     const MIN_QUERY_LENGTH = 2;
 
     const scheduleSearch = (q: string) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    
-    if (q.trim().length < MIN_QUERY_LENGTH) return;
-    
-    debounceRef.current = setTimeout(() => doSearch(q), DEBOUNCE_MS);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+
+        if (q.trim().length < MIN_QUERY_LENGTH) return;
+
+        debounceRef.current = setTimeout(() => doSearch(q), DEBOUNCE_MS);
     };
 
     const handleQueryChange = (q: string) => {
-    setQuery(q);
-    if (!q.trim() || q.trim().length < MIN_QUERY_LENGTH) {
-        setSongResults([]);
-        setArtistResults([]);
-        setSpotifyResults([]);
-        setSoundCloudResults([]);
-        setArtistDetail(null);
-        return;
-    }
-    scheduleSearch(q);
+        setQuery(q);
+        if (!q.trim() || q.trim().length < MIN_QUERY_LENGTH) {
+            setSongResults([]);
+            setArtistResults([]);
+            setSpotifyResults([]);
+            setSoundCloudResults([]);
+            setArtistDetail(null);
+            setSearchError(null);
+            return;
+        }
+        scheduleSearch(q);
     };
 
     const handleSubmit = async () => {
@@ -322,9 +371,9 @@ export const SearchScreen = () => {
     }, [mapSoundCloudTrackToSong, playSong, query, soundCloudResults]);
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-    const showHistory  = !query.trim();
+    const showHistory = !query.trim();
     const currentResultCount = songResults.length + artistResults.length + spotifyResults.length + soundCloudResults.length;
-    const showEmpty    = !loading && !!query.trim() && !artistDetail
+    const showEmpty = !loading && !!query.trim() && !artistDetail
         && currentResultCount === 0;
 
     const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
@@ -337,7 +386,7 @@ export const SearchScreen = () => {
             </View>
             <View style={styles.resultInfo}>
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.resultSub}   numberOfLines={1}>{item.primaryArtist.stageName}</Text>
+                <Text style={styles.resultSub} numberOfLines={1}>{item.primaryArtist.stageName}</Text>
             </View>
             <AntDesign name="play-circle" size={26} color={themeColors.white} />
         </Pressable>
@@ -467,12 +516,29 @@ export const SearchScreen = () => {
                 ]}
                 pointerEvents="none"
             >
-                <Text style={[
-                    styles.voiceBannerText,
-                    voice.state === 'error' && { color: themeColors.error },
-                ]}>
-                    {voiceStateLabel}
-                </Text>
+                {voice.state === 'recording' ? (
+                    <View style={styles.recordingBanner}>
+                        <View style={styles.waveContainer}>
+                            {waveAnims.map((anim, i) => (
+                                <Animated.View
+                                    key={i}
+                                    style={[
+                                        styles.waveBar,
+                                        { transform: [{ scaleY: anim }] },
+                                    ]}
+                                />
+                            ))}
+                        </View>
+                        <Text style={styles.recordingText}>{t('screens.search.voiceRecording', 'Đang nghe...')}</Text>
+                    </View>
+                ) : (
+                    <Text style={[
+                        styles.voiceBannerText,
+                        voice.state === 'error' && { color: themeColors.error },
+                    ]}>
+                        {voiceStateLabel}
+                    </Text>
+                )}
             </Animated.View>
 
             {/* Error banner (ngoài recording/processing) */}
@@ -488,12 +554,31 @@ export const SearchScreen = () => {
             {/* ── Loading ── */}
             {loading && (
                 <View style={styles.center}>
-                    <ActivityIndicator color={themeColors.accent} />
+                    <SectionSkeleton rows={4} />
                 </View>
             )}
 
+            {!loading && searchError && query.trim().length >= MIN_QUERY_LENGTH && (
+                <RetryState
+                    title="Không tìm được dữ liệu"
+                    description={searchError}
+                    onRetry={() => doSearch(query)}
+                    fallbackLabel="Xoá tìm kiếm"
+                    onFallback={() => {
+                        setQuery('');
+                        setSearchError(null);
+                        setSongResults([]);
+                        setArtistResults([]);
+                        setSpotifyResults([]);
+                        setSoundCloudResults([]);
+                        setArtistDetail(null);
+                    }}
+                    icon="🔎"
+                />
+            )}
+
             {/* ── History ── */}
-            {!loading && showHistory && (
+            {!loading && !searchError && showHistory && (
                 <View style={{ flex: 1 }}>
                     {history.length > 0 ? (
                         <>
@@ -541,14 +626,14 @@ export const SearchScreen = () => {
             )}
 
             {/* ── Empty ── */}
-            {!loading && showEmpty && (
+            {!loading && !searchError && showEmpty && (
                 <View style={styles.center}>
                     <Text style={styles.emptyText}>{`${t('screens.search.noResultsPrefix')} "${query}"`}</Text>
                 </View>
             )}
 
             {/* ── Artist detail ── */}
-            {!loading && artistDetail && (
+            {!loading && !searchError && artistDetail && (
                 <View style={{ flex: 1 }}>
                     <View style={styles.artistDetailHeader}>
                         <Pressable onPress={() => setArtistDetail(null)}>
@@ -624,7 +709,7 @@ export const SearchScreen = () => {
 };
 
 const createStyles = (colors: ColorScheme) => StyleSheet.create({
-    root:   { flex: 1, backgroundColor: colors.bg },
+    root: { flex: 1, backgroundColor: colors.bg },
 
     // ── Header ──────────────────────────────────────────────────────────────
     header: {
@@ -644,6 +729,34 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
         borderBottomColor: colors.accentBorder25,
         paddingHorizontal: 20,
         paddingVertical: 9,
+    },
+    recordingBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,0,0,0.08)',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        gap: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,0,0,0.15)',
+        borderRadius: 12,
+    },
+    waveContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        height: 24,
+    },
+    waveBar: {
+        width: 3,
+        height: 20,
+        borderRadius: 2,
+        backgroundColor: '#FF4444',
+    },
+    recordingText: {
+        color: '#FF4444',
+        fontWeight: '600',
+        fontSize: 13,
     },
     voiceBannerText: {
         color: colors.accent,
@@ -673,9 +786,9 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
     },
 
     // ── Common ────────────────────────────────────────────────────────────────
-    center:    { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
     emptyText: { color: colors.glass35, textAlign: 'center', fontSize: 14, lineHeight: 22 },
-    hintText:  { color: colors.glass25, textAlign: 'center', fontSize: 13, marginTop: 12 },
+    hintText: { color: colors.glass25, textAlign: 'center', fontSize: 13, marginTop: 12 },
     sectionTitle: { color: colors.accent, fontSize: 13, fontWeight: '700', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
 
 
@@ -689,9 +802,9 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
         marginBottom: 20,
         width: '100%',
     },
-    voiceHintIcon:  { fontSize: 42, marginBottom: 10 },
+    voiceHintIcon: { fontSize: 42, marginBottom: 10 },
     voiceHintTitle: { color: colors.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
-    voiceHintDesc:  {
+    voiceHintDesc: {
         color: colors.glass50, fontSize: 13, textAlign: 'center', lineHeight: 20,
     },
 
@@ -700,7 +813,7 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
         paddingHorizontal: 16, paddingVertical: 12,
     },
-    historyTitle:    { color: colors.white, fontSize: 15, fontWeight: '700' },
+    historyTitle: { color: colors.white, fontSize: 15, fontWeight: '700' },
     historyClearAll: { color: colors.accent, fontSize: 13, fontWeight: '600' },
     historyRow: {
         flexDirection: 'row', alignItems: 'center',
@@ -708,9 +821,9 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
         borderBottomWidth: 1, borderBottomColor: colors.glass06,
         gap: 12,
     },
-    historyIcon:       { fontSize: 15, opacity: 0.5 },
-    historyText:       { flex: 1, color: colors.glass70, fontSize: 14 },
-    historyRemoveBtn:  { padding: 4 },
+    historyIcon: { fontSize: 15, opacity: 0.5 },
+    historyText: { flex: 1, color: colors.glass70, fontSize: 14 },
+    historyRemoveBtn: { padding: 4 },
     historyRemoveIcon: { color: colors.glass30, fontSize: 14 },
 
     // ── Results ───────────────────────────────────────────────────────────────
@@ -719,13 +832,13 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
         paddingHorizontal: 16, paddingVertical: 12,
         borderBottomWidth: 1, borderBottomColor: colors.glass06, gap: 12,
     },
-    resultIndex:    { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.glass06, alignItems: 'center', justifyContent: 'center' },
+    resultIndex: { width: 32, height: 32, borderRadius: 8, backgroundColor: colors.glass06, alignItems: 'center', justifyContent: 'center' },
     artistIconWrap: { backgroundColor: colors.accentFill20 },
     resultIndexText: { color: colors.glass40, fontSize: 12, fontWeight: '600' },
-    resultInfo:     { flex: 1 },
-    resultTitle:    { color: colors.white, fontSize: 14, fontWeight: '600' },
-    resultSub:      { color: colors.muted, fontSize: 12, marginTop: 2 },
-    playIcon:       { color: colors.glass30, fontSize: 18 },
+    resultInfo: { flex: 1 },
+    resultTitle: { color: colors.white, fontSize: 14, fontWeight: '600' },
+    resultSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
+    playIcon: { color: colors.glass30, fontSize: 18 },
     spotifyAttribution: { color: colors.accent, fontSize: 11, marginTop: 3 },
 
     // ── Artist detail ─────────────────────────────────────────────────────────
@@ -735,5 +848,5 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
         borderBottomWidth: 1, borderBottomColor: colors.border,
     },
     backToArtistsText: { color: colors.accent, fontSize: 15, fontWeight: '600' },
-    artistDetailSub:   { color: colors.glass35, fontSize: 12 },
+    artistDetailSub: { color: colors.glass35, fontSize: 12 },
 });

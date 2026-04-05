@@ -256,6 +256,15 @@ async def health_check():
     )
 
 
+@router.get("/health/health", response_model=HealthResponse)
+async def health_check_alias():
+    """
+    Alias endpoint để Render's health check probe có thể gọi.
+    Render probes tại /health/health thay vì /health.
+    """
+    return await health_check()
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 async def _run_pipeline_bg():

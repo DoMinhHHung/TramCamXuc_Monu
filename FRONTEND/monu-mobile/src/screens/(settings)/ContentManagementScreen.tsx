@@ -4,6 +4,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackButton } from '../../components/BackButton';
+import { RetryState } from '../../components/RetryState';
+import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { COLORS } from '../../config/colors';
 import { useTranslation } from '../../context/LocalizationContext';
 import { getMyReportHistory, removeMyReport, ReportStatus, SongReportItem } from '../../services/music';
@@ -41,14 +43,17 @@ export const ContentManagementScreen = () => {
   const [reports, setReports] = useState<SongReportItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [removingReportId, setRemovingReportId] = useState<string | null>(null);
 
   const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setLoading(true);
+      setLoadError(null);
       const data = await getMyReportHistory({ page: 1, size: 50 });
       setReports(data.content ?? []);
     } catch {
+      setLoadError('Không thể tải danh sách báo cáo');
       setReports([]);
     } finally {
       setLoading(false);
@@ -97,8 +102,17 @@ export const ContentManagementScreen = () => {
 
       {loading ? (
         <View style={styles.center}>
-          <ActivityIndicator color={COLORS.accent} />
+          <SectionSkeleton rows={3} />
         </View>
+      ) : loadError && reports.length === 0 ? (
+        <RetryState
+          title="Không tải được nội dung"
+          description={loadError}
+          onRetry={() => { setLoading(true); void load(false); }}
+          fallbackLabel="Quay lại"
+          onFallback={() => navigation.goBack()}
+          icon="🛡️"
+        />
       ) : (
         <FlatList
           data={reports}

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -15,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
+import { SectionSkeleton } from '../components/SkeletonLoader';
 import { STATS_EMOJIS } from '../config/emojis';
 import { apiClient } from '../services/api';
 import { getMySongs, Song } from '../services/music';
@@ -240,8 +240,7 @@ export const InsightsScreen = () => {
             {/* Content */}
             {loading ? (
                 <View style={styles.centered}>
-                    <ActivityIndicator size="large" color={COLORS.accent} />
-                    <Text style={styles.loadingText}>Đang phân tích lịch sử nghe nhạc...</Text>
+                    <SectionSkeleton rows={4} />
                 </View>
             ) : error ? (
                 <View style={styles.centered}>

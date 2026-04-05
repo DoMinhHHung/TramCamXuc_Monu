@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config/colors';
@@ -16,11 +16,32 @@ export const Toast = ({ message, type = 'success', visible, onHide }: ToastProps
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const onHideRef = useRef(onHide);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHidingRef = useRef(false);
   onHideRef.current = onHide;
+
+  const hideToast = useCallback(() => {
+    if (isHidingRef.current) return;
+    isHidingRef.current = true;
+
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: -100, duration: 220, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+    ]).start(({ finished }) => {
+      isHidingRef.current = false;
+      if (finished) onHideRef.current();
+    });
+  }, [opacity, translateY]);
 
   useEffect(() => {
     if (!visible) return undefined;
 
+    isHidingRef.current = false;
     translateY.setValue(-100);
     opacity.setValue(0);
 
@@ -34,17 +55,27 @@ export const Toast = ({ message, type = 'success', visible, onHide }: ToastProps
       Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
 
-    const timer = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(translateY, { toValue: -100, duration: 220, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start(({ finished }) => {
-        if (finished) onHideRef.current();
-      });
-    }, 2500);
+    const baseDuration = type === 'error' ? 4000 : type === 'info' ? 3500 : 2500;
+    const extraPerChar = message.length > 40 ? (message.length - 40) * 30 : 0;
+    const totalDuration = Math.min(baseDuration + extraPerChar, 6000);
 
-    return () => clearTimeout(timer);
-  }, [visible, message, type, translateY, opacity]);
+    hideTimerRef.current = setTimeout(hideToast, totalDuration);
+
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+    };
+  }, [visible, message, type, hideToast, translateY, opacity]);
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!visible) return null;
 
@@ -67,12 +98,15 @@ export const Toast = ({ message, type = 'success', visible, onHide }: ToastProps
         ]}
         pointerEvents="auto"
       >
-        <View style={[styles.iconCircle, { backgroundColor: bgColor }]}>
-          <Text style={styles.iconText}>{icon}</Text>
-        </View>
-        <Text style={styles.message} numberOfLines={4}>
-          {message}
-        </Text>
+        <Pressable style={styles.toastContent} onPress={hideToast} hitSlop={4}>
+          <View style={[styles.iconCircle, { backgroundColor: bgColor }]}>
+            <Text style={styles.iconText}>{icon}</Text>
+          </View>
+          <Text style={styles.message} numberOfLines={4}>
+            {message}
+          </Text>
+          <Text style={styles.dismissHint}>✕</Text>
+        </Pressable>
       </Animated.View>
     </View>
   );
@@ -89,11 +123,9 @@ const styles = StyleSheet.create({
     right: 20,
     borderRadius: 14,
     borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 14,
-    gap: 10,
   },
+  toastContent: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
   iconCircle: {
     width: 24,
     height: 24,
@@ -103,6 +135,7 @@ const styles = StyleSheet.create({
   },
   iconText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   message: { color: COLORS.white, fontSize: 14, fontWeight: '500', flex: 1 },
+  dismissHint: { color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: '700' },
 });
 
 export function useToast() {

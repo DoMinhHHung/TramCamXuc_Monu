@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BackButton } from '../components/BackButton';
 import { COLORS } from '../config/colors';
 import { useAuth } from '../context/AuthContext';
+import { RetryState } from '../components/RetryState';
+import { SectionSkeleton } from '../components/SkeletonLoader';
 import { useTranslation } from '../context/LocalizationContext';
 import { deleteFeedPost, FeedPost, getOwnerFeed, updateFeedPost } from '../services/social';
 import { notifyFeedUpdated, subscribeFeedUpdates } from '../services/feedEvents';
@@ -39,6 +41,7 @@ export const MyPostsScreen = () => {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
   const [title, setTitle] = useState('');
@@ -56,10 +59,14 @@ export const MyPostsScreen = () => {
     }
     try {
       if (!silent) setLoading(true);
+      setLoadError(null);
       const data = await getOwnerFeed(currentUserId, { page: 0, size: 50 });
       setPosts(data.content ?? []);
-    } catch {
-      if (!silent) setPosts([]);
+    } catch (error: any) {
+      if (!silent) {
+        setLoadError(error?.message ?? 'Không thể tải danh sách bài viết');
+        setPosts([]);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -130,7 +137,16 @@ export const MyPostsScreen = () => {
         contentContainerStyle={{ paddingBottom: 40 }}
       >
         {loading ? (
-          <View style={styles.center}><ActivityIndicator color={COLORS.accent} /></View>
+          <View style={{ paddingTop: 16 }}><SectionSkeleton rows={3} /></View>
+        ) : loadError && posts.length === 0 ? (
+          <RetryState
+            title="Không tải được bài đăng"
+            description={loadError}
+            onRetry={() => { setLoading(true); void load(false); }}
+            fallbackLabel="Quay lại"
+            onFallback={() => navigation.goBack()}
+            icon="📝"
+          />
         ) : posts.length === 0 ? (
           <View style={styles.center}>
             <Text style={styles.emptyTitle}>Chưa có bài đăng</Text>

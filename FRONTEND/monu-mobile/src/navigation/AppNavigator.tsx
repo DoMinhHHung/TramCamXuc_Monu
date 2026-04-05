@@ -16,6 +16,8 @@ import { MiniPlayer }             from '../components/MiniPlayer';
 import { FullPlayerModal }        from '../components/FullPlayerModal';
 import { UploadProgressBanner }   from '../components/UploadProgressBanner';
 import { AdPlayerModal }          from '../components/AdPlayerModal';
+import { AdNoticeBanner }         from '../components/AdNoticeBanner';
+import { StreamingStatusBanner }  from '../components/StreamingStatusBanner';
 import { AnimatedDecorIcon }      from '../components/AnimatedDecorIcon';
 
 import { HomeScreen }             from '../screens/HomeScreen';
@@ -159,6 +161,8 @@ const GlobalOverlays = () => {
     const { pendingAd, dismissAd, currentSong } = usePlayer();
     return (
         <>
+            <AdNoticeBanner />
+            <StreamingStatusBanner />
             <MiniPlayer />
             <UploadProgressBanner />
             <FullPlayerModal />

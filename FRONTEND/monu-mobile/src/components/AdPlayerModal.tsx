@@ -43,8 +43,10 @@ export const AdPlayerModal = ({ ad, songId, onFinished }: AdPlayerModalProps) =>
 
     const [countdown,  setCountdown]  = useState(0);
     const [canSkip,    setCanSkip]    = useState(false);
+    const [skipCountdown, setSkipCountdown] = useState(SKIP_LOCK_SECONDS);
     const progressAnim                = useRef(new Animated.Value(0)).current;
     const slideAnim                   = useRef(new Animated.Value(300)).current;
+    const elapsedRef                  = useRef(0);
 
     // Cờ đảm bảo chỉ gọi onFinished một lần
     const dismissedRef = useRef(false);
@@ -60,6 +62,8 @@ export const AdPlayerModal = ({ ad, songId, onFinished }: AdPlayerModalProps) =>
 
         dismissedRef.current = false;
         setCanSkip(false);
+        setSkipCountdown(SKIP_LOCK_SECONDS);
+        elapsedRef.current = 0;
         setCountdown(ad.durationSeconds);
         progressAnim.setValue(0);
 
@@ -90,14 +94,27 @@ export const AdPlayerModal = ({ ad, songId, onFinished }: AdPlayerModalProps) =>
             });
         }, 1000);
 
-        // Mở khóa skip
-        const skipTimer = setTimeout(() => setCanSkip(true), SKIP_LOCK_SECONDS * 1000);
-
         return () => {
             clearInterval(interval);
-            clearTimeout(skipTimer);
             progressAnim.stopAnimation();
         };
+    }, [ad?.adId]);
+
+    useEffect(() => {
+        if (!ad) return;
+
+        const interval = setInterval(() => {
+            elapsedRef.current += 1;
+            const remaining = Math.max(0, SKIP_LOCK_SECONDS - elapsedRef.current);
+            setSkipCountdown(remaining);
+
+            if (remaining === 0) {
+                setCanSkip(true);
+                clearInterval(interval);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
     }, [ad?.adId]);
 
     // ── Phát hiện ad kết thúc tự nhiên ──────────────────────────────────────
@@ -244,17 +261,22 @@ export const AdPlayerModal = ({ ad, songId, onFinished }: AdPlayerModalProps) =>
                 </Pressable>
 
                 {/* Skip button */}
-                <Pressable
-                    style={[styles.skipBtn, !canSkip && styles.skipBtnLocked]}
-                    onPress={handleSkip}
-                    disabled={!canSkip}
-                >
-                    <Text style={[styles.skipText, !canSkip && styles.skipTextLocked]}>
-                        {canSkip
-                            ? 'Bỏ qua ›'
-                            : `Bỏ qua sau ${Math.max(0, SKIP_LOCK_SECONDS - (ad.durationSeconds - countdown))}s`}
-                    </Text>
-                </Pressable>
+                <View style={styles.skipWrap}>
+                    {!canSkip && (
+                        <View style={styles.skipRing}>
+                            <Text style={styles.skipRingText}>{skipCountdown}</Text>
+                        </View>
+                    )}
+                    <Pressable
+                        style={[styles.skipBtn, !canSkip && styles.skipBtnLocked]}
+                        onPress={handleSkip}
+                        disabled={!canSkip}
+                    >
+                        <Text style={[styles.skipText, !canSkip && styles.skipTextLocked]}>
+                            {canSkip ? 'Bỏ qua ›' : 'Bỏ qua'}
+                        </Text>
+                    </Pressable>
+                </View>
             </Animated.View>
         </Modal>
     );
@@ -398,6 +420,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 10,
     },
+    skipWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 10,
+    },
     skipBtnLocked: {
         opacity: 0.4,
     },
@@ -408,5 +437,19 @@ const styles = StyleSheet.create({
     },
     skipTextLocked: {
         color: COLORS.glass30,
+    },
+    skipRing: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        borderWidth: 2,
+        borderColor: COLORS.glass25,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    skipRingText: {
+        color: COLORS.glass60,
+        fontSize: 11,
+        fontWeight: '700',
     },
 });

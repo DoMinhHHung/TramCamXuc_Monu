@@ -27,6 +27,7 @@ export const MiniPlayer = () => {
 
     const translateY = useRef(new Animated.Value(0)).current;
     const translateX = useRef(new Animated.Value(0)).current;
+    const dragOpacity = useRef(new Animated.Value(1)).current;
 
     const panResponder = useRef(
         PanResponder.create({
@@ -37,10 +38,9 @@ export const MiniPlayer = () => {
             },
 
             onPanResponderMove: (_, gs) => {
-                if (gs.dy > 0 && Math.abs(gs.dy) >= Math.abs(gs.dx)) {
+                if (gs.dy > 0) {
                     translateY.setValue(gs.dy);
-                } else if (gs.dx < 0 && Math.abs(gs.dx) > Math.abs(gs.dy)) {
-                    translateX.setValue(gs.dx);
+                    dragOpacity.setValue(Math.max(0.4, 1 - gs.dy / 120));
                 }
             },
 
@@ -52,19 +52,22 @@ export const MiniPlayer = () => {
                     if (swipedDown) {
                         haptic.medium();
                     }
-                    const anim = swipedLeft
-                        ? Animated.timing(translateX, { toValue: -500, duration: 220, useNativeDriver: true })
-                        : Animated.timing(translateY, { toValue: MINI_HEIGHT + TAB_BAR_HEIGHT + 40, duration: 200, useNativeDriver: true });
-
-                    anim.start(() => {
+                    Animated.parallel([
+                        swipedLeft
+                            ? Animated.timing(translateX, { toValue: -500, duration: 220, useNativeDriver: true })
+                            : Animated.timing(translateY, { toValue: MINI_HEIGHT + TAB_BAR_HEIGHT + 40, duration: 200, useNativeDriver: true }),
+                        Animated.timing(dragOpacity, { toValue: 0.2, duration: 180, useNativeDriver: true }),
+                    ]).start(() => {
                         translateY.setValue(0);
                         translateX.setValue(0);
+                        dragOpacity.setValue(1);
                         stopPlayer();
                     });
                 } else {
                     Animated.parallel([
                         Animated.spring(translateY, { toValue: 0, useNativeDriver: true, bounciness: 8 }),
                         Animated.spring(translateX, { toValue: 0, useNativeDriver: true, bounciness: 8 }),
+                        Animated.spring(dragOpacity, { toValue: 1, useNativeDriver: true, bounciness: 8 }),
                     ]).start();
                 }
             },
@@ -83,7 +86,7 @@ export const MiniPlayer = () => {
 
     return (
         <Animated.View
-            style={[styles.container, { transform: [{ translateY }, { translateX }] }]}
+            style={[styles.container, { opacity: dragOpacity, transform: [{ translateY }, { translateX }] }]}
             {...panResponder.panHandlers}
         >
             {/* Progress bar */}
@@ -172,5 +175,5 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     artist:               { color: colors.muted,  fontSize: 11, fontWeight: '400' },
     controls:             { flexDirection: 'row', alignItems: 'center', gap: 2 },
     iconBtn:              { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-    swipeHandle:          { position: 'absolute', top: 5, alignSelf: 'center', width: 28, height: 3, borderRadius: 2, backgroundColor: colors.glass15 },
+    swipeHandle:          {position: 'absolute', top: 6, alignSelf: 'center',width: 36, height: 4, borderRadius: 2,backgroundColor: colors.glass35,   },
 });

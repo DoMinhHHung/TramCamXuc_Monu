@@ -23,6 +23,13 @@ import { getSoundCloudStreamUrl } from '../services/externalMusic';
 export type AudioQuality = 64 | 128 | 256 | 320;
 export type RepeatMode = 'none' | 'one' | 'all';
 
+export type AdNotice = {
+    title: string;
+    message: string;
+    secondsRemaining: number;
+    eventsRemaining: number;
+};
+
 const QUALITY_STREAM: Record<AudioQuality, string> = {
     64: 'stream_64k.m3u8',
     128: 'stream_128k.m3u8',
@@ -100,6 +107,7 @@ interface PlayerContextValue {
     // ── Ads ──────────────────────────────────────────────────────────────────
     pendingAd: AdDelivery | null;
     isPlayingAd: boolean;
+    adNotice: AdNotice | null;
     dismissAd: () => void;
 }
 
@@ -161,8 +169,11 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     // ── Ads ────────────────────────────────────────────────────────────────────
     const [pendingAd, setPendingAd] = useState<AdDelivery | null>(null);
     const [isPlayingAd, setIsPlayingAd] = useState(false);
+    const [adNotice, setAdNotice] = useState<AdNotice | null>(null);
     const noAdsRef = useRef(false);
     const checkingAdRef = useRef(false);
+    const adEventsSinceResetRef = useRef(0);
+    const adSecondsSinceResetRef = useRef(0);
 
     // ── Player ─────────────────────────────────────────────────────────────────
     const shouldAutoPlayRef = useRef(false);
@@ -190,10 +201,62 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
     useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
 
+    const formatCountdown = useCallback((totalSeconds: number): string => {
+        const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+        const minutes = Math.floor(safeSeconds / 60);
+        const seconds = safeSeconds % 60;
+        if (minutes <= 0) return `${seconds}s`;
+        return `${minutes}m ${seconds.toString().padStart(2, '0')}s`;
+    }, []);
+
+    const resetAdSession = useCallback(() => {
+        adEventsSinceResetRef.current = 0;
+        adSecondsSinceResetRef.current = 0;
+        setAdNotice(null);
+    }, []);
+
+    const refreshAdNotice = useCallback(() => {
+        if (noAdsRef.current || isPlayingAd || pendingAd) {
+            setAdNotice(null);
+            return;
+        }
+
+        const eventsRemaining = Math.max(0, 5 - adEventsSinceResetRef.current);
+        const secondsRemaining = Math.max(0, 30 * 60 - adSecondsSinceResetRef.current);
+
+        if (eventsRemaining <= 0 || secondsRemaining <= 0) {
+            setAdNotice(null);
+            return;
+        }
+
+        const shouldWarn = eventsRemaining <= 1 || secondsRemaining <= 180;
+        if (!shouldWarn) {
+            setAdNotice(null);
+            return;
+        }
+
+        setAdNotice({
+            title: eventsRemaining <= 1 ? 'Quảng cáo sắp tới' : 'Sắp kiểm tra quảng cáo',
+            message: secondsRemaining <= 180
+                ? `Còn khoảng ${formatCountdown(secondsRemaining)} nữa hệ thống sẽ kiểm tra quảng cáo.`
+                : 'Chỉ còn 1 lần ghi nhận nghe nữa trước lượt quảng cáo tiếp theo.',
+            secondsRemaining,
+            eventsRemaining,
+        });
+    }, [formatCountdown, isPlayingAd, pendingAd]);
+
+    const registerAdListen = useCallback((durationSeconds: number) => {
+        if (!authSession || noAdsRef.current) return;
+        adEventsSinceResetRef.current += 1;
+        adSecondsSinceResetRef.current += Math.max(0, durationSeconds);
+        refreshAdNotice();
+    }, [authSession, refreshAdNotice]);
+
     // ── Load subscription ──────────────────────────────────────────────────────
     useEffect(() => {
         if (!authSession) {
             noAdsRef.current = false;
+            resetAdSession();
             setMaxQuality(128);
             maxQualityRef.current = 128;
             const best = suggestQuality(networkTierRef.current, 128);
@@ -218,6 +281,10 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             })
             .catch(() => { });
     }, [authSession]);
+
+    useEffect(() => {
+        resetAdSession();
+    }, [authSession?.profile?.id, resetAdSession]);
 
     // ── Auto quality on network change (tier đã debounce trong useNetworkQuality) ─
     useEffect(() => {
@@ -272,6 +339,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         try {
             const ad = await getNextAd();
             if (!ad) return false;
+            resetAdSession();
             player.pause();
             setPendingAd(ad);
             setIsPlayingAd(true);
@@ -287,10 +355,11 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const dismissAd = useCallback((): void => {
         setPendingAd(null);
         setIsPlayingAd(false);
+        resetAdSession();
         if (currentSongRef.current) {
             player.play();
         }
-    }, [player]);
+    }, [player, resetAdSession]);
 
     // ── Listen tracking ────────────────────────────────────────────────────────
     useEffect(() => {
@@ -310,6 +379,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                     const dur = status.duration ?? 0;
                     const pos = status.currentTime ?? 0;
                     const completed = dur > 0 && pos >= dur * 0.9;
+                    registerAdListen(30);
                     recordListen(song.id, {
                         durationSeconds: 30,
                         completed,
@@ -355,6 +425,8 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             totalMs += Date.now() - playSegmentStartRef.current;
         }
         completionFiredRef.current = true;
+
+        registerAdListen(Math.round(totalMs / 1000));
 
         recordListen(song.id, {
             durationSeconds: Math.round(totalMs / 1000),
@@ -500,7 +572,8 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         setFullScreen(false);
         setPendingAd(null);
         setIsPlayingAd(false);
-    }, [player, resetListenTracking]);
+        resetAdSession();
+    }, [player, resetListenTracking, resetAdSession]);
 
     const playNext = useCallback(() => {
         if (!queueRef.current.length || isPlayingAd) return;
@@ -585,6 +658,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         toggleShuffle,
         pendingAd,
         isPlayingAd,
+        adNotice,
         dismissAd,
     };
 

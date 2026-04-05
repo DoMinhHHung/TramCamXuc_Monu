@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Image,
@@ -17,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
+import { RetryState } from '../../components/RetryState';
+import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { usePlayer } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { getSongsByIds } from '../../services/music';
@@ -42,12 +43,19 @@ export const HistoryScreen = () => {
   const [items, setItems] = useState<ListenHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const fromServer = false;
 
   const load = useCallback(async () => {
-    const data = await getListenHistory();
-    setItems(data);
-  }, []);
+    try {
+      setLoadError(null);
+      const data = await getListenHistory();
+      setItems(data);
+    } catch {
+      setLoadError(t('errors.loadingFailed', 'Không thể tải lịch sử nghe nhạc'));
+      setItems([]);
+    }
+  }, [t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -111,7 +119,18 @@ export const HistoryScreen = () => {
       </LinearGradient>
 
       {loading ? (
-        <ActivityIndicator color={themeColors.accent} size="large" style={{ marginTop: 40 }} />
+        <View style={{ paddingTop: 20 }}>
+          <SectionSkeleton rows={4} />
+        </View>
+      ) : loadError && items.length === 0 ? (
+        <RetryState
+          title="Không tải được lịch sử"
+          description={loadError}
+          onRetry={() => { setLoading(true); void load().finally(() => setLoading(false)); }}
+          fallbackLabel="Đóng"
+          onFallback={() => navigation.goBack()}
+          icon="🕒"
+        />
       ) : items.length === 0 ? (
         <View style={styles.empty}>
           <Text style={{ fontSize: 52, marginBottom: 12 }}>🕒</Text>

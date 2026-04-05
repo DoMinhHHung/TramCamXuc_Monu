@@ -11,6 +11,7 @@ import {
     ActivityIndicator,
     Dimensions,
     Image,
+    type ViewStyle,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,6 +22,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
+import { RetryState } from '../../components/RetryState';
 import {
     cancelMySubscription,
     cancelPaymentLink,
@@ -37,6 +39,7 @@ import { useTranslation } from '../../context/LocalizationContext';
 const { width: SCREEN_W } = Dimensions.get('window');
 const PURCHASE_COOLDOWN_MS = 30_000;
 const PENDING_PAYMENT_TTL_MS = 10 * 60 * 1000;
+const PREMIUM_CACHE_TTL_MS = 10 * 60 * 1000;
 
 type PendingPaymentCache = {
     payment: PaymentResponse;
@@ -44,7 +47,57 @@ type PendingPaymentCache = {
     createdAt: number;
 };
 
+type PremiumCachePayload = {
+    plans: SubscriptionPlan[];
+    currentSub: UserSubscription | null;
+    selectedPlanId: string | null;
+    updatedAt: number;
+};
+
 const getPendingPaymentStorageKey = (userScope: string) => `premium.pendingPayment.${userScope}`;
+const getPremiumCacheStorageKey = (userScope: string) => `premium.cache.${userScope}`;
+
+const usePulseOpacity = () => {
+    const opacity = useRef(new Animated.Value(0.36)).current;
+    useEffect(() => {
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(opacity, { toValue: 0.7, duration: 850, useNativeDriver: true }),
+                Animated.timing(opacity, { toValue: 0.36, duration: 850, useNativeDriver: true }),
+            ]),
+        );
+        loop.start();
+        return () => loop.stop();
+    }, [opacity]);
+    return opacity;
+};
+
+const SkeletonBlock = ({ style }: { style: ViewStyle }) => {
+    const opacity = usePulseOpacity();
+    return <Animated.View style={[styles.skeletonBlock, { opacity }, style]} />;
+};
+
+const PremiumSkeleton = () => (
+    <View style={styles.skeletonRoot}>
+        <View style={styles.skeletonHero}>
+            <SkeletonBlock style={styles.skeletonCrown} />
+            <SkeletonBlock style={styles.skeletonTitle} />
+            <SkeletonBlock style={styles.skeletonSubtitle} />
+            <SkeletonBlock style={styles.skeletonBadge} />
+        </View>
+        <View style={styles.skeletonBody}>
+            <SkeletonBlock style={styles.skeletonSectionTitle} />
+            <View style={styles.skeletonPlanRow}>
+                <SkeletonBlock style={styles.skeletonPlanCard} />
+                <SkeletonBlock style={styles.skeletonPlanCard} />
+            </View>
+            <SkeletonBlock style={styles.skeletonCta} />
+            <SkeletonBlock style={styles.skeletonFeatureRow} />
+            <SkeletonBlock style={styles.skeletonFeatureRow} />
+            <SkeletonBlock style={styles.skeletonGuarantee} />
+        </View>
+    </View>
+);
 
 const formatCountdown = (ms: number): string => {
     const totalSec = Math.max(0, Math.ceil(ms / 1000));
@@ -436,6 +489,7 @@ export const PremiumScreen = () => {
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
     const [currentSub, setCurrentSub] = useState<UserSubscription | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const premiumFocusPassRef = useRef(0);
     const [purchasing, setPurchasing] = useState(false);
     const [canceling, setCanceling] = useState(false);
@@ -523,6 +577,7 @@ export const PremiumScreen = () => {
     const fetchData = useCallback(async (silent = false) => {
         try {
             if (!silent) setLoading(true);
+            setLoadError(null);
             const [plansData, subData] = await Promise.allSettled([
                 getActiveSubscriptionPlans(),
                 authSession ? getMySubscription() : Promise.resolve(null as UserSubscription | null),
@@ -542,7 +597,11 @@ export const PremiumScreen = () => {
             } else {
                 setCurrentSub(null);
             }
-        } catch {}
+        } catch (error: any) {
+            if (!silent) {
+                setLoadError(error?.message || 'Không thể tải dữ liệu Premium');
+            }
+        }
         finally { if (!silent) setLoading(false); }
     }, [authSession, selectedPlan]);
 
@@ -639,8 +698,7 @@ export const PremiumScreen = () => {
             const silent = premiumFocusPassRef.current > 0;
             premiumFocusPassRef.current += 1;
             void fetchData(silent);
-            const id = setInterval(() => void fetchData(true), 120000);
-            return () => clearInterval(id);
+            return undefined;
         }, [fetchData]),
     );
 
@@ -831,8 +889,27 @@ export const PremiumScreen = () => {
 
     if (loading) {
         return (
-            <View style={[styles.root, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color="#C084FC" />
+            <View style={styles.root}>
+                <StatusBar style="light" />
+                <PremiumSkeleton />
+            </View>
+        );
+    }
+
+    if (loadError && plans.length === 0) {
+        return (
+            <View style={styles.root}>
+                <StatusBar style="light" />
+                <View style={{ paddingTop: insets.top + 20 }}>
+                    <RetryState
+                        title="Không tải được Premium"
+                        description={loadError}
+                        onRetry={() => void fetchData(false)}
+                        fallbackLabel="Dùng lại dữ liệu trước"
+                        onFallback={() => void fetchData(true)}
+                        icon="👑"
+                    />
+                </View>
             </View>
         );
     }
@@ -1512,6 +1589,77 @@ const styles = StyleSheet.create({
     },
     featureValueDisabled: {
         color: 'rgba(255,255,255,0.5)',
+    },
+
+    // ── Skeleton Loading ───────────────────────────────────────────────────────
+    skeletonRoot: {
+        flex: 1,
+        paddingTop: 24,
+    },
+    skeletonBlock: {
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        borderRadius: 12,
+    },
+    skeletonHero: {
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingBottom: 36,
+        minHeight: 300,
+    },
+    skeletonCrown: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        marginBottom: 20,
+    },
+    skeletonTitle: {
+        height: 32,
+        width: '60%',
+        marginBottom: 12,
+    },
+    skeletonSubtitle: {
+        height: 16,
+        width: '70%',
+        marginBottom: 16,
+    },
+    skeletonBadge: {
+        height: 32,
+        width: 200,
+        borderRadius: 999,
+    },
+    skeletonBody: {
+        paddingHorizontal: 20,
+    },
+    skeletonSectionTitle: {
+        height: 24,
+        width: '40%',
+        marginBottom: 14,
+        marginTop: 20,
+    },
+    skeletonPlanRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 20,
+    },
+    skeletonPlanCard: {
+        flex: 1,
+        height: 110,
+        borderRadius: 16,
+    },
+    skeletonCta: {
+        height: 58,
+        borderRadius: 999,
+        marginBottom: 28,
+    },
+    skeletonFeatureRow: {
+        height: 70,
+        borderRadius: 14,
+        marginBottom: 10,
+    },
+    skeletonGuarantee: {
+        height: 90,
+        borderRadius: 16,
+        marginBottom: 20,
     },
 
     // ── Guarantee ─────────────────────────────────────────────────────────────

@@ -133,44 +133,44 @@ const parsePlaylistLimit = (features?: Record<string, any>): number | null => {
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
 const Avatar = ({
-                  id, displayName, size = 40, avatarUrl,
-                }: { id: string; displayName?: string; size?: number; avatarUrl?: string }) => {
+  id, displayName, size = 40, avatarUrl,
+}: { id: string; displayName?: string; size?: number; avatarUrl?: string }) => {
   const themeColors = useThemeColors();
   const S = useMemo(() => createStyles(themeColors), [themeColors]);
   return (
     <LinearGradient
-        colors={getAvatarColors(id)}
-        style={[S.avatar, { width: size, height: size, borderRadius: size / 2 }]}
+      colors={getAvatarColors(id)}
+      style={[S.avatar, { width: size, height: size, borderRadius: size / 2 }]}
     >
       {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+        <Image source={{ uri: avatarUrl }} style={{ width: size, height: size, borderRadius: size / 2 }} />
       ) : (
-          <Text style={[S.avatarText, { fontSize: size * 0.34 }]}>
-            {getInitials(displayName ?? id)}
-          </Text>
+        <Text style={[S.avatarText, { fontSize: size * 0.34 }]}>
+          {getInitials(displayName ?? id)}
+        </Text>
       )}
     </LinearGradient>
   );
 };
 
 const ActionBtn = ({
-                     icon, label, active, onPress, isLikeBtn = false,
-                   }: { icon: string | React.ReactNode; label: string | number; active?: boolean; onPress: () => void; isLikeBtn?: boolean; }) => {
+  icon, label, active, onPress, isLikeBtn = false,
+}: { icon: string | React.ReactNode; label: string | number; active?: boolean; onPress: () => void; isLikeBtn?: boolean; }) => {
   const themeColors = useThemeColors();
   const S = useMemo(() => createStyles(themeColors), [themeColors]);
   return (
     <Pressable
-        style={[S.actionBtn, active && isLikeBtn ? S.likeWrapActive : S.likeWrap]}
-        onPress={onPress}
-        hitSlop={8}
+      style={[S.actionBtn, active && isLikeBtn ? S.likeWrapActive : S.likeWrap]}
+      onPress={onPress}
+      hitSlop={8}
     >
       {typeof icon === 'string' ? (
-          <Text style={[S.actionIcon, active && isLikeBtn && S.likeEmoji]}>{icon}</Text>
+        <Text style={[S.actionIcon, active && isLikeBtn && S.likeEmoji]}>{icon}</Text>
       ) : (
-          icon
+        icon
       )}
       {Number(label) > 0 && (
-          <Text style={[S.actionLabel, active && isLikeBtn && S.labelLiked]}>{label}</Text>
+        <Text style={[S.actionLabel, active && isLikeBtn && S.labelLiked]}>{label}</Text>
       )}
     </Pressable>
   );
@@ -189,30 +189,30 @@ interface SaveContentModalProps {
 }
 
 const SaveContentModal: React.FC<SaveContentModalProps> = ({
-                                                             visible, songs, sourceTitle, sourceOwner, canManageAlbums = false, onClose,
-                                                           }) => {
+  visible, songs, sourceTitle, sourceOwner, canManageAlbums = false, onClose,
+}) => {
   const themeColors = useThemeColors();
-  const saveStyles  = useMemo(() => createSaveStyles(themeColors), [themeColors]);
+  const saveStyles = useMemo(() => createSaveStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
 
   // Tab state: 'playlist' | 'album'
   const [activeTab, setActiveTab] = useState<'playlist' | 'album'>('playlist');
 
   // Playlist state
-  const [playlists, setPlaylists]     = useState<Playlist[]>([]);
-  const [loadingPl, setLoadingPl]     = useState(false);
-  const [savingPl, setSavingPl]       = useState<string | null>(null);
-  const [newPlName, setNewPlName]     = useState('');
-  const [creatingPl, setCreatingPl]   = useState(false);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [loadingPl, setLoadingPl] = useState(false);
+  const [savingPl, setSavingPl] = useState<string | null>(null);
+  const [newPlName, setNewPlName] = useState('');
+  const [creatingPl, setCreatingPl] = useState(false);
   const [playlistNameError, setPlaylistNameError] = useState<string | null>(null);
   const [playlistLimit, setPlaylistLimit] = useState<number | null>(null);
 
   // Album state
-  const [albums, setAlbums]           = useState<Album[]>([]);
-  const [loadingAl, setLoadingAl]     = useState(false);
-  const [savingAl, setSavingAl]       = useState<string | null>(null);
-  const [newAlName, setNewAlName]     = useState('');
-  const [creatingAl, setCreatingAl]   = useState(false);
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [loadingAl, setLoadingAl] = useState(false);
+  const [savingAl, setSavingAl] = useState<string | null>(null);
+  const [newAlName, setNewAlName] = useState('');
+  const [creatingAl, setCreatingAl] = useState(false);
 
   // Load khi mở modal
   useEffect(() => {
@@ -223,19 +223,19 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
     // Load playlists
     setLoadingPl(true);
     getMyPlaylists({ page: 1, size: 50 })
-        .then(res => setPlaylists(res.content ?? []))
-        .catch(() => setPlaylists([]))
-        .finally(() => setLoadingPl(false));
+      .then(res => setPlaylists(res.content ?? []))
+      .catch(() => setPlaylists([]))
+      .finally(() => setLoadingPl(false));
     // Load current subscription limits to align create rule with payment features.
     getMySubscription()
-        .then(sub => setPlaylistLimit(parsePlaylistLimit(sub?.plan?.features)))
-        .catch(() => setPlaylistLimit(null));
+      .then(sub => setPlaylistLimit(parsePlaylistLimit(sub?.plan?.features)))
+      .catch(() => setPlaylistLimit(null));
     // Load albums của mình
     setLoadingAl(true);
     getMyAlbums({ page: 1, size: 50 })
-        .then(res => setAlbums(res.content ?? []))
-        .catch(() => setAlbums([]))
-        .finally(() => setLoadingAl(false));
+      .then(res => setAlbums(res.content ?? []))
+      .catch(() => setAlbums([]))
+      .finally(() => setLoadingAl(false));
     if (!canManageAlbums) setActiveTab('playlist');
     setPlaylistNameError(null);
     setNewPlName('');
@@ -257,9 +257,9 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
     }
     setSavingPl(null);
     Alert.alert(
-        '✓ Đã lưu vào playlist',
-        `${ok}/${savableSongs.length} bài từ "${sourceTitle}" → playlist "${plName}"`,
-        [{ text: 'OK', onPress: onClose }],
+      '✓ Đã lưu vào playlist',
+      `${ok}/${savableSongs.length} bài từ "${sourceTitle}" → playlist "${plName}"`,
+      [{ text: 'OK', onPress: onClose }],
     );
   }, [songs, sourceTitle, onClose]);
 
@@ -275,8 +275,8 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
     }
     if (playlistLimit !== null && playlists.length >= playlistLimit) {
       Alert.alert(
-          'Đã đạt giới hạn playlist',
-          `Gói hiện tại cho phép tối đa ${playlistLimit} playlist. Vui lòng xoá bớt hoặc nâng cấp gói để tạo mới.`,
+        'Đã đạt giới hạn playlist',
+        `Gói hiện tại cho phép tối đa ${playlistLimit} playlist. Vui lòng xoá bớt hoặc nâng cấp gói để tạo mới.`,
       );
       return;
     }
@@ -303,9 +303,9 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
     }
     setSavingAl(null);
     Alert.alert(
-        '✓ Đã lưu vào album',
-        `${ok}/${songs.length} bài từ "${sourceTitle}" → album "${albumTitle}"`,
-        [{ text: 'OK', onPress: onClose }],
+      '✓ Đã lưu vào album',
+      `${ok}/${songs.length} bài từ "${sourceTitle}" → album "${albumTitle}"`,
+      [{ text: 'OK', onPress: onClose }],
     );
   }, [songs, sourceTitle, onClose]);
 
@@ -326,190 +326,190 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
-      <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-        <Pressable style={saveStyles.overlay} onPress={onClose} />
-        <View style={[saveStyles.sheet, { paddingBottom: insets.bottom + 8 }]}>
-          <View style={saveStyles.handle} />
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={saveStyles.overlay} onPress={onClose} />
+      <View style={[saveStyles.sheet, { paddingBottom: insets.bottom + 8 }]}>
+        <View style={saveStyles.handle} />
 
-          {/* Title */}
-          <Text style={saveStyles.title}>💾 Lưu vào thư viện của tôi</Text>
+        {/* Title */}
+        <Text style={saveStyles.title}>💾 Lưu vào thư viện của tôi</Text>
 
-          {/* Source badge */}
-          <View style={saveStyles.sourceBadge}>
-            <Text style={saveStyles.sourceText} numberOfLines={2}>
-              📎 {sourceTitle}
-              {sourceOwner ? `  ·  bởi ${sourceOwner}` : ''}
-              {'  ·  '}{songs.length} bài
+        {/* Source badge */}
+        <View style={saveStyles.sourceBadge}>
+          <Text style={saveStyles.sourceText} numberOfLines={2}>
+            📎 {sourceTitle}
+            {sourceOwner ? `  ·  bởi ${sourceOwner}` : ''}
+            {'  ·  '}{songs.length} bài
+          </Text>
+        </View>
+
+        {/* Tab bar: Playlist | Album */}
+        <View style={saveStyles.tabBar}>
+          <Pressable
+            style={[saveStyles.tab, activeTab === 'playlist' && saveStyles.tabActive]}
+            onPress={() => setActiveTab('playlist')}
+          >
+            <Text style={[saveStyles.tabText, activeTab === 'playlist' && saveStyles.tabTextActive]}>
+              🎵 Playlist
             </Text>
-          </View>
-
-          {/* Tab bar: Playlist | Album */}
-          <View style={saveStyles.tabBar}>
+          </Pressable>
+          {canManageAlbums && (
             <Pressable
-                style={[saveStyles.tab, activeTab === 'playlist' && saveStyles.tabActive]}
-                onPress={() => setActiveTab('playlist')}
+              style={[saveStyles.tab, activeTab === 'album' && saveStyles.tabActive]}
+              onPress={() => setActiveTab('album')}
             >
-              <Text style={[saveStyles.tabText, activeTab === 'playlist' && saveStyles.tabTextActive]}>
-                🎵 Playlist
+              <Text style={[saveStyles.tabText, activeTab === 'album' && saveStyles.tabTextActive]}>
+                💿 Album
               </Text>
             </Pressable>
-            {canManageAlbums && (
-                <Pressable
-                    style={[saveStyles.tab, activeTab === 'album' && saveStyles.tabActive]}
-                    onPress={() => setActiveTab('album')}
-                >
-                  <Text style={[saveStyles.tabText, activeTab === 'album' && saveStyles.tabTextActive]}>
-                    💿 Album
-                  </Text>
-                </Pressable>
-            )}
-          </View>
-
-          {!canManageAlbums && (
-              <View style={saveStyles.lockedNotice}>
-                <Text style={saveStyles.lockedNoticeText}>
-                  Album chỉ dành cho tài khoản Nghệ sĩ. Hiện bạn vẫn có thể lưu nhanh vào Playlist.
-                </Text>
-              </View>
           )}
-
-          {/* ── Tab Playlist ── */}
-          {activeTab === 'playlist' && (
-              <>
-                {loadingPl ? (
-                    <ActivityIndicator color={COLORS.accent} style={{ marginVertical: 20 }} />
-                ) : (
-                    <FlatList
-                        data={playlists}
-                        keyExtractor={p => p.id}
-                        style={{ maxHeight: 210 }}
-                        renderItem={({ item }) => (
-                            <Pressable
-                                style={saveStyles.row}
-                                onPress={() => void handleSaveToPlaylist(item.id, item.name)}
-                                disabled={savingPl === item.id}
-                            >
-                              <View style={saveStyles.rowIcon}><Text style={{ fontSize: 18 }}>🎵</Text></View>
-                              <View style={{ flex: 1 }}>
-                                <Text style={saveStyles.rowName} numberOfLines={1}>{item.name}</Text>
-                                <Text style={saveStyles.rowCount}>{item.totalSongs ?? 0} bài</Text>
-                              </View>
-                              {savingPl === item.id
-                                  ? <ActivityIndicator size="small" color={COLORS.accent} />
-                                  : <Text style={saveStyles.addIcon}>＋</Text>}
-                            </Pressable>
-                        )}
-                        ListEmptyComponent={
-                          <Text style={saveStyles.empty}>Chưa có playlist nào</Text>
-                        }
-                    />
-                )}
-
-                {/* Tạo playlist mới */}
-                <View style={saveStyles.createSection}>
-                  <Text style={saveStyles.createLabel}>Tạo playlist mới</Text>
-                <View style={saveStyles.newRow}>
-                  <TextInput
-                      style={saveStyles.input}
-                      value={newPlName}
-                      onChangeText={text => {
-                        setNewPlName(text);
-                        if (playlistNameError) setPlaylistNameError(null);
-                      }}
-                      placeholder="Tạo playlist mới và lưu..."
-                      placeholderTextColor={COLORS.glass30}
-                      maxLength={60}
-                  />
-                  <Pressable
-                      style={[saveStyles.newBtn, (!newPlName.trim() || creatingPl) && { opacity: 0.4 }]}
-                      onPress={handleCreatePlaylistAndSave}
-                      disabled={!newPlName.trim() || creatingPl}
-                  >
-                    {creatingPl
-                        ? <ActivityIndicator size="small" color={COLORS.white} />
-                        : <Text style={saveStyles.newBtnText}>Tạo</Text>}
-                  </Pressable>
-                </View>
-                  <View style={saveStyles.inputMetaRow}>
-                    <Text style={[saveStyles.inputMetaText, playlistNameError && saveStyles.inputMetaError]}>
-                      {playlistNameError ?? ' '}
-                    </Text>
-                    <Text style={saveStyles.inputMetaText}>{newPlName.trim().length}/60</Text>
-                  </View>
-                </View>
-              </>
-          )}
-
-          {/* ── Tab Album ── */}
-          {activeTab === 'album' && canManageAlbums && (
-              <>
-                <Text style={saveStyles.tabHint}>
-                  Chỉ album DRAFT / PRIVATE mới nhận bài mới
-                </Text>
-
-                {loadingAl ? (
-                    <ActivityIndicator color={COLORS.accent} style={{ marginVertical: 20 }} />
-                ) : (
-                    <FlatList
-                        data={albums}
-                        keyExtractor={a => a.id}
-                        style={{ maxHeight: 210 }}
-                        renderItem={({ item }) => {
-                          const statusIcon =
-                              item.status === 'PUBLIC'  ? '🌐' :
-                                  item.status === 'PRIVATE' ? '🔒' : '📝';
-                          return (
-                              <Pressable
-                                  style={saveStyles.row}
-                                  onPress={() => void handleSaveToAlbum(item.id, item.title)}
-                                  disabled={savingAl === item.id}
-                              >
-                                <View style={saveStyles.rowIcon}><Text style={{ fontSize: 18 }}>💿</Text></View>
-                                <View style={{ flex: 1 }}>
-                                  <Text style={saveStyles.rowName} numberOfLines={1}>{item.title}</Text>
-                                  <Text style={saveStyles.rowCount}>
-                                    {statusIcon} {item.status}  ·  {item.totalSongs ?? item.songs?.length ?? 0} bài
-                                  </Text>
-                                </View>
-                                {savingAl === item.id
-                                    ? <ActivityIndicator size="small" color={COLORS.accent} />
-                                    : <Text style={saveStyles.addIcon}>＋</Text>}
-                              </Pressable>
-                          );
-                        }}
-                        ListEmptyComponent={
-                          <Text style={saveStyles.empty}>Chưa có album nào</Text>
-                        }
-                    />
-                )}
-
-                {/* Tạo album mới */}
-                <View style={saveStyles.newRow}>
-                  <TextInput
-                      style={saveStyles.input}
-                      value={newAlName}
-                      onChangeText={setNewAlName}
-                      placeholder="Tạo album mới và lưu..."
-                      placeholderTextColor={COLORS.glass30}
-                  />
-                  <Pressable
-                      style={[saveStyles.newBtn, (!newAlName.trim() || creatingAl) && { opacity: 0.4 }]}
-                      onPress={handleCreateAlbumAndSave}
-                      disabled={!newAlName.trim() || creatingAl}
-                  >
-                    {creatingAl
-                        ? <ActivityIndicator size="small" color={COLORS.white} />
-                        : <Text style={saveStyles.newBtnText}>＋</Text>}
-                  </Pressable>
-                </View>
-              </>
-          )}
-
-          <Pressable style={saveStyles.closeBtn} onPress={onClose}>
-            <Text style={saveStyles.closeBtnText}>Đóng</Text>
-          </Pressable>
         </View>
-      </Modal>
+
+        {!canManageAlbums && (
+          <View style={saveStyles.lockedNotice}>
+            <Text style={saveStyles.lockedNoticeText}>
+              Album chỉ dành cho tài khoản Nghệ sĩ. Hiện bạn vẫn có thể lưu nhanh vào Playlist.
+            </Text>
+          </View>
+        )}
+
+        {/* ── Tab Playlist ── */}
+        {activeTab === 'playlist' && (
+          <>
+            {loadingPl ? (
+              <ActivityIndicator color={COLORS.accent} style={{ marginVertical: 20 }} />
+            ) : (
+              <FlatList
+                data={playlists}
+                keyExtractor={p => p.id}
+                style={{ maxHeight: 210 }}
+                renderItem={({ item }) => (
+                  <Pressable
+                    style={saveStyles.row}
+                    onPress={() => void handleSaveToPlaylist(item.id, item.name)}
+                    disabled={savingPl === item.id}
+                  >
+                    <View style={saveStyles.rowIcon}><Text style={{ fontSize: 18 }}>🎵</Text></View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={saveStyles.rowName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={saveStyles.rowCount}>{item.totalSongs ?? 0} bài</Text>
+                    </View>
+                    {savingPl === item.id
+                      ? <ActivityIndicator size="small" color={COLORS.accent} />
+                      : <Text style={saveStyles.addIcon}>＋</Text>}
+                  </Pressable>
+                )}
+                ListEmptyComponent={
+                  <Text style={saveStyles.empty}>Chưa có playlist nào</Text>
+                }
+              />
+            )}
+
+            {/* Tạo playlist mới */}
+            <View style={saveStyles.createSection}>
+              <Text style={saveStyles.createLabel}>Tạo playlist mới</Text>
+              <View style={saveStyles.newRow}>
+                <TextInput
+                  style={saveStyles.input}
+                  value={newPlName}
+                  onChangeText={text => {
+                    setNewPlName(text);
+                    if (playlistNameError) setPlaylistNameError(null);
+                  }}
+                  placeholder="Tạo playlist mới và lưu..."
+                  placeholderTextColor={COLORS.glass30}
+                  maxLength={60}
+                />
+                <Pressable
+                  style={[saveStyles.newBtn, (!newPlName.trim() || creatingPl) && { opacity: 0.4 }]}
+                  onPress={handleCreatePlaylistAndSave}
+                  disabled={!newPlName.trim() || creatingPl}
+                >
+                  {creatingPl
+                    ? <ActivityIndicator size="small" color={COLORS.white} />
+                    : <Text style={saveStyles.newBtnText}>Tạo</Text>}
+                </Pressable>
+              </View>
+              <View style={saveStyles.inputMetaRow}>
+                <Text style={[saveStyles.inputMetaText, playlistNameError && saveStyles.inputMetaError]}>
+                  {playlistNameError ?? ' '}
+                </Text>
+                <Text style={saveStyles.inputMetaText}>{newPlName.trim().length}/60</Text>
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* ── Tab Album ── */}
+        {activeTab === 'album' && canManageAlbums && (
+          <>
+            <Text style={saveStyles.tabHint}>
+              Chỉ album DRAFT / PRIVATE mới nhận bài mới
+            </Text>
+
+            {loadingAl ? (
+              <ActivityIndicator color={COLORS.accent} style={{ marginVertical: 20 }} />
+            ) : (
+              <FlatList
+                data={albums}
+                keyExtractor={a => a.id}
+                style={{ maxHeight: 210 }}
+                renderItem={({ item }) => {
+                  const statusIcon =
+                    item.status === 'PUBLIC' ? '🌐' :
+                      item.status === 'PRIVATE' ? '🔒' : '📝';
+                  return (
+                    <Pressable
+                      style={saveStyles.row}
+                      onPress={() => void handleSaveToAlbum(item.id, item.title)}
+                      disabled={savingAl === item.id}
+                    >
+                      <View style={saveStyles.rowIcon}><Text style={{ fontSize: 18 }}>💿</Text></View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={saveStyles.rowName} numberOfLines={1}>{item.title}</Text>
+                        <Text style={saveStyles.rowCount}>
+                          {statusIcon} {item.status}  ·  {item.totalSongs ?? item.songs?.length ?? 0} bài
+                        </Text>
+                      </View>
+                      {savingAl === item.id
+                        ? <ActivityIndicator size="small" color={COLORS.accent} />
+                        : <Text style={saveStyles.addIcon}>＋</Text>}
+                    </Pressable>
+                  );
+                }}
+                ListEmptyComponent={
+                  <Text style={saveStyles.empty}>Chưa có album nào</Text>
+                }
+              />
+            )}
+
+            {/* Tạo album mới */}
+            <View style={saveStyles.newRow}>
+              <TextInput
+                style={saveStyles.input}
+                value={newAlName}
+                onChangeText={setNewAlName}
+                placeholder="Tạo album mới và lưu..."
+                placeholderTextColor={COLORS.glass30}
+              />
+              <Pressable
+                style={[saveStyles.newBtn, (!newAlName.trim() || creatingAl) && { opacity: 0.4 }]}
+                onPress={handleCreateAlbumAndSave}
+                disabled={!newAlName.trim() || creatingAl}
+              >
+                {creatingAl
+                  ? <ActivityIndicator size="small" color={COLORS.white} />
+                  : <Text style={saveStyles.newBtnText}>＋</Text>}
+              </Pressable>
+            </View>
+          </>
+        )}
+
+        <Pressable style={saveStyles.closeBtn} onPress={onClose}>
+          <Text style={saveStyles.closeBtnText}>Đóng</Text>
+        </Pressable>
+      </View>
+    </Modal>
   );
 };
 
@@ -524,10 +524,10 @@ interface SharedContentDetailModalProps {
 }
 
 const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> = ({
-                                                                             visible, content, canManageAlbums, onClose,
-                                                                           }) => {
-  const themeColors   = useThemeColors();
-  const detailStyles  = useMemo(() => createDetailStyles(themeColors), [themeColors]);
+  visible, content, canManageAlbums, onClose,
+}) => {
+  const themeColors = useThemeColors();
+  const detailStyles = useMemo(() => createDetailStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const { playSong, currentSong } = usePlayer();
   const [saveOpen, setSaveOpen] = useState(false);
@@ -535,127 +535,127 @@ const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> = ({
   if (!content) return null;
 
   const typeLabel =
-      content.type === 'ALBUM'    ? 'Album' :
-          content.type === 'PLAYLIST' ? 'Playlist' : 'Bài hát';
+    content.type === 'ALBUM' ? 'Album' :
+      content.type === 'PLAYLIST' ? 'Playlist' : 'Bài hát';
 
   const saveBtnLabel =
-      content.type === 'ALBUM'    ? '💿 Lưu vào playlist / album' :
-          content.type === 'PLAYLIST' ? '📋 Lưu vào playlist / album' :
-              '➕ Lưu vào playlist / album';
+    content.type === 'ALBUM' ? '💿 Lưu vào playlist / album' :
+      content.type === 'PLAYLIST' ? '📋 Lưu vào playlist / album' :
+        '➕ Lưu vào playlist / album';
 
   return (
-      <>
-        <Modal
-            visible={visible}
-            animationType="slide"
-            presentationStyle="fullScreen"
-            onRequestClose={onClose}
-        >
-          <View style={detailStyles.root}>
-            {/* Header */}
-            <View style={[detailStyles.header, { paddingTop: insets.top + 6 }]}>
-              <Pressable style={detailStyles.backBtn} onPress={onClose}>
-                <Ionicons name="arrow-back" size={22} color={COLORS.white} />
-                <Text style={detailStyles.backText}>Quay lại</Text>
+    <>
+      <Modal
+        visible={visible}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={onClose}
+      >
+        <View style={detailStyles.root}>
+          {/* Header */}
+          <View style={[detailStyles.header, { paddingTop: insets.top + 6 }]}>
+            <Pressable style={detailStyles.backBtn} onPress={onClose}>
+              <Ionicons name="arrow-back" size={22} color={COLORS.white} />
+              <Text style={detailStyles.backText}>Quay lại</Text>
+            </Pressable>
+
+            {content.songs.length > 0 && (
+              <Pressable
+                style={detailStyles.saveBtn}
+                onPress={() => setSaveOpen(true)}
+              >
+                <Text style={detailStyles.saveBtnText}>{saveBtnLabel}</Text>
               </Pressable>
-
-              {content.songs.length > 0 && (
-                  <Pressable
-                      style={detailStyles.saveBtn}
-                      onPress={() => setSaveOpen(true)}
-                  >
-                    <Text style={detailStyles.saveBtnText}>{saveBtnLabel}</Text>
-                  </Pressable>
-              )}
-            </View>
-
-            <ScrollView
-                contentContainerStyle={detailStyles.body}
-                showsVerticalScrollIndicator={false}
-            >
-              {/* Cover */}
-              <Image
-                  source={{ uri: content.coverUrl || 'https://via.placeholder.com/220' }}
-                  style={detailStyles.cover}
-              />
-
-              {/* Meta */}
-              <View style={detailStyles.typeBadge}>
-                <Text style={detailStyles.typeText}>{typeLabel}</Text>
-              </View>
-              <Text style={detailStyles.title}>{content.title}</Text>
-              {content.subtitle ? (
-                  <Text style={detailStyles.subtitle}>{content.subtitle}</Text>
-              ) : null}
-              {content.ownerName ? (
-                  <Text style={detailStyles.owner}>
-                    Chia sẻ bởi{' '}
-                    <Text style={{ color: COLORS.accent, fontWeight: '700' }}>
-                      {content.ownerName}
-                    </Text>
-                  </Text>
-              ) : null}
-              <Text style={detailStyles.count}>
-                {content.totalCount ?? content.songs.length} bài hát
-              </Text>
-
-              {/* Track list */}
-              {content.songs.length > 0 ? (
-                  <View style={detailStyles.tracks}>
-                    {content.songs.map((song, idx) => {
-                      const active = currentSong?.id === song.id;
-                      return (
-                          <Pressable
-                              key={`${song.id}-${idx}`}
-                              style={[detailStyles.trackRow, active && detailStyles.trackRowActive]}
-                              onPress={() => playSong(song, content.songs)}
-                          >
-                            <Text style={detailStyles.trackNum}>{idx + 1}</Text>
-                            <View style={detailStyles.trackInfo}>
-                              <Text
-                                  style={[detailStyles.trackTitle, active && { color: COLORS.accent }]}
-                                  numberOfLines={1}
-                              >
-                                {song.title}
-                              </Text>
-                              <Text style={detailStyles.trackArtist} numberOfLines={1}>
-                                {song.primaryArtist?.stageName ?? 'Nghệ sĩ'}
-                              </Text>
-                            </View>
-                            <Ionicons
-                                name={active ? 'pause' : 'play'}
-                                size={18}
-                                color={active ? COLORS.accent : COLORS.glass50}
-                            />
-                          </Pressable>
-                      );
-                    })}
-                  </View>
-              ) : (
-                  <Text style={detailStyles.empty}>Không có bài hát nào</Text>
-              )}
-            </ScrollView>
+            )}
           </View>
-        </Modal>
 
-        <SaveContentModal
-            visible={saveOpen}
-            songs={content.songs}
-            sourceTitle={content.title}
-            sourceOwner={content.ownerName ?? content.subtitle}
-            canManageAlbums={canManageAlbums}
-            onClose={() => setSaveOpen(false)}
-        />
-      </>
+          <ScrollView
+            contentContainerStyle={detailStyles.body}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Cover */}
+            <Image
+              source={{ uri: content.coverUrl || 'https://via.placeholder.com/220' }}
+              style={detailStyles.cover}
+            />
+
+            {/* Meta */}
+            <View style={detailStyles.typeBadge}>
+              <Text style={detailStyles.typeText}>{typeLabel}</Text>
+            </View>
+            <Text style={detailStyles.title}>{content.title}</Text>
+            {content.subtitle ? (
+              <Text style={detailStyles.subtitle}>{content.subtitle}</Text>
+            ) : null}
+            {content.ownerName ? (
+              <Text style={detailStyles.owner}>
+                Chia sẻ bởi{' '}
+                <Text style={{ color: COLORS.accent, fontWeight: '700' }}>
+                  {content.ownerName}
+                </Text>
+              </Text>
+            ) : null}
+            <Text style={detailStyles.count}>
+              {content.totalCount ?? content.songs.length} bài hát
+            </Text>
+
+            {/* Track list */}
+            {content.songs.length > 0 ? (
+              <View style={detailStyles.tracks}>
+                {content.songs.map((song, idx) => {
+                  const active = currentSong?.id === song.id;
+                  return (
+                    <Pressable
+                      key={`${song.id}-${idx}`}
+                      style={[detailStyles.trackRow, active && detailStyles.trackRowActive]}
+                      onPress={() => playSong(song, content.songs)}
+                    >
+                      <Text style={detailStyles.trackNum}>{idx + 1}</Text>
+                      <View style={detailStyles.trackInfo}>
+                        <Text
+                          style={[detailStyles.trackTitle, active && { color: COLORS.accent }]}
+                          numberOfLines={1}
+                        >
+                          {song.title}
+                        </Text>
+                        <Text style={detailStyles.trackArtist} numberOfLines={1}>
+                          {song.primaryArtist?.stageName ?? 'Nghệ sĩ'}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={active ? 'pause' : 'play'}
+                        size={18}
+                        color={active ? COLORS.accent : COLORS.glass50}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <Text style={detailStyles.empty}>Không có bài hát nào</Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <SaveContentModal
+        visible={saveOpen}
+        songs={content.songs}
+        sourceTitle={content.title}
+        sourceOwner={content.ownerName ?? content.subtitle}
+        canManageAlbums={canManageAlbums}
+        onClose={() => setSaveOpen(false)}
+      />
+    </>
   );
 };
 
 // ─── Compose Modal ──────────────────────────────────────────────────────────────
 
 const VISIBILITY_OPTIONS: { value: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'; label: string; icon: string }[] = [
-  { value: 'PUBLIC',         label: 'Công khai',       icon: '🌐' },
-  { value: 'FOLLOWERS_ONLY', label: 'Người theo dõi',  icon: '👥' },
-  { value: 'PRIVATE',        label: 'Riêng tư',        icon: '🔒' },
+  { value: 'PUBLIC', label: 'Công khai', icon: '🌐' },
+  { value: 'FOLLOWERS_ONLY', label: 'Người theo dõi', icon: '👥' },
+  { value: 'PRIVATE', label: 'Riêng tư', icon: '🔒' },
 ];
 
 interface ComposeModalProps {
@@ -668,12 +668,12 @@ interface ComposeModalProps {
 }
 
 const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }: ComposeModalProps) => {
-  const themeColors    = useThemeColors();
-  const composeStyles  = useMemo(() => createComposeStyles(themeColors), [themeColors]);
+  const themeColors = useThemeColors();
+  const composeStyles = useMemo(() => createComposeStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
-  const [title, setTitle]       = useState('');
-  const [caption, setCaption]   = useState('');
-  const [visibility, setVis]    = useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'>('PUBLIC');
+  const [title, setTitle] = useState('');
+  const [caption, setCaption] = useState('');
+  const [visibility, setVis] = useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'>('PUBLIC');
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -689,90 +689,90 @@ const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }
   const shownName = displayName || userId?.slice(0, 8) + '...';
 
   return (
-      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[composeStyles.root, { paddingTop: insets.top + 4 }]}>
-            <View style={composeStyles.header}>
-              <Pressable onPress={onClose} style={composeStyles.cancelBtn}>
-                <Text style={composeStyles.cancelText}>Huỷ</Text>
-              </Pressable>
-              <Text style={composeStyles.headerTitle}>Tạo bài viết</Text>
-              <Pressable
-                  style={[composeStyles.postBtn, !canPost && composeStyles.postBtnDisabled]}
-                  onPress={() => canPost && !posting && onPost(title.trim(), caption.trim(), visibility)}
-                  disabled={!canPost || posting}
-              >
-                {posting
-                    ? <ActivityIndicator size="small" color={themeColors.white} />
-                    : <Text style={composeStyles.postBtnText}>Đăng</Text>}
-              </Pressable>
-            </View>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={[composeStyles.root, { paddingTop: insets.top + 4 }]}>
+          <View style={composeStyles.header}>
+            <Pressable onPress={onClose} style={composeStyles.cancelBtn}>
+              <Text style={composeStyles.cancelText}>Huỷ</Text>
+            </Pressable>
+            <Text style={composeStyles.headerTitle}>Tạo bài viết</Text>
+            <Pressable
+              style={[composeStyles.postBtn, !canPost && composeStyles.postBtnDisabled]}
+              onPress={() => canPost && !posting && onPost(title.trim(), caption.trim(), visibility)}
+              disabled={!canPost || posting}
+            >
+              {posting
+                ? <ActivityIndicator size="small" color={themeColors.white} />
+                : <Text style={composeStyles.postBtnText}>Đăng</Text>}
+            </Pressable>
+          </View>
 
-            <View style={composeStyles.divider} />
+          <View style={composeStyles.divider} />
 
-            <View style={composeStyles.userRow}>
-              <Avatar id={userId} displayName={displayName ?? userId} size={44} />
-              <View style={{ flex: 1 }}>
-                <Text style={composeStyles.userName}>{shownName}</Text>
-                <View style={composeStyles.visBadge}>
-                  <Text style={composeStyles.visIcon}>
-                    {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.icon ?? '🌐'}
-                  </Text>
-                  <Text style={composeStyles.visText}>
-                    {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label ?? 'Công khai'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} keyboardShouldPersistTaps="handled">
-              <TextInput
-                  ref={inputRef}
-                  style={composeStyles.titleInput}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Tiêu đề bài viết..."
-                  placeholderTextColor={themeColors.glass25}
-                  multiline
-              />
-              <TextInput
-                  style={composeStyles.captionInput}
-                  value={caption}
-                  onChangeText={setCaption}
-                  placeholder="Chia sẻ cảm xúc âm nhạc của bạn..."
-                  placeholderTextColor={themeColors.glass20}
-                  multiline
-              />
-              <View style={composeStyles.visRow}>
-                <Text style={composeStyles.visLabel}>Hiển thị:</Text>
-                {VISIBILITY_OPTIONS.map(opt => (
-                    <Pressable
-                        key={opt.value}
-                        style={[composeStyles.visChip, visibility === opt.value && composeStyles.visChipActive]}
-                        onPress={() => setVis(opt.value)}
-                    >
-                      <Text style={composeStyles.visChipIcon}>{opt.icon}</Text>
-                      <Text style={[composeStyles.visChipText, visibility === opt.value && composeStyles.visChipTextActive]}>
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-
-            <View style={[composeStyles.toolbar, { paddingBottom: insets.bottom + 8 }]}>
-              <Text style={composeStyles.toolbarLabel}>Thêm vào bài viết</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                {['🎵', '🎧', '🎸', '💿'].map(e => (
-                    <Pressable key={e} style={composeStyles.toolbarIcon}>
-                      <Text style={{ fontSize: 20 }}>{e}</Text>
-                    </Pressable>
-                ))}
+          <View style={composeStyles.userRow}>
+            <Avatar id={userId} displayName={displayName ?? userId} size={44} />
+            <View style={{ flex: 1 }}>
+              <Text style={composeStyles.userName}>{shownName}</Text>
+              <View style={composeStyles.visBadge}>
+                <Text style={composeStyles.visIcon}>
+                  {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.icon ?? '🌐'}
+                </Text>
+                <Text style={composeStyles.visText}>
+                  {VISIBILITY_OPTIONS.find(v => v.value === visibility)?.label ?? 'Công khai'}
+                </Text>
               </View>
             </View>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+
+          <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} keyboardShouldPersistTaps="handled">
+            <TextInput
+              ref={inputRef}
+              style={composeStyles.titleInput}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Tiêu đề bài viết..."
+              placeholderTextColor={themeColors.glass25}
+              multiline
+            />
+            <TextInput
+              style={composeStyles.captionInput}
+              value={caption}
+              onChangeText={setCaption}
+              placeholder="Chia sẻ cảm xúc âm nhạc của bạn..."
+              placeholderTextColor={themeColors.glass20}
+              multiline
+            />
+            <View style={composeStyles.visRow}>
+              <Text style={composeStyles.visLabel}>Hiển thị:</Text>
+              {VISIBILITY_OPTIONS.map(opt => (
+                <Pressable
+                  key={opt.value}
+                  style={[composeStyles.visChip, visibility === opt.value && composeStyles.visChipActive]}
+                  onPress={() => setVis(opt.value)}
+                >
+                  <Text style={composeStyles.visChipIcon}>{opt.icon}</Text>
+                  <Text style={[composeStyles.visChipText, visibility === opt.value && composeStyles.visChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+
+          <View style={[composeStyles.toolbar, { paddingBottom: insets.bottom + 8 }]}>
+            <Text style={composeStyles.toolbarLabel}>Thêm vào bài viết</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {['🎵', '🎧', '🎸', '💿'].map(e => (
+                <Pressable key={e} style={composeStyles.toolbarIcon}>
+                  <Text style={{ fontSize: 20 }}>{e}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 };
 
@@ -786,13 +786,13 @@ interface EditPostModalProps {
 }
 
 const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) => {
-  const themeColors    = useThemeColors();
-  const composeStyles  = useMemo(() => createComposeStyles(themeColors), [themeColors]);
+  const themeColors = useThemeColors();
+  const composeStyles = useMemo(() => createComposeStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
-  const [title, setTitle]     = useState('');
+  const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
-  const [vis, setVis]         = useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'>('PUBLIC');
-  const [saving, setSaving]   = useState(false);
+  const [vis, setVis] = useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'>('PUBLIC');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (post) {
@@ -809,62 +809,62 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
   };
 
   return (
-      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[composeStyles.root, { paddingTop: insets.top + 4 }]}>
-            <View style={composeStyles.header}>
-              <Pressable onPress={onClose} style={composeStyles.cancelBtn}>
-                <Text style={composeStyles.cancelText}>Huỷ</Text>
-              </Pressable>
-              <Text style={composeStyles.headerTitle}>Chỉnh sửa</Text>
-              <Pressable
-                  style={[composeStyles.postBtn, saving && composeStyles.postBtnDisabled]}
-                  onPress={handleSave}
-                  disabled={saving}
-              >
-                {saving
-                    ? <ActivityIndicator size="small" color={themeColors.white} />
-                    : <Text style={composeStyles.postBtnText}>Lưu</Text>}
-              </Pressable>
-            </View>
-            <View style={composeStyles.divider} />
-            <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} keyboardShouldPersistTaps="handled">
-              <TextInput
-                  style={composeStyles.titleInput}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Tiêu đề..."
-                  placeholderTextColor={themeColors.glass25}
-                  multiline
-                  autoFocus
-              />
-              <TextInput
-                  style={composeStyles.captionInput}
-                  value={caption}
-                  onChangeText={setCaption}
-                  placeholder="Caption..."
-                  placeholderTextColor={themeColors.glass20}
-                  multiline
-              />
-              <View style={composeStyles.visRow}>
-                <Text style={composeStyles.visLabel}>Hiển thị:</Text>
-                {VISIBILITY_OPTIONS.map(opt => (
-                    <Pressable
-                        key={opt.value}
-                        style={[composeStyles.visChip, vis === opt.value && composeStyles.visChipActive]}
-                        onPress={() => setVis(opt.value)}
-                    >
-                      <Text style={composeStyles.visChipIcon}>{opt.icon}</Text>
-                      <Text style={[composeStyles.visChipText, vis === opt.value && composeStyles.visChipTextActive]}>
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                ))}
-              </View>
-            </ScrollView>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={[composeStyles.root, { paddingTop: insets.top + 4 }]}>
+          <View style={composeStyles.header}>
+            <Pressable onPress={onClose} style={composeStyles.cancelBtn}>
+              <Text style={composeStyles.cancelText}>Huỷ</Text>
+            </Pressable>
+            <Text style={composeStyles.headerTitle}>Chỉnh sửa</Text>
+            <Pressable
+              style={[composeStyles.postBtn, saving && composeStyles.postBtnDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+            >
+              {saving
+                ? <ActivityIndicator size="small" color={themeColors.white} />
+                : <Text style={composeStyles.postBtnText}>Lưu</Text>}
+            </Pressable>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          <View style={composeStyles.divider} />
+          <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} keyboardShouldPersistTaps="handled">
+            <TextInput
+              style={composeStyles.titleInput}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Tiêu đề..."
+              placeholderTextColor={themeColors.glass25}
+              multiline
+              autoFocus
+            />
+            <TextInput
+              style={composeStyles.captionInput}
+              value={caption}
+              onChangeText={setCaption}
+              placeholder="Caption..."
+              placeholderTextColor={themeColors.glass20}
+              multiline
+            />
+            <View style={composeStyles.visRow}>
+              <Text style={composeStyles.visLabel}>Hiển thị:</Text>
+              {VISIBILITY_OPTIONS.map(opt => (
+                <Pressable
+                  key={opt.value}
+                  style={[composeStyles.visChip, vis === opt.value && composeStyles.visChipActive]}
+                  onPress={() => setVis(opt.value)}
+                >
+                  <Text style={composeStyles.visChipIcon}>{opt.icon}</Text>
+                  <Text style={[composeStyles.visChipText, vis === opt.value && composeStyles.visChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 };
 
@@ -884,21 +884,21 @@ interface CommentSheetProps {
 }
 
 const CommentSheet: React.FC<CommentSheetProps> = ({
-                                                     visible, post, comments, currentUserId, myDisplayName,
-                                                     onClose, onSendComment, onLikeComment, onDeleteComment, onEditComment,
-                                                   }) => {
-  const themeColors      = useThemeColors();
-  const commentStyles    = useMemo(() => createCommentStyles(themeColors), [themeColors]);
-  const insets    = useSafeAreaInsets();
-  const inputRef  = useRef<TextInput>(null);
-  const [text, setText]             = useState('');
-  const [sending, setSending]       = useState(false);
-  const [editingId, setEditingId]   = useState<string | null>(null);
-  const [editText, setEditText]     = useState('');
+  visible, post, comments, currentUserId, myDisplayName,
+  onClose, onSendComment, onLikeComment, onDeleteComment, onEditComment,
+}) => {
+  const themeColors = useThemeColors();
+  const commentStyles = useMemo(() => createCommentStyles(themeColors), [themeColors]);
+  const insets = useSafeAreaInsets();
+  const inputRef = useRef<TextInput>(null);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
   const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
-  const [replies, setReplies]       = useState<Record<string, Comment[]>>({});
-  const [expandedR, setExpandedR]   = useState<Record<string, boolean>>({});
-  const [loadingR, setLoadingR]     = useState<Record<string, boolean>>({});
+  const [replies, setReplies] = useState<Record<string, Comment[]>>({});
+  const [expandedR, setExpandedR] = useState<Record<string, boolean>>({});
+  const [loadingR, setLoadingR] = useState<Record<string, boolean>>({});
   const [authorCache, setAuthorCache] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -926,7 +926,7 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
       const res = await getCommentReplies(parentId, { page: 0, size: 50 });
       setReplies(p => ({ ...p, [parentId]: res.content ?? [] }));
       setExpandedR(p => ({ ...p, [parentId]: true }));
-    } catch {}
+    } catch { }
     finally { setLoadingR(p => ({ ...p, [parentId]: false })); }
   };
 
@@ -950,146 +950,146 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
 
   const renderComment = (comment: Comment, depth = 0): React.ReactNode => {
     const isOwn = comment.userId === currentUserId;
-    const name  = getDisplayName(comment.userId);
+    const name = getDisplayName(comment.userId);
     const childReplies = replies[comment.id] ?? [];
-    const isExpanded   = expandedR[comment.id];
-    const isLoadingR   = loadingR[comment.id];
+    const isExpanded = expandedR[comment.id];
+    const isLoadingR = loadingR[comment.id];
     const ml = Math.min(depth, 3) * 12;
 
     return (
-        <View key={`${comment.id}-${depth}`} style={{ marginLeft: ml }}>
-          <View style={depth === 0 ? commentStyles.row : commentStyles.replyRow}>
-            <Avatar id={comment.userId} displayName={name} size={depth === 0 ? 34 : 28} />
-            <View style={{ flex: 1, gap: 4 }}>
-              {editingId === comment.id ? (
-                  <View style={{ gap: 6 }}>
-                    <TextInput
-                        style={commentStyles.editInput}
-                        value={editText}
-                        onChangeText={setEditText}
-                        autoFocus multiline
-                    />
-                    <View style={{ flexDirection: 'row', gap: 12, paddingLeft: 4 }}>
-                      <Pressable onPress={() => setEditingId(null)}>
-                        <Text style={commentStyles.editCancel}>Huỷ</Text>
+      <View key={`${comment.id}-${depth}`} style={{ marginLeft: ml }}>
+        <View style={depth === 0 ? commentStyles.row : commentStyles.replyRow}>
+          <Avatar id={comment.userId} displayName={name} size={depth === 0 ? 34 : 28} />
+          <View style={{ flex: 1, gap: 4 }}>
+            {editingId === comment.id ? (
+              <View style={{ gap: 6 }}>
+                <TextInput
+                  style={commentStyles.editInput}
+                  value={editText}
+                  onChangeText={setEditText}
+                  autoFocus multiline
+                />
+                <View style={{ flexDirection: 'row', gap: 12, paddingLeft: 4 }}>
+                  <Pressable onPress={() => setEditingId(null)}>
+                    <Text style={commentStyles.editCancel}>Huỷ</Text>
+                  </Pressable>
+                  <Pressable onPress={() => void handleEdit(comment.id, comment.parentId)}>
+                    <Text style={commentStyles.editSave}>Lưu</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <>
+                <View style={commentStyles.bubble}>
+                  <Text style={commentStyles.name}>{name}</Text>
+                  <Text style={commentStyles.text}>{comment.content}</Text>
+                </View>
+                <View style={commentStyles.meta}>
+                  <Text style={commentStyles.time}>{timeAgo(comment.createdAt)}</Text>
+                  <Pressable onPress={() => void onLikeComment(comment)} hitSlop={8}>
+                    <Text style={[commentStyles.likeBtn, comment.likedByCurrentUser && { color: COLORS.accent }]}>
+                      {comment.likedByCurrentUser ? '♥' : '♡'}
+                      {comment.likeCount > 0 ? ` ${comment.likeCount}` : ''}
+                    </Text>
+                  </Pressable>
+                  <Pressable onPress={() => { setReplyingTo(comment); setTimeout(() => inputRef.current?.focus(), 50); }} hitSlop={8}>
+                    <Text style={commentStyles.action}>Trả lời</Text>
+                  </Pressable>
+                  {isOwn && (
+                    <>
+                      <Pressable onPress={() => { setEditingId(comment.id); setEditText(comment.content); }} hitSlop={8}>
+                        <Text style={commentStyles.action}>Sửa</Text>
                       </Pressable>
-                      <Pressable onPress={() => void handleEdit(comment.id, comment.parentId)}>
-                        <Text style={commentStyles.editSave}>Lưu</Text>
+                      <Pressable onPress={async () => { await onDeleteComment(comment.id); if (comment.parentId) await loadReplies(comment.parentId); }} hitSlop={8}>
+                        <Text style={[commentStyles.action, { color: COLORS.error }]}>Xoá</Text>
                       </Pressable>
-                    </View>
+                    </>
+                  )}
+                </View>
+                {comment.replyCount > 0 && (
+                  <Pressable
+                    style={{ paddingLeft: 4 }}
+                    onPress={() => isExpanded ? setExpandedR(p => ({ ...p, [comment.id]: false })) : void loadReplies(comment.id)}
+                  >
+                    <Text style={commentStyles.replyToggle}>
+                      {isExpanded ? 'Ẩn trả lời' : `Xem ${comment.replyCount} trả lời`}
+                    </Text>
+                  </Pressable>
+                )}
+                {isExpanded && (
+                  <View style={{ marginTop: 8, gap: 10 }}>
+                    {isLoadingR
+                      ? <ActivityIndicator color={COLORS.accent} size="small" />
+                      : childReplies.map(r => renderComment(r, depth + 1))}
                   </View>
-              ) : (
-                  <>
-                    <View style={commentStyles.bubble}>
-                      <Text style={commentStyles.name}>{name}</Text>
-                      <Text style={commentStyles.text}>{comment.content}</Text>
-                    </View>
-                    <View style={commentStyles.meta}>
-                      <Text style={commentStyles.time}>{timeAgo(comment.createdAt)}</Text>
-                      <Pressable onPress={() => void onLikeComment(comment)} hitSlop={8}>
-                        <Text style={[commentStyles.likeBtn, comment.likedByCurrentUser && { color: COLORS.accent }]}>
-                          {comment.likedByCurrentUser ? '♥' : '♡'}
-                          {comment.likeCount > 0 ? ` ${comment.likeCount}` : ''}
-                        </Text>
-                      </Pressable>
-                      <Pressable onPress={() => { setReplyingTo(comment); setTimeout(() => inputRef.current?.focus(), 50); }} hitSlop={8}>
-                        <Text style={commentStyles.action}>Trả lời</Text>
-                      </Pressable>
-                      {isOwn && (
-                          <>
-                            <Pressable onPress={() => { setEditingId(comment.id); setEditText(comment.content); }} hitSlop={8}>
-                              <Text style={commentStyles.action}>Sửa</Text>
-                            </Pressable>
-                            <Pressable onPress={async () => { await onDeleteComment(comment.id); if (comment.parentId) await loadReplies(comment.parentId); }} hitSlop={8}>
-                              <Text style={[commentStyles.action, { color: COLORS.error }]}>Xoá</Text>
-                            </Pressable>
-                          </>
-                      )}
-                    </View>
-                    {comment.replyCount > 0 && (
-                        <Pressable
-                            style={{ paddingLeft: 4 }}
-                            onPress={() => isExpanded ? setExpandedR(p => ({ ...p, [comment.id]: false })) : void loadReplies(comment.id)}
-                        >
-                          <Text style={commentStyles.replyToggle}>
-                            {isExpanded ? 'Ẩn trả lời' : `Xem ${comment.replyCount} trả lời`}
-                          </Text>
-                        </Pressable>
-                    )}
-                    {isExpanded && (
-                        <View style={{ marginTop: 8, gap: 10 }}>
-                          {isLoadingR
-                              ? <ActivityIndicator color={COLORS.accent} size="small" />
-                              : childReplies.map(r => renderComment(r, depth + 1))}
-                        </View>
-                    )}
-                  </>
-              )}
-            </View>
+                )}
+              </>
+            )}
           </View>
         </View>
+      </View>
     );
   };
 
   if (!post) return null;
 
   return (
-      <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-        <Pressable style={commentStyles.overlay} onPress={onClose} />
-        <KeyboardAvoidingView style={commentStyles.kbWrapper} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[commentStyles.sheet, { paddingBottom: insets.bottom }]}>
-            <View style={commentStyles.handle} />
-            <View style={commentStyles.sheetHeader}>
-              <Text style={commentStyles.sheetTitle}>Bình luận</Text>
-              <Pressable onPress={onClose} hitSlop={10}>
-                <Text style={commentStyles.close}>✕</Text>
-              </Pressable>
-            </View>
-
-            <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {comments.length === 0 && (
-                  <Text style={commentStyles.empty}>Hãy là người đầu tiên bình luận!</Text>
-              )}
-              {comments.map(c => renderComment(c, 0))}
-              <View style={{ height: 16 }} />
-            </ScrollView>
-
-            {replyingTo && (
-                <View style={commentStyles.replyBar}>
-                  <Text style={commentStyles.replyBarText}>
-                    Đang trả lời {getDisplayName(replyingTo.userId)}
-                  </Text>
-                  <Pressable onPress={() => { setReplyingTo(null); setText(''); }} hitSlop={8}>
-                    <Text style={commentStyles.replyBarCancel}>Huỷ</Text>
-                  </Pressable>
-                </View>
-            )}
-
-            <View style={commentStyles.inputBar}>
-              <Avatar id={currentUserId ?? 'anon'} displayName={myDisplayName ?? 'Bạn'} size={32} />
-              <View style={commentStyles.inputWrap}>
-                <TextInput
-                    ref={inputRef}
-                    style={commentStyles.input}
-                    value={text}
-                    onChangeText={setText}
-                    placeholder={replyingTo ? `Trả lời ${getDisplayName(replyingTo.userId)}...` : 'Viết bình luận...'}
-                    placeholderTextColor={COLORS.glass30}
-                    multiline
-                    maxLength={500}
-                />
-              </View>
-              <Pressable
-                  style={[commentStyles.sendBtn, (!text.trim() || sending) && { opacity: 0.35 }]}
-                  onPress={handleSend}
-                  disabled={!text.trim() || sending}
-              >
-                <Ionicons name="send-sharp" color={COLORS.bg} size={22} />
-              </Pressable>
-            </View>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={commentStyles.overlay} onPress={onClose} />
+      <KeyboardAvoidingView style={commentStyles.kbWrapper} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={[commentStyles.sheet, { paddingBottom: insets.bottom }]}>
+          <View style={commentStyles.handle} />
+          <View style={commentStyles.sheetHeader}>
+            <Text style={commentStyles.sheetTitle}>Bình luận</Text>
+            <Pressable onPress={onClose} hitSlop={10}>
+              <Text style={commentStyles.close}>✕</Text>
+            </Pressable>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+
+          <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {comments.length === 0 && (
+              <Text style={commentStyles.empty}>Hãy là người đầu tiên bình luận!</Text>
+            )}
+            {comments.map(c => renderComment(c, 0))}
+            <View style={{ height: 16 }} />
+          </ScrollView>
+
+          {replyingTo && (
+            <View style={commentStyles.replyBar}>
+              <Text style={commentStyles.replyBarText}>
+                Đang trả lời {getDisplayName(replyingTo.userId)}
+              </Text>
+              <Pressable onPress={() => { setReplyingTo(null); setText(''); }} hitSlop={8}>
+                <Text style={commentStyles.replyBarCancel}>Huỷ</Text>
+              </Pressable>
+            </View>
+          )}
+
+          <View style={commentStyles.inputBar}>
+            <Avatar id={currentUserId ?? 'anon'} displayName={myDisplayName ?? 'Bạn'} size={32} />
+            <View style={commentStyles.inputWrap}>
+              <TextInput
+                ref={inputRef}
+                style={commentStyles.input}
+                value={text}
+                onChangeText={setText}
+                placeholder={replyingTo ? `Trả lời ${getDisplayName(replyingTo.userId)}...` : 'Viết bình luận...'}
+                placeholderTextColor={COLORS.glass30}
+                multiline
+                maxLength={500}
+              />
+            </View>
+            <Pressable
+              style={[commentStyles.sendBtn, (!text.trim() || sending) && { opacity: 0.35 }]}
+              onPress={handleSend}
+              disabled={!text.trim() || sending}
+            >
+              <Ionicons name="send-sharp" color={COLORS.bg} size={22} />
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 };
 
@@ -1111,10 +1111,10 @@ interface PostCardProps {
 }
 
 const PostCard: React.FC<PostCardProps> = ({
-                                             post, currentUserId, ownerInfo, contentInfo,
-                                             likeBusy = false,
-                                             onOpenContent, onLike, onComment, onShare, onDelete, onEdit, onViewProfile,
-                                           }) => {
+  post, currentUserId, ownerInfo, contentInfo,
+  likeBusy = false,
+  onOpenContent, onLike, onComment, onShare, onDelete, onEdit, onViewProfile,
+}) => {
   const themeColors = useThemeColors();
   const COLORS = themeColors;
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
@@ -1134,183 +1134,183 @@ const PostCard: React.FC<PostCardProps> = ({
       const a = await getArtistByUserId(post.ownerId);
       if (a?.id) onViewProfile(a.id);
       else Alert.alert('Không có hồ sơ nghệ sĩ', 'Người dùng này chưa đăng ký Nghệ sĩ.');
-    } catch {}
+    } catch { }
   };
 
   return (
-      <View style={styles.postCard}>
-        {/* Header */}
-        <View style={styles.postHeader}>
+    <View style={styles.postCard}>
+      {/* Header */}
+      <View style={styles.postHeader}>
+        <Pressable onPress={() => void handleNamePress()}>
+          <Avatar id={post.ownerId} displayName={ownerInfo.displayName} avatarUrl={ownerInfo.avatarUrl} size={42} />
+        </Pressable>
+        <View style={styles.postMeta}>
           <Pressable onPress={() => void handleNamePress()}>
-            <Avatar id={post.ownerId} displayName={ownerInfo.displayName} avatarUrl={ownerInfo.avatarUrl} size={42} />
+            <Text style={[styles.postOwner, ownerInfo.artistId && { color: COLORS.accent }]}>
+              {ownerInfo.displayName}{ownerInfo.artistId ? ' 🎤' : ''}
+            </Text>
           </Pressable>
-          <View style={styles.postMeta}>
-            <Pressable onPress={() => void handleNamePress()}>
-              <Text style={[styles.postOwner, ownerInfo.artistId && { color: COLORS.accent }]}>
-                {ownerInfo.displayName}{ownerInfo.artistId ? ' 🎤' : ''}
-              </Text>
-            </Pressable>
-            <View style={styles.postMetaRow}>
-              <Text style={styles.postTime}>{timeAgo(post.createdAt)} trước</Text>
-              <Text style={styles.dot}>·</Text>
-              <Text style={{ fontSize: 12 }}>
-                {post.contentType === 'SONG' ? '🎵' : post.contentType === 'ALBUM' ? '💿' : post.contentType === 'PLAYLIST' ? '📋' : '📝'}
-              </Text>
-              <Text style={styles.dot}>·</Text>
-              <View style={styles.visBadge}>
-                <Text style={{ fontSize: 11 }}>{visBadge.icon}</Text>
-                <Text style={styles.visText}>{visBadge.label}</Text>
-              </View>
+          <View style={styles.postMetaRow}>
+            <Text style={styles.postTime}>{timeAgo(post.createdAt)} trước</Text>
+            <Text style={styles.dot}>·</Text>
+            <Text style={{ fontSize: 12 }}>
+              {post.contentType === 'SONG' ? '🎵' : post.contentType === 'ALBUM' ? '💿' : post.contentType === 'PLAYLIST' ? '📋' : '📝'}
+            </Text>
+            <Text style={styles.dot}>·</Text>
+            <View style={styles.visBadge}>
+              <Text style={{ fontSize: 11 }}>{visBadge.icon}</Text>
+              <Text style={styles.visText}>{visBadge.label}</Text>
             </View>
           </View>
-          {isOwner && (
-              <Pressable onPress={() => setMenuOpen(v => !v)} hitSlop={10} style={styles.menuBtn}>
-                <Text style={styles.menuIcon}>•••</Text>
-              </Pressable>
-          )}
         </View>
-
-        {menuOpen && isOwner && (
-            <View style={styles.menu}>
-              <Pressable style={styles.menuItem} onPress={() => { setMenuOpen(false); onEdit(post); }}>
-                <FontAwesome name="edit" color={COLORS.accentAlt} size={16} />
-                <Text style={styles.menuItemText}>{tr('screens.discover.editPost', 'Chỉnh sửa')}</Text>
-              </Pressable>
-              <View style={styles.menuDivider} />
-              <Pressable style={styles.menuItem} onPress={() => { setMenuOpen(false); onDelete(post); }}>
-                <AntDesign name="delete" color={COLORS.error} size={16} />
-                <Text style={[styles.menuItemText, { color: COLORS.error }]}>{tr('screens.discover.deletePost', 'Xoá bài viết')}</Text>
-              </Pressable>
-            </View>
+        {isOwner && (
+          <Pressable onPress={() => setMenuOpen(v => !v)} hitSlop={10} style={styles.menuBtn}>
+            <Text style={styles.menuIcon}>•••</Text>
+          </Pressable>
         )}
-
-        {/* Content */}
-        <View style={styles.postContent}>
-          {post.title   && <Text style={styles.postTitle}>{post.title}</Text>}
-          {post.caption && <Text style={styles.postCaption}>{post.caption}</Text>}
-
-          {contentInfo && (
-              <Pressable
-                  style={styles.contentCard}
-                  onPress={() => {
-                    if (contentInfo.type === 'SONG') {
-                      const s = contentInfo.songs[0];
-                      if (s) playSong(s, contentInfo.songs);
-                    } else {
-                      onOpenContent(contentInfo);
-                    }
-                  }}
-              >
-                <View style={styles.contentHeader}>
-                  <Image
-                      source={{ uri: contentInfo.coverUrl || post.coverImageUrl || 'https://via.placeholder.com/80' }}
-                      style={styles.contentCover}
-                  />
-                  <View style={styles.contentMeta}>
-                    <Text style={styles.contentTitle} numberOfLines={1}>{contentInfo.title}</Text>
-                    {contentInfo.subtitle ? <Text style={styles.contentSub} numberOfLines={1}>{contentInfo.subtitle}</Text> : null}
-                    <Text style={styles.contentBadge}>
-                      {contentInfo.type === 'SONG' ? 'Bài hát' : contentInfo.type === 'ALBUM' ? 'Album' : 'Playlist'}
-                      {contentInfo.totalCount ? ` · ${contentInfo.totalCount} bài` : ''}
-                    </Text>
-                    {contentInfo.ownerName && (
-                        <Text style={styles.contentOwner} numberOfLines={1}>bởi {contentInfo.ownerName}</Text>
-                    )}
-                  </View>
-                </View>
-
-                {contentInfo.songs.length > 0 && (
-                    <View style={styles.contentTracks}>
-                      {(contentInfo.type === 'SONG' ? contentInfo.songs : contentInfo.songs.slice(0, 3)).map((s, i) => (
-                          <Pressable
-                              key={`${s.id}-${i}`}
-                              style={styles.trackRow}
-                              onPress={() => {
-                                if (contentInfo.type === 'ALBUM' || contentInfo.type === 'PLAYLIST') {
-                                  onOpenContent(contentInfo);
-                                  return;
-                                }
-                                playSong(s, contentInfo.songs);
-                              }}
-                          >
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.trackTitle} numberOfLines={1}>{s.title}</Text>
-                              <Text style={styles.trackArtist} numberOfLines={1}>{s.primaryArtist?.stageName}</Text>
-                            </View>
-                            {contentInfo.type === 'SONG' && <Text style={styles.trackPlay}>▶</Text>}
-                          </Pressable>
-                      ))}
-                      {(contentInfo.type === 'ALBUM' || contentInfo.type === 'PLAYLIST') && (contentInfo.totalCount ?? 0) > 3 && (
-                          <Pressable onPress={() => onOpenContent(contentInfo)}>
-                            <Text style={styles.trackMore}>+{(contentInfo.totalCount ?? 0) - 3} bài khác · Xem tất cả ›</Text>
-                          </Pressable>
-                      )}
-                    </View>
-                )}
-              </Pressable>
-          )}
-        </View>
-
-        {/* Stats */}
-        {(post.likeCount > 0 || post.commentCount > 0) && (
-            <View style={styles.postStats}>
-              {post.likeCount > 0 && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <View style={styles.likeDot}><Text style={{ fontSize: 10 }}>♥</Text></View>
-                    <Text style={styles.statText}>{post.likeCount}</Text>
-                  </View>
-              )}
-              {post.commentCount > 0 && (
-                  <Text style={styles.statText}>{post.commentCount} bình luận</Text>
-              )}
-            </View>
-        )}
-
-        <View style={styles.postDivider} />
-
-        {/* Actions */}
-        <View style={styles.postActions}>
-          <ActionBtn
-              icon={post.likedByCurrentUser ? '♥' : '♡'}
-              label={post.likeCount}
-              active={post.likedByCurrentUser}
-              onPress={() => !likeBusy && onLike(post)}
-              isLikeBtn={true}
-          />
-          <ActionBtn
-              icon={<FontAwesome name="commenting-o" color={'rgba(255,255,255,0.5)'} size={18} />}
-              label={post.commentCount}
-              onPress={() => onComment(post)}
-          />
-          <ActionBtn icon="↗" label={post.shareCount} onPress={() => onShare(post)} />
-        </View>
       </View>
+
+      {menuOpen && isOwner && (
+        <View style={styles.menu}>
+          <Pressable style={styles.menuItem} onPress={() => { setMenuOpen(false); onEdit(post); }}>
+            <FontAwesome name="edit" color={COLORS.accentAlt} size={16} />
+            <Text style={styles.menuItemText}>{tr('screens.discover.editPost', 'Chỉnh sửa')}</Text>
+          </Pressable>
+          <View style={styles.menuDivider} />
+          <Pressable style={styles.menuItem} onPress={() => { setMenuOpen(false); onDelete(post); }}>
+            <AntDesign name="delete" color={COLORS.error} size={16} />
+            <Text style={[styles.menuItemText, { color: COLORS.error }]}>{tr('screens.discover.deletePost', 'Xoá bài viết')}</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Content */}
+      <View style={styles.postContent}>
+        {post.title && <Text style={styles.postTitle}>{post.title}</Text>}
+        {post.caption && <Text style={styles.postCaption}>{post.caption}</Text>}
+
+        {contentInfo && (
+          <Pressable
+            style={styles.contentCard}
+            onPress={() => {
+              if (contentInfo.type === 'SONG') {
+                const s = contentInfo.songs[0];
+                if (s) playSong(s, contentInfo.songs);
+              } else {
+                onOpenContent(contentInfo);
+              }
+            }}
+          >
+            <View style={styles.contentHeader}>
+              <Image
+                source={{ uri: contentInfo.coverUrl || post.coverImageUrl || 'https://via.placeholder.com/80' }}
+                style={styles.contentCover}
+              />
+              <View style={styles.contentMeta}>
+                <Text style={styles.contentTitle} numberOfLines={1}>{contentInfo.title}</Text>
+                {contentInfo.subtitle ? <Text style={styles.contentSub} numberOfLines={1}>{contentInfo.subtitle}</Text> : null}
+                <Text style={styles.contentBadge}>
+                  {contentInfo.type === 'SONG' ? 'Bài hát' : contentInfo.type === 'ALBUM' ? 'Album' : 'Playlist'}
+                  {contentInfo.totalCount ? ` · ${contentInfo.totalCount} bài` : ''}
+                </Text>
+                {contentInfo.ownerName && (
+                  <Text style={styles.contentOwner} numberOfLines={1}>bởi {contentInfo.ownerName}</Text>
+                )}
+              </View>
+            </View>
+
+            {contentInfo.songs.length > 0 && (
+              <View style={styles.contentTracks}>
+                {(contentInfo.type === 'SONG' ? contentInfo.songs : contentInfo.songs.slice(0, 3)).map((s, i) => (
+                  <Pressable
+                    key={`${s.id}-${i}`}
+                    style={styles.trackRow}
+                    onPress={() => {
+                      if (contentInfo.type === 'ALBUM' || contentInfo.type === 'PLAYLIST') {
+                        onOpenContent(contentInfo);
+                        return;
+                      }
+                      playSong(s, contentInfo.songs);
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.trackTitle} numberOfLines={1}>{s.title}</Text>
+                      <Text style={styles.trackArtist} numberOfLines={1}>{s.primaryArtist?.stageName}</Text>
+                    </View>
+                    {contentInfo.type === 'SONG' && <Text style={styles.trackPlay}>▶</Text>}
+                  </Pressable>
+                ))}
+                {(contentInfo.type === 'ALBUM' || contentInfo.type === 'PLAYLIST') && (contentInfo.totalCount ?? 0) > 3 && (
+                  <Pressable onPress={() => onOpenContent(contentInfo)}>
+                    <Text style={styles.trackMore}>+{(contentInfo.totalCount ?? 0) - 3} bài khác · Xem tất cả ›</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
+          </Pressable>
+        )}
+      </View>
+
+      {/* Stats */}
+      {(post.likeCount > 0 || post.commentCount > 0) && (
+        <View style={styles.postStats}>
+          {post.likeCount > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <View style={styles.likeDot}><Text style={{ fontSize: 10 }}>♥</Text></View>
+              <Text style={styles.statText}>{post.likeCount}</Text>
+            </View>
+          )}
+          {post.commentCount > 0 && (
+            <Text style={styles.statText}>{post.commentCount} bình luận</Text>
+          )}
+        </View>
+      )}
+
+      <View style={styles.postDivider} />
+
+      {/* Actions */}
+      <View style={styles.postActions}>
+        <ActionBtn
+          icon={post.likedByCurrentUser ? '♥' : '♡'}
+          label={post.likeCount}
+          active={post.likedByCurrentUser}
+          onPress={() => !likeBusy && onLike(post)}
+          isLikeBtn={true}
+        />
+        <ActionBtn
+          icon={<FontAwesome name="commenting-o" color={'rgba(255,255,255,0.5)'} size={18} />}
+          label={post.commentCount}
+          onPress={() => onComment(post)}
+        />
+        <ActionBtn icon="↗" label={post.shareCount} onPress={() => onShare(post)} />
+      </View>
+    </View>
   );
 };
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export const DiscoverScreen = () => {
-  const insets     = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { t }      = useTranslation();
+  const { t } = useTranslation();
   const themeColors = useThemeColors();
-  const styles      = useMemo(() => createStyles(themeColors), [themeColors]);
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   tr = t;
 
   const { authSession } = useAuth();
-  const currentUserId   = authSession?.profile?.id ?? null;
-  const myDisplayName   = authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
-  const myAvatarUrl     = authSession?.profile?.avatarUrl;
+  const currentUserId = authSession?.profile?.id ?? null;
+  const myDisplayName = authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
+  const myAvatarUrl = authSession?.profile?.avatarUrl;
   const [canManageAlbums, setCanManageAlbums] = useState(false);
 
   type FeedTab = 'for_you' | 'following';
   const [feedTab, setFeedTab] = useState<FeedTab>('for_you');
 
-  const [loading, setLoading]     = useState(true);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [posting, setPosting]     = useState(false);
-  const [posts, setPosts]         = useState<FeedPost[]>([]);
+  const [posting, setPosting] = useState(false);
+  const [posts, setPosts] = useState<FeedPost[]>([]);
   const postsSignatureRef = useRef('');
   const [likePendingIds, setLikePendingIds] = useState<Record<string, boolean>>({});
   const likePendingRef = useRef<Set<string>>(new Set());
@@ -1321,14 +1321,14 @@ export const DiscoverScreen = () => {
   const ownerCacheRef = useRef<Record<string, OwnerInfo>>({});
 
   // Content cache
-  const [contentCache, setContentCache]   = useState<Record<string, PostContentInfo>>({});
+  const [contentCache, setContentCache] = useState<Record<string, PostContentInfo>>({});
   const contentLoadingRef = useRef<Set<string>>(new Set());
 
   // Modals
-  const [composeOpen, setComposeOpen]     = useState(false);
-  const [editingPost, setEditingPost]     = useState<FeedPost | null>(null);
-  const [commentPost, setCommentPost]     = useState<FeedPost | null>(null);
-  const [comments, setComments]           = useState<Comment[]>([]);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
+  const [commentPost, setCommentPost] = useState<FeedPost | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [openedContent, setOpenedContent] = useState<PostContentInfo | null>(null);
 
   // Seeding current user's owner info
@@ -1346,12 +1346,12 @@ export const DiscoverScreen = () => {
       return;
     }
     getArtistByUserId(currentUserId)
-        .then(artist => {
-          if (mounted) setCanManageAlbums(!!artist?.id);
-        })
-        .catch(() => {
-          if (mounted) setCanManageAlbums(false);
-        });
+      .then(artist => {
+        if (mounted) setCanManageAlbums(!!artist?.id);
+      })
+      .catch(() => {
+        if (mounted) setCanManageAlbums(false);
+      });
     return () => { mounted = false; };
   }, [currentUserId]);
 
@@ -1476,11 +1476,11 @@ export const DiscoverScreen = () => {
   }, [contentCache, currentUserId]);
 
   const getOwnerInfo = useCallback((post: FeedPost): OwnerInfo =>
-          ownerCache[post.ownerId] ?? {
-            displayName: post.ownerId === currentUserId ? myDisplayName ?? `User ${post.ownerId.slice(0, 6)}` : `User ${post.ownerId.slice(0, 6)}`,
-            artistId: null,
-          }
-      , [ownerCache, currentUserId, myDisplayName]);
+    ownerCache[post.ownerId] ?? {
+      displayName: post.ownerId === currentUserId ? myDisplayName ?? `User ${post.ownerId.slice(0, 6)}` : `User ${post.ownerId.slice(0, 6)}`,
+      artistId: null,
+    }
+    , [ownerCache, currentUserId, myDisplayName]);
 
   const getContentInfo = useCallback((post: FeedPost): PostContentInfo | null => {
     if (!post.contentId) return null;
@@ -1493,12 +1493,12 @@ export const DiscoverScreen = () => {
   // Load feed
   const loadFeed = useCallback(async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
     try {
-      if (mode === 'initial')  setLoading(true);
-      if (mode === 'refresh')  setRefreshing(true);
+      if (mode === 'initial') setLoading(true);
+      if (mode === 'refresh') setRefreshing(true);
       const data =
-          feedTab === 'following' && currentUserId
-              ? await getTimeline({ page: 0, size: 30 })
-              : await getPublicFeed({ page: 0, size: 30 });
+        feedTab === 'following' && currentUserId
+          ? await getTimeline({ page: 0, size: 30 })
+          : await getPublicFeed({ page: 0, size: 30 });
       const newPosts = data.content ?? [];
 
       // Nếu user chưa follow ai, không show "famous" trong tab Đang theo dõi (đúng kỳ vọng UX)
@@ -1516,20 +1516,20 @@ export const DiscoverScreen = () => {
         }
       })();
       const nextSignature = filteredPosts
-          .map(p =>
-              [
-                p.id,
-                p.visibility,
-                p.title ?? '',
-                p.caption ?? '',
-                p.likeCount ?? 0,
-                p.commentCount ?? 0,
-                p.shareCount ?? 0,
-                p.likedByCurrentUser ? '1' : '0',
-                p.createdAt ?? '',
-              ].join('|'),
-          )
-          .join('||');
+        .map(p =>
+          [
+            p.id,
+            p.visibility,
+            p.title ?? '',
+            p.caption ?? '',
+            p.likeCount ?? 0,
+            p.commentCount ?? 0,
+            p.shareCount ?? 0,
+            p.likedByCurrentUser ? '1' : '0',
+            p.createdAt ?? '',
+          ].join('|'),
+        )
+        .join('||');
 
       if (postsSignatureRef.current !== nextSignature) {
         postsSignatureRef.current = nextSignature;
@@ -1539,8 +1539,8 @@ export const DiscoverScreen = () => {
     } catch {
       if (mode !== 'silent') setPosts([]);
     } finally {
-      if (mode === 'initial')  setLoading(false);
-      if (mode === 'refresh')  setRefreshing(false);
+      if (mode === 'initial') setLoading(false);
+      if (mode === 'refresh') setRefreshing(false);
     }
   }, [fetchOwnerInfos, currentUserId, feedTab]);
 
@@ -1713,157 +1713,157 @@ export const DiscoverScreen = () => {
       const data = await getPostComments(commentPost.id, { page: 0, size: 50 });
       setComments(data.content ?? []);
       await loadFeed('silent');
-    } catch {}
+    } catch { }
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-      <View style={styles.root}>
-        <StatusBar style="light" />
+    <View style={styles.root}>
+      <StatusBar style="light" />
 
-        <ScrollView
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => loadFeed('refresh')} tintColor={COLORS.accent} />
-            }
-            contentContainerStyle={{ paddingBottom: 100 }}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => loadFeed('refresh')} tintColor={COLORS.accent} />
+        }
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
+        {/* Header */}
+        <LinearGradient
+          colors={[themeColors.gradNavy, themeColors.bg]}
+          style={[styles.header, { paddingTop: insets.top + 16 }]}
         >
-          {/* Header */}
-          <LinearGradient
-              colors={[themeColors.gradNavy, themeColors.bg]}
-              style={[styles.header, { paddingTop: insets.top + 16 }]}
-          >
-            <View style={styles.headerRow}>
-              <Text style={styles.headerTitle}>{t('screens.discover.title', 'Khám phá')}</Text>
-              <View style={styles.liveBadge}>
-                <Text style={styles.liveBadgeText}>LIVE</Text>
-              </View>
+          <View style={styles.headerRow}>
+            <Text style={styles.headerTitle}>{t('screens.discover.title', 'Khám phá')}</Text>
+            <View style={styles.liveBadge}>
+              <Text style={styles.liveBadgeText}>LIVE</Text>
             </View>
-            <Text style={styles.headerSub}>
-              {t('screens.discover.communityLabel', 'Cộng đồng âm nhạc')} · {posts.length} {t('screens.discover.posts', 'bài đăng')}
-            </Text>
+          </View>
+          <Text style={styles.headerSub}>
+            {t('screens.discover.communityLabel', 'Cộng đồng âm nhạc')} · {posts.length} {t('screens.discover.posts', 'bài đăng')}
+          </Text>
 
-            {/* Feed tabs */}
-            <View style={styles.tabBar}>
-              <Pressable
-                  style={[styles.tab, feedTab === 'for_you' && styles.tabActive]}
-                  onPress={() => { setFeedTab('for_you'); void loadFeed('initial'); }}
-              >
-                <Text style={[styles.tabText, feedTab === 'for_you' && styles.tabTextActive]}>
-                  Dành cho bạn
-                </Text>
-              </Pressable>
-              <Pressable
-                  style={[styles.tab, feedTab === 'following' && styles.tabActive]}
-                  onPress={() => { setFeedTab('following'); void loadFeed('initial'); }}
-                  disabled={!currentUserId}
-              >
-                <Text style={[styles.tabText, feedTab === 'following' && styles.tabTextActive, !currentUserId && { opacity: 0.6 }]}>
-                  Đang theo dõi
-                </Text>
-              </Pressable>
-            </View>
-            {feedTab === 'following' && !currentUserId ? (
-                <Text style={styles.tabHint}>Đăng nhập để xem bài từ người bạn theo dõi</Text>
-            ) : null}
-          </LinearGradient>
-
-          {/* Composer bar */}
-          <View style={styles.composerBar}>
-            <Avatar id={currentUserId ?? 'guest'} displayName={myDisplayName ?? 'guest'} avatarUrl={myAvatarUrl} size={40} />
-            <Pressable style={styles.composerInput} onPress={() => setComposeOpen(true)}>
-              <Text style={styles.composerPlaceholder}>
-                {t('screens.discover.composerPlaceholder', 'Bạn đang nghĩ gì về âm nhạc?')}
+          {/* Feed tabs */}
+          <View style={styles.tabBar}>
+            <Pressable
+              style={[styles.tab, feedTab === 'for_you' && styles.tabActive]}
+              onPress={() => { setFeedTab('for_you'); void loadFeed('initial'); }}
+            >
+              <Text style={[styles.tabText, feedTab === 'for_you' && styles.tabTextActive]}>
+                Dành cho bạn
               </Text>
             </Pressable>
-            <Pressable style={styles.composerIconBtn} onPress={() => setComposeOpen(true)}>
-              <Text style={{ fontSize: 18 }}>🎵</Text>
+            <Pressable
+              style={[styles.tab, feedTab === 'following' && styles.tabActive]}
+              onPress={() => { setFeedTab('following'); void loadFeed('initial'); }}
+              disabled={!currentUserId}
+            >
+              <Text style={[styles.tabText, feedTab === 'following' && styles.tabTextActive, !currentUserId && { opacity: 0.6 }]}>
+                Đang theo dõi
+              </Text>
             </Pressable>
           </View>
+          {feedTab === 'following' && !currentUserId ? (
+            <Text style={styles.tabHint}>Đăng nhập để xem bài từ người bạn theo dõi</Text>
+          ) : null}
+        </LinearGradient>
 
-          <View style={styles.feedDivider} />
+        {/* Composer bar */}
+        <View style={styles.composerBar}>
+          <Avatar id={currentUserId ?? 'guest'} displayName={myDisplayName ?? 'guest'} avatarUrl={myAvatarUrl} size={40} />
+          <Pressable style={styles.composerInput} onPress={() => setComposeOpen(true)}>
+            <Text style={styles.composerPlaceholder}>
+              {t('screens.discover.composerPlaceholder', 'Bạn đang nghĩ gì về âm nhạc?')}
+            </Text>
+          </Pressable>
+          <Pressable style={styles.composerIconBtn} onPress={() => setComposeOpen(true)}>
+            <Text style={{ fontSize: 18 }}>🎵</Text>
+          </Pressable>
+        </View>
 
-          {loading ? (
-              <View style={styles.loadingWrap}>
-                <SectionSkeleton rows={4} />
-                <ActivityIndicator color={COLORS.accent} style={{ marginTop: 16 }} />
-              </View>
-          ) : posts.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyEmoji}>🎵</Text>
-                <Text style={styles.emptyTitle}>{t('screens.discover.noPosts', 'Chưa có bài đăng')}</Text>
-                <Text style={styles.emptySub}>{t('screens.discover.beFirstToShare', 'Hãy là người đầu tiên!')}</Text>
-                <Pressable style={styles.emptyBtn} onPress={() => setComposeOpen(true)}>
-                  <Text style={styles.emptyBtnText}>{t('screens.discover.createPost', 'Tạo bài viết')}</Text>
-                </Pressable>
-              </View>
-          ) : (
-              posts.map(post => (
-                  <PostCard
-                      key={post.id}
-                      post={post}
-                      currentUserId={currentUserId}
-                      ownerInfo={getOwnerInfo(post)}
-                      contentInfo={getContentInfo(post)}
-                      likeBusy={!!likePendingIds[post.id]}
-                      onOpenContent={setOpenedContent}
-                      onLike={handleLike}
-                      onComment={openComments}
-                      onShare={handleShare}
-                      onDelete={handleDelete}
-                      onEdit={setEditingPost}
-                      onViewProfile={id => navigation.navigate('ArtistProfile', { artistId: id })}
-                  />
-              ))
-          )}
-        </ScrollView>
+        <View style={styles.feedDivider} />
 
-        {/* Modals */}
-        <ComposeModal
-            visible={composeOpen}
-            userId={currentUserId ?? 'guest'}
-            displayName={myDisplayName}
-            onClose={() => setComposeOpen(false)}
-            onPost={handleCreatePost}
-            posting={posting}
-        />
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <SectionSkeleton rows={4} />
+            <ActivityIndicator color={COLORS.accent} style={{ marginTop: 16 }} />
+          </View>
+        ) : posts.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyEmoji}>🎵</Text>
+            <Text style={styles.emptyTitle}>{t('screens.discover.noPosts', 'Chưa có bài đăng')}</Text>
+            <Text style={styles.emptySub}>{t('screens.discover.beFirstToShare', 'Hãy là người đầu tiên!')}</Text>
+            <Pressable style={styles.emptyBtn} onPress={() => setComposeOpen(true)}>
+              <Text style={styles.emptyBtnText}>{t('screens.discover.createPost', 'Tạo bài viết')}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          posts.map(post => (
+            <PostCard
+              key={post.id}
+              post={post}
+              currentUserId={currentUserId}
+              ownerInfo={getOwnerInfo(post)}
+              contentInfo={getContentInfo(post)}
+              likeBusy={!!likePendingIds[post.id]}
+              onOpenContent={setOpenedContent}
+              onLike={handleLike}
+              onComment={openComments}
+              onShare={handleShare}
+              onDelete={handleDelete}
+              onEdit={setEditingPost}
+              onViewProfile={id => navigation.navigate('ArtistProfile', { artistId: id })}
+            />
+          ))
+        )}
+      </ScrollView>
 
-        <EditPostModal
-            visible={!!editingPost}
-            post={editingPost}
-            onClose={() => setEditingPost(null)}
-            onSave={handleSaveEdit}
-        />
+      {/* Modals */}
+      <ComposeModal
+        visible={composeOpen}
+        userId={currentUserId ?? 'guest'}
+        displayName={myDisplayName}
+        onClose={() => setComposeOpen(false)}
+        onPost={handleCreatePost}
+        posting={posting}
+      />
 
-        <CommentSheet
-            visible={!!commentPost}
-            post={commentPost}
-            comments={comments}
-            currentUserId={currentUserId}
-            myDisplayName={myDisplayName}
-            onClose={() => setCommentPost(null)}
-            onSendComment={async (content, parentId) => {
-              if (!commentPost) return;
-              await createPostComment({ postId: commentPost.id, content, parentId });
-              await reloadComments();
-            }}
-            onLikeComment={async c => {
-              if (c.likedByCurrentUser) await unlikeComment(c.id);
-              else await likeComment(c.id);
-              await reloadComments();
-            }}
-            onDeleteComment={async id => { await deleteComment(id); await reloadComments(); }}
-            onEditComment={async (id, content) => { await updateComment(id, content); await reloadComments(); }}
-        />
+      <EditPostModal
+        visible={!!editingPost}
+        post={editingPost}
+        onClose={() => setEditingPost(null)}
+        onSave={handleSaveEdit}
+      />
 
-        <SharedContentDetailModal
-            visible={!!openedContent}
-            content={openedContent}
-            canManageAlbums={canManageAlbums}
-            onClose={() => setOpenedContent(null)}
-        />
-      </View>
+      <CommentSheet
+        visible={!!commentPost}
+        post={commentPost}
+        comments={comments}
+        currentUserId={currentUserId}
+        myDisplayName={myDisplayName}
+        onClose={() => setCommentPost(null)}
+        onSendComment={async (content, parentId) => {
+          if (!commentPost) return;
+          await createPostComment({ postId: commentPost.id, content, parentId });
+          await reloadComments();
+        }}
+        onLikeComment={async c => {
+          if (c.likedByCurrentUser) await unlikeComment(c.id);
+          else await likeComment(c.id);
+          await reloadComments();
+        }}
+        onDeleteComment={async id => { await deleteComment(id); await reloadComments(); }}
+        onEditComment={async (id, content) => { await updateComment(id, content); await reloadComments(); }}
+      />
+
+      <SharedContentDetailModal
+        visible={!!openedContent}
+        content={openedContent}
+        canManageAlbums={canManageAlbums}
+        onClose={() => setOpenedContent(null)}
+      />
+    </View>
   );
 };
 

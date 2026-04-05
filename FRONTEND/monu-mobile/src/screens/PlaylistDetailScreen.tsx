@@ -18,6 +18,8 @@ import { AntDesign } from '@expo/vector-icons';
 
 import { COLORS, useThemeColors } from '../config/colors';
 import { BackButton } from '../components/BackButton';
+import { RetryState } from '../components/RetryState';
+import { SectionSkeleton } from '../components/SkeletonLoader';
 import { usePlayer } from '../context/PlayerContext';
 import { useTranslation } from '../context/LocalizationContext';
 import {
@@ -263,6 +265,7 @@ export const PlaylistDetailScreen = () => {
 
   const [playlist, setPlaylist] = useState<Playlist | null>(null);
   const [loading, setLoading]   = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving]     = useState(false);
 
   // Drag state
@@ -277,8 +280,10 @@ export const PlaylistDetailScreen = () => {
     if (!slug) return;
     try {
       setLoading(true);
+      setLoadError(null);
       setPlaylist(await getPlaylistBySlug(slug));
     } catch (err: any) {
+      setLoadError(err?.message || t('errors.loadingFailed'));
       Alert.alert(t('common.error'), err?.message || t('errors.loadingFailed'));
     } finally {
       setLoading(false);
@@ -414,8 +419,17 @@ export const PlaylistDetailScreen = () => {
           <View style={screenStyles.body}>
             {loading ? (
                 <View style={screenStyles.center}>
-                  <ActivityIndicator color={themeColors.accent} />
+                  <SectionSkeleton rows={4} />
                 </View>
+            ) : loadError && !playlist ? (
+              <RetryState
+                title="Không tải được playlist"
+                description={loadError}
+                onRetry={loadPlaylist}
+                fallbackLabel="Quay lại"
+                onFallback={() => navigation.goBack()}
+                icon="🎵"
+              />
             ) : !(playlist?.songs?.length) ? (
                 <View style={screenStyles.emptyCard}>
                   <Text style={screenStyles.emptyText}>

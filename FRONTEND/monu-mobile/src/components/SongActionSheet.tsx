@@ -67,6 +67,14 @@ export const SongActionSheet = ({
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const isClosing = useRef(false);
 
+  const renderActionIcon = useCallback((icon: string | React.ReactNode) => {
+    if (typeof icon === 'string') {
+      return <Text style={styles.iconText}>{icon}</Text>;
+    }
+
+    return <View style={styles.iconNodeWrap}>{icon}</View>;
+  }, [styles.iconNodeWrap]);
+
   // ── Animations ───────────────────────────────────────────────────────────
 
   const animateIn = useCallback(() => {
@@ -221,11 +229,7 @@ export const SongActionSheet = ({
                           action.disabled && styles.iconWrapDisabled,
                         ]}
                     >
-                      {typeof action.icon === "string" ? (
-                          <Text style={styles.iconText}>{action.icon}</Text>
-                      ) : (
-                          action.icon
-                      )}
+                      {renderActionIcon(action.icon)}
                     </View>
 
                     {/* Labels */}
@@ -321,7 +325,8 @@ const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.crea
   iconWrap: { width: 42, height: 42, borderRadius: 13, backgroundColor: colors.surfaceMid, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   iconWrapDestructive: { backgroundColor: `${colors.error}20` },
   iconWrapDisabled: { backgroundColor: colors.surfaceLow },
-  iconText: { fontSize: 20 },
+  iconNodeWrap: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
+  iconText: { fontSize: 20, lineHeight: 22, textAlign: 'center' },
   labelWrap: { flex: 1 },
   actionLabel: { color: colors.text, fontSize: 15, fontWeight: '500' },
   actionLabelDestructive: { color: colors.error },

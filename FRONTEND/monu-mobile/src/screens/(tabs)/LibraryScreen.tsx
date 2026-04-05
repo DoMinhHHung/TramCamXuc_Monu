@@ -20,9 +20,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {Fontisto, AntDesign, FontAwesome} from '@expo/vector-icons';
+import { Fontisto, AntDesign, FontAwesome } from '@expo/vector-icons';
 
 import { COLORS, useThemeColors } from '../../config/colors';
+import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
@@ -89,42 +90,42 @@ const getSongStatusLabel = (song: Song): { label: string; color: string; pulse: 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 const TabBar = ({
-                  active,
-                  onChange,
-                  counts,
-                }: {
+  active,
+  onChange,
+  counts,
+}: {
   active: Tab;
   onChange: (t: Tab) => void;
   counts: Record<Tab, number>;
 }) => {
-  const tabs: { key: Tab; label: string; icon: string| React.ReactNode }[] = [
+  const tabs: { key: Tab; label: string; icon: string | React.ReactNode }[] = [
     { key: 'playlists', label: tr('screens.library.tabPlaylists', 'Playlists'), icon: <Fontisto name="play-list" color={rc.accent} size={14} /> },
-    { key: 'songs',     label: tr('screens.library.tabSongs', 'Songs'),  icon: '🎵' },
-    { key: 'albums',    label: tr('screens.library.tabAlbums', 'Albums'),    icon: '💿' },
+    { key: 'songs', label: tr('screens.library.tabSongs', 'Songs'), icon: '🎵' },
+    { key: 'albums', label: tr('screens.library.tabAlbums', 'Albums'), icon: '💿' },
   ];
 
   return (
-      <View style={tabStyles.bar}>
-        {tabs.map(t => (
-            <Pressable
-                key={t.key}
-                style={[tabStyles.tab, active === t.key && tabStyles.tabActive]}
-                onPress={() => onChange(t.key)}
-            >
-              <AnimatedDecorIcon active={active === t.key} intensity="medium">
-                <Text style={tabStyles.icon}>{t.icon}</Text>
-              </AnimatedDecorIcon>
-              <Text style={[tabStyles.label, active === t.key && tabStyles.labelActive]}>
-                {t.label}
-              </Text>
-              {counts[t.key] > 0 && (
-                  <View style={tabStyles.badge}>
-                    <Text style={tabStyles.badgeText}>{counts[t.key]}</Text>
-                  </View>
-              )}
-            </Pressable>
-        ))}
-      </View>
+    <View style={tabStyles.bar}>
+      {tabs.map(t => (
+        <Pressable
+          key={t.key}
+          style={[tabStyles.tab, active === t.key && tabStyles.tabActive]}
+          onPress={() => onChange(t.key)}
+        >
+          <AnimatedDecorIcon active={active === t.key} intensity="medium">
+            <Text style={tabStyles.icon}>{t.icon}</Text>
+          </AnimatedDecorIcon>
+          <Text style={[tabStyles.label, active === t.key && tabStyles.labelActive]}>
+            {t.label}
+          </Text>
+          {counts[t.key] > 0 && (
+            <View style={tabStyles.badge}>
+              <Text style={tabStyles.badgeText}>{counts[t.key]}</Text>
+            </View>
+          )}
+        </Pressable>
+      ))}
+    </View>
   );
 };
 
@@ -174,30 +175,30 @@ const PulsingDot = ({ color }: { color: string }) => {
   const anim = useRef(new Animated.Value(1)).current;
   React.useEffect(() => {
     const loop = Animated.loop(
-        Animated.sequence([
-          Animated.timing(anim, { toValue: 0.3, duration: 700, useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 1,   duration: 700, useNativeDriver: true }),
-        ])
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 0.3, duration: 700, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
     );
     loop.start();
     return () => loop.stop();
   }, []);
   return (
-      <Animated.View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color, opacity: anim }} />
+    <Animated.View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color, opacity: anim }} />
   );
 };
 
 // ─── Song row ─────────────────────────────────────────────────────────────────
 
 const SongRow = ({
-                   song,
-                   isActive,
-                   isPlaying,
-                   onPlay,
-                   onAddToPlaylist,
-                   onShare,
-                   onEdit,
-                 }: {
+  song,
+  isActive,
+  isPlaying,
+  onPlay,
+  onAddToPlaylist,
+  onShare,
+  onEdit,
+}: {
   song: Song;
   isActive: boolean;
   isPlaying: boolean;
@@ -210,63 +211,63 @@ const SongRow = ({
   const isReady = (song.transcodeStatus as string) === 'COMPLETED';
 
   return (
-      <View style={[songRowStyles.row, isActive && songRowStyles.rowActive]}>
-        {/* Thumbnail */}
-        <Pressable onPress={isReady ? onPlay : undefined} style={songRowStyles.thumbWrap}>
-          {song.thumbnailUrl ? (
-              <Image source={{ uri: song.thumbnailUrl }} style={songRowStyles.thumb} />
-          ) : (
-              <View style={[songRowStyles.thumb, songRowStyles.thumbPlaceholder]}>
-                <Text style={{ fontSize: 20 }}>🎵</Text>
-              </View>
-          )}
-          {isActive && isReady && (
-              <View style={songRowStyles.playingOverlay}>
-                <Text style={{ fontSize: 14, color: COLORS.white }}>{isPlaying ? '⏸' : '▶'}</Text>
-              </View>
-          )}
-        </Pressable>
-
-        {/* Info */}
-        <View style={songRowStyles.info}>
-          <Text style={[songRowStyles.title, isActive && { color: COLORS.accent }]} numberOfLines={1}>
-            {song.title}
-          </Text>
-          <View style={songRowStyles.statusRow}>
-            {pulse && <PulsingDot color={color} />}
-            {label ? (
-                <Text style={[songRowStyles.status, { color }]} numberOfLines={1}>
-                  {label}
-                </Text>
-            ) : (
-                <Text style={songRowStyles.artist} numberOfLines={1}>
-                  {song.primaryArtist?.stageName}
-                </Text>
-            )}
+    <View style={[songRowStyles.row, isActive && songRowStyles.rowActive]}>
+      {/* Thumbnail */}
+      <Pressable onPress={isReady ? onPlay : undefined} style={songRowStyles.thumbWrap}>
+        {song.thumbnailUrl ? (
+          <Image source={{ uri: song.thumbnailUrl }} style={songRowStyles.thumb} />
+        ) : (
+          <View style={[songRowStyles.thumb, songRowStyles.thumbPlaceholder]}>
+            <Text style={{ fontSize: 20 }}>🎵</Text>
           </View>
-        </View>
+        )}
+        {isActive && isReady && (
+          <View style={songRowStyles.playingOverlay}>
+            <Text style={{ fontSize: 14, color: COLORS.white }}>{isPlaying ? '⏸' : '▶'}</Text>
+          </View>
+        )}
+      </Pressable>
 
-        {/* Actions */}
-        <View style={songRowStyles.actions}>
-          {onEdit && (
-              <Pressable onPress={onEdit} hitSlop={8} style={songRowStyles.actionBtn}>
-                <Text style={songRowStyles.actionIcon}>
-                  <FontAwesome name="edit" color={COLORS.glass60} size={14} />
-                </Text>
-              </Pressable>
-          )}
-          {isReady && (
-              <>
-                <Pressable onPress={onShare} hitSlop={8} style={songRowStyles.actionBtn}>
-                  <Text style={songRowStyles.actionIcon}>↗</Text>
-                </Pressable>
-                <Pressable onPress={onAddToPlaylist} hitSlop={8} style={songRowStyles.actionBtn}>
-                  <Text style={songRowStyles.actionIcon}>+</Text>
-                </Pressable>
-              </>
+      {/* Info */}
+      <View style={songRowStyles.info}>
+        <Text style={[songRowStyles.title, isActive && { color: COLORS.accent }]} numberOfLines={1}>
+          {song.title}
+        </Text>
+        <View style={songRowStyles.statusRow}>
+          {pulse && <PulsingDot color={color} />}
+          {label ? (
+            <Text style={[songRowStyles.status, { color }]} numberOfLines={1}>
+              {label}
+            </Text>
+          ) : (
+            <Text style={songRowStyles.artist} numberOfLines={1}>
+              {song.primaryArtist?.stageName}
+            </Text>
           )}
         </View>
       </View>
+
+      {/* Actions */}
+      <View style={songRowStyles.actions}>
+        {onEdit && (
+          <Pressable onPress={onEdit} hitSlop={8} style={songRowStyles.actionBtn}>
+            <Text style={songRowStyles.actionIcon}>
+              <FontAwesome name="edit" color={COLORS.glass60} size={14} />
+            </Text>
+          </Pressable>
+        )}
+        {isReady && (
+          <>
+            <Pressable onPress={onShare} hitSlop={8} style={songRowStyles.actionBtn}>
+              <Text style={songRowStyles.actionIcon}>↗</Text>
+            </Pressable>
+            <Pressable onPress={onAddToPlaylist} hitSlop={8} style={songRowStyles.actionBtn}>
+              <Text style={songRowStyles.actionIcon}>+</Text>
+            </Pressable>
+          </>
+        )}
+      </View>
+    </View>
   );
 };
 
@@ -315,13 +316,13 @@ const songRowStyles = StyleSheet.create({
 // ─── Album card ───────────────────────────────────────────────────────────────
 
 const AlbumCard = ({
-                     album,
-                     onPress,
-                     onPublish,
-                     onUnpublish,
-                     onDelete,
-                     onShare,
-                   }: {
+  album,
+  onPress,
+  onPublish,
+  onUnpublish,
+  onDelete,
+  onShare,
+}: {
   album: Album;
   onPress: () => void;
   onPublish: () => void;
@@ -331,69 +332,69 @@ const AlbumCard = ({
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const statusColor =
-      album.status === 'PUBLIC'   ? COLORS.success :
-          album.status === 'PRIVATE'  ? COLORS.warningMid :
-              COLORS.glass40;
+    album.status === 'PUBLIC' ? COLORS.success :
+      album.status === 'PRIVATE' ? COLORS.warningMid :
+        COLORS.glass40;
   const statusLabel =
-      album.status === 'PUBLIC'   ? tr('screens.library.public', 'Public') :
-        album.status === 'PRIVATE'  ? tr('screens.library.private', 'Private') :
-          tr('screens.library.draft', 'Draft');
+    album.status === 'PUBLIC' ? tr('screens.library.public', 'Public') :
+      album.status === 'PRIVATE' ? tr('screens.library.private', 'Private') :
+        tr('screens.library.draft', 'Draft');
 
   return (
-      <View style={albumCardStyles.card}>
-        <Pressable style={albumCardStyles.main} onPress={onPress}>
-          <View style={albumCardStyles.cover}>
-            {album.coverUrl ? (
-                <Image source={{ uri: album.coverUrl }} style={albumCardStyles.coverImg} />
-            ) : (
-                <LinearGradient
-                    colors={[COLORS.gradPurple, COLORS.gradIndigo]}
-                    style={albumCardStyles.coverImg}
-                >
-                  <Text style={{ fontSize: 28 }}>💿</Text>
-                </LinearGradient>
-            )}
+    <View style={albumCardStyles.card}>
+      <Pressable style={albumCardStyles.main} onPress={onPress}>
+        <View style={albumCardStyles.cover}>
+          {album.coverUrl ? (
+            <Image source={{ uri: album.coverUrl }} style={albumCardStyles.coverImg} />
+          ) : (
+            <LinearGradient
+              colors={[COLORS.gradPurple, COLORS.gradIndigo]}
+              style={albumCardStyles.coverImg}
+            >
+              <Text style={{ fontSize: 28 }}>💿</Text>
+            </LinearGradient>
+          )}
+        </View>
+        <View style={albumCardStyles.info}>
+          <Text style={albumCardStyles.title} numberOfLines={1}>{album.title}</Text>
+          <View style={albumCardStyles.metaRow}>
+            <View style={[albumCardStyles.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[albumCardStyles.status, { color: statusColor }]}>{statusLabel}</Text>
+            <Text style={albumCardStyles.dot}>·</Text>
+            <Text style={albumCardStyles.count}>{album.totalSongs ?? album.songs?.length ?? 0} {tr('screens.library.songsSuffix', 'songs')}</Text>
           </View>
-          <View style={albumCardStyles.info}>
-            <Text style={albumCardStyles.title} numberOfLines={1}>{album.title}</Text>
-            <View style={albumCardStyles.metaRow}>
-              <View style={[albumCardStyles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[albumCardStyles.status, { color: statusColor }]}>{statusLabel}</Text>
-              <Text style={albumCardStyles.dot}>·</Text>
-              <Text style={albumCardStyles.count}>{album.totalSongs ?? album.songs?.length ?? 0} {tr('screens.library.songsSuffix', 'songs')}</Text>
-            </View>
-          </View>
-        </Pressable>
+        </View>
+      </Pressable>
 
-        <Pressable onPress={() => setMenuOpen(v => !v)} hitSlop={10} style={albumCardStyles.menuBtn}>
-          <Text style={albumCardStyles.menuIcon}>•••</Text>
-        </Pressable>
+      <Pressable onPress={() => setMenuOpen(v => !v)} hitSlop={10} style={albumCardStyles.menuBtn}>
+        <Text style={albumCardStyles.menuIcon}>•••</Text>
+      </Pressable>
 
-        {menuOpen && (
-            <View style={albumCardStyles.menu}>
-              <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPress(); }}>
-                <Text style={albumCardStyles.menuItemText}>👁  {tr('screens.library.viewDetails', 'View details')}</Text>
-              </Pressable>
-              {album.status !== 'PUBLIC' && (
-                  <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPublish(); }}>
-                    <Text style={albumCardStyles.menuItemText}>🚀  {tr('screens.library.publish', 'Publish')}</Text>
-                  </Pressable>
-              )}
-              {album.status === 'PUBLIC' && (
-                  <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onUnpublish(); }}>
-                    <Text style={albumCardStyles.menuItemText}>🔒  {tr('screens.library.setPrivate', 'Set private')}</Text>
-                  </Pressable>
-              )}
-              <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onShare(); }}>
-                <Text style={albumCardStyles.menuItemText}>↗  {tr('common.share', 'Share')}</Text>
-              </Pressable>
-              <View style={albumCardStyles.menuDivider} />
-              <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onDelete(); }}>
-                <Text style={[albumCardStyles.menuItemText, { color: COLORS.error }]}><AntDesign name="delete" color={COLORS.error} size={15} />  {tr('screens.library.deleteAlbum', 'Delete album')}</Text>
-              </Pressable>
-            </View>
-        )}
-      </View>
+      {menuOpen && (
+        <View style={albumCardStyles.menu}>
+          <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPress(); }}>
+            <Text style={albumCardStyles.menuItemText}>👁  {tr('screens.library.viewDetails', 'View details')}</Text>
+          </Pressable>
+          {album.status !== 'PUBLIC' && (
+            <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPublish(); }}>
+              <Text style={albumCardStyles.menuItemText}>🚀  {tr('screens.library.publish', 'Publish')}</Text>
+            </Pressable>
+          )}
+          {album.status === 'PUBLIC' && (
+            <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onUnpublish(); }}>
+              <Text style={albumCardStyles.menuItemText}>🔒  {tr('screens.library.setPrivate', 'Set private')}</Text>
+            </Pressable>
+          )}
+          <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onShare(); }}>
+            <Text style={albumCardStyles.menuItemText}>↗  {tr('common.share', 'Share')}</Text>
+          </Pressable>
+          <View style={albumCardStyles.menuDivider} />
+          <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onDelete(); }}>
+            <Text style={[albumCardStyles.menuItemText, { color: COLORS.error }]}><AntDesign name="delete" color={COLORS.error} size={15} />  {tr('screens.library.deleteAlbum', 'Delete album')}</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
   );
 };
 
@@ -436,15 +437,15 @@ const albumCardStyles = StyleSheet.create({
 // ─── Create Album Modal ───────────────────────────────────────────────────────
 
 const CreateAlbumModal = ({
-                            visible,
-                            onClose,
-                            onCreate,
-                          }: {
+  visible,
+  onClose,
+  onCreate,
+}: {
   visible: boolean;
   onClose: () => void;
   onCreate: (title: string) => Promise<void>;
 }) => {
-  const [title, setTitle]   = useState('');
+  const [title, setTitle] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleCreate = async () => {
@@ -455,36 +456,36 @@ const CreateAlbumModal = ({
   };
 
   return (
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-        <View style={modalStyles.overlay}>
-          <View style={modalStyles.card}>
-            <Text style={modalStyles.title}>{tr('screens.library.createNewAlbum', 'Create new album')}</Text>
-            <TextInput
-                style={modalStyles.input}
-                value={title}
-                onChangeText={setTitle}
-                placeholder={tr('screens.library.albumNamePlaceholder', 'Album name...')}
-                placeholderTextColor={COLORS.glass30}
-                autoFocus
-            />
-            <View style={modalStyles.actions}>
-              <Pressable style={modalStyles.cancelBtn} onPress={onClose}>
-                <Text style={modalStyles.cancelText}>{tr('common.cancel', 'Cancel')}</Text>
-              </Pressable>
-              <Pressable
-                  style={[modalStyles.createBtn, !title.trim() && { opacity: 0.4 }]}
-                  onPress={handleCreate}
-                  disabled={!title.trim() || loading}
-              >
-                {loading
-                    ? <ActivityIndicator size="small" color={COLORS.white} />
-                    : <Text style={modalStyles.createText}>{tr('common.create', 'Create')}</Text>
-                }
-              </Pressable>
-            </View>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={modalStyles.overlay}>
+        <View style={modalStyles.card}>
+          <Text style={modalStyles.title}>{tr('screens.library.createNewAlbum', 'Create new album')}</Text>
+          <TextInput
+            style={modalStyles.input}
+            value={title}
+            onChangeText={setTitle}
+            placeholder={tr('screens.library.albumNamePlaceholder', 'Album name...')}
+            placeholderTextColor={COLORS.glass30}
+            autoFocus
+          />
+          <View style={modalStyles.actions}>
+            <Pressable style={modalStyles.cancelBtn} onPress={onClose}>
+              <Text style={modalStyles.cancelText}>{tr('common.cancel', 'Cancel')}</Text>
+            </Pressable>
+            <Pressable
+              style={[modalStyles.createBtn, !title.trim() && { opacity: 0.4 }]}
+              onPress={handleCreate}
+              disabled={!title.trim() || loading}
+            >
+              {loading
+                ? <ActivityIndicator size="small" color={COLORS.white} />
+                : <Text style={modalStyles.createText}>{tr('common.create', 'Create')}</Text>
+              }
+            </Pressable>
           </View>
         </View>
-      </Modal>
+      </View>
+    </Modal>
   );
 };
 
@@ -542,13 +543,13 @@ const modalStyles = StyleSheet.create({
 // ─── Add Song to Playlist Modal ───────────────────────────────────────────────
 
 const AddToPlaylistModal = ({
-                              visible,
-                              song,
-                              playlists,
-                              onClose,
-                              onAdd,
-                              onCreateAndAdd,
-                            }: {
+  visible,
+  song,
+  playlists,
+  onClose,
+  onAdd,
+  onCreateAndAdd,
+}: {
   visible: boolean;
   song: Song | null;
   playlists: Playlist[];
@@ -571,42 +572,42 @@ const AddToPlaylistModal = ({
   };
 
   return (
-      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-        <Pressable style={sheetStyles.overlay} onPress={onClose} />
-        <View style={sheetStyles.sheet}>
-          <View style={sheetStyles.handle} />
-          <Text style={sheetStyles.title}>{tr('actions.addToPlaylist', 'Add to playlist')}</Text>
-          <Text style={sheetStyles.subtitle} numberOfLines={1}>{song?.title}</Text>
-          <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
-            {playlists.map(p => (
-                <Pressable key={p.id} style={sheetStyles.item} onPress={() => onAdd(p.id)}>
-                  <Text style={sheetStyles.itemIcon}><Fontisto name="play-list" color={rc.accent} size={14} /></Text>
-                  <Text style={sheetStyles.itemText}>{p.name}</Text>
-                  <Text style={sheetStyles.itemCount}>{p.totalSongs ?? 0} {tr('screens.library.songsSuffix', 'songs')}</Text>
-                </Pressable>
-            ))}
-          </ScrollView>
-          <View style={sheetStyles.newRow}>
-            <TextInput
-                style={sheetStyles.newInput}
-                value={newName}
-                onChangeText={setNewName}
-                placeholder={tr('screens.library.createPlaylistPlaceholder', 'Create new playlist...')}
-                placeholderTextColor={COLORS.glass30}
-            />
-            <Pressable
-                style={[sheetStyles.newBtn, !newName.trim() && { opacity: 0.4 }]}
-                disabled={!newName.trim() || creating}
-                onPress={() => { void handleCreateAndAdd(); }}
-            >
-              {creating
-                ? <ActivityIndicator size="small" color={COLORS.white} />
-                : <Text style={sheetStyles.newBtnText}>+</Text>
-              }
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={sheetStyles.overlay} onPress={onClose} />
+      <View style={sheetStyles.sheet}>
+        <View style={sheetStyles.handle} />
+        <Text style={sheetStyles.title}>{tr('actions.addToPlaylist', 'Add to playlist')}</Text>
+        <Text style={sheetStyles.subtitle} numberOfLines={1}>{song?.title}</Text>
+        <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
+          {playlists.map(p => (
+            <Pressable key={p.id} style={sheetStyles.item} onPress={() => onAdd(p.id)}>
+              <Text style={sheetStyles.itemIcon}><Fontisto name="play-list" color={rc.accent} size={14} /></Text>
+              <Text style={sheetStyles.itemText}>{p.name}</Text>
+              <Text style={sheetStyles.itemCount}>{p.totalSongs ?? 0} {tr('screens.library.songsSuffix', 'songs')}</Text>
             </Pressable>
-          </View>
+          ))}
+        </ScrollView>
+        <View style={sheetStyles.newRow}>
+          <TextInput
+            style={sheetStyles.newInput}
+            value={newName}
+            onChangeText={setNewName}
+            placeholder={tr('screens.library.createPlaylistPlaceholder', 'Create new playlist...')}
+            placeholderTextColor={COLORS.glass30}
+          />
+          <Pressable
+            style={[sheetStyles.newBtn, !newName.trim() && { opacity: 0.4 }]}
+            disabled={!newName.trim() || creating}
+            onPress={() => { void handleCreateAndAdd(); }}
+          >
+            {creating
+              ? <ActivityIndicator size="small" color={COLORS.white} />
+              : <Text style={sheetStyles.newBtnText}>+</Text>
+            }
+          </Pressable>
         </View>
-      </Modal>
+      </View>
+    </Modal>
   );
 };
 
@@ -659,31 +660,31 @@ const sheetStyles = StyleSheet.create({
 // ─── QR Modal ─────────────────────────────────────────────────────────────────
 
 const QrModal = ({
-                   visible,
-                   link,
-                   image,
-                   onClose,
-                 }: {
+  visible,
+  link,
+  image,
+  onClose,
+}: {
   visible: boolean;
   link: string;
   image?: string;
   onClose: () => void;
 }) => (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={qrStyles.overlay} onPress={onClose}>
-        <View style={qrStyles.card}>
-          <Text style={qrStyles.title}>{tr('actions.shareQR', 'Share via QR')}</Text>
-          {image
-              ? <Image source={{ uri: image }} style={qrStyles.image} />
-              : <View style={qrStyles.placeholder}><Text style={qrStyles.placeholderText}>QR</Text></View>
-          }
-          <Text style={qrStyles.link} numberOfLines={2}>{link}</Text>
-          <Pressable style={qrStyles.closeBtn} onPress={onClose}>
-            <Text style={qrStyles.closeBtnText}>{tr('controls.close', 'Close')}</Text>
-          </Pressable>
-        </View>
-      </Pressable>
-    </Modal>
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Pressable style={qrStyles.overlay} onPress={onClose}>
+      <View style={qrStyles.card}>
+        <Text style={qrStyles.title}>{tr('actions.shareQR', 'Share via QR')}</Text>
+        {image
+          ? <Image source={{ uri: image }} style={qrStyles.image} />
+          : <View style={qrStyles.placeholder}><Text style={qrStyles.placeholderText}>QR</Text></View>
+        }
+        <Text style={qrStyles.link} numberOfLines={2}>{link}</Text>
+        <Pressable style={qrStyles.closeBtn} onPress={onClose}>
+          <Text style={qrStyles.closeBtnText}>{tr('controls.close', 'Close')}</Text>
+        </Pressable>
+      </View>
+    </Pressable>
+  </Modal>
 );
 
 const qrStyles = StyleSheet.create({
@@ -735,38 +736,38 @@ interface ShareOptionsSheetProps {
 }
 
 const ShareOptionsSheet = ({ visible, item, onClose, onExternal, onDiscovery }: ShareOptionsSheetProps) => (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={sheetStyles.overlay} onPress={onClose} />
-      <View style={sheetStyles.sheet}>
-        <View style={sheetStyles.handle} />
-        <Text style={sheetStyles.title}>{tr('common.share', 'Share')}</Text>
-        <Text style={sheetStyles.subtitle} numberOfLines={1}>{item?.title}</Text>
+  <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Pressable style={sheetStyles.overlay} onPress={onClose} />
+    <View style={sheetStyles.sheet}>
+      <View style={sheetStyles.handle} />
+      <Text style={sheetStyles.title}>{tr('common.share', 'Share')}</Text>
+      <Text style={sheetStyles.subtitle} numberOfLines={1}>{item?.title}</Text>
 
-        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onDiscovery(); }}>
-          <View style={[shareOptionStyles.iconWrap, { backgroundColor: rc.gradIndigo }]}>
-            <Text style={{ fontSize: 20 }}>🌟</Text>
-          </View>
-          <View style={shareOptionStyles.info}>
-            <Text style={shareOptionStyles.label}>{tr('screens.library.shareToDiscovery', 'Share to Discovery')}</Text>
-            <Text style={shareOptionStyles.desc}>{tr('screens.library.shareToDiscoveryDesc', 'Post to the community feed')}</Text>
-          </View>
-        </Pressable>
+      <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onDiscovery(); }}>
+        <View style={[shareOptionStyles.iconWrap, { backgroundColor: rc.gradIndigo }]}>
+          <Text style={{ fontSize: 20 }}>🌟</Text>
+        </View>
+        <View style={shareOptionStyles.info}>
+          <Text style={shareOptionStyles.label}>{tr('screens.library.shareToDiscovery', 'Share to Discovery')}</Text>
+          <Text style={shareOptionStyles.desc}>{tr('screens.library.shareToDiscoveryDesc', 'Post to the community feed')}</Text>
+        </View>
+      </Pressable>
 
-        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onExternal(); }}>
-          <View style={[shareOptionStyles.iconWrap, { backgroundColor: rc.accentAlt }]}>
-            <Text style={{ fontSize: 20 }}>↗</Text>
-          </View>
-          <View style={shareOptionStyles.info}>
-            <Text style={shareOptionStyles.label}>{tr('screens.library.shareOutsideApp', 'Share outside app')}</Text>
-            <Text style={shareOptionStyles.desc}>{tr('screens.library.shareOutsideAppDesc', 'Send link via message or social networks...')}</Text>
-          </View>
-        </Pressable>
+      <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onExternal(); }}>
+        <View style={[shareOptionStyles.iconWrap, { backgroundColor: rc.accentAlt }]}>
+          <Text style={{ fontSize: 20 }}>↗</Text>
+        </View>
+        <View style={shareOptionStyles.info}>
+          <Text style={shareOptionStyles.label}>{tr('screens.library.shareOutsideApp', 'Share outside app')}</Text>
+          <Text style={shareOptionStyles.desc}>{tr('screens.library.shareOutsideAppDesc', 'Send link via message or social networks...')}</Text>
+        </View>
+      </Pressable>
 
-        <Pressable style={shareOptionStyles.cancelBtn} onPress={onClose}>
-          <Text style={shareOptionStyles.cancelText}>{tr('common.cancel', 'Cancel')}</Text>
-        </Pressable>
-      </View>
-    </Modal>
+      <Pressable style={shareOptionStyles.cancelBtn} onPress={onClose}>
+        <Text style={shareOptionStyles.cancelText}>{tr('common.cancel', 'Cancel')}</Text>
+      </Pressable>
+    </View>
+  </Modal>
 );
 
 const shareOptionStyles = StyleSheet.create({
@@ -806,9 +807,9 @@ interface ShareToDiscoveryModalProps {
 }
 
 const DISCOVERY_VISIBILITY_OPTIONS: { value: 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE'; label: string }[] = [
-  { value: 'PUBLIC',    label: '🌐 Công khai' },
+  { value: 'PUBLIC', label: '🌐 Công khai' },
   { value: 'FOLLOWERS_ONLY', label: '👥 Người theo dõi' },
-  { value: 'PRIVATE',   label: '🔒 Riêng tư' },
+  { value: 'PRIVATE', label: '🔒 Riêng tư' },
 ];
 
 const ShareToDiscoveryModal = ({ visible, item, onClose, onPost }: ShareToDiscoveryModalProps) => {
@@ -842,72 +843,72 @@ const ShareToDiscoveryModal = ({ visible, item, onClose, onPost }: ShareToDiscov
   const contentType = item?.type === 'playlist' ? 'PLAYLIST' : item?.type === 'album' ? 'ALBUM' : 'SONG';
 
   return (
-      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[discoveryShareStyles.root, { paddingTop: insets.top + 4 }]}>
-            <View style={discoveryShareStyles.header}>
-              <Pressable onPress={onClose} style={discoveryShareStyles.cancelBtn}>
-                <Text style={discoveryShareStyles.cancelText}>Huỷ</Text>
-              </Pressable>
-              <Text style={discoveryShareStyles.headerTitle}>Chia sẻ lên Discovery</Text>
-              <Pressable
-                  style={[discoveryShareStyles.postBtn, (!title.trim() || posting) && discoveryShareStyles.postBtnDisabled]}
-                  onPress={handlePost}
-                  disabled={!title.trim() || posting}
-              >
-                {posting
-                    ? <ActivityIndicator size="small" color={COLORS.white} />
-                    : <Text style={discoveryShareStyles.postBtnText}>Đăng</Text>
-                }
-              </Pressable>
-            </View>
-            <View style={discoveryShareStyles.divider} />
-
-            <ScrollView style={discoveryShareStyles.body} keyboardShouldPersistTaps="handled">
-              <View style={discoveryShareStyles.contentBadge}>
-                <Text style={discoveryShareStyles.contentBadgeText}>
-                  {contentType === 'PLAYLIST' ? '📋 Playlist' : contentType === 'ALBUM' ? '💿 Album' : '🎵 Bài hát'}
-                  {' · '}
-                  <Text style={discoveryShareStyles.contentBadgeName}>{item?.title}</Text>
-                </Text>
-              </View>
-
-              <TextInput
-                  style={discoveryShareStyles.titleInput}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Tiêu đề bài viết..."
-                  placeholderTextColor={COLORS.glass25}
-                  multiline
-                  autoFocus
-              />
-              <TextInput
-                  style={discoveryShareStyles.captionInput}
-                  value={caption}
-                  onChangeText={setCaption}
-                  placeholder="Mô tả thêm cho mọi người..."
-                  placeholderTextColor={COLORS.glass20}
-                  multiline
-              />
-
-              <View style={discoveryShareStyles.visibilityRow}>
-                <Text style={discoveryShareStyles.visibilityLabel}>Hiển thị:</Text>
-                {DISCOVERY_VISIBILITY_OPTIONS.map(opt => (
-                    <Pressable
-                        key={opt.value}
-                        style={[discoveryShareStyles.visChip, visibility === opt.value && discoveryShareStyles.visChipActive]}
-                        onPress={() => setVisibility(opt.value)}
-                    >
-                      <Text style={[discoveryShareStyles.visChipText, visibility === opt.value && discoveryShareStyles.visChipTextActive]}>
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                ))}
-              </View>
-            </ScrollView>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={[discoveryShareStyles.root, { paddingTop: insets.top + 4 }]}>
+          <View style={discoveryShareStyles.header}>
+            <Pressable onPress={onClose} style={discoveryShareStyles.cancelBtn}>
+              <Text style={discoveryShareStyles.cancelText}>Huỷ</Text>
+            </Pressable>
+            <Text style={discoveryShareStyles.headerTitle}>Chia sẻ lên Discovery</Text>
+            <Pressable
+              style={[discoveryShareStyles.postBtn, (!title.trim() || posting) && discoveryShareStyles.postBtnDisabled]}
+              onPress={handlePost}
+              disabled={!title.trim() || posting}
+            >
+              {posting
+                ? <ActivityIndicator size="small" color={COLORS.white} />
+                : <Text style={discoveryShareStyles.postBtnText}>Đăng</Text>
+              }
+            </Pressable>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+          <View style={discoveryShareStyles.divider} />
+
+          <ScrollView style={discoveryShareStyles.body} keyboardShouldPersistTaps="handled">
+            <View style={discoveryShareStyles.contentBadge}>
+              <Text style={discoveryShareStyles.contentBadgeText}>
+                {contentType === 'PLAYLIST' ? '📋 Playlist' : contentType === 'ALBUM' ? '💿 Album' : '🎵 Bài hát'}
+                {' · '}
+                <Text style={discoveryShareStyles.contentBadgeName}>{item?.title}</Text>
+              </Text>
+            </View>
+
+            <TextInput
+              style={discoveryShareStyles.titleInput}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Tiêu đề bài viết..."
+              placeholderTextColor={COLORS.glass25}
+              multiline
+              autoFocus
+            />
+            <TextInput
+              style={discoveryShareStyles.captionInput}
+              value={caption}
+              onChangeText={setCaption}
+              placeholder="Mô tả thêm cho mọi người..."
+              placeholderTextColor={COLORS.glass20}
+              multiline
+            />
+
+            <View style={discoveryShareStyles.visibilityRow}>
+              <Text style={discoveryShareStyles.visibilityLabel}>Hiển thị:</Text>
+              {DISCOVERY_VISIBILITY_OPTIONS.map(opt => (
+                <Pressable
+                  key={opt.value}
+                  style={[discoveryShareStyles.visChip, visibility === opt.value && discoveryShareStyles.visChipActive]}
+                  onPress={() => setVisibility(opt.value)}
+                >
+                  <Text style={[discoveryShareStyles.visChipText, visibility === opt.value && discoveryShareStyles.visChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 };
 
@@ -990,19 +991,19 @@ const discoveryShareStyles = StyleSheet.create({
 });
 
 const AlbumDetailModal = ({
-                            visible,
-                            albumId,
-                            onClose,
-                            onRefreshParent,
-                            mySongs,
-                          }: {
+  visible,
+  albumId,
+  onClose,
+  onRefreshParent,
+  mySongs,
+}: {
   visible: boolean;
   albumId: string | null;
   onClose: () => void;
   onRefreshParent: () => void;
   mySongs: Song[];
 }) => {
-  const [album, setAlbum]     = useState<Album | null>(null);
+  const [album, setAlbum] = useState<Album | null>(null);
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const { playSong, currentSong, isPlaying } = usePlayer();
@@ -1053,9 +1054,9 @@ const AlbumDetailModal = ({
   };
 
   const availableSongs = mySongs.filter(s =>
-      (s.transcodeStatus as string) === 'COMPLETED' &&
-      (s.status === 'PUBLIC' || s.status === 'PRIVATE') &&
-      !album?.songs?.some(as => as.id === s.id)
+    (s.transcodeStatus as string) === 'COMPLETED' &&
+    (s.status === 'PUBLIC' || s.status === 'PRIVATE') &&
+    !album?.songs?.some(as => as.id === s.id)
   );
 
   const queue = (album?.songs ?? []) as Song[];
@@ -1066,142 +1067,142 @@ const AlbumDetailModal = ({
   const getAlbumSongThumb = (song: any): string | undefined => song?.thumbnailUrl;
 
   return (
-      <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-        <View style={albumDetailStyles.root}>
-          <View style={albumDetailStyles.header}>
-            <Pressable onPress={onClose} style={albumDetailStyles.closeBtn}>
-              <Text style={albumDetailStyles.closeBtnText}>✕</Text>
-            </Pressable>
-            <Text style={albumDetailStyles.title} numberOfLines={1}>
-              {album?.title ?? 'Album'}
-            </Text>
-            <Pressable onPress={() => setAddOpen(true)} style={albumDetailStyles.addBtn}>
-              <Text style={albumDetailStyles.addBtnText}>+ Thêm bài</Text>
-            </Pressable>
-          </View>
-
-          {loading ? (
-              <View style={albumDetailStyles.center}>
-                <ActivityIndicator color={COLORS.accent} />
-              </View>
-          ) : (
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                {/* Album meta */}
-                <View style={albumDetailStyles.meta}>
-                  <LinearGradient
-                      colors={[COLORS.gradPurple, COLORS.gradIndigo]}
-                      style={albumDetailStyles.coverArt}
-                  >
-                    <Text style={{ fontSize: 40 }}>💿</Text>
-                  </LinearGradient>
-                  <View style={albumDetailStyles.metaInfo}>
-                    <Text style={albumDetailStyles.metaTitle}>{album?.title}</Text>
-                    <View style={albumDetailStyles.metaBadge}>
-                      <Text style={albumDetailStyles.metaStatus}>
-                        {album?.status === 'PUBLIC' ? '🟢 Công khai' :
-                            album?.status === 'PRIVATE' ? '🟡 Riêng tư' : '⚪ Bản nháp'}
-                      </Text>
-                    </View>
-                    <Text style={albumDetailStyles.metaCount}>
-                      {album?.songs?.length ?? 0} bài hát
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Songs */}
-                {(album?.songs?.length ?? 0) === 0 ? (
-                    <View style={albumDetailStyles.empty}>
-                      <Text style={albumDetailStyles.emptyText}>
-                        Album chưa có bài hát. Bấm "+ Thêm bài" để bắt đầu.
-                      </Text>
-                    </View>
-                ) : (
-                    (album?.songs ?? []).map((song: any, idx: number) => {
-                        const songId = getAlbumSongId(song);
-                        const songTitle = getAlbumSongTitle(song);
-                        const artistName = getAlbumSongArtist(song);
-                        const thumbUrl = getAlbumSongThumb(song);
-                        return (
-                        <View key={songId ?? `${idx}`} style={albumDetailStyles.songRow}>
-                          <Pressable
-                              style={albumDetailStyles.songMain}
-                              onPress={() => {
-                                if ((song as Song).id) {
-                                  playSong(song as Song, queue);
-                                }
-                              }}
-                          >
-                            {thumbUrl ? (
-                                <Image source={{ uri: thumbUrl }} style={albumDetailStyles.songThumb} />
-                            ) : (
-                                <View style={[albumDetailStyles.songThumb, { backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' }]}>
-                                  <Text>🎵</Text>
-                                </View>
-                            )}
-                            <View style={{ flex: 1 }}>
-                              <Text style={albumDetailStyles.songTitle} numberOfLines={1}>
-                                {songTitle}
-                              </Text>
-                              <Text style={albumDetailStyles.songArtist} numberOfLines={1}>
-                                {artistName}
-                              </Text>
-                            </View>
-                          </Pressable>
-                          <Pressable
-                              onPress={() => Alert.alert(
-                                  'Xoá khỏi album?',
-                                  `"${songTitle}" sẽ bị xoá khỏi album này.`,
-                                  [
-                                    { text: 'Huỷ', style: 'cancel' },
-                                    { text: 'Xoá', style: 'destructive', onPress: () => { if (songId) void handleRemoveSong(songId); } },
-                                  ]
-                              )}
-                              hitSlop={10}
-                              style={albumDetailStyles.removeBtn}
-                          >
-                            <Text style={albumDetailStyles.removeBtnText}>✕</Text>
-                          </Pressable>
-                        </View>
-                    );
-                    })
-                )}
-              </ScrollView>
-          )}
-
-          <Modal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
-            <Pressable style={sheetStyles.overlay} onPress={() => setAddOpen(false)} />
-            <View style={sheetStyles.sheet}>
-              <View style={sheetStyles.handle} />
-              <Text style={sheetStyles.title}>Thêm bài hát vào album</Text>
-              <Text style={sheetStyles.subtitle}>Bài hát của bạn (PUBLIC hoặc PRIVATE, đã transcode xong)</Text>
-              {availableSongs.length === 0 ? (
-                  <Text style={{ color: COLORS.glass40, padding: 16, textAlign: 'center' }}>
-                    Không có bài hát nào khả dụng.{'\n'}
-                    Bài hát cần hoàn thành transcode (COMPLETED).
-                  </Text>
-              ) : (
-                  <ScrollView style={{ maxHeight: 300 }}>
-                    {availableSongs.map((s, idx) => (
-                        <Pressable
-                            key={s.id ?? `${idx}`}
-                            style={sheetStyles.item}
-                            onPress={() => { setAddOpen(false); void handleAddSong(s.id); }}
-                        >
-                          <Text style={sheetStyles.itemIcon}>🎵</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={sheetStyles.itemText} numberOfLines={1}>{s.title}</Text>
-                            <Text style={{ color: COLORS.glass40, fontSize: 11 }}>
-                              {s.status === 'PUBLIC' ? '🌐 Công khai' : '🔒 Riêng tư'}
-                            </Text>
-                          </View>
-                        </Pressable>
-                    ))}
-                  </ScrollView>
-              )}
-            </View>
-          </Modal>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={albumDetailStyles.root}>
+        <View style={albumDetailStyles.header}>
+          <Pressable onPress={onClose} style={albumDetailStyles.closeBtn}>
+            <Text style={albumDetailStyles.closeBtnText}>✕</Text>
+          </Pressable>
+          <Text style={albumDetailStyles.title} numberOfLines={1}>
+            {album?.title ?? 'Album'}
+          </Text>
+          <Pressable onPress={() => setAddOpen(true)} style={albumDetailStyles.addBtn}>
+            <Text style={albumDetailStyles.addBtnText}>+ Thêm bài</Text>
+          </Pressable>
         </View>
-      </Modal>
+
+        {loading ? (
+          <View style={albumDetailStyles.center}>
+            <ActivityIndicator color={COLORS.accent} />
+          </View>
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+            {/* Album meta */}
+            <View style={albumDetailStyles.meta}>
+              <LinearGradient
+                colors={[COLORS.gradPurple, COLORS.gradIndigo]}
+                style={albumDetailStyles.coverArt}
+              >
+                <Text style={{ fontSize: 40 }}>💿</Text>
+              </LinearGradient>
+              <View style={albumDetailStyles.metaInfo}>
+                <Text style={albumDetailStyles.metaTitle}>{album?.title}</Text>
+                <View style={albumDetailStyles.metaBadge}>
+                  <Text style={albumDetailStyles.metaStatus}>
+                    {album?.status === 'PUBLIC' ? '🟢 Công khai' :
+                      album?.status === 'PRIVATE' ? '🟡 Riêng tư' : '⚪ Bản nháp'}
+                  </Text>
+                </View>
+                <Text style={albumDetailStyles.metaCount}>
+                  {album?.songs?.length ?? 0} bài hát
+                </Text>
+              </View>
+            </View>
+
+            {/* Songs */}
+            {(album?.songs?.length ?? 0) === 0 ? (
+              <View style={albumDetailStyles.empty}>
+                <Text style={albumDetailStyles.emptyText}>
+                  Album chưa có bài hát. Bấm "+ Thêm bài" để bắt đầu.
+                </Text>
+              </View>
+            ) : (
+              (album?.songs ?? []).map((song: any, idx: number) => {
+                const songId = getAlbumSongId(song);
+                const songTitle = getAlbumSongTitle(song);
+                const artistName = getAlbumSongArtist(song);
+                const thumbUrl = getAlbumSongThumb(song);
+                return (
+                  <View key={songId ?? `${idx}`} style={albumDetailStyles.songRow}>
+                    <Pressable
+                      style={albumDetailStyles.songMain}
+                      onPress={() => {
+                        if ((song as Song).id) {
+                          playSong(song as Song, queue);
+                        }
+                      }}
+                    >
+                      {thumbUrl ? (
+                        <Image source={{ uri: thumbUrl }} style={albumDetailStyles.songThumb} />
+                      ) : (
+                        <View style={[albumDetailStyles.songThumb, { backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' }]}>
+                          <Text>🎵</Text>
+                        </View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={albumDetailStyles.songTitle} numberOfLines={1}>
+                          {songTitle}
+                        </Text>
+                        <Text style={albumDetailStyles.songArtist} numberOfLines={1}>
+                          {artistName}
+                        </Text>
+                      </View>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => Alert.alert(
+                        'Xoá khỏi album?',
+                        `"${songTitle}" sẽ bị xoá khỏi album này.`,
+                        [
+                          { text: 'Huỷ', style: 'cancel' },
+                          { text: 'Xoá', style: 'destructive', onPress: () => { if (songId) void handleRemoveSong(songId); } },
+                        ]
+                      )}
+                      hitSlop={10}
+                      style={albumDetailStyles.removeBtn}
+                    >
+                      <Text style={albumDetailStyles.removeBtnText}>✕</Text>
+                    </Pressable>
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
+        )}
+
+        <Modal visible={addOpen} transparent animationType="slide" onRequestClose={() => setAddOpen(false)}>
+          <Pressable style={sheetStyles.overlay} onPress={() => setAddOpen(false)} />
+          <View style={sheetStyles.sheet}>
+            <View style={sheetStyles.handle} />
+            <Text style={sheetStyles.title}>Thêm bài hát vào album</Text>
+            <Text style={sheetStyles.subtitle}>Bài hát của bạn (PUBLIC hoặc PRIVATE, đã transcode xong)</Text>
+            {availableSongs.length === 0 ? (
+              <Text style={{ color: COLORS.glass40, padding: 16, textAlign: 'center' }}>
+                Không có bài hát nào khả dụng.{'\n'}
+                Bài hát cần hoàn thành transcode (COMPLETED).
+              </Text>
+            ) : (
+              <ScrollView style={{ maxHeight: 300 }}>
+                {availableSongs.map((s, idx) => (
+                  <Pressable
+                    key={s.id ?? `${idx}`}
+                    style={sheetStyles.item}
+                    onPress={() => { setAddOpen(false); void handleAddSong(s.id); }}
+                  >
+                    <Text style={sheetStyles.itemIcon}>🎵</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={sheetStyles.itemText} numberOfLines={1}>{s.title}</Text>
+                      <Text style={{ color: COLORS.glass40, fontSize: 11 }}>
+                        {s.status === 'PUBLIC' ? '🌐 Công khai' : '🔒 Riêng tư'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </Modal>
+      </View>
+    </Modal>
   );
 };
 
@@ -1260,27 +1261,29 @@ export const LibraryScreen = () => {
   rc = themeColors;
   const { playSong, currentSong, isPlaying } = usePlayer();
   const { toast, show: showToast, hide: hideToast } = useToast();
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const [activeTab, setActiveTab] = useState<Tab>('playlists');
-  const [loading, setLoading]     = useState(true);
+  const [displayedTab, setDisplayedTab] = useState<Tab>('playlists');
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Data
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [songs, setSongs]         = useState<Song[]>([]);
-  const [albums, setAlbums]       = useState<Album[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [albums, setAlbums] = useState<Album[]>([]);
   const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
   const [hasActiveSub, setHasActiveSub] = useState(false);
   const [canCreateAlbumByPlan, setCanCreateAlbumByPlan] = useState(false);
 
   // Modals
-  const [addSongTo, setAddSongTo]   = useState<Song | null>(null);
+  const [addSongTo, setAddSongTo] = useState<Song | null>(null);
   const [createPlaylistOpen, setCreatePlaylistOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
   const [createAlbumOpen, setCreateAlbumOpen] = useState(false);
-  const [detailAlbumId, setDetailAlbumId]     = useState<string | null>(null);
-  const [editPlaylist, setEditPlaylist]        = useState<Playlist | null>(null);
+  const [detailAlbumId, setDetailAlbumId] = useState<string | null>(null);
+  const [editPlaylist, setEditPlaylist] = useState<Playlist | null>(null);
   const [editPlaylistName, setEditPlaylistName] = useState('');
 
   // Share flow
@@ -1366,8 +1369,8 @@ export const LibraryScreen = () => {
     const { type, id, title } = shareOptionsItem;
     try {
       const res = type === 'playlist' ? await getPlaylistShareLink(id) :
-          type === 'song'     ? await getSongShareLink(id) :
-              await getAlbumShareLink(id);
+        type === 'song' ? await getSongShareLink(id) :
+          await getAlbumShareLink(id);
       await Share.share({ message: `${title}\n${res.shareUrl}` });
     } catch (e: any) {
       showToast(e?.message ?? t('screens.library.cannotShare', 'Cannot share.'), 'error');
@@ -1378,7 +1381,7 @@ export const LibraryScreen = () => {
     if (!discoveryShareItem) return;
     try {
       const contentType = discoveryShareItem.type === 'playlist' ? 'PLAYLIST' :
-          discoveryShareItem.type === 'album'    ? 'ALBUM' : 'SONG';
+        discoveryShareItem.type === 'album' ? 'ALBUM' : 'SONG';
       await createFeedPost({
         visibility,
         title,
@@ -1397,10 +1400,12 @@ export const LibraryScreen = () => {
   const handleDeletePlaylist = (p: Playlist) => {
     Alert.alert(t('screens.library.deletePlaylistConfirmTitle', 'Delete playlist?'), `"${p.name}" ${t('screens.library.deletePermanentlySuffix', 'will be deleted permanently.')}`, [
       { text: t('common.cancel'), style: 'cancel' },
-      { text: t('common.delete'), style: 'destructive', onPress: async () => {
+      {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
           await deletePlaylist(p.id);
           await load(true);
-        }},
+        }
+      },
     ]);
   };
 
@@ -1478,14 +1483,16 @@ export const LibraryScreen = () => {
   const handleDeleteAlbum = (a: Album) => {
     Alert.alert(t('screens.library.deleteAlbumConfirmTitle', 'Delete album?'), `"${a.title}" ${t('screens.library.deletePermanentlySuffix', 'will be deleted permanently.')}`, [
       { text: t('common.cancel'), style: 'cancel' },
-      { text: t('common.delete'), style: 'destructive', onPress: async () => {
+      {
+        text: t('common.delete'), style: 'destructive', onPress: async () => {
           try {
             await apiClient.delete(`/albums/${a.id}`);
             await load(true);
           } catch (e: any) {
             showToast(e?.message ?? t('common.error', 'Error'), 'error');
           }
-        }},
+        }
+      },
     ]);
   };
 
@@ -1497,11 +1504,18 @@ export const LibraryScreen = () => {
       setAddSongTo(null);
       return;
     }
+    const previousPlaylists = playlists;
+    setPlaylists((prev) => prev.map((playlist) => (
+      playlist.id === playlistId
+        ? { ...playlist, totalSongs: (playlist.totalSongs ?? playlist.songs?.length ?? 0) + 1 }
+        : playlist
+    )));
     try {
       await addSongToPlaylist(playlistId, addSongTo.id);
       setAddSongTo(null);
       showToast(`${t('screens.library.songAddedToPlaylist', 'Song has been added to playlist.')} ✓`);
     } catch (e: any) {
+      setPlaylists(previousPlaylists);
       showToast(e?.message ?? t('common.error', 'Error'), 'error');
     }
   };
@@ -1524,318 +1538,339 @@ export const LibraryScreen = () => {
     }
   };
 
+  const switchTab = useCallback((newTab: Tab) => {
+    if (newTab === activeTab) return;
+
+    setActiveTab(newTab);
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 120,
+      useNativeDriver: true,
+    }).start(() => {
+      setDisplayedTab(newTab);
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [activeTab, fadeAnim]);
+
   // ── Render content by tab ─────────────────────────────────────────────────
   const renderPlaylists = () => (
-      <>
+    <>
+      <Pressable
+        style={styles.createBtn}
+        onPress={() => {
+          setCreateAlbumOpen(false);
+          setCreatePlaylistOpen(true);
+        }}
+      >
+        <View style={styles.createBtnInner}>
+          <AnimatedDecorIcon intensity="medium">
+            <Text style={styles.createBtnIcon}>+</Text>
+          </AnimatedDecorIcon>
+          <Text style={styles.createBtnText}>{t('screens.library.createNewPlaylist', 'Create new playlist')}</Text>
+        </View>
+      </Pressable>
+
+      {playlists.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyEmoji}><Fontisto name="play-list" color={themeColors.accent} size={14} /></Text>
+          <Text style={styles.emptyTitle}>{t('screens.library.noPlaylists', 'No playlists yet')}</Text>
+          <Text style={styles.emptySub}>{t('screens.library.noPlaylistsHint', 'Create playlists to organize your favorite songs')}</Text>
+        </View>
+      ) : playlists.map(p => (
         <Pressable
-            style={styles.createBtn}
-            onPress={() => {
-              setCreateAlbumOpen(false);
-              setCreatePlaylistOpen(true);
-            }}
+          key={p.id}
+          style={styles.listItem}
+          onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug })}
         >
+          <View style={styles.listItemThumb}>
+            <Text style={{ fontSize: 22 }}><Fontisto name="play-list" color={themeColors.accent} size={14} /></Text>
+          </View>
+          <View style={styles.listItemInfo}>
+            <Text style={styles.listItemTitle} numberOfLines={1}>{p.name}</Text>
+            <Text style={styles.listItemSub}>{p.totalSongs ?? 0} {t('screens.library.songsSuffix', 'songs')}</Text>
+          </View>
+          <View style={styles.listItemActions}>
+            <Pressable
+              hitSlop={8}
+              onPress={() => { setEditPlaylist(p); setEditPlaylistName(p.name); }}
+              style={styles.iconBtn}
+            >
+              <Text style={styles.iconBtnText}>
+                <FontAwesome name="edit" color={themeColors.accentAlt} size={18} />
+              </Text>
+            </Pressable>
+            <Pressable hitSlop={8} onPress={() => openShareOptions('playlist', p.id, p.name)} style={styles.iconBtn}>
+              <Text style={styles.iconBtnText}>↗</Text>
+            </Pressable>
+            <Pressable hitSlop={8} onPress={() => handleDeletePlaylist(p)} style={styles.iconBtn}>
+              <Text style={[styles.iconBtnText, { color: COLORS.error }]}><AntDesign name="delete" color={COLORS.error} size={15} /></Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      ))}
+    </>
+  );
+
+  const renderSongs = () => (
+    <>
+      {songs.length === 0 ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptyEmoji}>🎵</Text>
+          <Text style={styles.emptyTitle}>{t('screens.library.noSongs', 'No songs yet')}</Text>
+          <Text style={styles.emptySub}>{t('screens.library.noSongsHint', 'Upload songs in the Create tab')}</Text>
+        </View>
+      ) : songs.map(s => (
+        <SongRow
+          key={s.id}
+          song={s}
+          isActive={currentSong?.id === s.id}
+          isPlaying={currentSong?.id === s.id && isPlaying}
+          onPlay={() => playSong(s, songs)}
+          onAddToPlaylist={() => setAddSongTo(s)}
+          onShare={() => openShareOptions('song', s.id, s.title)}
+          onEdit={isArtist ? () => navigation.navigate('EditSong', { songId: s.id }) : undefined}
+        />
+      ))}
+    </>
+  );
+
+  const renderAlbums = () => (
+    <>
+      {canCreateAlbum ? (
+        <Pressable style={[styles.createBtn, { marginBottom: 12 }]} onPress={() => setCreateAlbumOpen(true)}>
           <View style={styles.createBtnInner}>
             <AnimatedDecorIcon intensity="medium">
               <Text style={styles.createBtnIcon}>+</Text>
             </AnimatedDecorIcon>
-            <Text style={styles.createBtnText}>{t('screens.library.createNewPlaylist', 'Create new playlist')}</Text>
+            <Text style={styles.createBtnText}>{t('screens.library.createNewAlbum', 'Create new album')}</Text>
           </View>
         </Pressable>
-
-        {playlists.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}><Fontisto name="play-list" color={themeColors.accent} size={14} /></Text>
-              <Text style={styles.emptyTitle}>{t('screens.library.noPlaylists', 'No playlists yet')}</Text>
-              <Text style={styles.emptySub}>{t('screens.library.noPlaylistsHint', 'Create playlists to organize your favorite songs')}</Text>
-            </View>
-        ) : playlists.map(p => (
-            <Pressable
-                key={p.id}
-                style={styles.listItem}
-                onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug })}
-            >
-              <View style={styles.listItemThumb}>
-                <Text style={{ fontSize: 22 }}><Fontisto name="play-list" color={themeColors.accent} size={14} /></Text>
-              </View>
-              <View style={styles.listItemInfo}>
-                <Text style={styles.listItemTitle} numberOfLines={1}>{p.name}</Text>
-                <Text style={styles.listItemSub}>{p.totalSongs ?? 0} {t('screens.library.songsSuffix', 'songs')}</Text>
-              </View>
-              <View style={styles.listItemActions}>
-                <Pressable
-                    hitSlop={8}
-                    onPress={() => { setEditPlaylist(p); setEditPlaylistName(p.name); }}
-                    style={styles.iconBtn}
-                >
-                  <Text style={styles.iconBtnText}>
-                    <FontAwesome name="edit" color={themeColors.accentAlt} size={18} />
-                      </Text>
+      ) : (
+        <View style={styles.albumGateCard}>
+          {!isArtist ? (
+            <>
+              <Text style={styles.albumGateTitle}>{t('screens.create.becomeArtist', 'Become an Artist')}</Text>
+              <Text style={styles.albumGateSub}>
+                {t('screens.create.registerArtistToStart', 'Register as an artist to start uploading music')}
+              </Text>
+              <Pressable style={styles.albumGateBtn} onPress={() => navigation.navigate('Create')}>
+                <Text style={styles.albumGateBtnText}>{t('screens.create.registerArtistButton', 'Register Artist')}</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.albumGateTitle}>{t('screens.create.renewSubscription', 'Renew subscription')}</Text>
+              <Text style={styles.albumGateSub}>
+                {t('screens.create.subscriptionExpiredMessagePrefix', 'Your subscription has expired. Go to')}{' '}
+                <Text style={{ color: themeColors.accent }}>{t('navigation.premium', 'Premium')}</Text>
+                {' '}{t('screens.create.subscriptionExpiredMessageSuffix', 'to renew and continue uploading music.')}
+              </Text>
+              {!hasActiveSub && (
+                <Pressable style={styles.albumGateBtn} onPress={() => navigation.navigate('Premium')}>
+                  <Text style={styles.albumGateBtnText}>{t('navigation.premium', 'Premium')}</Text>
                 </Pressable>
-                <Pressable hitSlop={8} onPress={() => openShareOptions('playlist', p.id, p.name)} style={styles.iconBtn}>
-                  <Text style={styles.iconBtnText}>↗</Text>
-                </Pressable>
-                <Pressable hitSlop={8} onPress={() => handleDeletePlaylist(p)} style={styles.iconBtn}>
-                  <Text style={[styles.iconBtnText, { color: COLORS.error }]}><AntDesign name="delete" color={COLORS.error} size={15} /></Text>
-                </Pressable>
-              </View>
-            </Pressable>
-        ))}
-      </>
-  );
-
-  const renderSongs = () => (
-      <>
-        {songs.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🎵</Text>
-              <Text style={styles.emptyTitle}>{t('screens.library.noSongs', 'No songs yet')}</Text>
-              <Text style={styles.emptySub}>{t('screens.library.noSongsHint', 'Upload songs in the Create tab')}</Text>
-            </View>
-        ) : songs.map(s => (
-            <SongRow
-                key={s.id}
-                song={s}
-                isActive={currentSong?.id === s.id}
-                isPlaying={currentSong?.id === s.id && isPlaying}
-                onPlay={() => playSong(s, songs)}
-                onAddToPlaylist={() => setAddSongTo(s)}
-                onShare={() => openShareOptions('song', s.id, s.title)}
-                onEdit={isArtist ? () => navigation.navigate('EditSong', { songId: s.id }) : undefined}
-            />
-        ))}
-      </>
-  );
-
-  const renderAlbums = () => (
-      <>
-        {canCreateAlbum ? (
-            <Pressable style={[styles.createBtn, { marginBottom: 12 }]} onPress={() => setCreateAlbumOpen(true)}>
-              <View style={styles.createBtnInner}>
-                <AnimatedDecorIcon intensity="medium">
-                  <Text style={styles.createBtnIcon}>+</Text>
-                </AnimatedDecorIcon>
-                <Text style={styles.createBtnText}>{t('screens.library.createNewAlbum', 'Create new album')}</Text>
-              </View>
-            </Pressable>
-        ) : (
-            <View style={styles.albumGateCard}>
-              {!isArtist ? (
-                  <>
-                    <Text style={styles.albumGateTitle}>{t('screens.create.becomeArtist', 'Become an Artist')}</Text>
-                    <Text style={styles.albumGateSub}>
-                      {t('screens.create.registerArtistToStart', 'Register as an artist to start uploading music')}
-                    </Text>
-                    <Pressable style={styles.albumGateBtn} onPress={() => navigation.navigate('Create')}>
-                      <Text style={styles.albumGateBtnText}>{t('screens.create.registerArtistButton', 'Register Artist')}</Text>
-                    </Pressable>
-                  </>
-              ) : (
-                  <>
-                    <Text style={styles.albumGateTitle}>{t('screens.create.renewSubscription', 'Renew subscription')}</Text>
-                    <Text style={styles.albumGateSub}>
-                      {t('screens.create.subscriptionExpiredMessagePrefix', 'Your subscription has expired. Go to')}{' '}
-                      <Text style={{ color: themeColors.accent }}>{t('navigation.premium', 'Premium')}</Text>
-                      {' '}{t('screens.create.subscriptionExpiredMessageSuffix', 'to renew and continue uploading music.')}
-                    </Text>
-                    {!hasActiveSub && (
-                        <Pressable style={styles.albumGateBtn} onPress={() => navigation.navigate('Premium')}>
-                          <Text style={styles.albumGateBtnText}>{t('navigation.premium', 'Premium')}</Text>
-                        </Pressable>
-                    )}
-                  </>
               )}
-            </View>
-        )}
+            </>
+          )}
+        </View>
+      )}
 
-        {canCreateAlbum ? (
-            albums.length === 0 ? (
-                <View style={styles.empty}>
-                  <Text style={styles.emptyEmoji}>💿</Text>
-                  <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
-                  <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
-                </View>
-            ) : albums.map(a => (
-                <AlbumCard
-                    key={a.id}
-                    album={a}
-                    onPress={() => setDetailAlbumId(a.id)}
-                    onPublish={() => void handlePublishAlbum(a.id)}
-                    onUnpublish={() => void handleUnpublishAlbum(a.id)}
-                    onDelete={() => handleDeleteAlbum(a)}
-                    onShare={() => openShareOptions('album', a.id, a.title)}
-                />
-            ))
-        ) : (
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>💿</Text>
-              <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
-              <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
-            </View>
-        )}
-      </>
+      {canCreateAlbum ? (
+        albums.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyEmoji}>💿</Text>
+            <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
+            <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
+          </View>
+        ) : albums.map(a => (
+          <AlbumCard
+            key={a.id}
+            album={a}
+            onPress={() => setDetailAlbumId(a.id)}
+            onPublish={() => void handlePublishAlbum(a.id)}
+            onUnpublish={() => void handleUnpublishAlbum(a.id)}
+            onDelete={() => handleDeleteAlbum(a)}
+            onShare={() => openShareOptions('album', a.id, a.title)}
+          />
+        ))
+      ) : (
+        <View style={styles.empty}>
+          <Text style={styles.emptyEmoji}>💿</Text>
+          <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
+          <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
+        </View>
+      )}
+    </>
   );
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-      <View style={styles.root}>
-        <StatusBar style="light" />
-        <ScrollView
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={() => { setRefreshing(true); void load(true); }}
-                  tintColor={COLORS.accent}
-              />
-            }
-            contentContainerStyle={{ paddingBottom: 120 }}
-        >
-          {/* Header */}
-          <LinearGradient
-              colors={[themeColors.gradSlate, themeColors.bg]}
-              style={[styles.header, { paddingTop: insets.top + 18 }]}
-          >
-            <Text style={styles.headerTitle}>{t('screens.library.title', 'Library')}</Text>
-            <Text style={styles.headerSub}>
-              {playlists.length} {t('screens.library.tabPlaylists', 'playlists')} · {songs.length} {t('screens.library.tabSongs', 'songs')} · {albums.length} {t('screens.library.tabAlbums', 'albums')}
-            </Text>
-          </LinearGradient>
-
-          {/* Tab bar */}
-          <TabBar
-              active={activeTab}
-              onChange={setActiveTab}
-              counts={{ playlists: playlists.length, songs: songs.length, albums: albums.length }}
+    <View style={styles.root}>
+      <StatusBar style="light" />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => { setRefreshing(true); void load(true); }}
+            tintColor={COLORS.accent}
           />
+        }
+        contentContainerStyle={{ paddingBottom: 120 }}
+      >
+        {/* Header */}
+        <LinearGradient
+          colors={[themeColors.gradSlate, themeColors.bg]}
+          style={[styles.header, { paddingTop: insets.top + 18 }]}
+        >
+          <Text style={styles.headerTitle}>{t('screens.library.title', 'Library')}</Text>
+          <Text style={styles.headerSub}>
+            {playlists.length} {t('screens.library.tabPlaylists', 'playlists')} · {songs.length} {t('screens.library.tabSongs', 'songs')} · {albums.length} {t('screens.library.tabAlbums', 'albums')}
+          </Text>
+        </LinearGradient>
 
-          {/* Content */}
+        {/* Tab bar */}
+        <TabBar
+          active={activeTab}
+          onChange={switchTab}
+          counts={{ playlists: playlists.length, songs: songs.length, albums: albums.length }}
+        />
+
+        {/* Content */}
+        <Animated.View style={[styles.tabContent, { opacity: fadeAnim }]}>
           {loading ? (
-              <View style={styles.loadingWrap}>
-                <ActivityIndicator color={COLORS.accent} />
-              </View>
+            <View style={styles.loadingWrap}>
+              <SectionSkeleton rows={3} />
+            </View>
           ) : (
-              activeTab === 'playlists' ? renderPlaylists() :
-                  activeTab === 'songs'     ? renderSongs() :
-                      renderAlbums()
+            displayedTab === 'playlists' ? renderPlaylists() :
+              displayedTab === 'songs' ? renderSongs() :
+                renderAlbums()
           )}
-        </ScrollView>
+        </Animated.View>
+      </ScrollView>
 
-        {/* Edit playlist modal */}
-        <Modal
-            visible={!!editPlaylist}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setEditPlaylist(null)}
-        >
-          <View style={modalStyles.overlay}>
-            <View style={modalStyles.card}>
-              <Text style={modalStyles.title}>Sửa tên playlist</Text>
-              <Text style={modalStyles.title}>{t('screens.library.editPlaylistName', 'Edit playlist name')}</Text>
-              <TextInput
-                  style={modalStyles.input}
-                  value={editPlaylistName}
-                  onChangeText={setEditPlaylistName}
-                  autoFocus
-              />
-              <View style={modalStyles.actions}>
-                <Pressable style={modalStyles.cancelBtn} onPress={() => setEditPlaylist(null)}>
-                  <Text style={modalStyles.cancelText}>{t('common.cancel')}</Text>
-                </Pressable>
-                <Pressable style={modalStyles.createBtn} onPress={handleSavePlaylistEdit}>
-                  <Text style={modalStyles.createText}>{t('common.save')}</Text>
-                </Pressable>
-              </View>
+      {/* Edit playlist modal */}
+      <Modal
+        visible={!!editPlaylist}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setEditPlaylist(null)}
+      >
+        <View style={modalStyles.overlay}>
+          <View style={modalStyles.card}>
+            <Text style={modalStyles.title}>Sửa tên playlist</Text>
+            <Text style={modalStyles.title}>{t('screens.library.editPlaylistName', 'Edit playlist name')}</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={editPlaylistName}
+              onChangeText={setEditPlaylistName}
+              autoFocus
+            />
+            <View style={modalStyles.actions}>
+              <Pressable style={modalStyles.cancelBtn} onPress={() => setEditPlaylist(null)}>
+                <Text style={modalStyles.cancelText}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable style={modalStyles.createBtn} onPress={handleSavePlaylistEdit}>
+                <Text style={modalStyles.createText}>{t('common.save')}</Text>
+              </Pressable>
             </View>
           </View>
-        </Modal>
+        </View>
+      </Modal>
 
-        <Modal
-            visible={createPlaylistOpen}
-            transparent
-            animationType="fade"
-            onRequestClose={() => setCreatePlaylistOpen(false)}
-        >
-          <View style={modalStyles.overlay}>
-            <View style={modalStyles.card}>
-              <Text style={modalStyles.title}>{t('screens.library.createNewPlaylist', 'Create new playlist')}</Text>
-              <TextInput
-                  style={modalStyles.input}
-                  value={newPlaylistName}
-                  onChangeText={setNewPlaylistName}
-                  placeholder={t('screens.library.createPlaylistPlaceholder', 'Create new playlist...')}
-                  placeholderTextColor={COLORS.glass30}
-                  autoFocus
-              />
-              <View style={modalStyles.actions}>
-                <Pressable
-                    style={modalStyles.cancelBtn}
-                    onPress={() => {
-                      setCreatePlaylistOpen(false);
-                      setNewPlaylistName('');
-                    }}
-                >
-                  <Text style={modalStyles.cancelText}>{t('common.cancel')}</Text>
-                </Pressable>
-                <Pressable
-                    style={[modalStyles.createBtn, !newPlaylistName.trim() && { opacity: 0.4 }]}
-                    onPress={handleCreatePlaylist}
-                    disabled={!newPlaylistName.trim() || creatingPlaylist}
-                >
-                  {creatingPlaylist
-                    ? <ActivityIndicator size="small" color={COLORS.white} />
-                    : <Text style={modalStyles.createText}>{t('common.create', 'Create')}</Text>
-                  }
-                </Pressable>
-              </View>
+      <Modal
+        visible={createPlaylistOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCreatePlaylistOpen(false)}
+      >
+        <View style={modalStyles.overlay}>
+          <View style={modalStyles.card}>
+            <Text style={modalStyles.title}>{t('screens.library.createNewPlaylist', 'Create new playlist')}</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={newPlaylistName}
+              onChangeText={setNewPlaylistName}
+              placeholder={t('screens.library.createPlaylistPlaceholder', 'Create new playlist...')}
+              placeholderTextColor={COLORS.glass30}
+              autoFocus
+            />
+            <View style={modalStyles.actions}>
+              <Pressable
+                style={modalStyles.cancelBtn}
+                onPress={() => {
+                  setCreatePlaylistOpen(false);
+                  setNewPlaylistName('');
+                }}
+              >
+                <Text style={modalStyles.cancelText}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                style={[modalStyles.createBtn, !newPlaylistName.trim() && { opacity: 0.4 }]}
+                onPress={handleCreatePlaylist}
+                disabled={!newPlaylistName.trim() || creatingPlaylist}
+              >
+                {creatingPlaylist
+                  ? <ActivityIndicator size="small" color={COLORS.white} />
+                  : <Text style={modalStyles.createText}>{t('common.create', 'Create')}</Text>
+                }
+              </Pressable>
             </View>
           </View>
-        </Modal>
+        </View>
+      </Modal>
 
-        {/* Create album modal */}
-        <CreateAlbumModal
-            visible={createAlbumOpen}
-            onClose={() => setCreateAlbumOpen(false)}
-            onCreate={handleCreateAlbum}
-        />
+      {/* Create album modal */}
+      <CreateAlbumModal
+        visible={createAlbumOpen}
+        onClose={() => setCreateAlbumOpen(false)}
+        onCreate={handleCreateAlbum}
+      />
 
-        {/* Album detail modal */}
-        <AlbumDetailModal
-            visible={!!detailAlbumId}
-            albumId={detailAlbumId}
-            onClose={() => setDetailAlbumId(null)}
-            onRefreshParent={() => void load(true)}
-            mySongs={songs}
-        />
+      {/* Album detail modal */}
+      <AlbumDetailModal
+        visible={!!detailAlbumId}
+        albumId={detailAlbumId}
+        onClose={() => setDetailAlbumId(null)}
+        onRefreshParent={() => void load(true)}
+        mySongs={songs}
+      />
 
-        {/* Add to playlist */}
-        <AddToPlaylistModal
-            visible={!!addSongTo}
-            song={addSongTo}
-            playlists={playlists}
-            onClose={() => setAddSongTo(null)}
-            onAdd={handleAddToPlaylist}
-            onCreateAndAdd={handleCreateAndAddToPlaylist}
-        />
+      {/* Add to playlist */}
+      <AddToPlaylistModal
+        visible={!!addSongTo}
+        song={addSongTo}
+        playlists={playlists}
+        onClose={() => setAddSongTo(null)}
+        onAdd={handleAddToPlaylist}
+        onCreateAndAdd={handleCreateAndAddToPlaylist}
+      />
 
-        {/* Share options sheet */}
-        <ShareOptionsSheet
-            visible={!!shareOptionsItem}
-            item={shareOptionsItem}
-            onClose={() => setShareOptionsItem(null)}
-            onExternal={() => void handleShareExternal()}
-            onDiscovery={() => setDiscoveryShareItem(shareOptionsItem)}
-        />
+      {/* Share options sheet */}
+      <ShareOptionsSheet
+        visible={!!shareOptionsItem}
+        item={shareOptionsItem}
+        onClose={() => setShareOptionsItem(null)}
+        onExternal={() => void handleShareExternal()}
+        onDiscovery={() => setDiscoveryShareItem(shareOptionsItem)}
+      />
 
-        {/* Share to Discovery modal */}
-        <ShareToDiscoveryModal
-            visible={!!discoveryShareItem}
-            item={discoveryShareItem}
-            onClose={() => setDiscoveryShareItem(null)}
-            onPost={(title, caption, visibility) => handleDiscoveryPost(title, caption, visibility)}
-        />
+      {/* Share to Discovery modal */}
+      <ShareToDiscoveryModal
+        visible={!!discoveryShareItem}
+        item={discoveryShareItem}
+        onClose={() => setDiscoveryShareItem(null)}
+        onPost={(title, caption, visibility) => handleDiscoveryPost(title, caption, visibility)}
+      />
 
-        <Toast {...toast} onHide={hideToast} />
-      </View>
+      <Toast {...toast} onHide={hideToast} />
+    </View>
   );
 };
 
@@ -1849,6 +1884,7 @@ const styles = StyleSheet.create({
   headerSub: { color: COLORS.glass40, fontSize: 13, marginTop: 4 },
 
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
+  tabContent: { flex: 1 },
 
   empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 44, marginBottom: 12 },
