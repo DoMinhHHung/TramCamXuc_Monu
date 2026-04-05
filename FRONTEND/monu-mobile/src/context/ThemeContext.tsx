@@ -36,22 +36,18 @@ const THEME_STORAGE_KEY = 'monu_app_theme';
  * Determine initial theme based on stored preference or device settings
  */
 const getInitialTheme = (systemDarkMode: boolean | null): ThemeName => {
-  // If user has explicitly set a theme, we'll load it in useEffect
-  // For now, check system preference as fallback
-  if (systemDarkMode === true) {
-    return 'dark';
-  }
-  if (systemDarkMode === false) {
-    return 'light';
-  }
-  return 'dark'; // Default fallback
+  // Default product theme: classical.
+  // If follow-system is enabled we only switch between dark/light there.
+  if (systemDarkMode === true) return 'dark';
+  if (systemDarkMode === false) return 'light';
+  return 'classic';
 };
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const systemColorScheme = useColorScheme();
   const systemDarkMode = systemColorScheme === 'dark';
   
-  const [theme, setThemeState] = useState<ThemeName>('dark');
+  const [theme, setThemeState] = useState<ThemeName>('classic');
   const [followSystem, setFollowSystemState] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -73,12 +69,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setThemeState(savedTheme as any);
         } else {
           // Default
-          setThemeState('dark');
-          await AsyncStorage.setItem(THEME_STORAGE_KEY, 'dark');
+          setThemeState('classic');
+          await AsyncStorage.setItem(THEME_STORAGE_KEY, 'classic');
         }
       } catch (error) {
         console.warn('[Theme] Failed to load saved theme:', error);
-        setThemeState('dark');
+        setThemeState('classic');
       } finally {
         setIsLoading(false);
       }

@@ -35,6 +35,7 @@ import {
 } from '../../services/payment';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LocalizationContext';
+import { fetchWithRetry, loadCache, saveCache } from '../../utils/swrCache';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const PURCHASE_COOLDOWN_MS = 30_000;
@@ -489,6 +490,7 @@ export const PremiumScreen = () => {
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
     const [currentSub, setCurrentSub] = useState<UserSubscription | null>(null);
     const [loading, setLoading] = useState(true);
+    const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const premiumFocusPassRef = useRef(0);
     const [purchasing, setPurchasing] = useState(false);
@@ -574,13 +576,34 @@ export const PremiumScreen = () => {
         };
     }, []);
 
+    const userScope = useMemo(() => {
+        const id = authSession?.profile?.id;
+        if (id) return id;
+        const token = authSession?.tokens?.accessToken;
+        if (!token) return 'anonymous';
+        return token.slice(-24);
+    }, [authSession?.profile?.id, authSession?.tokens?.accessToken]);
+
     const fetchData = useCallback(async (silent = false) => {
+        const cacheKey = getPremiumCacheStorageKey(userScope);
+        if (!silent) {
+            const cached = await loadCache<PremiumCachePayload>(cacheKey);
+            if (cached) {
+                setPlans(cached.data.plans ?? []);
+                setCurrentSub(cached.data.currentSub ?? null);
+                if (cached.data.selectedPlanId) {
+                    const cachedSelected = (cached.data.plans ?? []).find((plan) => plan.id === cached.data.selectedPlanId);
+                    if (cachedSelected) setSelectedPlan(cachedSelected);
+                }
+            }
+        }
         try {
             if (!silent) setLoading(true);
+            else setBackgroundRefreshing(true);
             setLoadError(null);
             const [plansData, subData] = await Promise.allSettled([
-                getActiveSubscriptionPlans(),
-                authSession ? getMySubscription() : Promise.resolve(null as UserSubscription | null),
+                fetchWithRetry(() => getActiveSubscriptionPlans(), 2),
+                authSession ? fetchWithRetry(() => getMySubscription(), 2) : Promise.resolve(null as UserSubscription | null),
             ]);
 
             if (plansData.status === 'fulfilled') {
@@ -597,13 +620,24 @@ export const PremiumScreen = () => {
             } else {
                 setCurrentSub(null);
             }
+            if (plansData.status === 'fulfilled') {
+                void saveCache(cacheKey, {
+                    plans: plansData.value,
+                    currentSub: subData.status === 'fulfilled' ? (subData.value ?? null) : null,
+                    selectedPlanId: selectedPlan?.id ?? null,
+                    updatedAt: Date.now(),
+                } satisfies PremiumCachePayload);
+            }
         } catch (error: any) {
             if (!silent) {
                 setLoadError(error?.message || 'Không thể tải dữ liệu Premium');
             }
         }
-        finally { if (!silent) setLoading(false); }
-    }, [authSession, selectedPlan]);
+        finally {
+            if (!silent) setLoading(false);
+            setBackgroundRefreshing(false);
+        }
+    }, [authSession, selectedPlan, userScope]);
 
     useEffect(() => {
         premiumFocusPassRef.current = 0;
@@ -628,14 +662,6 @@ export const PremiumScreen = () => {
         const id = setInterval(tick, 1000);
         return () => clearInterval(id);
     }, [inAppPayment?.orderCode, pendingPaymentMeta?.createdAt]);
-
-    const userScope = useMemo(() => {
-        const id = authSession?.profile?.id;
-        if (id) return id;
-        const token = authSession?.tokens?.accessToken;
-        if (!token) return 'anonymous';
-        return token.slice(-24);
-    }, [authSession?.profile?.id, authSession?.tokens?.accessToken]);
 
     const loadPendingPayment = useCallback(async () => {
         if (!authSession) {
@@ -972,6 +998,12 @@ export const PremiumScreen = () => {
                 </View>
 
                 <View style={styles.body}>
+                    {backgroundRefreshing && (
+                        <View style={styles.streamingBar}>
+                            <ActivityIndicator size="small" color="#C084FC" />
+                            <Text style={styles.streamingText}>Đang cập nhật gói Premium mới nhất...</Text>
+                        </View>
+                    )}
 
                     {/* ── Plan selector ── */}
                     {plans.length > 0 && (
@@ -1266,6 +1298,23 @@ const styles = StyleSheet.create({
     // ── Body ─────────────────────────────────────────────────────────────────
     body: {
         paddingHorizontal: 20,
+    },
+    streamingBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.12)',
+    },
+    streamingText: {
+        color: 'rgba(255,255,255,0.72)',
+        fontSize: 12,
+        fontWeight: '600',
     },
     section: {
         marginBottom: 20,
