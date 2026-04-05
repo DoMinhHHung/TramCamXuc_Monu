@@ -69,7 +69,8 @@ const getAdaptiveTimeout = (path: string): number => {
   // service-social (Render): listen-history / follows — Mongo + cold start
   if (
       path.includes('/social/listen-history/my') ||
-      path.includes('/social/follows/my-artists')
+      path.includes('/social/follows/my-artists') ||
+      path.includes('/social/hearts')
   ) {
     if (currentNetworkTier === 'offline') return 5_000;
     if (currentNetworkTier === 'slow') return 50_000;
@@ -215,6 +216,15 @@ export const apiClient: AxiosInstance = axios.create({
 // ─── Request interceptor ────────────────────────────────────────────────────────
 apiClient.interceptors.request.use((config) => {
   const path = normalizeUrlPath(config.url);
+
+  if (path.startsWith('/recommendations') && env.mlServiceUrl) {
+    config.baseURL = env.mlServiceUrl;
+  } else if (path.startsWith('/social') && env.socialServiceUrl) {
+    config.baseURL = env.socialServiceUrl;
+  } else {
+    config.baseURL = env.apiBaseUrl;
+  }
+
   config.timeout = getAdaptiveTimeout(path);
 
   if (accessTokenInMemory) setAuthorizationHeader(config, accessTokenInMemory);
@@ -269,7 +279,7 @@ apiClient.interceptors.response.use(
         const retryCount = originalRequest._retryCount ?? 0;
         if (retryCount < MAX_RETRY_COUNT) {
           originalRequest._retryCount = retryCount + 1;
-          const delay = RETRY_DELAY_MS * (retryCount + 1); // 1.2s, 2.4s
+          const delay = RETRY_DELAY_MS * (retryCount + 1);
           if (__DEV__) {
             console.debug(
                 `[API] Retry ${retryCount + 1}/${MAX_RETRY_COUNT} sau ${delay}ms — ${requestUrl}`
@@ -278,12 +288,10 @@ apiClient.interceptors.response.use(
           await new Promise((resolve) => setTimeout(resolve, delay));
           return apiClient(originalRequest);
         }
-        // Đã retry đủ lần → đặt thông báo thân thiện
         error.message = `Kết nối tới máy chủ thất bại sau ${MAX_RETRY_COUNT} lần thử. Vui lòng kiểm tra mạng.`;
         return Promise.reject(error);
       }
 
-      // ── Rate limit ──────────────────────────────────────────────────────────────
       if (status === 429) {
         const retryAfter = error.response?.headers?.['retry-after'];
         const backendMessage = (error.response?.data as { message?: string } | undefined)?.message;

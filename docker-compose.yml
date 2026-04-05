@@ -143,7 +143,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 80s
+      start_period: 120s
 
   # ─── 4. MUSIC SERVICE ───────────────────────────────────────
   music-service:
@@ -172,7 +172,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 80s
+      start_period: 120s
 
   # ─── 5. PAYMENT SERVICE ─────────────────────────────────────
   payment-service:
@@ -198,7 +198,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 80s
+      start_period: 180s
 
   # ─── 6. ADS SERVICE ─────────────────────────────────────────
   ads-service:
@@ -265,27 +265,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 80s
-
-  # ─── 9. SOCIAL SERVICE (moved to Next.js → deployed on Render) ──
-  # social-service:
-  #   <<: [ *common, *limits ]
-  #   build: { context: ., dockerfile: social-service/Dockerfile }
-  #   container_name: social-service
-  #   environment:
-  #     <<: [ *infra, *gateway, *java-env, *minio, *internal ]
-  #     SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
-  #     MONGODB_URI: ${MONGODB_URI}
-  #     MINIO_AI_BUCKET: ${MINIO_AI_BUCKET:-ai-training-data}
-  #     FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
-  #   depends_on:
-  #     discovery-server:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: [ "CMD", "wget", "-qO-", "http://localhost:8767/actuator/health" ]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #     start_period: 80s
 
   # ─── 10. RECOMMENDATION ML (Python) ─────────────────────────
   # recommendation-ml:
