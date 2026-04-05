@@ -1716,6 +1716,18 @@ export const DiscoverScreen = () => {
     } catch { }
   };
 
+  const applyOptimisticCommentLike = useCallback((commentId: string, liked: boolean) => {
+    setComments(prev => prev.map(item => {
+      if (item.id !== commentId) return item;
+      const current = Number(item.likeCount ?? 0);
+      return {
+        ...item,
+        likedByCurrentUser: liked,
+        likeCount: Math.max(0, current + (liked ? 1 : -1)),
+      };
+    }));
+  }, []);
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -1845,13 +1857,39 @@ export const DiscoverScreen = () => {
         onClose={() => setCommentPost(null)}
         onSendComment={async (content, parentId) => {
           if (!commentPost) return;
-          await createPostComment({ postId: commentPost.id, content, parentId });
-          await reloadComments();
+          const optimisticId = `local-${Date.now()}`;
+          const optimisticComment: Comment = {
+            id: optimisticId,
+            userId: currentUserId ?? 'me',
+            content,
+            parentId,
+            likeCount: 0,
+            edited: false,
+            likedByCurrentUser: false,
+            replyCount: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          setComments(prev => [optimisticComment, ...prev]);
+          try {
+            await createPostComment({ postId: commentPost.id, content, parentId });
+            await reloadComments();
+          } catch (e) {
+            setComments(prev => prev.filter(c => c.id !== optimisticId));
+            throw e;
+          }
         }}
         onLikeComment={async c => {
-          if (c.likedByCurrentUser) await unlikeComment(c.id);
-          else await likeComment(c.id);
-          await reloadComments();
+          const nextLiked = !c.likedByCurrentUser;
+          applyOptimisticCommentLike(c.id, nextLiked);
+          try {
+            if (c.likedByCurrentUser) await unlikeComment(c.id);
+            else await likeComment(c.id);
+          } catch {
+            applyOptimisticCommentLike(c.id, c.likedByCurrentUser);
+          } finally {
+            await reloadComments();
+          }
         }}
         onDeleteComment={async id => { await deleteComment(id); await reloadComments(); }}
         onEditComment={async (id, content) => { await updateComment(id, content); await reloadComments(); }}
@@ -2084,5 +2122,3 @@ const createCommentStyles = (C: ColorScheme) => StyleSheet.create({
   input: { color: C.text, fontSize: 14, maxHeight: 100, lineHeight: 19 },
   sendBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
 });
-
-
