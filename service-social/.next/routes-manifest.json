@@ -246,6 +246,12 @@
       "namedRegex": "^/health(?:/)?$"
     },
     {
+      "page": "/social/artists/stats-batch",
+      "regex": "^/social/artists/stats\\-batch(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/artists/stats\\-batch(?:/)?$"
+    },
+    {
       "page": "/social/comments",
       "regex": "^/social/comments(?:/)?$",
       "routeKeys": {},
@@ -300,10 +306,22 @@
       "namedRegex": "^/social/hearts(?:/)?$"
     },
     {
+      "page": "/social/hearts/check-batch",
+      "regex": "^/social/hearts/check\\-batch(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/hearts/check\\-batch(?:/)?$"
+    },
+    {
       "page": "/social/hearts/my",
       "regex": "^/social/hearts/my(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/social/hearts/my(?:/)?$"
+    },
+    {
+      "page": "/social/hearts/my-ids",
+      "regex": "^/social/hearts/my\\-ids(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/social/hearts/my\\-ids(?:/)?$"
     },
     {
       "page": "/social/listen-history/my",

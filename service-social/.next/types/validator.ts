@@ -164,6 +164,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/social/artists/stats-batch/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/social/artists/stats-batch">> = Specific
+  const handler = {} as typeof import("../../app/social/artists/stats-batch/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/social/comments/[commentId]/like/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/social/comments/[commentId]/like">> = Specific
@@ -317,6 +326,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/social/hearts/check-batch/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/social/hearts/check-batch">> = Specific
+  const handler = {} as typeof import("../../app/social/hearts/check-batch/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/social/hearts/check/[songId]/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/social/hearts/check/[songId]">> = Specific
@@ -330,6 +348,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/social/hearts/count/[songId]">> = Specific
   const handler = {} as typeof import("../../app/social/hearts/count/[songId]/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/social/hearts/my-ids/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/social/hearts/my-ids">> = Specific
+  const handler = {} as typeof import("../../app/social/hearts/my-ids/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

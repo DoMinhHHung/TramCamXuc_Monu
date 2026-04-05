@@ -64,8 +64,8 @@ async def lifespan(app: FastAPI):
 async def _warm_up_social_service():
     """Ping service-social health endpoint to wake it from Render cold start."""
     import httpx
-    url = f"{settings.social_service_url}/health"
-    timeout = httpx.Timeout(60.0, connect=10.0)
+    url = f"{settings.social_service_url}/actuator/health"
+    timeout = httpx.Timeout(60.0, connect=60.0)
     for attempt in range(1, 7):
         try:
             async with httpx.AsyncClient(timeout=timeout) as c:
