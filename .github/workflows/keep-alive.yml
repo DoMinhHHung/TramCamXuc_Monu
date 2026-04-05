@@ -2,7 +2,7 @@ name: Keep Render Services Alive
 
 on:
   schedule:
-    - cron: '1-59/14 0-16 * * *'
+    - cron: '*/14 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
       - name: Ping ${{ matrix.service.name }}
         run: |
           echo "🔄 Pinging ${{ matrix.service.name }}..."
-          curl -s -o /dev/null -w "Status: %{http_code}\n" "${{ matrix.service.url }}" || echo "⚠️  Service might be sleeping"
+          curl -s -o /dev/null -w "Status: %{http_code}\n" "${{ matrix.service.url }}" || echo "⚠️ Service might be sleeping"
         continue-on-error: true
 
       - name: Wait before next request

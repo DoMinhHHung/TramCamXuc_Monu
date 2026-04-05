@@ -15,6 +15,7 @@ import {
     SpeakerHigh,
     Warning,
     ChartBar,
+    Sparkle,
 } from '@phosphor-icons/react';
 import { useTheme } from '@/lib/theme';
 
@@ -26,6 +27,7 @@ const NAV = [
     { href: '/dashboard/ads',        label: 'Quảng cáo',   icon: SpeakerHigh, exact: false },
     { href: '/dashboard/reports',    label: 'Báo cáo',     icon: Warning,     exact: false },
     { href: '/dashboard/analytics',  label: 'Thống kê',    icon: ChartBar,    exact: false },
+    { href: '/dashboard/recommendations', label: 'Reco/API', icon: Sparkle, exact: false },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

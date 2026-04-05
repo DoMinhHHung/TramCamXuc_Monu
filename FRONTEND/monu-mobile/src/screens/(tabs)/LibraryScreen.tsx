@@ -53,12 +53,24 @@ import { apiClient } from '../../services/api';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 import { Toast, useToast } from '../../components/Toast';
 import { getMySubscription } from '../../services/payment';
+import { fetchWithRetry, loadCache, saveCache } from '../../utils/swrCache';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Tab = 'playlists' | 'songs' | 'albums';
 let tr = (key: string, fallback?: string) => fallback ?? key;
 let rc = COLORS;
+const getLibraryCacheStorageKey = (userScope: string) => `library.cache.${userScope}`;
+
+type LibraryCachePayload = {
+  playlists: Playlist[];
+  songs: Song[];
+  albums: Album[];
+  artistProfile: ArtistProfile | null;
+  hasActiveSub: boolean;
+  canCreateAlbumByPlan: boolean;
+  updatedAt: number;
+};
 
 type ArtistProfile = {
   id: string;
@@ -1267,6 +1279,7 @@ export const LibraryScreen = () => {
   const [displayedTab, setDisplayedTab] = useState<Tab>('playlists');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
 
   // Data
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -1297,6 +1310,8 @@ export const LibraryScreen = () => {
     libraryFocusPassRef.current = 0;
   }, [authSession?.tokens.accessToken]);
 
+  const userScope = authSession?.profile?.id ?? authSession?.tokens?.accessToken?.slice(-24) ?? 'anonymous';
+
   // ── Load ──────────────────────────────────────────────────────────────────
   useFocusEffect(useCallback(() => {
     const silent = libraryFocusPassRef.current > 0;
@@ -1307,15 +1322,28 @@ export const LibraryScreen = () => {
   }, [authSession?.tokens.accessToken]));
 
   const load = async (silent = false) => {
+    const cacheKey = getLibraryCacheStorageKey(userScope);
+    if (!silent) {
+      const cached = await loadCache<LibraryCachePayload>(cacheKey);
+      if (cached) {
+        setPlaylists(cached.data.playlists ?? []);
+        setSongs(cached.data.songs ?? []);
+        setAlbums(cached.data.albums ?? []);
+        setArtistProfile(cached.data.artistProfile ?? null);
+        setHasActiveSub(!!cached.data.hasActiveSub);
+        setCanCreateAlbumByPlan(!!cached.data.canCreateAlbumByPlan);
+      }
+    }
     try {
       if (!silent) setLoading(true);
       else setRefreshing(false);
+      if (silent) setBackgroundRefreshing(true);
       const [plRes, soRes, alRes, artistRes, subRes] = await Promise.allSettled([
-        getMyPlaylists({ page: 1, size: 50 }),
-        getMySongs({ page: 1, size: 50 }),
-        getMyAlbums({ page: 1, size: 50 }),
-        apiClient.get<ArtistProfile>('/artists/me'),
-        getMySubscription(),
+        fetchWithRetry(() => getMyPlaylists({ page: 1, size: 50 }), 2),
+        fetchWithRetry(() => getMySongs({ page: 1, size: 50 }), 2),
+        fetchWithRetry(() => getMyAlbums({ page: 1, size: 50 }), 2),
+        fetchWithRetry(() => apiClient.get<ArtistProfile>('/artists/me'), 1),
+        fetchWithRetry(() => getMySubscription(), 1),
       ]);
 
       if (plRes.status === 'fulfilled') setPlaylists(plRes.value.content ?? []);
@@ -1350,9 +1378,22 @@ export const LibraryScreen = () => {
         setHasActiveSub(false);
         setCanCreateAlbumByPlan(false);
       }
+
+      if (plRes.status === 'fulfilled' || soRes.status === 'fulfilled' || alRes.status === 'fulfilled') {
+        void saveCache(cacheKey, {
+          playlists: plRes.status === 'fulfilled' ? (plRes.value.content ?? playlists) : playlists,
+          songs: soRes.status === 'fulfilled' ? (soRes.value.content ?? songs) : songs,
+          albums: alRes.status === 'fulfilled' ? (alRes.value.content ?? albums) : albums,
+          artistProfile: artistRes.status === 'fulfilled' ? (artistRes.value.data ?? null) : artistProfile,
+          hasActiveSub,
+          canCreateAlbumByPlan,
+          updatedAt: Date.now(),
+        } satisfies LibraryCachePayload);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setBackgroundRefreshing(false);
     }
   };
 
@@ -1733,6 +1774,12 @@ export const LibraryScreen = () => {
             {playlists.length} {t('screens.library.tabPlaylists', 'playlists')} · {songs.length} {t('screens.library.tabSongs', 'songs')} · {albums.length} {t('screens.library.tabAlbums', 'albums')}
           </Text>
         </LinearGradient>
+        {backgroundRefreshing && (
+          <View style={styles.syncBanner}>
+            <ActivityIndicator size="small" color={themeColors.accent} />
+            <Text style={styles.syncBannerText}>Đang đồng bộ thư viện từ server...</Text>
+          </View>
+        )}
 
         {/* Tab bar */}
         <TabBar
@@ -1882,6 +1929,21 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 20 },
   headerTitle: { color: COLORS.white, fontSize: 28, fontWeight: '800' },
   headerSub: { color: COLORS.glass40, fontSize: 13, marginTop: 4 },
+  syncBanner: {
+    marginHorizontal: 20,
+    marginTop: -8,
+    marginBottom: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.glass12,
+    backgroundColor: COLORS.glass06,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  syncBannerText: { color: COLORS.glass60, fontSize: 12, fontWeight: '600' },
 
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
   tabContent: { flex: 1 },

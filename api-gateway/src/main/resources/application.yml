@@ -396,8 +396,6 @@ spring:
                 redis-rate-limiter.burstCapacity: 40
                 redis-rate-limiter.requestedTokens: 1
 
-        # ================= SOCIAL (Next.js service-social trên Render hoặc lb://SOCIAL-SERVICE) =================
-        # SOCIAL_SERVICE_URL ví dụ: https://xxx.onrender.com — không có trailing slash
 
         - id: social-feed-write
           uri: ${SOCIAL_SERVICE_URL:lb://SOCIAL-SERVICE}

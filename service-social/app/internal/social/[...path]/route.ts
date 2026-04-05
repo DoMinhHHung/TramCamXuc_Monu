@@ -8,7 +8,6 @@ function notImplemented(req: NextRequest) {
     { status: 501 },
   );
 }
-
 export async function GET(req: NextRequest) { return notImplemented(req); }
 export async function POST(req: NextRequest) { return notImplemented(req); }
 export async function PATCH(req: NextRequest) { return notImplemented(req); }

@@ -96,8 +96,6 @@ async def _run_initial_training():
         log.error("initial_training_failed", error=str(e))
 
 
-# ── Application factory ────────────────────────────────────────────────────────
-
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Recommendation ML Service",
