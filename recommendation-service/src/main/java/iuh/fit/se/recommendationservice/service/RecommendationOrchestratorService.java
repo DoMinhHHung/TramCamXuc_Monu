@@ -616,11 +616,11 @@ public class RecommendationOrchestratorService {
     }
 
     private String cacheHomeKey(UUID userId, RecommendationMode mode) {
-        return RedisConfig.KEY_CACHE_HOME + mode.name().toLowerCase() + ":" + userId;
+        return RedisConfig.KEY_CACHE_HOME + ":" + mode.name().toLowerCase() + ":" + userId;
     }
 
     private String cacheSimilarKey(UUID songId, RecommendationMode mode) {
-        return RedisConfig.KEY_CACHE_SIMILAR + mode.name().toLowerCase() + ":" + songId;
+        return RedisConfig.KEY_CACHE_SIMILAR + ":" + mode.name().toLowerCase() + ":" + songId;
     }
 
     private enum RecommendationMode {

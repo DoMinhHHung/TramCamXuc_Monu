@@ -173,6 +173,7 @@ export function useRecommendations() {
     (async () => {
       let hadTrendingCache = false;
       try {
+        await AsyncStorage.removeItem('rec_cache_v1');
         const raw = await AsyncStorage.getItem(REC_CACHE_KEY);
         if (raw && isMountedRef.current) {
           const c = JSON.parse(raw);
