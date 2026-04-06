@@ -15,7 +15,6 @@ import {
     SpeakerHigh,
     Warning,
     ChartBar,
-    Sparkle,
 } from '@phosphor-icons/react';
 import { useTheme } from '@/lib/theme';
 
@@ -27,7 +26,6 @@ const NAV = [
     { href: '/dashboard/ads',        label: 'Quảng cáo',   icon: SpeakerHigh, exact: false },
     { href: '/dashboard/reports',    label: 'Báo cáo',     icon: Warning,     exact: false },
     { href: '/dashboard/analytics',  label: 'Thống kê',    icon: ChartBar,    exact: false },
-    { href: '/dashboard/recommendations', label: 'Reco/API', icon: Sparkle, exact: false },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -35,18 +33,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const pathname  = usePathname();
     const { theme, toggle } = useTheme();
     const [open,    setOpen]    = useState(false);
-    const [mounted, setMounted] = useState(false);
+    const [authenticated] = useState<boolean>(() =>
+        typeof window !== 'undefined' && Boolean(localStorage.getItem('access_token')),
+    );
 
     useEffect(() => {
-        setMounted(true);
-        if (!localStorage.getItem('access_token')) router.replace('/login');
-    }, [router]);
+        if (!authenticated) router.replace('/login');
+    }, [router, authenticated]);
 
     const logout = () => { localStorage.clear(); router.replace('/login'); };
     const isActive = (href: string, exact: boolean) =>
         exact ? pathname === href : pathname.startsWith(href);
 
-    if (!mounted) return null;
+    if (!authenticated) {
+        return (
+            <div className="min-h-screen bg-white dark:bg-black" />
+        );
+    }
     const isDark = theme === 'dark';
 
     return (

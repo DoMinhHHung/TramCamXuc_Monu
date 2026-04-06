@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
 import { openAdminRealtime } from '@/lib/realtime';
 import { ArrowClockwise, MusicNotesPlus } from '@phosphor-icons/react';
-import Link from 'next/link';
+
 
 type MusicTab = 'songs' | 'genres' | 'songs-top' | 'playlists-top' | 'albums-top' | 'reports' | 'jamendo';
 // --- Genre types ---
@@ -18,6 +18,7 @@ interface GenreRequest {
     name: string;
     description?: string;
 }
+
 
 type Period = 'WEEK' | 'MONTH';
 type ListenPeriod = 'DAY' | 'WEEK' | 'MONTH';
@@ -74,13 +75,14 @@ const fmtDuration = (sec?: number) => {
 
 function DataCard({ title, subtitle, value }: { title: string; subtitle?: string; value?: string }) {
     return (
-        <div className="border border-zinc-200 dark:border-white/10 rounded-xl p-5 bg-white shadow-sm dark:bg-white/[0.02]">
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{title}</p>
-            <p className="text-2xl font-bold text-zinc-900 dark:text-white mt-1">{value ?? '—'}</p>
-            {subtitle ? <p className="text-sm text-zinc-500 mt-2">{subtitle}</p> : null}
+        <div className="border border-zinc-200 dark:border-white/10 p-3 bg-white/70 dark:bg-white/[0.02]">
+            <p className="text-[10px] uppercase tracking-wider text-zinc-500">{title}</p>
+            <p className="text-lg font-semibold text-zinc-900 dark:text-white mt-1">{value ?? '—'}</p>
+            {subtitle ? <p className="text-[11px] text-zinc-500 mt-1">{subtitle}</p> : null}
         </div>
     );
 }
+
 
 export default function MusicPage() {
     const [tab, setTab] = useState<MusicTab>('songs');
@@ -98,9 +100,8 @@ export default function MusicPage() {
     const fetchGenres = async () => {
         setLoadingGenres(true);
         try {
-            // Modified unwrapping logic so it works with the new apiFetch that strips code & result
-            const res = await apiFetch<Genre[]>('/genres');
-            setGenres(res || []);
+            const res = await apiFetch<{ result: Genre[] }>('/genres');
+            setGenres(res.result || []);
             setGenreError(null);
         } catch (e) {
             setGenreError('Không thể tải danh sách thể loại');
@@ -351,327 +352,312 @@ export default function MusicPage() {
     };
 
     return (
-        <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="p-3 sm:p-6 max-w-6xl mx-auto space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                    <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">Music Administration</h1>
-                    <p className="text-base text-zinc-500 mt-1">Quản lý bài hát, playlist, album và nguồn Jamendo cho hệ thống.</p>
+                    <h1 className="text-sm font-semibold text-zinc-900 dark:text-white">Music</h1>
+                    <p className="text-[11px] text-zinc-500">Quản lý bài hát, playlist, album và nguồn Jamendo cho admin.</p>
                 </div>
-                <div className="flex gap-3">
-                    <Link href="/dashboard/music/artists" className="px-5 py-2 text-sm font-medium border border-zinc-200 rounded-lg bg-zinc-50 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700">
-                        Quản lý Nghệ Sĩ
-                    </Link>
-                    <Link href="/dashboard/music/albums" className="px-5 py-2 text-sm font-medium border border-zinc-200 rounded-lg bg-zinc-50 text-zinc-800 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700">
-                        Quản lý Albums riêng
-                    </Link>
-                    <button
-                        type="button"
-                        onClick={refreshCurrentTab}
-                        className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-lg border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors"
-                    >
-                        <ArrowClockwise size={18} /> Làm mới
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    onClick={refreshCurrentTab}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-white/5"
+                >
+                    <ArrowClockwise size={14} />
+                    Làm mới
+                </button>
             </div>
 
-            {error ? <div className="text-sm font-medium text-red-600 border border-red-200 rounded-lg dark:border-red-900/40 px-4 py-3 bg-red-50 dark:bg-red-900/10 shadow-sm">{error}</div> : null}
+            {error ? <div className="text-[11px] text-red-500 border border-red-200 dark:border-red-900/30 px-3 py-2">{error}</div> : null}
 
-            <div className="flex flex-wrap gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-2">
-                {[
-                    { id: 'songs', label: 'Danh sách bài hát' },
-                    { id: 'genres', label: 'Danh sách Thể loại' },
-                    { id: 'songs-top', label: 'BXH Bài hát' },
-                    { id: 'playlists-top', label: 'BXH Playlist' },
-                    { id: 'albums-top', label: 'BXH Album' },
-                    { id: 'reports', label: 'Báo cáo vi phạm' },
-                    { id: 'jamendo', label: 'Nạp nhạc Jamendo' }
-                ].map(item => (
-                    <button
-                        key={item.id}
-                        onClick={() => setTab(item.id as MusicTab)}
-                        className={`px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-all ${
-                            tab === item.id 
-                            ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-900/10' 
-                            : 'border-transparent hover:border-zinc-300 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
-                        }`}
-                    >
-                        {item.label}
-                    </button>
-                ))}
+            <div className="flex flex-wrap gap-2">
+                {/* Tab order: songs, genres, songs-top, playlists-top, albums-top, reports, jamendo */}
+                <button
+                    onClick={() => setTab('songs')}
+                    className={`px-3 h-8 text-[11px] border ${tab === 'songs' ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                >
+                    Danh sách bài hát
+                </button>
+                <button
+                    onClick={() => setTab('genres')}
+                    className={`px-3 h-8 text-[11px] border ${tab === 'genres' ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                >
+                    Danh sách thể loại nhạc
+                </button>
+                <button
+                    onClick={() => setTab('songs-top')}
+                    className={`px-3 h-8 text-[11px] border ${tab === 'songs-top' ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                >
+                    Bài hát yêu thích tuần/tháng
+                </button>
+                <button
+                    onClick={() => setTab('playlists-top')}
+                    className={`px-3 h-8 text-[11px] border ${tab === 'playlists-top' ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                >
+                    Playlist yêu thích + tổng số
+                </button>
+                <button
+                    onClick={() => setTab('albums-top')}
+                    className={`px-3 h-8 text-[11px] border ${tab === 'albums-top' ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                >
+                    Album yêu thích + tổng số
+                </button>
+                <button
+                    onClick={() => setTab('reports')}
+                    className={`px-3 h-8 text-[11px] border ${tab === 'reports' ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                >
+                    Báo cáo
+                </button>
+                <button
+                    onClick={() => setTab('jamendo')}
+                    className={`px-3 h-8 text-[11px] border ${tab === 'jamendo' ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                >
+                    Thêm nhạc từ Jamendo
+                </button>
             </div>
 
-            <div className="pt-4">
-                {tab === 'genres' && (
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between bg-white dark:bg-zinc-900 px-6 py-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                            <h2 className="text-lg font-bold">Danh sách thể loại nhạc (Genres)</h2>
-                            <button
-                                className="px-5 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition-colors"
-                                onClick={() => { setGenreModalOpen(true); setGenreEditing(null); setGenreForm({ name: '', description: '' }); }}
-                            >
-                                Thêm mới
-                            </button>
-                        </div>
-                        {genreError && <div className="text-red-500 text-sm">{genreError}</div>}
-                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden shadow-sm">
-                            {loadingGenres ? <div className="p-6 text-sm text-zinc-500 text-center">Đang tải dữ liệu...</div> : genres.length === 0 ? <div className="p-6 text-sm text-center">Chưa có thể loại nào</div> : (
-                                <table className="min-w-full text-base">
-                                    <thead>
-                                        <tr className="bg-zinc-50 dark:bg-zinc-800/50 text-zinc-500 dark:text-zinc-400">
-                                            <th className="p-4 text-left font-medium border-b border-zinc-200 dark:border-zinc-800">Tên T.Loại</th>
-                                            <th className="p-4 text-left font-medium border-b border-zinc-200 dark:border-zinc-800">Mô tả</th>
-                                            <th className="p-4 text-right font-medium border-b border-zinc-200 dark:border-zinc-800">Hành động</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                        {genres.map(g => (
-                                            <tr key={g.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                                                <td className="p-4 font-semibold text-zinc-900 dark:text-zinc-100">{g.name}</td>
-                                                <td className="p-4 text-zinc-600 dark:text-zinc-400">{g.description || <span className="opacity-50 italic">Chưa có mô tả</span>}</td>
-                                                <td className="p-4 flex justify-end gap-2">
-                                                    <button className="px-4 py-1.5 text-sm font-medium border border-zinc-200 rounded-lg hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800 text-blue-600" onClick={() => handleGenreEdit(g)}>Sửa</button>
-                                                    <button className="px-4 py-1.5 text-sm font-medium border border-red-200 rounded-lg hover:bg-red-50 dark:border-red-900/30 text-red-600 dark:hover:bg-red-900/10" onClick={() => handleGenreDelete(g.id)}>Xóa</button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-
-                        {/* Modal thêm/sửa thể loại */}
-                        {genreModalOpen && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-8 min-w-[400px] relative max-w-md w-full">
+                        {tab === 'genres' && (
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-[13px] font-semibold">Danh sách thể loại nhạc</h2>
                                     <button
-                                        className="absolute top-4 right-4 p-2 rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                                        onClick={handleGenreModalClose}
+                                        className="px-2 py-1 text-xs border rounded bg-zinc-900 text-white dark:bg-white dark:text-black"
+                                        onClick={() => { setGenreModalOpen(true); setGenreEditing(null); setGenreForm({ name: '', description: '' }); }}
                                     >
-                                        ×
+                                        Thêm mới
                                     </button>
-                                    <h3 className="text-xl font-bold mb-6 text-zinc-900 dark:text-white">{genreEditing ? 'Cập nhật Thể loại' : 'Thêm Thể loại mới'}</h3>
-                                    <form onSubmit={handleGenreSubmit} className="flex flex-col gap-5">
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Tên Thể loại</label>
-                                            <input
-                                                className="w-full border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:outline-none bg-transparent"
-                                                placeholder="VD: Pop, Rock..."
-                                                value={genreForm.name}
-                                                onChange={e => setGenreForm(f => ({ ...f, name: e.target.value }))}
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium mb-1.5 text-zinc-700 dark:text-zinc-300">Mô tả (tùy chọn)</label>
-                                            <textarea
-                                                className="w-full border border-zinc-300 dark:border-zinc-700 px-4 py-2.5 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:outline-none bg-transparent min-h-[100px]"
-                                                placeholder="Chi tiết về thể loại này"
-                                                value={genreForm.description}
-                                                onChange={e => setGenreForm(f => ({ ...f, description: e.target.value }))}
-                                            />
-                                        </div>
-                                        <div className="flex gap-3 justify-end mt-4">
-                                            <button type="button" className="px-5 py-2.5 text-sm font-medium rounded-lg text-zinc-600 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700" onClick={handleGenreModalClose}>Hủy Bỏ</button>
-                                            <button type="submit" className="px-5 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-sm">{genreEditing ? 'Cập Nhật' : 'Thêm Mới'}</button>
-                                        </div>
-                                    </form>
                                 </div>
-                                {genreConfirmClose && (
-                                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                                        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl p-6 min-w-[320px] max-w-sm">
-                                            <h4 className="text-lg font-bold mb-2">Chưa lưu thay đổi</h4>
-                                            <p className="text-zinc-600 dark:text-zinc-400 text-sm mb-6">Bạn có chắc chắn muốn thoát? Dữ liệu đang nhập sẽ bị mất hoàn toàn.</p>
-                                            <div className="flex gap-3 justify-end">
-                                                <button className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-100 text-zinc-700 hover:bg-zinc-200" onClick={cancelGenreModalClose}>Tiếp tục chỉnh sửa</button>
-                                                <button className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700" onClick={confirmGenreModalClose}>Đồng ý Thoát</button>
-                                            </div>
+                                {genreError && <div className="text-red-500 text-xs">{genreError}</div>}
+                                <div className="border rounded mt-4">
+                                    {loadingGenres ? <div className="p-2 text-xs">Đang tải...</div> : genres.length === 0 ? <div className="p-2 text-xs">Chưa có thể loại nào</div> : (
+                                        <table className="min-w-full text-xs">
+                                            <thead>
+                                                <tr className="bg-zinc-100">
+                                                    <th className="p-2 text-left">Tên</th>
+                                                    <th className="p-2 text-left">Mô tả</th>
+                                                    <th className="p-2">Hành động</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {genres.map(g => (
+                                                    <tr key={g.id} className="border-t">
+                                                        <td className="p-2">{g.name}</td>
+                                                        <td className="p-2">{g.description}</td>
+                                                        <td className="p-2 flex gap-2">
+                                                            <button className="px-2 py-1 text-xs border rounded" onClick={() => handleGenreEdit(g)}>Sửa</button>
+                                                            <button className="px-2 py-1 text-xs border rounded text-red-600 border-red-300" onClick={() => handleGenreDelete(g.id)}>Xóa</button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    )}
+                                </div>
+
+                                {/* Modal thêm/sửa thể loại */}
+                                {genreModalOpen && (
+                                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+                                        <div className="bg-white dark:bg-zinc-900 rounded shadow-lg p-6 min-w-[320px] relative">
+                                            <button
+                                                className="absolute top-2 right-2 text-zinc-500 hover:text-zinc-900 text-lg"
+                                                onClick={handleGenreModalClose}
+                                                aria-label="Đóng"
+                                            >
+                                                ×
+                                            </button>
+                                            <h3 className="text-[14px] font-semibold mb-2">{genreEditing ? 'Cập nhật thể loại' : 'Thêm thể loại mới'}</h3>
+                                            <form onSubmit={handleGenreSubmit} className="flex flex-col gap-2">
+                                                <input
+                                                    className="border px-2 py-1 text-sm"
+                                                    placeholder="Tên thể loại"
+                                                    value={genreForm.name}
+                                                    onChange={e => setGenreForm(f => ({ ...f, name: e.target.value }))}
+                                                    required
+                                                />
+                                                <input
+                                                    className="border px-2 py-1 text-sm"
+                                                    placeholder="Mô tả"
+                                                    value={genreForm.description}
+                                                    onChange={e => setGenreForm(f => ({ ...f, description: e.target.value }))}
+                                                />
+                                                <div className="flex gap-2 mt-2">
+                                                    <button type="submit" className="px-3 py-1 text-xs rounded bg-zinc-900 text-white dark:bg-white dark:text-black">{genreEditing ? 'Cập nhật' : 'Thêm mới'}</button>
+                                                    <button type="button" className="px-3 py-1 text-xs rounded border" onClick={handleGenreModalClose}>Hủy</button>
+                                                </div>
+                                            </form>
                                         </div>
+                                        {/* Modal xác nhận đóng nếu có dữ liệu nhập */}
+                                        {genreConfirmClose && (
+                                            <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40">
+                                                <div className="bg-white dark:bg-zinc-900 rounded shadow-lg p-6 min-w-[280px]">
+                                                    <div className="mb-4">Bạn có chắc chắn muốn đóng? Dữ liệu đang nhập sẽ bị mất.</div>
+                                                    <div className="flex gap-2 justify-end">
+                                                        <button className="px-3 py-1 text-xs rounded border" onClick={cancelGenreModalClose}>Không</button>
+                                                        <button className="px-3 py-1 text-xs rounded bg-red-600 text-white" onClick={confirmGenreModalClose}>Đồng ý</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
                         )}
-                    </div>
-                )}
 
-                {tab === 'reports' && (
-                    <div className="rounded-xl overflow-hidden shadow-sm border border-zinc-200 dark:border-zinc-800">
-                        <iframe
-                            src="/dashboard/reports"
-                            style={{ width: '100%', minHeight: 700, border: 'none' }}
-                            title="Báo cáo bài hát"
-                            className="bg-zinc-50 dark:bg-zinc-900"
+            {tab === 'reports' && (
+                <iframe
+                    src="/dashboard/reports"
+                    style={{ width: '100%', minHeight: 700, border: 'none', background: 'white' }}
+                    title="Báo cáo bài hát"
+                />
+            )}
+
+            {tab === 'songs' && (
+                <div className="space-y-3">
+                    <div className="flex gap-2 mb-2">
+                        <button
+                            className={`px-3 py-1 text-xs border rounded ${songSource === 'user' ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                            onClick={() => { setSongSource('user'); loadSongs('user'); }}
+                        >Nhạc do người dùng tải lên</button>
+                        <button
+                            className={`px-3 py-1 text-xs border rounded ${songSource === 'jamendo' ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                            onClick={() => { setSongSource('jamendo'); loadSongs('jamendo'); }}
+                        >Hệ thống Jamendo</button>
+                    </div>
+                    <DataCard title={`Tổng số bài hát (${songSource === 'jamendo' ? 'Jamendo' : 'User'})`} value={totalSongs.toLocaleString('vi-VN')} subtitle={`Nguồn: /admin/songs?source=${songSource}`} />
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {loadingSongs ? <p className="text-[11px] text-zinc-500">Đang tải...</p> : songs.map((s) => (
+                            <div key={s.id} className="border border-zinc-200 dark:border-white/10 p-3">
+                                <p className="text-[12px] font-medium text-zinc-900 dark:text-white truncate">{s.title}</p>
+                                <p className="text-[11px] text-zinc-500 truncate">{s.primaryArtist?.stageName ?? s.primaryArtistStageName ?? '—'}</p>
+                                <p className="text-[11px] text-zinc-500 mt-1">{fmtDuration(s.durationSeconds)}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {tab === 'songs-top' && (
+                <div className="space-y-3">
+                    <div className="flex gap-2">
+                        {(['WEEK', 'MONTH'] as const).map((p) => (
+                            <button
+                                key={p}
+                                onClick={() => setSongPeriod(p)}
+                                className={`px-2.5 py-1 text-[11px] border ${songPeriod === p ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                            >
+                                {p === 'WEEK' ? 'Tuần' : 'Tháng'}
+                            </button>
+                        ))}
+                    </div>
+                    <DataCard title="Bài hát được yêu thích nhất" value={topSongTitle} subtitle={`Khoảng thời gian: ${songPeriod === 'WEEK' ? 'Tuần' : 'Tháng'}`} />
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {loadingTopSongs ? <p className="text-[11px] text-zinc-500">Đang tải...</p> : topListen.map((row, idx) => (
+                            <div key={row.songId} className="border border-zinc-200 dark:border-white/10 p-3">
+                                <p className="text-[12px] font-medium text-zinc-900 dark:text-white truncate">#{idx + 1} {topSongMap[row.songId]?.title ?? row.songId}</p>
+                                <p className="text-[11px] text-zinc-500 truncate">{topSongMap[row.songId]?.primaryArtistStageName ?? '—'}</p>
+                                <p className="text-[11px] text-zinc-500 mt-1">{row.listenCount.toLocaleString('vi-VN')} lượt nghe</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {tab === 'playlists-top' && (
+                <div className="space-y-3">
+                    <div className="flex gap-2">
+                        {(['WEEK', 'MONTH'] as const).map((p) => (
+                            <button
+                                key={p}
+                                onClick={() => setPlaylistPeriod(p)}
+                                className={`px-2.5 py-1 text-[11px] border ${playlistPeriod === p ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                            >
+                                {p === 'WEEK' ? 'Tuần' : 'Tháng'}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <DataCard title="Playlist được yêu thích nhất" value={playlists[0]?.name ?? 'Chưa có dữ liệu'} subtitle={`Khoảng thời gian đang chọn: ${playlistPeriod === 'WEEK' ? 'Tuần' : 'Tháng'}.`} />
+                        <DataCard title="Tổng số Playlist" value={totalPlaylists.toLocaleString('vi-VN')} subtitle="Nguồn hiện có: /playlists/my-playlists." />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {loadingPlaylists ? <p className="text-[11px] text-zinc-500">Đang tải...</p> : playlists.map((p) => (
+                            <div key={p.id} className="border border-zinc-200 dark:border-white/10 p-3">
+                                <p className="text-[12px] font-medium text-zinc-900 dark:text-white truncate">{p.name}</p>
+                                <p className="text-[11px] text-zinc-500">{p.totalSongs ?? 0} bài hát</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {tab === 'albums-top' && (
+                <div className="space-y-3">
+                    <div className="flex gap-2">
+                        {(['WEEK', 'MONTH'] as const).map((p) => (
+                            <button
+                                key={p}
+                                onClick={() => setAlbumPeriod(p)}
+                                className={`px-2.5 py-1 text-[11px] border ${albumPeriod === p ? 'bg-zinc-900 text-white dark:bg-white dark:text-black' : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400'}`}
+                            >
+                                {p === 'WEEK' ? 'Tuần' : 'Tháng'}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <DataCard
+                            title="Album được yêu thích nhất"
+                            value={topAlbums[0]?.title ?? 'Chưa có dữ liệu'}
+                            subtitle={`Nguồn: ${albumPeriod === 'MONTH' ? '/admin/albums/top-favorites-month' : '/admin/albums/top-favorites-week'}.`}
                         />
+                        <DataCard title="Tổng số Album" value={totalAlbums.toLocaleString('vi-VN')} subtitle="Nguồn: /albums?page=1&size=1." />
                     </div>
-                )}
-
-                {tab === 'songs' && (
-                    <div className="space-y-6">
-                        <div className="flex gap-3 p-1 inline-flex bg-zinc-100 dark:bg-zinc-800/50 rounded-lg">
-                            <button
-                                className={`px-5 py-2.5 text-sm font-medium rounded-md transition-colors ${songSource === 'user' ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400'}`}
-                                onClick={() => { setSongSource('user'); loadSongs('user'); }}
-                            >Nhạc Do Người Dùng Tải Lên</button>
-                            <button
-                                className={`px-5 py-2.5 text-sm font-medium rounded-md transition-colors ${songSource === 'jamendo' ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400'}`}
-                                onClick={() => { setSongSource('jamendo'); loadSongs('jamendo'); }}
-                            >Hệ Thống Tự Động (Jamendo)</button>
-                        </div>
-                        <DataCard title={`Tổng số bài hát (${songSource === 'jamendo' ? 'Nguồn Jamendo' : 'Nguồn User Upload'})`} value={(totalSongs || 0).toLocaleString('vi-VN')} subtitle={`Kho chứa hiện tại cho nhạc ${songSource}`} />
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            {loadingSongs ? <p className="text-sm font-medium text-zinc-500 py-8 col-span-3 text-center animate-pulse">Đang tải danh sách bài hát...</p> : songs.map((s) => (
-                                <div key={s.id} className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
-                                    <p className="text-base font-bold text-zinc-900 dark:text-white truncate mb-1" title={s.title}>{s.title}</p>
-                                    <p className="text-sm text-zinc-500 dark:text-zinc-400 truncate mb-3">{s.primaryArtist?.stageName ?? s.primaryArtistStageName ?? 'Nghệ sĩ ẩn danh'}</p>
-                                    <div className="flex items-center gap-2">
-                                        <span className="px-2.5 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded text-xs font-mono font-medium">
-                                            {fmtDuration(s.durationSeconds)}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {tab === 'songs-top' && (
-                    <div className="space-y-6">
-                        <div className="flex gap-3 p-1 inline-flex bg-zinc-100 dark:bg-zinc-800/50 rounded-lg">
-                            {(['WEEK', 'MONTH'] as const).map((p) => (
-                                <button
-                                    key={p}
-                                    onClick={() => setSongPeriod(p)}
-                                    className={`px-5 py-2 text-sm font-medium rounded-md transition-colors ${songPeriod === p ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400'}`}
-                                >
-                                    Thống Kê {p === 'WEEK' ? 'Theo Tuần' : 'Theo Tháng'}
-                                </button>
-                            ))}
-                        </div>
-                        <DataCard title="Quán Quân Bảng Xếp Hạng Bài Hát" value={topSongTitle} subtitle={`Lượng truy cập tích lũy trong chu kỳ ${songPeriod === 'WEEK' ? '7 Ngày' : '30 Ngày'} gần nhất`} />
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                            {loadingTopSongs ? <p className="text-sm text-zinc-500 col-span-3 text-center py-8">Đang tính toán biểu đồ...</p> : topListen.map((row, idx) => (
-                                <div key={row.songId} className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl p-5 shadow-sm relative overflow-hidden group">
-                                    <div className="absolute top-0 right-0 p-4 opacity-10 font-black text-6xl text-zinc-900 dark:text-white transition-opacity group-hover:opacity-20 pointer-events-none -mt-4 -mr-4">#{idx + 1}</div>
-                                    <p className="text-lg font-bold text-zinc-900 dark:text-white truncate pr-8 mb-1" title={topSongMap[row.songId]?.title}>{topSongMap[row.songId]?.title ?? row.songId}</p>
-                                    <p className="text-sm text-zinc-500 truncate mb-4">{topSongMap[row.songId]?.primaryArtistStageName ?? 'Nghệ sĩ ẩn danh'}</p>
-                                    <div className="inline-flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-3 py-1.5 rounded-full text-sm font-medium">
-                                        <span>🎧</span> {(row.listenCount || 0).toLocaleString('vi-VN')} lượt stream
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {tab === 'playlists-top' && (
-                    <div className="space-y-6">
-                        <div className="flex gap-3 p-1 inline-flex bg-zinc-100 dark:bg-zinc-800/50 rounded-lg">
-                            {(['WEEK', 'MONTH'] as const).map((p) => (
-                                <button
-                                    key={p}
-                                    onClick={() => setPlaylistPeriod(p)}
-                                    className={`px-5 py-2 text-sm font-medium rounded-md transition-colors ${playlistPeriod === p ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400'}`}
-                                >
-                                    Theo {p === 'WEEK' ? 'Tuần' : 'Tháng'}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="grid gap-6 md:grid-cols-2">
-                            <DataCard title="Playlist được săn đón nhất" value={playlists[0]?.name ?? 'Đang cập nhật'} subtitle={`Playlist dẫn đầu xu hướng (${playlistPeriod === 'WEEK' ? 'Tuần này' : 'Tháng này'})`} />
-                            <DataCard title="Tổng kho Playlist" value={(totalPlaylists || 0).toLocaleString('vi-VN')} subtitle="Tất cả Playlist được tạo trên hệ thống" />
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mt-4">
-                            {loadingPlaylists ? <p className="text-sm text-zinc-500 py-8 text-center col-span-3">Đang cập nhật dữ liệu...</p> : playlists.map((p) => (
-                                <div key={p.id} className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl p-5 shadow-sm">
-                                    <p className="text-base font-bold text-zinc-900 dark:text-white truncate mb-2">{p.name}</p>
-                                    <p className="text-sm text-zinc-500 bg-zinc-100 dark:bg-zinc-800 inline-block px-3 py-1 rounded-md font-medium">📦 {(p.totalSongs ?? 0).toLocaleString('vi-VN')} bài hát</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {tab === 'albums-top' && (
-                    <div className="space-y-6">
-                        <div className="flex gap-3 p-1 inline-flex bg-zinc-100 dark:bg-zinc-800/50 rounded-lg">
-                            {(['WEEK', 'MONTH'] as const).map((p) => (
-                                <button
-                                    key={p}
-                                    onClick={() => setAlbumPeriod(p)}
-                                    className={`px-5 py-2 text-sm font-medium rounded-md transition-colors ${albumPeriod === p ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400'}`}
-                                >
-                                    Khung Thời Gian: {p === 'WEEK' ? 'Tuần Này' : 'Tháng Này'}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="grid gap-6 md:grid-cols-2">
-                            <DataCard
-                                title="Siêu phẩm Album"
-                                value={topAlbums[0]?.title ?? 'Chưa có dữ liệu'}
-                                subtitle="Album được lưu và nghe nhiều nhất giới phê bình."
-                            />
-                            <DataCard title="Phát hành tổng số" value={(totalAlbums || 0).toLocaleString('vi-VN')} subtitle="Album public trên server" />
-                        </div>
-                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 mt-4">
-                            {loadingAlbums ? <p className="text-sm text-zinc-500 text-center py-8 col-span-3">Đang quét kho lưu trữ...</p> : topAlbums.map((a) => (
-                                <div key={a.id} className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl p-5 flex flex-col justify-center min-h-[100px] shadow-sm">
-                                    <p className="text-base font-bold text-zinc-900 dark:text-white truncate mb-1">{a.title}</p>
-                                    <p className="text-sm text-blue-600 dark:text-blue-400 truncate font-medium">👤 Phối khí: {a.ownerStageName ?? 'Ẩn danh'}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {tab === 'jamendo' && (
-                    <div className="space-y-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm">
-                        <div className="pb-4 border-b border-zinc-200 dark:border-zinc-800">
-                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                                <MusicNotesPlus weight="fill" className="text-green-600" /> Công Nạp Nhạc Tự Động Từ Jamendo
-                            </h2>
-                            <p className="text-sm text-zinc-500 mt-2 max-w-2xl">Nhập thể loại nhạc yêu thích (Tags) để bot Jamendo crawl bài hát bản quyền miễn phí về hệ thống TramCamXuc. API sẽ tự động đẩy vào pipeline Transcode và Publish.</p>
-                        </div>
-                        <form className="flex flex-col md:flex-row gap-4" onSubmit={onImportJamendo}>
-                            <div className="flex-1 space-y-2">
-                                <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 block">Thẻ (Tags)</label>
-                                <input
-                                    value={jamendoTags}
-                                    onChange={(e) => setJamendoTags(e.target.value)}
-                                    className="w-full h-11 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 text-base focus:ring-2 focus:ring-green-500 outline-none"
-                                    placeholder="Ví dụ: pop, rock, indie, lofi"
-                                />
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        {loadingAlbums ? <p className="text-[11px] text-zinc-500">Đang tải...</p> : topAlbums.map((a) => (
+                            <div key={a.id} className="border border-zinc-200 dark:border-white/10 p-3">
+                                <p className="text-[12px] font-medium text-zinc-900 dark:text-white truncate">{a.title}</p>
+                                <p className="text-[11px] text-zinc-500 truncate">{a.ownerStageName ?? '—'}</p>
                             </div>
-                            <div className="w-full md:w-32 space-y-2">
-                                <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 block">Giới hạn tải</label>
-                                <input
-                                    type="number"
-                                    min={1}
-                                    max={500}
-                                    value={jamendoLimit}
-                                    onChange={(e) => setJamendoLimit(Number(e.target.value))}
-                                    className="w-full h-11 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent px-4 text-base focus:ring-2 focus:ring-green-500 outline-none"
-                                />
-                            </div>
-                            <div className="md:self-end">
-                                <button type="submit" disabled={importingJamendo} className="h-11 px-6 rounded-lg font-semibold inline-flex items-center justify-center gap-2 bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm whitespace-nowrap min-w-[200px]">
-                                    {importingJamendo ? (
-                                        <span className="animate-pulse">Đang nạp nhạc...</span>
-                                    ) : (
-                                        <>Bắt đầu nạp ngay</>
-                                    )}
-                                </button>
-                            </div>
-                        </form>
-
-                        {jamendoSummary && (
-                            <div className="grid gap-4 md:grid-cols-3 max-w-3xl pt-6 mt-4 border-t border-zinc-100 dark:border-zinc-800">
-                                <DataCard title="Dữ Liệu Thu Thập" value={(jamendoSummary.fetched ?? 0).toLocaleString('vi-VN')} />
-                                <DataCard title="Bỏ Qua (Đã tồn tại/Lỗi)" value={(jamendoSummary.skipped ?? 0).toLocaleString('vi-VN')} />
-                                <DataCard title="Đẩy Vào Hàng Đợi (Enqueued)" value={(jamendoSummary.enqueued ?? 0).toLocaleString('vi-VN')} />
-                            </div>
-                        )}
+                        ))}
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+
+            {tab === 'jamendo' && (
+                <div className="space-y-4 border border-zinc-200 dark:border-white/10 p-4">
+                    <div>
+                        <h2 className="text-[12px] font-semibold text-zinc-900 dark:text-white">Thêm nhạc từ Jamendo</h2>
+                        <p className="text-[11px] text-zinc-500">Gọi API admin để enqueue import từ Jamendo.</p>
+                    </div>
+                    <form className="grid gap-3 md:grid-cols-3" onSubmit={onImportJamendo}>
+                        <input
+                            value={jamendoTags}
+                            onChange={(e) => setJamendoTags(e.target.value)}
+                            className="h-9 border border-zinc-200 dark:border-white/10 bg-transparent px-3 text-[12px]"
+                            placeholder="tags, vd: pop,rock,lofi"
+                        />
+                        <input
+                            type="number"
+                            min={1}
+                            max={500}
+                            value={jamendoLimit}
+                            onChange={(e) => setJamendoLimit(Number(e.target.value))}
+                            className="h-9 border border-zinc-200 dark:border-white/10 bg-transparent px-3 text-[12px]"
+                        />
+                        <button type="submit" disabled={importingJamendo} className="h-9 inline-flex items-center justify-center gap-2 bg-zinc-900 text-white dark:bg-white dark:text-black text-[12px]">
+                            <MusicNotesPlus size={14} />
+                            {importingJamendo ? 'Đang gửi...' : 'Import Jamendo'}
+                        </button>
+                    </form>
+
+                    {jamendoSummary && (
+                        <div className="grid gap-3 md:grid-cols-3">
+                            <DataCard title="Fetched" value={String(jamendoSummary.fetched ?? 0)} />
+                            <DataCard title="Skipped" value={String(jamendoSummary.skipped ?? 0)} />
+                            <DataCard title="Enqueued" value={String(jamendoSummary.enqueued ?? 0)} />
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

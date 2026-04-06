@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAnalyticsStore } from '@/store/analyticsStore';
 import {
     TrendUp, TrendDown, CreditCard, SpeakerHigh, MusicNote,
@@ -217,6 +217,15 @@ export default function AnalyticsPage() {
 
     // Analytics zustand store
     const { revenueStats, planActiveCounts, loading, error, fetchAnalytics } = useAnalyticsStore();
+    const [plans, setPlans] = useState<Plan[]>([]);
+    const [loadingPlans, setLoadingPlans] = useState(true);
+    const [errorPlans, setErrorPlans] = useState<string | null>(null);
+    const [totalUsers, setTotalUsers] = useState(0);
+    const [loadingUsers, setLoadingUsers] = useState(true);
+    const [totalAds, setTotalAds] = useState(0);
+    const [activeAds, setActiveAds] = useState(0);
+    const [musicStats, setMusicStats] = useState<{ songs: number; albums: number; artists: number } | null>(null);
+    const [loadingMusic, setLoadingMusic] = useState(true);
     const [from, setFrom] = useState(() => {
         const now = new Date();
         const d = new Date(now.getFullYear(), now.getMonth() - 11, 1);
@@ -231,6 +240,52 @@ export default function AnalyticsPage() {
         fetchAnalytics(from, to);
     }, [from, to, fetchAnalytics]);
 
+    useEffect(() => {
+        const access = token();
+        const authInit: RequestInit | undefined = access
+            ? { headers: { Authorization: `Bearer ${access}` } }
+            : undefined;
+
+        fetch(`${BASE}/admin/subscriptions/plans?page=0&size=100`, authInit)
+            .then((r) => r.json())
+            .then((d) => setPlans(d?.result?.content ?? []))
+            .catch((e: unknown) => setErrorPlans(e instanceof Error ? e.message : 'Không tải được plans'))
+            .finally(() => setLoadingPlans(false));
+
+        fetch(`${BASE}/users?page=1&size=1`, authInit)
+            .then((r) => r.json())
+            .then((d) => setTotalUsers(d?.result?.totalElements ?? 0))
+            .catch(() => setTotalUsers(0))
+            .finally(() => setLoadingUsers(false));
+
+        fetch(`${BASE}/admin/ads?page=1&size=50`, authInit)
+            .then((r) => r.json())
+            .then((d) => {
+                const list = d?.result?.content ?? [];
+                setTotalAds(list.length);
+                setActiveAds(list.filter((x: { status?: string }) => x.status === 'ACTIVE').length);
+            })
+            .catch(() => {
+                setTotalAds(0);
+                setActiveAds(0);
+            });
+
+        Promise.all([
+            fetch(`${BASE}/songs?page=1&size=1`, authInit).then((r) => r.json()),
+            fetch(`${BASE}/albums?page=1&size=1`, authInit).then((r) => r.json()),
+            fetch(`${BASE}/artists?page=1&size=1`, authInit).then((r) => r.json()),
+        ])
+            .then(([songsRes, albumsRes, artistsRes]) => {
+                setMusicStats({
+                    songs: songsRes?.result?.totalElements ?? 0,
+                    albums: albumsRes?.result?.totalElements ?? 0,
+                    artists: artistsRes?.result?.totalElements ?? 0,
+                });
+            })
+            .catch(() => setMusicStats({ songs: 0, albums: 0, artists: 0 }))
+            .finally(() => setLoadingMusic(false));
+    }, []);
+
     // Users, music, ads vẫn giữ nguyên logic cũ (nếu cần tối ưu tiếp sẽ refactor tiếp)
 
 
@@ -244,9 +299,25 @@ export default function AnalyticsPage() {
     const revenueTrend = prevRevenue ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
 
     const totalActiveSubs = planActiveCounts.reduce((s, p) => s + (p.count || 0), 0);
-    const topPlan = planActiveCounts
-        .slice()
-        .sort((a, b) => b.count - a.count)[0];
+    const planCounts = useMemo<Record<string, number>>(
+        () =>
+            planActiveCounts.reduce<Record<string, number>>((acc, row) => {
+                acc[row.planId] = row.count ?? 0;
+                return acc;
+            }, {}),
+        [planActiveCounts],
+    );
+    const activePlans = plans.filter((p) => p.isActive);
+    const topPlan = useMemo(() => {
+        const ranked = plans
+            .map((plan) => {
+                const count = planCounts[plan.id] ?? 0;
+                return { plan, count, revenue: count * (plan.price ?? 0) };
+            })
+            .sort((a, b) => b.count - a.count);
+        return ranked[0];
+    }, [plans, planCounts]);
+    const revenuePoints = revenueStats.map((p) => ({ label: p.date, value: p.total ?? 0 }));
 
     const fmtVnd = (n: number) => n >= 1_000_000
         ? `${(n / 1_000_000).toFixed(1)}M ₫`
