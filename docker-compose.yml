@@ -61,16 +61,16 @@ x-limits: &limits
   deploy:
     resources:
       limits:
-        cpus: '1.0'
-        memory: 256M
+        cpus: "1.0"
+        memory: 380M
       reservations:
-        cpus: '0.05'
-        memory: 32M
+        cpus: "0.05"
+        memory: 192M
 
 x-common: &common
-  env_file: [ .env ]
-  networks: [ tramcamxuc-net ]
-  extra_hosts: [ "host.docker.internal:host-gateway" ]
+  env_file: [.env]
+  networks: [tramcamxuc-net]
+  extra_hosts: ["host.docker.internal:host-gateway"]
   restart: on-failure
 
 # ════════════════════════════════════════════════════════════════
@@ -79,22 +79,14 @@ x-common: &common
 services:
   # ─── 1. DISCOVERY (phải healthy trước tất cả) ───────────────
   discovery-server:
-    <<: [ *common ]
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 384M
-        reservations:
-          cpus: '0.05'
-          memory: 192M
+    <<: [*common, *limits]
     build: { context: ., dockerfile: discovery-server/Dockerfile }
     container_name: discovery-server
-    ports: [ "8761:8761" ]
+    ports: ["8761:8761"]
     environment:
       <<: *java-env
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8761/actuator/health" ]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -102,19 +94,19 @@ services:
 
   # ─── 2. API GATEWAY ─────────────────────────────────────────
   api-gateway:
-    <<: [ *common, *limits ]
+    <<: [*common, *limits]
     build: { context: ., dockerfile: api-gateway/Dockerfile }
     container_name: api-gateway
-    ports: [ "80:8080" ]
+    ports: ["80:8080"]
     environment:
-      <<: [ *infra, *gateway, *java-env ]
+      <<: [*infra, *gateway, *java-env]
     depends_on:
       discovery-server:
         condition: service_healthy
       recommendation-service:
         condition: service_started
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8080/actuator/health" ]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -122,19 +114,19 @@ services:
 
   # ─── 3. IDENTITY SERVICE ────────────────────────────────────
   identity-service:
-    <<: [ *common ]
+    <<: [*common]
     build: { context: ., dockerfile: identity-service/Dockerfile }
     container_name: identity-service
     deploy:
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 512M
         reservations:
-          cpus: '0.05'
+          cpus: "0.05"
           memory: 256M
     environment:
-      <<: [ *infra, *db, *gateway, *java-env, *internal ]
+      <<: [*infra, *db, *gateway, *java-env, *internal]
       DB_URL_IDENTITY: ${DB_URL_IDENTITY}
       CLOUDINARY_NAME: ${CLOUDINARY_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
@@ -149,7 +141,7 @@ services:
       discovery-server:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8762/actuator/health" ]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8762/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -157,19 +149,19 @@ services:
 
   # ─── 4. MUSIC SERVICE ───────────────────────────────────────
   music-service:
-    <<: [ *common,  ]
+    <<: [*common]
     build: { context: ., dockerfile: music-service/Dockerfile }
     container_name: music-service
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 384M
+          cpus: "1.0"
+          memory: 512M
         reservations:
-          cpus: '0.05'
-          memory: 192M
+          cpus: "0.05"
+          memory: 256M
     environment:
-      <<: [ *infra, *db, *gateway, *java-env, *minio, *internal ]
+      <<: [*infra, *db, *gateway, *java-env, *minio, *internal]
       DB_URL_MUSIC: ${DB_URL_MUSIC}
       JAMENDO_CLIENT_ID: ${JAMENDO_CLIENT_ID}
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
@@ -180,7 +172,7 @@ services:
       discovery-server:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8764/actuator/health" ]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8764/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -188,11 +180,11 @@ services:
 
   # ─── 5. PAYMENT SERVICE ─────────────────────────────────────
   payment-service:
-    <<: [ *common, *limits ]
+    <<: [*common, *limits]
     build: { context: ., dockerfile: payment-service/Dockerfile }
     container_name: payment-service
     environment:
-      <<: [ *infra, *db, *java-env, *internal ]
+      <<: [*infra, *db, *java-env, *internal]
       DB_URL_PAYMENT: ${DB_URL_PAYMENT}
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID}
       PAYOS_API_KEY: ${PAYOS_API_KEY}
@@ -203,7 +195,7 @@ services:
       discovery-server:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8765/actuator/health" ]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8765/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -211,11 +203,11 @@ services:
 
   # ─── 6. ADS SERVICE ─────────────────────────────────────────
   ads-service:
-    <<: [ *common, *limits ]
+    <<: [*common, *limits]
     build: { context: ., dockerfile: ads-service/Dockerfile }
     container_name: ads-service
     environment:
-      <<: [ *infra, *db, *java-env, *minio, *internal ]
+      <<: [*infra, *db, *java-env, *minio, *internal]
       DB_URL_ADS: ${DB_URL_ADS}
       MINIO_ADS_BUCKET: ${MINIO_ADS_BUCKET:-ads-audio}
       SPRING_DATASOURCE_USERNAME: postgres.zsfruabehbgqfwuwlrxb
@@ -223,7 +215,7 @@ services:
       discovery-server:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8768/actuator/health" ]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8768/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -231,11 +223,11 @@ services:
 
   # ─── 7. INTEGRATION SERVICE ─────────────────────────────────
   integration-service:
-    <<: [ *common, *limits ]
+    <<: [*common, *limits]
     build: { context: ., dockerfile: integration-service/Dockerfile }
     container_name: integration-service
     environment:
-      <<: [ *infra, *java-env ]
+      <<: [*infra, *java-env]
       SPRING_MAIL_HOST: ${MAIL_HOST}
       SPRING_MAIL_PORT: ${MAIL_PORT}
       SPRING_MAIL_USERNAME: ${MAIL_USERNAME}
@@ -246,7 +238,7 @@ services:
       discovery-server:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8763/actuator/health" ]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8763/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -254,19 +246,19 @@ services:
 
   # ─── 8. TRANSCODE SERVICE ───────────────────────────────────
   transcode-service:
-    <<: [ *common ]
+    <<: [*common]
     build: { context: ., dockerfile: transcode-service/Dockerfile }
     container_name: transcode-service
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 384M
+          cpus: "1.0"
+          memory: 512M
         reservations:
-          cpus: '0.05'
-          memory: 192M
+          cpus: "0.05"
+          memory: 256M
     environment:
-      <<: [ *infra, *minio, *java-env ]
+      <<: [*infra, *minio, *java-env]
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
       MINIO_RAW_BUCKET: ${MINIO_RAW_BUCKET:-music}
       MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET:-public-songs}
@@ -274,18 +266,18 @@ services:
       discovery-server:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8766/actuator/health" ]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8766/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 80s
 
   social-service:
-    <<: [ *common, *limits ]
+    <<: [*common, *limits]
     build: { context: ., dockerfile: social-service/Dockerfile }
     container_name: social-service
     environment:
-      <<: [ *infra, *gateway, *java-env, *minio, *internal ]
+      <<: [*infra, *gateway, *java-env, *minio, *internal]
       SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
       MONGODB_URI: ${MONGODB_URI}
       MINIO_AI_BUCKET: ${MINIO_AI_BUCKET:-ai-training-data}
@@ -294,7 +286,7 @@ services:
       discovery-server:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8767/actuator/health" ]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8767/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -308,10 +300,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 512M
         reservations:
-          cpus: '0.05'
+          cpus: "0.05"
           memory: 256M
     environment:
       REDIS_HOST: ${REDIS_HOST}
@@ -326,7 +318,13 @@ services:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
       APP_PORT: 8771
     healthcheck:
-      test: [ "CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8771/health')" ]
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8771/health')",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -334,19 +332,19 @@ services:
 
   # ─── 11. RECOMMENDATION SERVICE ─────────────────────────────
   recommendation-service:
-    <<: [ *common, *limits ]
+    <<: [*common, *limits]
     build: { context: ., dockerfile: recommendation-service/Dockerfile }
     container_name: recommendation-service
     deploy:
       resources:
         limits:
-          cpus: '1.0'
+          cpus: "1.0"
           memory: 384M
         reservations:
-          cpus: '0.05'
+          cpus: "0.05"
           memory: 192M
     environment:
-      <<: [ *infra, *java-env ]
+      <<: [*infra, *java-env]
       ML_SERVICE_URL: ${ML_SERVICE_URL:-http://recommendation-ml:8771}
       SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-http://social-service:8767}
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
@@ -357,7 +355,13 @@ services:
       recommendation-ml:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8769/actuator/health/liveness" ]
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://localhost:8769/actuator/health/liveness",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
