@@ -18,11 +18,11 @@ class Settings(BaseSettings):
     # ── Downstream services ──────────────────────────────────────────────────
     # Gọi qua Eureka service name khi trong Docker network
     social_service_url: str = Field(
-        default="https://tramcamxuc-monu.onrender.com",
-        description="URL của social-service (Next.js on Vercel)"
+        default="http://social-service:8767",
+        description="URL của social-service"
     )
     music_service_url: str = Field(
-        default="https://music.oopsgolden.id.vn",
+        default="http://music-service:8764",
         description="URL của music-service"
     )
 
