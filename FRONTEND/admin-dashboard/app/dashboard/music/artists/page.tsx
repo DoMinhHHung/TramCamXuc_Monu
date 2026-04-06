@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
-import { ShieldCheck, ShieldWarning, Ban } from '@phosphor-icons/react';
+import { ShieldCheck, ShieldWarning, Prohibit } from '@phosphor-icons/react';
 
 interface Artist {
     id: string;
@@ -137,7 +137,7 @@ export default function ArtistsPage() {
                                                     className="p-2 text-red-600 hover:bg-red-50 dark:text-red-500 dark:hover:bg-red-900/20 rounded-md transition-colors"
                                                     title="Khóa vĩnh viễn"
                                                 >
-                                                    <Ban size={20} weight="fill" />
+                                                    <Prohibit size={20} weight="fill" />
                                                 </button>
                                             )}
                                         </div>
