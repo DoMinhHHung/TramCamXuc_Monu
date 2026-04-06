@@ -129,10 +129,10 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 384M
+          memory: 512M
         reservations:
           cpus: '0.05'
-          memory: 192M
+          memory: 256M
     environment:
       <<: [ *infra, *db, *gateway, *java-env, *internal ]
       DB_URL_IDENTITY: ${DB_URL_IDENTITY}
@@ -305,10 +305,10 @@ services:
       resources:
         limits:
           cpus: '1.0'
-          memory: 384M
+          memory: 512M
         reservations:
           cpus: '0.05'
-          memory: 128M
+          memory: 256M
     environment:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
