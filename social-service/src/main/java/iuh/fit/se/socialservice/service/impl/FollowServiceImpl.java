@@ -12,7 +12,8 @@ import iuh.fit.se.socialservice.repository.ListenHistoryRepository;
 import iuh.fit.se.socialservice.repository.ReactionRepository;
 import iuh.fit.se.socialservice.repository.SongShareRepository;
 import iuh.fit.se.socialservice.service.FollowService;
-import jakarta.annotation.PostConstruct;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -39,10 +40,11 @@ public class FollowServiceImpl implements FollowService {
     private static final int    FAMOUS_THRESHOLD  = 500;
     private static final String FAMOUS_ARTISTS_KEY = "social:famous:artists";
 
-    @PostConstruct
+    @EventListener(ApplicationReadyEvent.class)
     public void rebuildFamousArtistsCache() {
-        try {
-            log.info("Rebuilding famous artists cache from MongoDB...");
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                log.info("Rebuilding famous artists cache from MongoDB...");
 
             redisTemplate.delete(FAMOUS_ARTISTS_KEY);
 
@@ -59,10 +61,11 @@ public class FollowServiceImpl implements FollowService {
                     .toArray(String[]::new);
             redisTemplate.opsForSet().add(FAMOUS_ARTISTS_KEY, (Object[]) ids);
 
-            log.info("Rebuilt famous artists cache: {} artists added.", famousArtistIds.size());
-        } catch (Exception e) {
-            log.warn("Failed to rebuild famous artists cache: {}", e.getMessage());
-        }
+                log.info("Rebuilt famous artists cache: {} artists added.", famousArtistIds.size());
+            } catch (Exception e) {
+                log.warn("Failed to rebuild famous artists cache: {}", e.getMessage());
+            }
+        });
     }
 
     private void evictFollowCache(UUID followerId) {
