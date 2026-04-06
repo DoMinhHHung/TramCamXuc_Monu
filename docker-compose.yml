@@ -76,11 +76,18 @@ x-common: &common
 # ════════════════════════════════════════════════════════════════
 # SERVICES
 # ════════════════════════════════════════════════════════════════
-                cpus: '1.0'
-                memory: 384M
+services:
   # ─── 1. DISCOVERY (phải healthy trước tất cả) ───────────────
-                cpus: '0.05'
-                memory: 192M
+  discovery-server:
+    <<: [ *common ]
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 384M
+        reservations:
+          cpus: '0.05'
+          memory: 192M
     build: { context: ., dockerfile: discovery-server/Dockerfile }
     container_name: discovery-server
     ports: [ "8761:8761" ]
