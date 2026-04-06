@@ -144,6 +144,7 @@ services:
       OAUTH_CALLBACK_BASE_URL: ${OAUTH_CALLBACK_BASE_URL:-https://phazelsound.oopsgolden.id.vn}
       ADMIN_EMAIL: ${ADMIN_EMAIL}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      SPRING_DATASOURCE_USERNAME: postgres.wjgxjeokuxhkvlddipys
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -174,6 +175,7 @@ services:
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
       MINIO_RAW_BUCKET: ${MINIO_RAW_BUCKET:-music}
       MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET:-public-songs}
+      SPRING_DATASOURCE_USERNAME: postgres.ruqepnfjufvvtomewuix
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -196,6 +198,7 @@ services:
       PAYOS_API_KEY: ${PAYOS_API_KEY}
       PAYOS_CHECK_SUM: ${PAYOS_CHECK_SUM}
       FRONTEND_URL: ${FRONTEND_URL:-https://phazelsound.oopsgolden.id.vn}
+      SPRING_DATASOURCE_USERNAME: postgres.jzytcnpyacdldabcgcnc
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -215,6 +218,7 @@ services:
       <<: [ *infra, *db, *java-env, *minio, *internal ]
       DB_URL_ADS: ${DB_URL_ADS}
       MINIO_ADS_BUCKET: ${MINIO_ADS_BUCKET:-ads-audio}
+      SPRING_DATASOURCE_USERNAME: postgres.zsfruabehbgqfwuwlrxb
     depends_on:
       discovery-server:
         condition: service_healthy
