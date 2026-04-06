@@ -322,7 +322,7 @@ services:
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
       APP_PORT: 8771
     healthcheck:
-      test: [ "CMD", "wget", "-qO-", "http://localhost:8771/health" ]
+      test: [ "CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8771/health')" ]
       interval: 15s
       timeout: 5s
       retries: 5
