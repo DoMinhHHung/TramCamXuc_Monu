@@ -48,6 +48,8 @@
       "searchPlaceholder": "Find songs, artists...",
       "quickActions": "Quick Actions",
       "recommendForYou": "Recommended for You",
+      "recommendBasicForYou": "Basic Recommendations",
+      "recommendAdvancedForYou": "Advanced Recommendations (AI)",
       "newReleases": "New Releases",
       "trendingNow": "Hot Right Now",
       "friendsAreListening": "Friends Are Listening",

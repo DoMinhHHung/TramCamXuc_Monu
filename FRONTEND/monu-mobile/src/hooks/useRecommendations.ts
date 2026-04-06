@@ -3,12 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { Song, getTrendingSongs } from '../services/music';
 
-const REC_CACHE_KEY = 'rec_cache_v1';
+const REC_CACHE_KEY = 'rec_cache_v2';
 import {
   FeedbackType,
   HomeRecommendation,
   RecommendedSong,
-  getHomeRecommendations,
+  getAdvanceHomeRecommendations,
+  getBasicHomeRecommendations,
   getNewReleases,
   getSocialRecommendations,
   getTrendingRecommendations,
@@ -40,7 +41,8 @@ const mapMusicSongToRecommended = (song: Song): RecommendedSong => ({
 
 export function useRecommendations() {
   const { authSession } = useAuth();
-  const [homeFeed, setHomeFeed] = useState<HomeRecommendation | null>(null);
+  const [basicHomeFeed, setBasicHomeFeed] = useState<HomeRecommendation | null>(null);
+  const [advanceHomeFeed, setAdvanceHomeFeed] = useState<HomeRecommendation | null>(null);
   const [globalTrending, setGlobalTrending] = useState<RecommendedSong[]>([]);
   const [newReleases, setNewReleases] = useState<RecommendedSong[]>([]);
   const [socialRecs, setSocialRecs] = useState<RecommendedSong[]>([]);
@@ -105,21 +107,31 @@ export function useRecommendations() {
   const runHomeSocial = useCallback(async (): Promise<string[]> => {
     const errors: string[] = [];
     if (!authSession) {
-      if (isMountedRef.current) setHomeFeed(null);
+      if (isMountedRef.current) {
+        setBasicHomeFeed(null);
+        setAdvanceHomeFeed(null);
+      }
       return errors;
     }
 
-    const [homeResult, socialResult] = await Promise.allSettled([
-      getHomeRecommendations(false),
+    const [basicResult, advanceResult, socialResult] = await Promise.allSettled([
+      getBasicHomeRecommendations(false),
+      getAdvanceHomeRecommendations(false),
       getSocialRecommendations(20),
     ]);
 
     if (!isMountedRef.current) return errors;
 
-    if (homeResult.status === 'fulfilled') {
-      setHomeFeed(homeResult.value as HomeRecommendation);
+    if (basicResult.status === 'fulfilled') {
+      setBasicHomeFeed(basicResult.value as HomeRecommendation);
     } else {
-      errors.push(`Không tải được gợi ý cá nhân: ${toErrorMessage(homeResult.reason)}`);
+      errors.push(`Không tải được gợi ý cơ bản: ${toErrorMessage(basicResult.reason)}`);
+    }
+
+    if (advanceResult.status === 'fulfilled') {
+      setAdvanceHomeFeed(advanceResult.value as HomeRecommendation);
+    } else {
+      errors.push(`Không tải được gợi ý AI: ${toErrorMessage(advanceResult.reason)}`);
     }
 
     if (socialResult.status === 'fulfilled') {
@@ -169,7 +181,8 @@ export function useRecommendations() {
             hadTrendingCache = true;
           }
           if (c.newReleases?.length) setNewReleases(c.newReleases);
-          if (c.homeFeed) setHomeFeed(c.homeFeed);
+          if (c.basicHomeFeed) setBasicHomeFeed(c.basicHomeFeed);
+          if (c.advanceHomeFeed) setAdvanceHomeFeed(c.advanceHomeFeed);
           if (c.socialRecs?.length) setSocialRecs(c.socialRecs);
           setLoading(false);
         }
@@ -210,7 +223,8 @@ export function useRecommendations() {
     AsyncStorage.setItem(REC_CACHE_KEY, JSON.stringify({
       globalTrending,
       newReleases,
-      homeFeed,
+      basicHomeFeed,
+      advanceHomeFeed,
       socialRecs,
     })).catch(() => {});
   }, [lastUpdatedAt]);
@@ -220,7 +234,20 @@ export function useRecommendations() {
   }, [fetchAll]);
 
   const sendFeedback = useCallback(async (songId: string, feedback: FeedbackType, contextSection?: string) => {
-    setHomeFeed((prev) => {
+    setBasicHomeFeed((prev) => {
+      if (!prev || feedback !== 'DISLIKE') return prev;
+
+      return {
+        ...prev,
+        forYou: prev.forYou.filter((s) => s.songId !== songId),
+        trendingNow: prev.trendingNow.filter((s) => s.songId !== songId),
+        fromArtists: prev.fromArtists.filter((s) => s.songId !== songId),
+        newReleases: prev.newReleases.filter((s) => s.songId !== songId),
+        friendsAreListening: prev.friendsAreListening.filter((s) => s.songId !== songId),
+      };
+    });
+
+    setAdvanceHomeFeed((prev) => {
       if (!prev || feedback !== 'DISLIKE') return prev;
 
       return {
@@ -241,7 +268,8 @@ export function useRecommendations() {
   }, []);
 
   return useMemo(() => ({
-    homeFeed,
+    basicHomeFeed,
+    advanceHomeFeed,
     globalTrending,
     newReleases,
     socialRecs,
@@ -250,5 +278,5 @@ export function useRecommendations() {
     lastUpdatedAt,
     refresh,
     sendFeedback,
-  }), [homeFeed, globalTrending, newReleases, socialRecs, loading, error, lastUpdatedAt, refresh, sendFeedback]);
+  }), [basicHomeFeed, advanceHomeFeed, globalTrending, newReleases, socialRecs, loading, error, lastUpdatedAt, refresh, sendFeedback]);
 }
