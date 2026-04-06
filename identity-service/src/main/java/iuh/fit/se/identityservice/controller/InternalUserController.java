@@ -17,6 +17,12 @@ import java.util.UUID;
 public class InternalUserController {
 
     private final AuthService authService;
+    private final iuh.fit.se.identityservice.service.UserService userService;
+
+    @GetMapping("/{userId}/favorites")
+    public iuh.fit.se.identityservice.dto.response.FavoritesResponse getUserFavorites(@PathVariable UUID userId) {
+        return userService.getFavoritesByUserId(userId.toString());
+    }
 
     @PostMapping("/{userId}/grant-artist-role")
     public String grantArtistRoleAndIssueToken(

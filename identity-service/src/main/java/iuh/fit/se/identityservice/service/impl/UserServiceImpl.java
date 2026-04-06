@@ -121,6 +121,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
+    public FavoritesResponse getFavoritesByUserId(String id) {
+        User user = userRepository.findById(UUID.fromString(id))
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        return FavoritesResponse.builder()
+                .pickFavorite(user.getPickFavorite())
+                .favoriteGenreIds(user.getFavoriteGenreIds())
+                .favoriteArtistIds(user.getFavoriteArtistIds())
+                .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public FavoritesResponse getMyFavorites() {
         User user = currentUser();
         return FavoritesResponse.builder()

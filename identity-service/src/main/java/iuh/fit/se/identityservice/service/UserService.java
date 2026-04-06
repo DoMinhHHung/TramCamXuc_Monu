@@ -29,6 +29,8 @@ public interface UserService {
 
     // ── Favorites for onboarding ──────────────────────────────────────────────
 
+    FavoritesResponse getFavoritesByUserId(String id);
+
     FavoritesResponse getMyFavorites();
 
     FavoritesResponse updateMyFavorites(UpdateFavoritesRequest request);

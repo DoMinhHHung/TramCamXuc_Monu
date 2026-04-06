@@ -41,6 +41,7 @@ import {
   getTrendingSongs,
   isSoundCloudExternalSong,
   searchSongs,
+  getMyPlaylists,
   Song,
 } from '../services/music';
 import { FeedbackType, RecommendedSong } from '../services/recommendation';
@@ -118,6 +119,11 @@ export const HomeScreen = () => {
     refresh: refreshHomePriority,
     setGenreSections,
   } = useHomeDataPriority();
+
+  const [localPlaylists, setLocalPlaylists] = useState(playlists || []);
+  useEffect(() => {
+    if (playlists) setLocalPlaylists(playlists);
+  }, [playlists]);
 
   const genreBatchGenRef = useRef(0);
 
@@ -851,12 +857,16 @@ export const HomeScreen = () => {
             sublabel: isSoundCloudExternalSong(selectedSong)
               ? 'Bài hát SoundCloud không thể lưu vào playlist nội bộ'
               : undefined,
-            onPress: () => {
+            onPress: async () => {
               if (!selectedSong) return;
               if (isSoundCloudExternalSong(selectedSong)) {
                 Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
                 return;
               }
+              try {
+                const refreshed = await getMyPlaylists();
+                setLocalPlaylists((refreshed as any).content || refreshed || []);
+              } catch {}
               setSongToAdd(selectedSong);
               setPlaylistPickerOpen(true);
             },
@@ -932,7 +942,7 @@ export const HomeScreen = () => {
 
             <Text style={styles.modalTitle}>Thêm vào playlist</Text>
             <ScrollView style={{ maxHeight: 240 }}>
-              {playlists.map((p) => (
+              {(localPlaylists || []).map((p) => (
                 <Pressable key={p.id} onPress={() => { void handleAddToPlaylist(p.id); }}>
                   <Text style={styles.modalItem}>{p.name}</Text>
                 </Pressable>

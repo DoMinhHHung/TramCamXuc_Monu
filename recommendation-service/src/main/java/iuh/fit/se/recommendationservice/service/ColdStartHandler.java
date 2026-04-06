@@ -75,8 +75,7 @@ public class ColdStartHandler {
     public List<RecommendedSongDto> getColdStartRecommendations(
             UUID userId, int limit, Set<String> disliked) {
 
-        // Bước 1: Lấy favorites từ identity-service
-        UserFavoritesDto favorites = fetchFavorites();
+        UserFavoritesDto favorites = fetchFavorites(userId);
 
         boolean hasFavorites = favorites != null
                 && Boolean.TRUE.equals(favorites.getPickFavorite())
@@ -84,8 +83,6 @@ public class ColdStartHandler {
                 || !CollectionUtils.isEmpty(favorites.getFavoriteGenreIds()));
 
         if (!hasFavorites) {
-            // User bỏ qua onboarding (không bắt buộc nếu flow cho phép skip)
-            // → fallback về global trending
             log.debug("[ColdStart] No favorites for userId={}, fallback to global trending", userId);
             return getGlobalTrendingFallback(limit, disliked, Collections.emptySet());
         }
@@ -95,8 +92,6 @@ public class ColdStartHandler {
         List<RecommendedSongDto> result       = new ArrayList<>();
         Set<String>              alreadyAdded = new HashSet<>(disliked);
 
-        // Bước 2: Songs từ favorite ARTISTS
-        //   Ưu tiên cao nhất — user chủ động chọn artist → signal mạnh nhất
         if (!CollectionUtils.isEmpty(favorites.getFavoriteArtistIds())) {
             int artistSlots = Math.min(limit / 2, SONGS_PER_ARTIST
                     * favorites.getFavoriteArtistIds().size());
@@ -110,7 +105,6 @@ public class ColdStartHandler {
             log.debug("[ColdStart] {} songs from favorite artists", artistSongs.size());
         }
 
-        // Bước 3: Songs từ favorite GENRES (nếu vẫn chưa đủ)
         if (!CollectionUtils.isEmpty(favorites.getFavoriteGenreIds())
                 && result.size() < limit) {
 
@@ -125,7 +119,6 @@ public class ColdStartHandler {
             log.debug("[ColdStart] {} songs from favorite genres", genreSongs.size());
         }
 
-        // Bước 4: Vẫn chưa đủ → bổ sung global trending
         if (result.size() < limit) {
             List<RecommendedSongDto> trending =
                     getGlobalTrendingFallback(limit - result.size(), disliked, alreadyAdded);
@@ -342,9 +335,9 @@ public class ColdStartHandler {
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────
 
-    private UserFavoritesDto fetchFavorites() {
+    private UserFavoritesDto fetchFavorites(UUID userId) {
         try {
-            ApiResponse<UserFavoritesDto> resp = identityClient.getMyFavorites();
+            ApiResponse<UserFavoritesDto> resp = identityClient.getUserFavorites(userId.toString());
             return resp != null ? resp.getResult() : null;
         } catch (Exception e) {
             log.warn("[ColdStart] Failed to fetch favorites from identity-service: {}", e.getMessage());
