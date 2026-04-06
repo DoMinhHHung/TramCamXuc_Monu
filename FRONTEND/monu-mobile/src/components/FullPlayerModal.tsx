@@ -335,6 +335,12 @@ export const FullPlayerModal = () => {
             return;
         }
         setPlaylistPickerOpen(true);
+        void (async () => {
+            try {
+                const data = await getMyPlaylists({ page: 1, size: 50 });
+                setPlaylists(data.content ?? []);
+            } catch {}
+        })();
     };
 
     const handlePageScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {

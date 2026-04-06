@@ -1589,6 +1589,18 @@ export const DiscoverScreen = () => {
       await loadFeed('silent');
       notifyFeedUpdated();
     } catch (e: any) {
+      console.log('\n\n========== LỖI TẠO BÀI VIẾT ==========');
+      console.log('Error Message:', e.message);
+      console.log('Post Data:', { visibility, title, caption });
+      if (e.response) {
+         console.log('Response Status:', e.response.status);
+         console.log('Response Data:', JSON.stringify(e.response.data, null, 2));
+      } else if (e.request) {
+         console.log('Request Error (No Response):', e.request);
+      } else {
+         console.log('Unknown Error:', e);
+      }
+      console.log('======================================\n\n');
       Alert.alert('Không thể đăng', e?.message ?? 'Vui lòng thử lại.');
     } finally { setPosting(false); }
   };

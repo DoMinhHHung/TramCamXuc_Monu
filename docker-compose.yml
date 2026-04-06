@@ -294,10 +294,9 @@ services:
 
   # ─── 10. RECOMMENDATION ML (Python) ─────────────────────────
   recommendation-ml:
-    <<: *common
+    <<: [*common]
     build: { context: ./recommendation-ml }
     container_name: recommendation-ml
-    profiles: ["advance"]
     deploy:
       resources:
         limits:

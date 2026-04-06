@@ -1309,7 +1309,6 @@ export const LibraryScreen = () => {
   const [displayedTab, setDisplayedTab] = useState<Tab>('playlists');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
 
   // Data
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -1367,7 +1366,6 @@ export const LibraryScreen = () => {
     try {
       if (!silent) setLoading(true);
       else setRefreshing(false);
-      if (silent) setBackgroundRefreshing(true);
       const [plRes, soRes, alRes, artistRes, subRes] = await Promise.allSettled([
         fetchWithRetry(() => getMyPlaylists({ page: 1, size: 50 }), 2),
         fetchWithRetry(() => getMySongs({ page: 1, size: 50 }), 2),
@@ -1423,7 +1421,6 @@ export const LibraryScreen = () => {
     } finally {
       setLoading(false);
       setRefreshing(false);
-      setBackgroundRefreshing(false);
     }
   };
 
@@ -1840,12 +1837,6 @@ export const LibraryScreen = () => {
             {playlists.length} {t('screens.library.tabPlaylists', 'playlists')} · {songs.length} {t('screens.library.tabSongs', 'songs')} · {albums.length} {t('screens.library.tabAlbums', 'albums')}
           </Text>
         </LinearGradient>
-        {backgroundRefreshing && (
-          <View style={styles.syncBanner}>
-            <ActivityIndicator size="small" color={themeColors.accent} />
-            <Text style={styles.syncBannerText}>Đang đồng bộ thư viện từ server...</Text>
-          </View>
-        )}
 
         {/* Tab bar */}
         <TabBar
@@ -1995,21 +1986,6 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingBottom: 20 },
   headerTitle: { color: COLORS.white, fontSize: 28, fontWeight: '800' },
   headerSub: { color: COLORS.glass40, fontSize: 13, marginTop: 4 },
-  syncBanner: {
-    marginHorizontal: 20,
-    marginTop: -8,
-    marginBottom: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.glass12,
-    backgroundColor: COLORS.glass06,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  syncBannerText: { color: COLORS.glass60, fontSize: 12, fontWeight: '600' },
 
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
   tabContent: { flex: 1 },
