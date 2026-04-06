@@ -69,6 +69,7 @@ social:
     url: ${SOCIAL_SERVICE_URL:http://social-service:8767}
 
 recommendation:
+  mode: ${RECOMMENDATION_MODE:advance}
   blend:
     cf-weight: 0.35
     cb-weight: 0.25

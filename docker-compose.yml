@@ -346,6 +346,7 @@ services:
     environment:
       <<: [*infra, *java-env]
       ML_SERVICE_URL: ${ML_SERVICE_URL:-http://recommendation-ml:8771}
+      RECOMMENDATION_MODE: ${RECOMMENDATION_MODE:-advance}
       SOCIAL_SERVICE_URL: ${SOCIAL_SERVICE_URL:-http://social-service:8767}
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET}
       GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:-}

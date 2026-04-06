@@ -9,6 +9,7 @@ import iuh.fit.se.recommendationservice.config.RedisConfig;
 import iuh.fit.se.recommendationservice.dto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -70,6 +71,8 @@ public class RecommendationOrchestratorService {
     private final ObjectMapper                   objectMapper;
     private final RedisConfig.RecommendationProperties props;
     private final Executor                       fetchExecutor;
+    @Value("${recommendation.mode:advance}")
+    private String recommendationMode;
 
     public RecommendationOrchestratorService(
             MlServiceClient mlClient,
@@ -103,23 +106,39 @@ public class RecommendationOrchestratorService {
      * Cache-aside: check Redis trước, nếu miss thì build và cache.
      */
     public HomeRecommendationResponse getHomeFeed(UUID userId, boolean debug) {
+        return defaultMode() == RecommendationMode.BASIC
+                ? getHomeFeedBasic(userId, debug)
+                : getHomeFeedAdvance(userId, debug);
+    }
+
+    public HomeRecommendationResponse getHomeFeedBasic(UUID userId, boolean debug) {
+        return getHomeFeedByMode(userId, debug, RecommendationMode.BASIC);
+    }
+
+    public HomeRecommendationResponse getHomeFeedAdvance(UUID userId, boolean debug) {
+        return getHomeFeedByMode(userId, debug, RecommendationMode.ADVANCE);
+    }
+
+    private HomeRecommendationResponse getHomeFeedByMode(UUID userId, boolean debug, RecommendationMode mode) {
         // Check cache
         if (!debug) { // debug mode luôn bypass cache để xem fresh data
             HomeRecommendationResponse cached = getCached(
-                    RedisConfig.KEY_CACHE_HOME + userId,
+                    cacheHomeKey(userId, mode),
                     new TypeReference<>() {});
             if (cached != null) {
-                log.debug("[Orchestrator] Cache HIT for home feed userId={}", userId);
+                log.debug("[Orchestrator] Cache HIT for home feed userId={} mode={}", userId, mode);
                 return cached;
             }
         }
 
-        log.debug("[Orchestrator] Cache MISS — building home feed for userId={}", userId);
-        HomeRecommendationResponse response = buildHomeFeed(userId, debug);
+        log.debug("[Orchestrator] Cache MISS — building home feed for userId={} mode={}", userId, mode);
+        HomeRecommendationResponse response = mode == RecommendationMode.BASIC
+                ? buildHomeFeedBasic(userId, debug)
+                : buildHomeFeedAdvance(userId, debug);
 
         // Cache kết quả
         if (!debug) {
-            cache(RedisConfig.KEY_CACHE_HOME + userId, response,
+            cache(cacheHomeKey(userId, mode), response,
                     Duration.ofMinutes(props.getCache().getHomeTtlMinutes()));
         }
 
@@ -129,7 +148,7 @@ public class RecommendationOrchestratorService {
     /**
      * Xây dựng home feed bằng cách fetch song song tất cả nguồn dữ liệu.
      */
-    private HomeRecommendationResponse buildHomeFeed(UUID userId, boolean debug) {
+    private HomeRecommendationResponse buildHomeFeedAdvance(UUID userId, boolean debug) {
         int pageSize = props.getPage().getDefaultSize();
 
         // ── Phase 1a: Kick off all independent fetches on the pool (truly parallel) ──
@@ -249,6 +268,80 @@ public class RecommendationOrchestratorService {
                 .build();
     }
 
+    private HomeRecommendationResponse buildHomeFeedBasic(UUID userId, boolean debug) {
+        int pageSize = props.getPage().getDefaultSize();
+
+        CompletableFuture<Set<String>> futureAlreadyHeard = CompletableFuture.supplyAsync(
+                () -> socialService.getRecentlyHeardSongIds(userId), fetchExecutor);
+
+        CompletableFuture<Set<String>> futureDisliked = CompletableFuture.supplyAsync(
+                () -> socialService.getDislikedSongIds(userId), fetchExecutor);
+
+        CompletableFuture<List<String>> futureTrending = CompletableFuture.supplyAsync(
+                () -> trendingService.getGlobalTrending(pageSize * 2), fetchExecutor);
+
+        CompletableFuture<List<RecommendedSongDto>> futureNewReleases = CompletableFuture.supplyAsync(
+                () -> socialService.getNewReleasesFromFollowedArtists(userId, pageSize), fetchExecutor);
+
+        waitAllParallelFetches(
+                userId,
+                futureAlreadyHeard, futureDisliked, futureTrending, futureNewReleases);
+
+        Set<String> alreadyHeard = futureResult(futureAlreadyHeard, Collections.emptySet());
+        Set<String> disliked = futureResult(futureDisliked, Collections.emptySet());
+        List<String> trendingIds = futureResult(futureTrending, Collections.emptyList());
+
+        CompletableFuture<List<RecommendedSongDto>> futureFriends = CompletableFuture.supplyAsync(
+                () -> socialService.getFriendsListening(userId, pageSize, alreadyHeard), fetchExecutor);
+
+        CompletableFuture<List<RecommendedSongDto>> futureArtists = CompletableFuture.supplyAsync(
+                () -> socialService.getSongsFromFollowedArtists(userId, pageSize, alreadyHeard), fetchExecutor);
+
+        waitAllParallelFetches(userId, futureFriends, futureArtists);
+
+        List<RecommendedSongDto> forYouSection = coldStartHandler.getColdStartRecommendations(
+                userId, pageSize, disliked);
+
+        if (forYouSection.isEmpty() && !trendingIds.isEmpty()) {
+            Set<String> trendingFiltered = trendingIds.stream()
+                    .filter(id -> !disliked.contains(id))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            Map<String, SongDetailDto> trendingDetails = hydrateSongsBatch(trendingFiltered);
+            forYouSection = ranker.rankTrending(
+                    trendingIds, trendingDetails, disliked, null, pageSize);
+        }
+
+        List<RecommendedSongDto> trendingSection;
+        if (!CollectionUtils.isEmpty(trendingIds)) {
+            Set<String> trendingIdsFiltered = trendingIds.stream()
+                    .filter(id -> !disliked.contains(id))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+
+            Map<String, SongDetailDto> trendingDetails = hydrateSongsBatch(trendingIdsFiltered);
+            trendingSection = ranker.rankTrending(
+                    trendingIds, trendingDetails, disliked, null, pageSize);
+        } else {
+            trendingSection = Collections.emptyList();
+        }
+
+        List<RecommendedSongDto> friendsSection = futureResult(futureFriends, Collections.emptyList());
+        List<RecommendedSongDto> artistsSection = futureResult(futureArtists, Collections.emptyList());
+        List<RecommendedSongDto> newReleasesSection = futureResult(futureNewReleases, Collections.emptyList());
+
+        List<String> recentlyPlayedIds = alreadyHeard.stream()
+                .limit(20)
+                .collect(Collectors.toList());
+
+        return HomeRecommendationResponse.builder()
+                .forYou(forYouSection)
+                .trendingNow(trendingSection)
+                .fromArtists(artistsSection)
+                .newReleases(newReleasesSection)
+                .friendsAreListening(friendsSection)
+                .recentlyPlayedIds(recentlyPlayedIds)
+                .build();
+    }
+
     // ── Trending endpoint ─────────────────────────────────────────────────────
 
     /**
@@ -303,7 +396,20 @@ public class RecommendationOrchestratorService {
      * Cache lâu hơn vì kết quả ít thay đổi (model update 6h/lần).
      */
     public List<RecommendedSongDto> getSimilarSongs(UUID userId, UUID songId, int limit) {
-        String cacheKey = RedisConfig.KEY_CACHE_SIMILAR + songId;
+        return defaultMode() == RecommendationMode.BASIC
+                ? getSimilarSongsBasic(userId, songId, limit)
+                : getSimilarSongsAdvance(userId, songId, limit);
+    }
+
+    public List<RecommendedSongDto> getSimilarSongsBasic(UUID userId, UUID songId, int limit) {
+        Set<String> disliked = userId != null
+                ? socialService.getDislikedSongIds(userId)
+                : Collections.emptySet();
+        return getTrendingFallbackForSong(songId, disliked, limit);
+    }
+
+    public List<RecommendedSongDto> getSimilarSongsAdvance(UUID userId, UUID songId, int limit) {
+        String cacheKey = cacheSimilarKey(songId, RecommendationMode.ADVANCE);
         List<RecommendedSongDto> cached = getCached(cacheKey, new TypeReference<>() {});
         if (cached != null) return cached;
 
@@ -397,7 +503,9 @@ public class RecommendationOrchestratorService {
      */
     public void processFeedback(UUID userId, FeedbackRequest feedback) {
         // Invalidate home cache để lần tới build fresh
-        redisTemplate.delete(RedisConfig.KEY_CACHE_HOME + userId);
+        redisTemplate.delete(cacheHomeKey(userId, RecommendationMode.BASIC));
+        redisTemplate.delete(cacheHomeKey(userId, RecommendationMode.ADVANCE));
+        redisTemplate.delete(RedisConfig.KEY_CACHE_HOME + userId); // backward compatibility
         redisTemplate.delete(RedisConfig.KEY_CACHE_SOCIAL + userId);
 
         log.info("[Orchestrator] Feedback {} for songId={} by userId={} — cache invalidated",
@@ -499,5 +607,23 @@ public class RecommendationOrchestratorService {
             partitions.add(list.subList(i, Math.min(i + size, list.size())));
         }
         return partitions;
+    }
+
+    private RecommendationMode defaultMode() {
+        return "basic".equalsIgnoreCase(recommendationMode)
+                ? RecommendationMode.BASIC
+                : RecommendationMode.ADVANCE;
+    }
+
+    private String cacheHomeKey(UUID userId, RecommendationMode mode) {
+        return RedisConfig.KEY_CACHE_HOME + mode.name().toLowerCase() + ":" + userId;
+    }
+
+    private String cacheSimilarKey(UUID songId, RecommendationMode mode) {
+        return RedisConfig.KEY_CACHE_SIMILAR + mode.name().toLowerCase() + ":" + songId;
+    }
+
+    private enum RecommendationMode {
+        BASIC, ADVANCE
     }
 }

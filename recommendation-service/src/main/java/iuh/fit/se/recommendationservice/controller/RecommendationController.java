@@ -47,6 +47,24 @@ public class RecommendationController {
         return ApiResponse.ok(orchestrator.getHomeFeed(userId, debug));
     }
 
+    @GetMapping("/basic/home")
+    public ApiResponse<HomeRecommendationResponse> getBasicHome(
+            Authentication auth,
+            @RequestParam(defaultValue = "false") boolean debug) {
+
+        UUID userId = extractUserId(auth);
+        return ApiResponse.ok(orchestrator.getHomeFeedBasic(userId, debug));
+    }
+
+    @GetMapping("/advance/home")
+    public ApiResponse<HomeRecommendationResponse> getAdvanceHome(
+            Authentication auth,
+            @RequestParam(defaultValue = "false") boolean debug) {
+
+        UUID userId = extractUserId(auth);
+        return ApiResponse.ok(orchestrator.getHomeFeedAdvance(userId, debug));
+    }
+
     // ── Trending ──────────────────────────────────────────────────────────────
 
     @GetMapping("/trending")
@@ -92,6 +110,28 @@ public class RecommendationController {
         UUID userId = tryExtractUserId(auth);
         return ApiResponse.ok(
                 orchestrator.getSimilarSongs(userId, songId, Math.min(limit, 50)));
+    }
+
+    @GetMapping("/basic/similar/{songId}")
+    public ApiResponse<List<RecommendedSongDto>> getBasicSimilarSongs(
+            Authentication auth,
+            @PathVariable UUID songId,
+            @RequestParam(defaultValue = "20") int limit) {
+
+        UUID userId = tryExtractUserId(auth);
+        return ApiResponse.ok(
+                orchestrator.getSimilarSongsBasic(userId, songId, Math.min(limit, 50)));
+    }
+
+    @GetMapping("/advance/similar/{songId}")
+    public ApiResponse<List<RecommendedSongDto>> getAdvanceSimilarSongs(
+            Authentication auth,
+            @PathVariable UUID songId,
+            @RequestParam(defaultValue = "20") int limit) {
+
+        UUID userId = tryExtractUserId(auth);
+        return ApiResponse.ok(
+                orchestrator.getSimilarSongsAdvance(userId, songId, Math.min(limit, 50)));
     }
 
     // ── New releases ──────────────────────────────────────────────────────────
