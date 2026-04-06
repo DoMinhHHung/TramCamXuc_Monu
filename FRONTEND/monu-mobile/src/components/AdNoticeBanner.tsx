@@ -1,34 +1,28 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import type { AdNotice } from '../context/PlayerContext';
 
-interface AdNotice {
-  id: string;
-  message: string;
-  type: 'info' | 'warning' | 'success';
+interface AdNoticeBannerProps {
+  notice: AdNotice | null;
 }
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-export const AdNoticeBanner = () => {
-  const [notice, setNotice] = useState<AdNotice | null>(null);
+export const AdNoticeBanner = ({ notice }: AdNoticeBannerProps) => {
+  const [isDismissed, setIsDismissed] = useState(false);
   const slideAnim = useRef(new Animated.Value(-100)).current;
+  const prevNoticeKeyRef = useRef<string | null>(null);
+  const currentNoticeKey = useMemo(() => (
+    notice ? `${notice.title}|${notice.message}|${notice.eventsRemaining}|${notice.secondsRemaining}` : null
+  ), [notice]);
 
-  const showNotice = useCallback((message: string, type: 'info' | 'warning' | 'success' = 'info') => {
-    const id = Date.now().toString();
-    setNotice({ id, message, type });
-
+  const openNotice = useCallback(() => {
     Animated.timing(slideAnim, {
       toValue: 0,
       duration: 300,
       useNativeDriver: true,
     }).start();
-
-    const timer = setTimeout(() => {
-      closeNotice();
-    }, 4000);
-
-    return () => clearTimeout(timer);
   }, [slideAnim]);
 
   const closeNotice = useCallback(() => {
@@ -36,25 +30,48 @@ export const AdNoticeBanner = () => {
       toValue: -100,
       duration: 300,
       useNativeDriver: true,
-    }).start(() => {
-      setNotice(null);
-    });
+    }).start();
   }, [slideAnim]);
 
-  if (!notice) return null;
+  useEffect(() => {
+    if (!notice) {
+      setIsDismissed(false);
+      closeNotice();
+      prevNoticeKeyRef.current = null;
+      return;
+    }
+
+    if (prevNoticeKeyRef.current !== currentNoticeKey) {
+      setIsDismissed(false);
+      prevNoticeKeyRef.current = currentNoticeKey;
+    }
+
+    if (!isDismissed) {
+      openNotice();
+    } else {
+      closeNotice();
+    }
+  }, [notice, currentNoticeKey, isDismissed, openNotice, closeNotice]);
+
+  const handleDismiss = useCallback(() => {
+    setIsDismissed(true);
+  }, []);
+
+  if (!notice || isDismissed) return null;
+
+  const noticeType: 'info' | 'warning' =
+    notice.eventsRemaining <= 1 || notice.secondsRemaining <= 60 ? 'warning' : 'info';
 
   const bgColor = {
     info: 'rgba(59, 130, 246, 0.9)',
     warning: 'rgba(245, 158, 11, 0.9)',
-    success: 'rgba(34, 197, 94, 0.9)',
-  }[notice.type];
+  }[noticeType];
 
   const iconNameMap: Record<string, IconName> = {
     info: 'information',
     warning: 'alert',
-    success: 'check-circle',
   };
-  const icon: IconName = iconNameMap[notice.type];
+  const icon: IconName = iconNameMap[noticeType];
 
   return (
     <Animated.View
@@ -67,8 +84,11 @@ export const AdNoticeBanner = () => {
     >
       <View style={[styles.banner, { backgroundColor: bgColor }]}>
         <MaterialCommunityIcons name={icon} size={20} color="#fff" />
-        <Text style={styles.message}>{notice.message}</Text>
-        <Pressable onPress={closeNotice}>
+        <View style={styles.textWrap}>
+          <Text style={styles.title}>{notice.title}</Text>
+          <Text style={styles.message}>{notice.message}</Text>
+        </View>
+        <Pressable onPress={handleDismiss}>
           <MaterialCommunityIcons name="close" size={20} color="#fff" />
         </Pressable>
       </View>
@@ -86,7 +106,7 @@ const styles = StyleSheet.create({
   },
   banner: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
@@ -94,10 +114,18 @@ const styles = StyleSheet.create({
     marginTop: 8,
     borderRadius: 12,
   },
-  message: {
+  textWrap: {
     flex: 1,
+    gap: 2,
+  },
+  title: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  message: {
+    color: '#fff',
+    fontSize: 13,
     fontWeight: '600',
   },
 });

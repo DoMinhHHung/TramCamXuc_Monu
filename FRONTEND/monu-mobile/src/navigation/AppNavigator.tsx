@@ -158,10 +158,10 @@ const MainTabNavigator = () => (
 );
 
 const GlobalOverlays = () => {
-    const { pendingAd, dismissAd, currentSong } = usePlayer();
+    const { pendingAd, dismissAd, currentSong, adNotice } = usePlayer();
     return (
         <>
-            <AdNoticeBanner />
+            <AdNoticeBanner notice={adNotice} />
             <StreamingStatusBanner />
             <MiniPlayer />
             <UploadProgressBanner />
