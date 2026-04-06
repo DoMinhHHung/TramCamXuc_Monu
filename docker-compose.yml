@@ -98,7 +98,7 @@ x-common: &common
     <<: [ *common, *limits ]
     build: { context: ., dockerfile: api-gateway/Dockerfile }
     container_name: api-gateway
-    ports: [ "8080:8080" ]
+    ports: [ "80:8080" ]
     environment:
       <<: [ *infra, *gateway, *java-env ]
     depends_on:
