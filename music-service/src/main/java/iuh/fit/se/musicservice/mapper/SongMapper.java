@@ -11,6 +11,7 @@ public interface SongMapper {
     @Mapping(target = "primaryArtist", expression = "java(toArtistInfo(song))")
     @Mapping(target = "deleted", expression = "java(song.isDeleted())")
     @Mapping(target = "uploadUrl", ignore = true)
+    @Mapping(target = "coverUploadUrl", ignore = true)
     @Mapping(target = "streamUrl", ignore = true)
     @Mapping(target = "sourceType", expression = "java(song.getSourceType() != null ? song.getSourceType().name() : \"LOCAL\")")
     SongResponse toResponse(Song song);

@@ -67,6 +67,24 @@ public class MinioStorageService {
     }
 
     /**
+     * PUT presigned URL để upload object public (cover/thumbnail).
+     */
+    public String generatePresignedPublicUploadUrl(String objectKey) {
+        try {
+            return presignedMinioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.PUT)
+                            .bucket(publicBucket)
+                            .object(objectKey)
+                            .expiry(15, TimeUnit.MINUTES)
+                            .build());
+        } catch (Exception e) {
+            log.error("Cannot generate presigned public upload URL for key: {}", objectKey, e);
+            throw new RuntimeException("Storage service error", e);
+        }
+    }
+
+    /**
      * GET presigned URL để download file (Premium feature).
      */
     public String generatePresignedDownloadUrl(String objectKey, String fileName) {

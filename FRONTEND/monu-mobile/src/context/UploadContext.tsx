@@ -34,6 +34,7 @@ interface UploadContextValue {
         title: string;
         genreIds: string[];
         file: DocumentPicker.DocumentPickerAsset;
+        coverFile?: { uri: string; name: string; mimeType?: string } | null;
         lyricFile?: DocumentPicker.DocumentPickerAsset | null;
     }) => Promise<void>;
     dismissJob: () => void;
@@ -109,11 +110,13 @@ export const UploadProvider = ({ children }: PropsWithChildren) => {
                                                title,
                                                genreIds,
                                                file,
+                                               coverFile,
                                                lyricFile,
-                                           }: {
+                                             }: {
         title: string;
         genreIds: string[];
         file: DocumentPicker.DocumentPickerAsset;
+        coverFile?: { uri: string; name: string; mimeType?: string } | null;
         lyricFile?: DocumentPicker.DocumentPickerAsset | null;
     }) => {
         if (job?.stage === 'requesting' || job?.stage === 'uploading' || job?.stage === 'confirming') {
@@ -122,6 +125,8 @@ export const UploadProvider = ({ children }: PropsWithChildren) => {
 
         const ext      = file.name.split('.').pop()?.toLowerCase() ?? 'mp3';
         const mimeType = file.mimeType ?? 'audio/mpeg';
+        const coverExt = coverFile?.name?.split('.').pop()?.toLowerCase();
+        const coverMimeType = coverFile?.mimeType ?? 'image/jpeg';
 
         setJob({ title, fileName: file.name, stage: 'requesting', progress: 0 });
 
@@ -132,6 +137,7 @@ export const UploadProvider = ({ children }: PropsWithChildren) => {
                 title: title.trim(),
                 fileExtension: ext,
                 genreIds,
+                coverFileExtension: coverExt,
             });
 
             if (!created.uploadUrl) throw new Error('Backend không trả về upload URL.');
@@ -147,6 +153,17 @@ export const UploadProvider = ({ children }: PropsWithChildren) => {
                 fileName:   file.name,
                 onProgress: (pct) => updateJob({ progress: pct }),
             });
+
+            if (coverFile && created.coverUploadUrl) {
+                console.log('[Upload] uploading cover via presigned URL...');
+                await uploadFileNative({
+                    url: created.coverUploadUrl,
+                    uri: coverFile.uri,
+                    mimeType: coverMimeType,
+                    fileName: coverFile.name,
+                    onProgress: () => {},
+                });
+            }
 
             console.log('[Upload] file uploaded, confirming...');
             updateJob({ stage: 'confirming', progress: 100 });

@@ -576,7 +576,7 @@ export const HomeScreen = () => {
           </>
         ) : null}
 
-        {rec.loading && !rec.globalTrending.length && !rec.homeFeed && (
+        {rec.loading && !rec.globalTrending.length && !rec.basicHomeFeed && !rec.advanceHomeFeed && (
           <View>
             <SectionSkeleton rows={2} />
             <SectionSkeleton rows={2} />
@@ -586,15 +586,30 @@ export const HomeScreen = () => {
         {authSession && (
           <RecommendationSection
             icon="✨"
-            title={t('screens.home.recommendForYou')}
+            title={t('screens.home.recommendBasicForYou')}
             subtitle={updatedLabel}
-            songs={rec.homeFeed?.forYou ?? []}
+            songs={rec.basicHomeFeed?.forYou ?? []}
             activeSongId={currentSong?.id}
-            loading={rec.loading && !rec.homeFeed}
-            onPress={(s) => playRec(s, rec.homeFeed?.forYou ?? [])}
+            loading={rec.loading && !rec.basicHomeFeed}
+            onPress={(s) => playRec(s, rec.basicHomeFeed?.forYou ?? [])}
             onLongPress={openRecActionSheet}
             onFeedback={handleFeedback}
-            hasBadge={!!rec.homeFeed?.forYou?.length}
+            hasBadge={!!rec.basicHomeFeed?.forYou?.length}
+          />
+        )}
+
+        {authSession && (
+          <RecommendationSection
+            icon="🤖"
+            title={t('screens.home.recommendAdvancedForYou')}
+            subtitle={updatedLabel}
+            songs={rec.advanceHomeFeed?.forYou ?? []}
+            activeSongId={currentSong?.id}
+            loading={rec.loading && !rec.advanceHomeFeed}
+            onPress={(s) => playRec(s, rec.advanceHomeFeed?.forYou ?? [])}
+            onLongPress={openRecActionSheet}
+            onFeedback={handleFeedback}
+            hasBadge={!!rec.advanceHomeFeed?.forYou?.length}
           />
         )}
 
@@ -625,10 +640,10 @@ export const HomeScreen = () => {
           <RecommendationSection
             icon="👥"
             title={t('screens.home.friendsAreListening')}
-            songs={rec.homeFeed?.friendsAreListening ?? []}
+            songs={rec.basicHomeFeed?.friendsAreListening ?? []}
             activeSongId={currentSong?.id}
-            loading={rec.loading && !rec.homeFeed}
-            onPress={(s) => playRec(s, rec.homeFeed?.friendsAreListening ?? [])}
+            loading={rec.loading && !rec.basicHomeFeed}
+            onPress={(s) => playRec(s, rec.basicHomeFeed?.friendsAreListening ?? [])}
             onLongPress={openRecActionSheet}
             onFeedback={handleFeedback}
           />
@@ -638,10 +653,10 @@ export const HomeScreen = () => {
           <RecommendationSection
             icon="🎤"
             title={t('screens.home.fromFollowedArtists')}
-            songs={rec.homeFeed?.fromArtists ?? []}
+            songs={rec.basicHomeFeed?.fromArtists ?? []}
             activeSongId={currentSong?.id}
-            loading={rec.loading && !rec.homeFeed}
-            onPress={(s) => playRec(s, rec.homeFeed?.fromArtists ?? [])}
+            loading={rec.loading && !rec.basicHomeFeed}
+            onPress={(s) => playRec(s, rec.basicHomeFeed?.fromArtists ?? [])}
             onLongPress={openRecActionSheet}
           />
         )}

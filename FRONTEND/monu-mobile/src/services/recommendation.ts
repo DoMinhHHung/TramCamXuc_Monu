@@ -34,6 +34,8 @@ export interface HomeRecommendation {
   recentlyPlayedIds: string[];
 }
 
+export type RecommendationMode = 'basic' | 'advance';
+
 export interface FeedbackPayload {
   songId: string;
   feedback: FeedbackType;
@@ -99,6 +101,22 @@ export const getHomeRecommendations = async (debug = false): Promise<HomeRecomme
   return res.data;
 };
 
+export const getHomeRecommendationsByMode = async (
+    mode: RecommendationMode,
+    debug = false,
+): Promise<HomeRecommendation> => {
+  const res = await apiClient.get<HomeRecommendation>(`/recommendations/${mode}/home`, {
+    params: { debug },
+  });
+  return res.data;
+};
+
+export const getBasicHomeRecommendations = async (debug = false): Promise<HomeRecommendation> =>
+    getHomeRecommendationsByMode('basic', debug);
+
+export const getAdvanceHomeRecommendations = async (debug = false): Promise<HomeRecommendation> =>
+    getHomeRecommendationsByMode('advance', debug);
+
 export const getTrendingRecommendations = async (limit = 20): Promise<RecommendedSong[]> => {
   const res = await apiClient.get<RecommendedSong[]>('/recommendations/trending', {
     params: { limit },
@@ -122,8 +140,32 @@ export const getSocialRecommendations = async (limit = 20): Promise<RecommendedS
 };
 
 export const getSimilarSongs = async (songId: string, limit = 20): Promise<RecommendedSong[]> => {
+  try {
+    const res = await apiClient.get<RecommendedSong[]>(
+      `/recommendations/advance/similar/${songId}`,
+      { params: { limit } },
+    );
+    return res.data ?? [];
+  } catch {
+    const fallback = await apiClient.get<RecommendedSong[]>(
+        `/recommendations/basic/similar/${songId}`,
+        { params: { limit } },
+    );
+    return fallback.data ?? [];
+  }
+};
+
+export const getBasicSimilarSongs = async (songId: string, limit = 20): Promise<RecommendedSong[]> => {
   const res = await apiClient.get<RecommendedSong[]>(
-      `/recommendations/similar/${songId}`,
+      `/recommendations/basic/similar/${songId}`,
+      { params: { limit } },
+  );
+  return res.data ?? [];
+};
+
+export const getAdvanceSimilarSongs = async (songId: string, limit = 20): Promise<RecommendedSong[]> => {
+  const res = await apiClient.get<RecommendedSong[]>(
+      `/recommendations/advance/similar/${songId}`,
       { params: { limit } },
   );
   return res.data ?? [];

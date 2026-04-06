@@ -21,6 +21,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Fontisto, AntDesign, FontAwesome } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 import { COLORS, useThemeColors } from '../../config/colors';
 import { SectionSkeleton } from '../../components/SkeletonLoader';
@@ -30,6 +31,7 @@ import { useTranslation } from '../../context/LocalizationContext';
 import {
   addSongToPlaylist,
   Album,
+  createAlbum,
   createPlaylist,
   deletePlaylist,
   getMyAlbums,
@@ -455,15 +457,26 @@ const CreateAlbumModal = ({
 }: {
   visible: boolean;
   onClose: () => void;
-  onCreate: (title: string) => Promise<void>;
+  onCreate: (title: string, cover?: { uri: string; fileName?: string; mimeType?: string } | null) => Promise<void>;
 }) => {
   const [title, setTitle] = useState('');
+  const [cover, setCover] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const pickCover = async () => {
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.9,
+    });
+    if (picked.canceled || !picked.assets?.length) return;
+    setCover(picked.assets[0]);
+  };
 
   const handleCreate = async () => {
     if (!title.trim()) return;
     setLoading(true);
-    try { await onCreate(title.trim()); setTitle(''); }
+    try { await onCreate(title.trim(), cover); setTitle(''); setCover(null); }
     finally { setLoading(false); }
   };
 
@@ -480,10 +493,17 @@ const CreateAlbumModal = ({
             placeholderTextColor={COLORS.glass30}
             autoFocus
           />
+          <Pressable style={modalStyles.coverPicker} onPress={pickCover}>
+            <Text style={modalStyles.coverPickerText}>
+              {cover
+                ? `${tr('screens.library.albumCoverSelected', 'Cover selected')}: ${cover.fileName ?? cover.uri.split('/').pop()}`
+                : tr('screens.library.albumCoverPick', 'Pick album cover (optional)')}
+            </Text>
+          </Pressable>
           <View style={modalStyles.actions}>
-            <Pressable style={modalStyles.cancelBtn} onPress={onClose}>
-              <Text style={modalStyles.cancelText}>{tr('common.cancel', 'Cancel')}</Text>
-            </Pressable>
+              <Pressable style={modalStyles.cancelBtn} onPress={onClose}>
+                <Text style={modalStyles.cancelText}>{tr('common.cancel', 'Cancel')}</Text>
+              </Pressable>
             <Pressable
               style={[modalStyles.createBtn, !title.trim() && { opacity: 0.4 }]}
               onPress={handleCreate}
@@ -550,6 +570,16 @@ const modalStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   createText: { color: COLORS.white, fontWeight: '700' },
+  coverPicker: {
+    backgroundColor: COLORS.surfaceLow,
+    borderWidth: 1,
+    borderColor: COLORS.glass15,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    marginBottom: 12,
+  },
+  coverPickerText: { color: COLORS.glass60, fontSize: 13 },
 });
 
 // ─── Add Song to Playlist Modal ───────────────────────────────────────────────
@@ -1489,9 +1519,45 @@ export const LibraryScreen = () => {
   };
 
   // ── Album actions ─────────────────────────────────────────────────────────
-  const handleCreateAlbum = async (title: string) => {
+  const uploadFileNative = (params: {
+    url: string;
+    uri: string;
+    mimeType: string;
+    fileName: string;
+  }): Promise<void> => new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', params.url);
+    xhr.setRequestHeader('Content-Type', params.mimeType);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload failed HTTP ${xhr.status}`));
+    };
+    xhr.onerror = () => reject(new Error('Network error while uploading.'));
+    xhr.ontimeout = () => reject(new Error('Upload timeout.'));
+    xhr.send({ uri: params.uri, type: params.mimeType, name: params.fileName } as any);
+  });
+
+  const handleCreateAlbum = async (
+    title: string,
+    cover?: { uri: string; fileName?: string; mimeType?: string } | null,
+  ) => {
     try {
-      await apiClient.post('/albums', { title });
+      const coverExt = cover?.fileName?.split('.').pop()?.toLowerCase()
+        ?? cover?.uri?.split('.').pop()?.toLowerCase();
+      const created = await createAlbum({
+        title,
+        coverFileExtension: coverExt,
+      });
+
+      if (cover && created.coverUploadUrl) {
+        await uploadFileNative({
+          url: created.coverUploadUrl,
+          uri: cover.uri,
+          mimeType: cover.mimeType ?? 'image/jpeg',
+          fileName: cover.fileName ?? `album-cover.${coverExt ?? 'jpg'}`,
+        });
+      }
+
       setCreateAlbumOpen(false);
       await load(true);
     } catch (e: any) {

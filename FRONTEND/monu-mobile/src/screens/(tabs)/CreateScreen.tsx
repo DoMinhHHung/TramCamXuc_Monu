@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 
 import { COLORS, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
@@ -28,6 +29,7 @@ import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
 const ALLOWED_EXTENSIONS = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'] as const;
 const LYRIC_EXTENSIONS = ['lrc', 'srt', 'txt'] as const;
+const COVER_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'] as const;
 
 type ArtistProfile = {
   id: string;
@@ -79,6 +81,7 @@ export const CreateScreen = () => {
   const [selectedGenreIds, setSelectedGenreIds] = useState<string[]>([]);
   const [pickedFile, setPickedFile]       = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [pickedLyric, setPickedLyric]     = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [pickedCover, setPickedCover]     = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   // ── Artist register form ───────────────────────────────────────────────────
   const [stageName, setStageName]         = useState('');
@@ -210,6 +213,27 @@ export const CreateScreen = () => {
     setPickedLyric(file);
   };
 
+  const handlePickCover = async () => {
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.9,
+    });
+    if (picked.canceled || !picked.assets?.length) return;
+    const file = picked.assets[0];
+    const ext = file.fileName?.split('.').pop()?.toLowerCase()
+      ?? file.uri.split('.').pop()?.toLowerCase()
+      ?? '';
+    if (!COVER_EXTENSIONS.includes(ext as any)) {
+      Alert.alert(
+        t('screens.create.unsupportedFormatTitle', 'Unsupported format'),
+        `${t('screens.create.allowedFormatsPrefix', 'Only allowed')}: ${COVER_EXTENSIONS.join(', ')}`
+      );
+      return;
+    }
+    setPickedCover(file);
+  };
+
   const handlePublish = async () => {
     const attemptId = ++publishAttemptRef.current;
     debugCreateUpload('publish_clicked', {
@@ -246,6 +270,7 @@ export const CreateScreen = () => {
     const genresCopy      = [...selectedGenreIds];
     const fileCopy        = pickedFile;
     const lyricCopy       = pickedLyric;
+    const coverCopy       = pickedCover;
 
     debugCreateUpload('publish_trigger_upload', {
       attemptId,
@@ -255,15 +280,29 @@ export const CreateScreen = () => {
       fileSizeBytes: fileCopy.size ?? null,
       mimeType: fileCopy.mimeType ?? null,
       hasLyric: !!lyricCopy,
+      hasCover: !!coverCopy,
     });
 
     setTitle('');
     setSelectedGenreIds([]);
     setPickedFile(null);
     setPickedLyric(null);
+    setPickedCover(null);
 
     try {
-      await startUpload({ title: titleCopy, genreIds: genresCopy, file: fileCopy, lyricFile: lyricCopy });
+      const coverUploadFile = coverCopy ? {
+        uri: coverCopy.uri,
+        name: coverCopy.fileName ?? `cover.${coverCopy.uri.split('.').pop() ?? 'jpg'}`,
+        mimeType: coverCopy.mimeType ?? 'image/jpeg',
+      } : null;
+
+      await startUpload({
+        title: titleCopy,
+        genreIds: genresCopy,
+        file: fileCopy,
+        lyricFile: lyricCopy,
+        coverFile: coverUploadFile,
+      });
       debugCreateUpload('publish_startUpload_resolved', { attemptId });
     } catch (error: any) {
       debugCreateUpload('publish_startUpload_failed', {
@@ -557,6 +596,55 @@ export const CreateScreen = () => {
                             {LYRIC_EXTENSIONS.join('  ·  ').toUpperCase()}
                           </Text>
                         </View>
+                    )}
+                  </Pressable>
+
+                  {/* Cover image (optional) */}
+                  <Text style={styles.fieldLabel}>
+                    {t('screens.create.coverImageLabel', 'Cover image (optional)')}
+                  </Text>
+                  <Pressable
+                    style={[
+                      styles.filePicker,
+                      pickedCover && styles.filePickerSelected,
+                      isUploadActive && styles.disabledBtn,
+                    ]}
+                    onPress={handlePickCover}
+                    disabled={isUploadActive}
+                  >
+                    {pickedCover ? (
+                      <View style={styles.filePickerRow}>
+                        <Text style={styles.fileIcon}>🖼️</Text>
+                        <View style={styles.fileInfo}>
+                          <Text style={styles.fileName} numberOfLines={1}>
+                            {pickedCover.fileName ?? pickedCover.uri.split('/').pop()}
+                          </Text>
+                          <Text style={styles.fileSize}>
+                            {pickedCover.fileSize
+                              ? `${(pickedCover.fileSize / 1024).toFixed(1)} KB`
+                              : ''}
+                          </Text>
+                        </View>
+                        <Pressable
+                          hitSlop={8}
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            setPickedCover(null);
+                          }}
+                        >
+                          <Text style={styles.fileChange}>{t('common.remove', 'Xoá')}</Text>
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <View style={styles.filePickerEmpty}>
+                        <Text style={styles.filePickerPlus}>🖼️</Text>
+                        <Text style={styles.filePickerHint}>
+                          {t('screens.create.chooseCoverImage', 'Chọn ảnh bìa bài hát')}
+                        </Text>
+                        <Text style={styles.filePickerFormats}>
+                          {COVER_EXTENSIONS.join('  ·  ').toUpperCase()}
+                        </Text>
+                      </View>
                     )}
                   </Pressable>
 
@@ -931,4 +1019,3 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
 });
-

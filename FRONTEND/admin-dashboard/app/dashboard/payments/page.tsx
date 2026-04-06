@@ -31,7 +31,7 @@ interface PlanFeatures {
     playlist_limit?:    number;
     can_become_artist?: boolean;
     create_album?:      boolean;
-    recommendation?:    string;    // "basic" | "advanced"
+    recommendation?:    string;    // "basic" | "advance"
     [key: string]: unknown;        // extra custom keys
 }
 
@@ -39,7 +39,7 @@ interface PageResult { content: Plan[]; totalElements: number; totalPages: numbe
 
 // ─── Feature schema definition ────────────────────────────────────────────────
 const QUALITY_OPTIONS   = ['128kbps', '256kbps', '320kbps', 'lossless'] as const;
-const RECOMMEND_OPTIONS = ['basic', 'advanced'] as const;
+const RECOMMEND_OPTIONS = ['basic', 'advance'] as const;
 
 interface FeatureDef {
     key:     string;
@@ -61,7 +61,7 @@ const FEATURE_DEFS: FeatureDef[] = [
     { key: 'playlist_limit',    label: 'Giới hạn playlist',    hint: 'Số playlist tối đa (0 = không giới hạn)', type: 'number', icon: StackSimple, min: 0, max: 9999, defaultVal: 5 },
     { key: 'can_become_artist', label: 'Có thể làm Artist',    hint: 'Cho phép đăng ký Artist profile',  type: 'toggle',  icon: UserCircle,     defaultVal: false },
     { key: 'create_album',      label: 'Tạo Album',            hint: 'Artist được tạo và quản lý album', type: 'toggle',  icon: VinylRecord,    defaultVal: false },
-    { key: 'recommendation',    label: 'Thuật toán gợi ý',     hint: 'basic = cơ bản / advanced = AI',   type: 'select',  icon: MagicWand,      options: [...RECOMMEND_OPTIONS], defaultVal: 'basic' },
+    { key: 'recommendation',    label: 'Thuật toán gợi ý',     hint: 'basic = cơ bản / advance = AI',   type: 'select',  icon: MagicWand,      options: [...RECOMMEND_OPTIONS], defaultVal: 'basic' },
 ];
 
 const KNOWN_KEYS = new Set(FEATURE_DEFS.map(f => f.key));
@@ -728,4 +728,3 @@ export default function PaymentsPage() {
         </>
     );
 }
-

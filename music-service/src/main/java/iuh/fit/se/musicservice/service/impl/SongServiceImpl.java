@@ -154,6 +154,15 @@ public class SongServiceImpl implements SongService {
         String rawFileKey = String.format("raw/%s/%s.%s", userId, songId, ext);
 
         String presignedUrl = storageService.generatePresignedUploadUrl(rawFileKey);
+        String coverExt = request.getCoverFileExtension() != null
+                ? request.getCoverFileExtension().replace(".", "").toLowerCase()
+                : null;
+        String coverFileKey = coverExt != null && !coverExt.isBlank()
+                ? String.format("covers/songs/%s/%s.%s", userId, songId, coverExt)
+                : null;
+        String coverUploadUrl = coverFileKey != null
+                ? storageService.generatePresignedPublicUploadUrl(coverFileKey)
+                : null;
 
         Song song = Song.builder()
                 .id(songId)
@@ -165,6 +174,7 @@ public class SongServiceImpl implements SongService {
                 .primaryArtistAvatarUrl(artist.getAvatarUrl())
                 .genres(new HashSet<>(genres))
                 .rawFileKey(rawFileKey)
+                .coverFileKey(coverFileKey)
                 .status(SongStatus.DRAFT)
                 .transcodeStatus(TranscodeStatus.PENDING)
                 .playCount(0L)
@@ -174,6 +184,7 @@ public class SongServiceImpl implements SongService {
 
         SongResponse response = songMapper.toResponse(song);
         response.setUploadUrl(presignedUrl);
+        response.setCoverUploadUrl(coverUploadUrl);
         log.info("Song {} created for user {}, presigned URL generated", songId, userId);
         return response;
     }
@@ -188,6 +199,10 @@ public class SongServiceImpl implements SongService {
 
         if (song.getTranscodeStatus() != TranscodeStatus.PENDING) {
             throw new AppException(ErrorCode.SONG_INVALID_STATUS);
+        }
+
+        if (song.getCoverFileKey() != null && !song.getCoverFileKey().isBlank()) {
+            song.setThumbnailUrl(storageService.getPublicUrl(song.getCoverFileKey()));
         }
 
         song.setTranscodeStatus(TranscodeStatus.PROCESSING);

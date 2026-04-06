@@ -12,6 +12,7 @@ public interface AlbumMapper {
 
     @Mapping(target = "songs", ignore = true)
     @Mapping(target = "totalSongs", ignore = true)
+    @Mapping(target = "coverUploadUrl", ignore = true)
     AlbumResponse toResponse(Album album);
 
     @Mapping(target = "albumSongId", source = "id")

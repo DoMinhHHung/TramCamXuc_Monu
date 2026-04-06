@@ -16,6 +16,7 @@ public class AlbumResponse {
     private String slug;
     private String description;
     private String coverUrl;
+    private String coverUploadUrl;
     private LocalDate releaseDate;
     private ZonedDateTime scheduledPublishAt;
     private AlbumStatus status;
