@@ -54,6 +54,7 @@ public class AlbumServiceImpl implements AlbumService {
     private final ArtistRepository   artistRepository;
     private final SongRepository     songRepository;
     private final AlbumMapper        albumMapper;
+    private final MinioStorageService storageService;
     private final StringRedisTemplate stringRedisTemplate;
     private final RabbitTemplate rabbitTemplate;
 
@@ -161,11 +162,22 @@ public class AlbumServiceImpl implements AlbumService {
         }
 
         UUID albumId = UUID.randomUUID();
+        String coverExt = request.getCoverFileExtension() != null
+                ? request.getCoverFileExtension().replace(".", "").toLowerCase()
+                : null;
+        String coverFileKey = coverExt != null && !coverExt.isBlank()
+                ? String.format("covers/albums/%s/%s.%s", artist.getUserId(), albumId, coverExt)
+                : null;
+        String coverUploadUrl = coverFileKey != null
+                ? storageService.generatePresignedPublicUploadUrl(coverFileKey)
+                : null;
         Album album = Album.builder()
                 .id(albumId)
                 .title(request.getTitle())
                 .slug(SlugUtils.generate(request.getTitle(), albumId))
                 .description(request.getDescription())
+                .coverFileKey(coverFileKey)
+                .coverUrl(coverFileKey != null ? storageService.getPublicUrl(coverFileKey) : null)
                 .releaseDate(request.getReleaseDate())
                 .ownerArtistId(artist.getId())
                 .ownerStageName(artist.getStageName())
@@ -178,6 +190,7 @@ public class AlbumServiceImpl implements AlbumService {
         log.info("Album created: id={}, artist={}", albumId, artist.getStageName());
 
         AlbumResponse response = albumMapper.toResponse(album);
+        response.setCoverUploadUrl(coverUploadUrl);
         response.setSongs(Collections.emptyList());
         response.setTotalSongs(0);
         return response;

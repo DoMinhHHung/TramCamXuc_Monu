@@ -10,6 +10,7 @@ declare module 'expo-image-picker' {
     uri: string;
     fileName?: string;
     mimeType?: string;
+    fileSize?: number;
     width: number;
     height: number;
   }

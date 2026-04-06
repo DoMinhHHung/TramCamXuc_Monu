@@ -34,6 +34,7 @@ export interface Song {
   createdAt: string;
   updatedAt: string;
   uploadUrl?: string;
+  coverUploadUrl?: string;
   sourceType?: 'LOCAL' | 'JAMENDO' | 'SOUNDCLOUD';
   soundcloudId?: string;
   soundcloudPermalink?: string;
@@ -105,6 +106,7 @@ export interface Album {
   slug?: string;
   description?: string;
   coverUrl?: string;
+  coverUploadUrl?: string;
   releaseDate?: string;
   status: 'DRAFT' | 'PUBLIC' | 'PRIVATE';
   totalSongs?: number;
@@ -224,7 +226,12 @@ export const getMySongs = async (params?: { page?: number; size?: number; noCach
   return unwrap<PageResponse<Song>>(response.data);
 };
 
-export const requestUploadSong = async (payload: { title: string; fileExtension: string; genreIds: string[] }): Promise<Song> => {
+export const requestUploadSong = async (payload: {
+  title: string;
+  fileExtension: string;
+  genreIds: string[];
+  coverFileExtension?: string;
+}): Promise<Song> => {
   const response = await apiClient.post<Song>('/songs/request-upload', payload);
   return unwrap<Song>(response.data);
 };
@@ -236,6 +243,16 @@ export const confirmUploadSong = async (songId: string): Promise<void> => {
 export const getMyAlbums = async (params?: { page?: number; size?: number }): Promise<PageResponse<Album>> => {
   const response = await apiClient.get<PageResponse<Album>>('/albums/my', { params });
   return unwrap<PageResponse<Album>>(response.data);
+};
+
+export const createAlbum = async (payload: {
+  title: string;
+  description?: string;
+  releaseDate?: string;
+  coverFileExtension?: string;
+}): Promise<Album> => {
+  const response = await apiClient.post<Album>('/albums', payload);
+  return unwrap<Album>(response.data);
 };
 
 export const getPublicAlbums = async (params?: { page?: number; size?: number; artistId?: string }): Promise<PageResponse<Album>> => {

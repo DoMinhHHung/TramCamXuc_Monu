@@ -44,6 +44,9 @@ public class Album extends BaseEntity {
     @Column(name = "cover_url", length = 500)
     private String coverUrl;
 
+    @Column(name = "cover_file_key", length = 500)
+    private String coverFileKey;
+
     @Column(name = "release_date")
     private LocalDate releaseDate;
 

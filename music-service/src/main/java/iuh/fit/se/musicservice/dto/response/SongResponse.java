@@ -35,6 +35,9 @@ public class SongResponse {
     /** Presigned URL để artist upload file lên MinIO (chỉ có khi requestUploadUrl) */
     private String uploadUrl;
 
+    /** Presigned URL để artist upload cover lên MinIO (optional) */
+    private String coverUploadUrl;
+
     /** URL stream HLS (chỉ có khi getStreamUrl) */
     private String streamUrl;
 

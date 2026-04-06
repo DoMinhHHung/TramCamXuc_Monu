@@ -71,6 +71,10 @@ public class Song extends BaseEntity {
     @Column(name = "raw_file_key", length = 500)
     private String rawFileKey;
 
+    /** Key cover raw được upload qua presigned URL trước khi confirm */
+    @Column(name = "cover_file_key", length = 500)
+    private String coverFileKey;
+
     /** Relative path tới master.m3u8 trong public-songs bucket */
     @Column(name = "hls_master_url", length = 500)
     private String hlsMasterUrl;

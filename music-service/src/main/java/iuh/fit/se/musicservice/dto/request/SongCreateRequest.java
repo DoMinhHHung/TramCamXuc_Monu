@@ -22,6 +22,9 @@ public class SongCreateRequest {
     @Pattern(regexp = "^(?i)(mp3|wav|flac|aac|ogg|m4a)$", message = "INVALID_FILE_EXTENSION")
     private String fileExtension;
 
+    @Pattern(regexp = "^(?i)(jpg|jpeg|png|webp)$", message = "INVALID_FILE_EXTENSION")
+    private String coverFileExtension;
+
     @NotEmpty(message = "GENRES_REQUIRED")
     private Set<UUID> genreIds;
 }
