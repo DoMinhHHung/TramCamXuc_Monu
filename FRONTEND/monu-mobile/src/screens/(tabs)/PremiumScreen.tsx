@@ -915,7 +915,7 @@ export const PremiumScreen = () => {
 
     if (loading) {
         return (
-            <View style={styles.root}>
+            <View style={[styles.root, styles_dynamic.root]}>
                 <StatusBar style="light" />
                 <PremiumSkeleton />
             </View>
@@ -924,7 +924,7 @@ export const PremiumScreen = () => {
 
     if (loadError && plans.length === 0) {
         return (
-            <View style={styles.root}>
+            <View style={[styles.root, styles_dynamic.root]}>
                 <StatusBar style="light" />
                 <View style={{ paddingTop: insets.top + 20 }}>
                     <RetryState
@@ -941,7 +941,7 @@ export const PremiumScreen = () => {
     }
 
     return (
-        <View style={styles.root}>
+        <View style={[styles.root, styles_dynamic.root]}>
             <StatusBar style="light" />
             <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -956,7 +956,7 @@ export const PremiumScreen = () => {
 
                     {/* Hero gradient */}
                     <LinearGradient
-                        colors={['#1a0040', '#2D1B69', '#0D0D14']}
+                        colors={styles_dynamic.heroGradientColors}
                         locations={[0, 0.55, 1]}
                         style={StyleSheet.absoluteFill}
                     />
@@ -974,8 +974,8 @@ export const PremiumScreen = () => {
                         </LinearGradient>
                     </Animated.View>
 
-                    <Text style={styles.heroTitle}>Monu Premium</Text>
-                    <Text style={styles.heroSubtitle}>Trải nghiệm âm nhạc không giới hạn</Text>
+                    <Text style={[styles.heroTitle, styles_dynamic.heroTitle]}>Monu Premium</Text>
+                    <Text style={[styles.heroSubtitle, styles_dynamic.heroSubtitle]}>Trải nghiệm âm nhạc không giới hạn</Text>
 
                     {/* Active badge OR price teaser */}
                     {isActive ? (
@@ -1000,8 +1000,8 @@ export const PremiumScreen = () => {
                 <View style={styles.body}>
                     {backgroundRefreshing && (
                         <View style={styles.streamingBar}>
-                            <ActivityIndicator size="small" color="#C084FC" />
-                            <Text style={styles.streamingText}>Đang cập nhật gói Premium mới nhất...</Text>
+                            <ActivityIndicator size="small" color={themeColors.accent} />
+                            <Text style={[styles.streamingText, styles_dynamic.streamingText]}>Đang cập nhật gói Premium mới nhất...</Text>
                         </View>
                     )}
 
@@ -1183,7 +1183,21 @@ export const PremiumScreen = () => {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const createDynamicStyles = (colors: ColorScheme) => ({});
+const createDynamicStyles = (colors: ColorScheme) => ({
+    root: {
+        backgroundColor: colors.bg,
+    },
+    heroGradientColors: [colors.gradViolet, colors.gradPurple, colors.bg] as const,
+    heroTitle: {
+        color: colors.text,
+    },
+    heroSubtitle: {
+        color: colors.textSecondary,
+    },
+    streamingText: {
+        color: colors.textSecondary,
+    },
+});
 
 const styles = StyleSheet.create({
     root: {

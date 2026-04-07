@@ -66,7 +66,6 @@ export const CreateScreen = () => {
   const { job, startUpload } = useUpload();
   const { t } = useTranslation();
   const themeColors = useThemeColors();
-  const COLORS = themeColors;
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const UPLOAD_STAGE_HINT = getUploadStageHint(t);
   const publishAttemptRef = useRef(0);
@@ -346,7 +345,7 @@ export const CreateScreen = () => {
   if (loading) {
     return (
         <View style={styles.centerFull}>
-          <ActivityIndicator color={COLORS.accent} size="large" />
+          <ActivityIndicator color={themeColors.accent} size="large" />
         </View>
     );
   }
@@ -410,8 +409,8 @@ export const CreateScreen = () => {
             {job && job.stage !== 'idle' && (
                 <View style={[
                   styles.statusCard,
-                  job.stage === 'error'  && { borderColor: COLORS.error },
-                  job.stage === 'done'   && { borderColor: COLORS.success },
+                  job.stage === 'error'  && { borderColor: themeColors.error },
+                  job.stage === 'done'   && { borderColor: themeColors.success },
                 ]}>
                   <Text style={styles.statusTitle}>
                     {job.stage === 'done'  ? t('screens.create.uploadDoneTitle', '✓ Upload completed') :
@@ -457,7 +456,7 @@ export const CreateScreen = () => {
                             value={stageName}
                             onChangeText={setStageName}
                             placeholder={t('screens.create.stageNamePlaceholder', 'Your stage name')}
-                            placeholderTextColor={COLORS.glass35}
+                            placeholderTextColor={themeColors.glass35}
                         />
                         <Pressable
                             style={[styles.primaryBtn,
@@ -466,7 +465,7 @@ export const CreateScreen = () => {
                             disabled={registerLoading}
                         >
                           {registerLoading
-                              ? <ActivityIndicator color={COLORS.white} />
+                              ? <ActivityIndicator color={themeColors.white} />
                               : <Text style={styles.primaryBtnText}>{t('screens.create.registerArtistButton', 'Register Artist')}</Text>
                           }
                         </Pressable>
@@ -505,7 +504,7 @@ export const CreateScreen = () => {
                       value={title}
                       onChangeText={setTitle}
                         placeholder={t('screens.create.songTitlePlaceholder', 'Enter song title...')}
-                      placeholderTextColor={COLORS.glass35}
+                      placeholderTextColor={themeColors.glass35}
                       editable={!isUploadActive}
                   />
 
@@ -654,7 +653,7 @@ export const CreateScreen = () => {
                   <Text style={styles.fieldLabel}>
                     {t('labels.genre', 'Genre')}
                     {selectedGenreIds.length > 0 &&
-                        <Text style={{ color: COLORS.accent }}>
+                        <Text style={{ color: themeColors.accent }}>
                           {' '}({selectedGenreIds.length})
                         </Text>
                     }
@@ -700,7 +699,7 @@ export const CreateScreen = () => {
                     >
                       <View style={styles.publishBtnRow}>
                         {isUploadActive ? (
-                            <ActivityIndicator color={COLORS.white} size="small" />
+                            <ActivityIndicator color={themeColors.white} size="small" />
                         ) : null}
                         <Text style={styles.publishBtnText}>
                           {isUploadActive
