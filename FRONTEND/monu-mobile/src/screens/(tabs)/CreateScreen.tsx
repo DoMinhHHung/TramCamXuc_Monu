@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 
-import { COLORS, useThemeColors } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useUpload, UploadStage } from '../../context/UploadContext';
 import { useTranslation } from '../../context/LocalizationContext';
@@ -66,6 +66,8 @@ export const CreateScreen = () => {
   const { job, startUpload } = useUpload();
   const { t } = useTranslation();
   const themeColors = useThemeColors();
+  const COLORS = themeColors;
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const UPLOAD_STAGE_HINT = getUploadStageHint(t);
   const publishAttemptRef = useRef(0);
   const lastProgressBucketRef = useRef<number>(-1);
@@ -733,29 +735,29 @@ export const CreateScreen = () => {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (C: ColorScheme) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
   },
 
   centerFull: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
   },
   gateEmoji: { fontSize: 48, marginBottom: 16 },
   gateTitle: {
-    color: COLORS.white,
+    color: C.white,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 8,
   },
   gateSub: {
-    color: COLORS.glass50,
+    color: C.glass50,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -767,13 +769,13 @@ const styles = StyleSheet.create({
   },
   heroEmoji: { fontSize: 52, marginBottom: 12 },
   heroTitle: {
-    color: COLORS.white,
+    color: C.white,
     fontSize: 28,
     fontWeight: '800',
     marginBottom: 6,
   },
   heroSub: {
-    color: COLORS.glass50,
+    color: C.glass50,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -785,24 +787,24 @@ const styles = StyleSheet.create({
 
   // ── Status card ──────────────────────────────────────────────────────────
   statusCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: COLORS.accentBorder25,
+    borderColor: C.accentBorder25,
     padding: 16,
     gap: 6,
   },
   statusTitle: {
-    color: COLORS.white,
+    color: C.white,
     fontSize: 14,
     fontWeight: '700',
   },
   statusSong: {
-    color: COLORS.glass60,
+    color: C.glass60,
     fontSize: 13,
   },
   statusHint: {
-    color: COLORS.glass40,
+    color: C.glass40,
     fontSize: 12,
     lineHeight: 17,
   },
@@ -815,16 +817,16 @@ const styles = StyleSheet.create({
   progressTrack: {
     flex: 1,
     height: 4,
-    backgroundColor: COLORS.glass10,
+    backgroundColor: C.glass10,
     borderRadius: 2,
   },
   progressFill: {
     height: 4,
-    backgroundColor: COLORS.accent,
+    backgroundColor: C.accent,
     borderRadius: 2,
   },
   progressPct: {
-    color: COLORS.accent,
+    color: C.accent,
     fontSize: 12,
     fontWeight: '700',
     minWidth: 34,
@@ -833,27 +835,27 @@ const styles = StyleSheet.create({
 
   // ── Card ────────────────────────────────────────────────────────────────
   card: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: COLORS.glass10,
+    borderColor: C.glass10,
     padding: 18,
     gap: 10,
   },
   cardTitle: {
-    color: COLORS.white,
+    color: C.white,
     fontSize: 18,
     fontWeight: '700',
   },
   cardDesc: {
-    color: COLORS.glass60,
+    color: C.glass60,
     fontSize: 14,
     lineHeight: 20,
   },
 
   // ── Form fields ──────────────────────────────────────────────────────────
   fieldLabel: {
-    color: COLORS.glass40,
+    color: C.glass40,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
@@ -862,27 +864,27 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: COLORS.glass15,
-    backgroundColor: COLORS.surfaceLow,
+    borderColor: C.glass15,
+    backgroundColor: C.surfaceLow,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: COLORS.white,
+    color: C.white,
     fontSize: 15,
   },
 
   // ── File picker ──────────────────────────────────────────────────────────
   filePicker: {
     borderWidth: 1.5,
-    borderColor: COLORS.glass15,
+    borderColor: C.glass15,
     borderStyle: 'dashed',
     borderRadius: 12,
     overflow: 'hidden',
   },
   filePickerSelected: {
     borderStyle: 'solid',
-    borderColor: COLORS.accentBorder35,
-    backgroundColor: COLORS.accentFill20,
+    borderColor: C.accentBorder35,
+    backgroundColor: C.accentFill20,
   },
   filePickerEmpty: {
     alignItems: 'center',
@@ -890,18 +892,18 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   filePickerPlus: {
-    color: COLORS.glass35,
+    color: C.glass35,
     fontSize: 28,
     lineHeight: 32,
     fontWeight: '300',
   },
   filePickerHint: {
-    color: COLORS.glass50,
+    color: C.glass50,
     fontSize: 14,
     fontWeight: '600',
   },
   filePickerFormats: {
-    color: COLORS.glass25,
+    color: C.glass25,
     fontSize: 11,
     letterSpacing: 0.5,
   },
@@ -915,17 +917,17 @@ const styles = StyleSheet.create({
   fileIcon: { fontSize: 24 },
   fileInfo: { flex: 1 },
   fileName: {
-    color: COLORS.white,
+    color: C.white,
     fontSize: 14,
     fontWeight: '600',
   },
   fileSize: {
-    color: COLORS.glass45,
+    color: C.glass45,
     fontSize: 12,
     marginTop: 2,
   },
   fileChange: {
-    color: COLORS.accent,
+    color: C.accent,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -939,21 +941,21 @@ const styles = StyleSheet.create({
   genreChip: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: COLORS.glass20,
+    borderColor: C.glass20,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    backgroundColor: COLORS.surfaceLow,
+    backgroundColor: C.surfaceLow,
   },
   genreChipActive: {
-    borderColor: COLORS.accent,
-    backgroundColor: COLORS.accentFill20,
+    borderColor: C.accent,
+    backgroundColor: C.accentFill20,
   },
   genreText: {
-    color: COLORS.glass70,
+    color: C.glass70,
     fontSize: 13,
   },
   genreTextActive: {
-    color: COLORS.accent,
+    color: C.accent,
     fontWeight: '600',
   },
 
@@ -977,12 +979,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   publishBtnText: {
-    color: COLORS.white,
+    color: C.white,
     fontWeight: '800',
     fontSize: 16,
   },
   publishNote: {
-    color: COLORS.glass30,
+    color: C.glass30,
     fontSize: 12,
     lineHeight: 17,
     textAlign: 'center',
@@ -1004,14 +1006,14 @@ const styles = StyleSheet.create({
 
   // ── Shared ───────────────────────────────────────────────────────────────
   primaryBtn: {
-    backgroundColor: COLORS.accentDim,
+    backgroundColor: C.accentDim,
     borderRadius: 12,
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryBtnText: {
-    color: COLORS.white,
+    color: C.white,
     fontWeight: '700',
     fontSize: 15,
   },

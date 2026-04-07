@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Fontisto, AntDesign, FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
-import { COLORS, useThemeColors } from '../../config/colors';
+import { ColorScheme, COLORS, useThemeColors } from '../../config/colors';
 import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
@@ -1299,6 +1299,7 @@ export const LibraryScreen = () => {
   const { authSession } = useAuth();
   const { t } = useTranslation();
   const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   tr = t;
   rc = themeColors;
   const { playSong, currentSong, isPlaying } = usePlayer();
@@ -1980,27 +1981,27 @@ export const LibraryScreen = () => {
 
 // ─── Main styles ──────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (C: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
 
   header: { paddingHorizontal: 20, paddingBottom: 20 },
-  headerTitle: { color: COLORS.white, fontSize: 28, fontWeight: '800' },
-  headerSub: { color: COLORS.glass40, fontSize: 13, marginTop: 4 },
+  headerTitle: { color: C.white, fontSize: 28, fontWeight: '800' },
+  headerSub: { color: C.glass40, fontSize: 13, marginTop: 4 },
 
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
   tabContent: { flex: 1 },
 
   empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 44, marginBottom: 12 },
-  emptyTitle: { color: COLORS.white, fontSize: 17, fontWeight: '700', marginBottom: 6 },
-  emptySub: { color: COLORS.glass40, fontSize: 13, textAlign: 'center' },
+  emptyTitle: { color: C.white, fontSize: 17, fontWeight: '700', marginBottom: 6 },
+  emptySub: { color: C.glass40, fontSize: 13, textAlign: 'center' },
 
   createBtn: {
     marginHorizontal: 20,
     marginBottom: 6,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: COLORS.accentBorder25,
+    borderColor: C.accentBorder25,
     borderStyle: 'dashed',
     overflow: 'hidden',
   },
@@ -2010,31 +2011,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     gap: 8,
-    backgroundColor: COLORS.accentFill20,
+    backgroundColor: C.accentFill20,
   },
-  createBtnIcon: { color: COLORS.accent, fontSize: 20, fontWeight: '300' },
-  createBtnText: { color: COLORS.accent, fontSize: 14, fontWeight: '600' },
+  createBtnIcon: { color: C.accent, fontSize: 20, fontWeight: '300' },
+  createBtnText: { color: C.accent, fontSize: 14, fontWeight: '600' },
   albumGateCard: {
     marginHorizontal: 20,
     marginBottom: 12,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.glass12,
-    backgroundColor: COLORS.surface,
+    borderColor: C.glass12,
+    backgroundColor: C.surface,
     gap: 8,
   },
-  albumGateTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  albumGateSub: { color: COLORS.glass50, fontSize: 13, lineHeight: 20 },
+  albumGateTitle: { color: C.white, fontSize: 16, fontWeight: '700' },
+  albumGateSub: { color: C.glass50, fontSize: 13, lineHeight: 20 },
   albumGateBtn: {
     alignSelf: 'flex-start',
     marginTop: 4,
-    backgroundColor: COLORS.accentDim,
+    backgroundColor: C.accentDim,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  albumGateBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  albumGateBtnText: { color: C.white, fontSize: 13, fontWeight: '700' },
 
   listItem: {
     flexDirection: 'row',
@@ -2043,27 +2044,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.glass06,
+    borderBottomColor: C.glass06,
   },
   listItemThumb: {
     width: 52,
     height: 52,
     borderRadius: 10,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   listItemInfo: { flex: 1 },
-  listItemTitle: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
-  listItemSub: { color: COLORS.glass45, fontSize: 12, marginTop: 2 },
+  listItemTitle: { color: C.white, fontSize: 15, fontWeight: '600' },
+  listItemSub: { color: C.glass45, fontSize: 12, marginTop: 2 },
   listItemActions: { flexDirection: 'row', gap: 4 },
   iconBtn: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: COLORS.glass08,
+    backgroundColor: C.glass08,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconBtnText: { color: COLORS.glass60, fontSize: 13 },
+  iconBtnText: { color: C.glass60, fontSize: 13 },
 });

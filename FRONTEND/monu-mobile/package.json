@@ -2,7 +2,7 @@
   "name": "monu-mobile",
   "version": "1.0.0",
   "private": true,
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start --lan",
     "android": "expo run:android",
@@ -30,6 +30,7 @@
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.11",
     "expo-localization": "^55.0.9",
+    "expo-router": "^55.0.10",
     "expo-secure-store": "~15.0.7",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.10",
