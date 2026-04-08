@@ -1,5 +1,3 @@
-version: "3.9"
-
 networks:
   tramcamxuc-net:
     driver: bridge
@@ -40,20 +38,19 @@ x-internal: &internal
 
 x-java-env: &java-env
   JAVA_OPTS: >-
-    -Xmx192m -Xms64m
+    -Xmx160m -Xms64m
     -XX:+UseG1GC
     -XX:MaxGCPauseMillis=200
     -XX:GCTimeRatio=4
     -XX:AdaptiveSizePolicyWeight=90
     -XX:+UseStringDeduplication
-    -XX:MaxMetaspaceSize=64m
+    -XX:MaxMetaspaceSize=128m
     -XX:TieredStopAtLevel=1
     -XX:CICompilerCount=2
     -Djava.security.egd=file:/dev/./urandom
     -Dspring.jmx.enabled=false
   MANAGEMENT_TRACING_ENABLED: "false"
   MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: ""
-  # Giảm log stack HttpClient/Jersey khi Eureka retry / đọc response chậm (không phải lỗi nghiêm trọng)
   LOGGING_LEVEL_COM_NETFLIX_DISCOVERY: WARN
   LOGGING_LEVEL_COM_NETFLIX_EUREKA: WARN
 
@@ -62,10 +59,10 @@ x-limits: &limits
     resources:
       limits:
         cpus: "1.0"
-        memory: 380M
+        memory: 420M
       reservations:
         cpus: "0.05"
-        memory: 192M
+        memory: 256M
 
 x-common: &common
   env_file: [.env]
@@ -339,7 +336,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 384M
+          memory: 480M
         reservations:
           cpus: "0.05"
           memory: 192M
