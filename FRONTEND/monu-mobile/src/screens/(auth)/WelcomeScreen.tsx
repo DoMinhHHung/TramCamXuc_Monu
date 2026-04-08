@@ -10,6 +10,7 @@ import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useTranslation } from '../../context/LocalizationContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
+import { moderateScale, scale, SCREEN, verticalScale } from '../../utils/responsive';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
 
@@ -27,7 +28,7 @@ export const WelcomeScreen = () => {
         <LinearGradient
             colors={[themeColors.gradViolet, themeColors.gradPurple, themeColors.bg]}
             locations={[0, 0.45, 1]}
-            style={[styles.heroGradient, { paddingTop: insets.top + 20 }]}
+            style={[styles.heroGradient, { paddingTop: insets.top + verticalScale(20) }]}
         >
           <View style={styles.ringOuter} />
           <View style={styles.ringInner} />
@@ -44,7 +45,7 @@ export const WelcomeScreen = () => {
             </Text>
           </View>
 
-          <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + 20 }]}>
+          <View style={[styles.bottomSheet, { paddingBottom: insets.bottom + verticalScale(20) }]}>
             <View style={styles.pillRow}>
               {['🎵', '🎸', '🎹', '🎤'].map((e, i) => (
                   <View key={i} style={styles.pill}>
@@ -89,108 +90,108 @@ export const WelcomeScreen = () => {
 
 const createStyles = (colors: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  heroGradient: { flex: 1, paddingHorizontal: 24 },
+  heroGradient: { flex: 1, paddingHorizontal: scale(24) },
   ringOuter: {
     position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
+    width: scale(260),
+    height: scale(260),
+    borderRadius: scale(130),
     borderWidth: 1,
     borderColor: colors.accentBorder12,
-    top: -100,
-    right: -100,
+    top: -scale(90),
+    right: -scale(90),
   },
   ringInner: {
     position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
+    width: scale(180),
+    height: scale(180),
+    borderRadius: scale(90),
     borderWidth: 1,
     borderColor: colors.accentBorder25,
-    top: -50,
-    right: -50,
+    top: -scale(45),
+    right: -scale(45),
   },
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   logoWrap: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: scale(108),
+    height: scale(108),
+    borderRadius: scale(54),
     backgroundColor: colors.surface,
     borderWidth: 2,
     borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    marginBottom: verticalScale(24),
     shadowColor: colors.accentDeep,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: verticalScale(8) },
     shadowOpacity: 0.4,
-    shadowRadius: 20,
+    shadowRadius: scale(20),
   },
-  logoIcon: { fontSize: 60 },
+  logoIcon: { fontSize: moderateScale(52) },
   brand: {
-    fontSize: 48,
+    fontSize: moderateScale(SCREEN.isSmallDevice ? 40 : 48),
     fontWeight: '800',
     color: colors.white,
-    letterSpacing: 2,
-    marginBottom: 16,
+    letterSpacing: 1.5,
+    marginBottom: verticalScale(16),
   },
   tagline: {
-    fontSize: 18,
+    fontSize: moderateScale(16),
     color: colors.glass65,
     textAlign: 'center',
-    lineHeight: 28,
-    marginBottom: 40,
+    lineHeight: verticalScale(24),
+    marginBottom: verticalScale(32),
   },
   bottomSheet: {
     backgroundColor: colors.bg,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    paddingHorizontal: 24,
-    paddingTop: 32,
+    borderTopLeftRadius: scale(28),
+    borderTopRightRadius: scale(28),
+    paddingHorizontal: scale(24),
+    paddingTop: verticalScale(28),
   },
   pillRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
-    marginBottom: 24,
+    gap: scale(10),
+    marginBottom: verticalScale(20),
   },
   pill: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: scale(22),
     backgroundColor: colors.glass06,
     borderWidth: 1,
     borderColor: colors.glass10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pillEmoji: { fontSize: 24 },
+  pillEmoji: { fontSize: moderateScale(22) },
   ctaLabel: {
     color: colors.glass40,
-    fontSize: 13,
+    fontSize: moderateScale(12),
     fontWeight: '700',
     textAlign: 'center',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginBottom: 16,
+    marginBottom: verticalScale(14),
   },
-  primaryBtn: { borderRadius: 999, overflow: 'hidden', marginBottom: 16 },
-  btnGradient: { minHeight: 60, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: colors.white, fontSize: 18, fontWeight: '800' },
+  primaryBtn: { borderRadius: 999, overflow: 'hidden', marginBottom: verticalScale(14) },
+  btnGradient: { minHeight: verticalScale(56), alignItems: 'center', justifyContent: 'center' },
+  primaryText: { color: colors.white, fontSize: moderateScale(17), fontWeight: '800' },
   secondaryBtn: {
     borderRadius: 999,
     borderWidth: 1.5,
     borderColor: colors.glass20,
-    minHeight: 60,
+    minHeight: verticalScale(56),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryText: { color: colors.white, fontSize: 18, fontWeight: '700' },
+  secondaryText: { color: colors.white, fontSize: moderateScale(17), fontWeight: '700' },
   legalNote: {
     color: colors.glass30,
-    fontSize: 12,
+    fontSize: moderateScale(11),
     textAlign: 'center',
-    marginTop: 24,
-    lineHeight: 18,
+    marginTop: verticalScale(20),
+    lineHeight: verticalScale(16),
   },
 });
