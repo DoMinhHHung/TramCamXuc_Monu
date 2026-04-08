@@ -12,11 +12,38 @@ from app.core.clients import get_async_redis, get_minio, get_sync_redis, RedisKe
 from app.core.settings import get_settings
 from app.core.logging import get_logger
 import json
+import math
 
 log = get_logger(__name__)
 settings = get_settings()
 
 router = APIRouter()
+
+def _normalize_score(value) -> float:
+    """
+    Ensure score is finite and within [0, 1] to satisfy SongScore schema.
+    Some CF pipelines may emit sentinel values (e.g. -3.4e38) or NaN/Inf.
+    """
+    try:
+        x = float(value)
+    except Exception:
+        return 0.0
+    if not math.isfinite(x):
+        return 0.0
+    if x < 0.0:
+        return 0.0
+    if x > 1.0:
+        return 1.0
+    return x
+
+def _to_song_scores(results: list[dict], limit: int) -> list[SongScore]:
+    out: list[SongScore] = []
+    for r in (results or [])[:limit]:
+        song_id = r.get("songId") if isinstance(r, dict) else None
+        if not song_id:
+            continue
+        out.append(SongScore(songId=str(song_id), score=_normalize_score(r.get("score"))))
+    return out
 
 
 # ── CF Recommendations ────────────────────────────────────────────────────────
@@ -42,7 +69,7 @@ async def get_cf_recommendations(
     if cached:
         results = json.loads(cached)[:limit]
         return RecommendResponse(
-            recommendations=[SongScore(**r) for r in results],
+            recommendations=_to_song_scores(results, limit),
             modelVersion=await redis.get(RedisKeys.CF_MODEL_VERSION) or "",
             source="cache",
         )
@@ -59,10 +86,7 @@ async def get_cf_recommendations(
         )
 
     return RecommendResponse(
-        recommendations=[
-            SongScore(songId=r["songId"], score=min(r["score"], 1.0))
-            for r in recommendations[:limit]
-        ],
+        recommendations=_to_song_scores(recommendations, limit),
         modelVersion=await redis.get(RedisKeys.CF_MODEL_VERSION) or "",
         source="realtime",
     )
@@ -89,7 +113,7 @@ async def get_cb_recommendations(
     if cached:
         results = json.loads(cached)[:limit]
         return RecommendResponse(
-            recommendations=[SongScore(**r) for r in results],
+            recommendations=_to_song_scores(results, limit),
             modelVersion=await redis.get(RedisKeys.CB_MODEL_VERSION) or "",
             source="cache",
         )
@@ -118,14 +142,11 @@ async def get_cb_recommendations(
     await redis.setex(
         RedisKeys.cb_topn(user_id),
         settings.redis_result_ttl,
-        json.dumps(recommendations),
+        json.dumps([{"songId": r.get("songId"), "score": _normalize_score(r.get("score"))} for r in (recommendations or [])]),
     )
 
     return RecommendResponse(
-        recommendations=[
-            SongScore(songId=r["songId"], score=min(r["score"], 1.0))
-            for r in recommendations[:limit]
-        ],
+        recommendations=_to_song_scores(recommendations, limit),
         modelVersion=await redis.get(RedisKeys.CB_MODEL_VERSION) or "",
         source="realtime",
     )
@@ -151,10 +172,7 @@ async def get_similar_songs(
 
     redis = get_async_redis()
     return RecommendResponse(
-        recommendations=[
-            SongScore(songId=r["songId"], score=min(r["score"], 1.0))
-            for r in results[:limit]
-        ],
+        recommendations=_to_song_scores(results, limit),
         modelVersion=await redis.get(RedisKeys.CB_MODEL_VERSION) or "",
         source="cache",
     )

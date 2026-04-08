@@ -1,5 +1,6 @@
 .env
 package-lock.json
+__pycache__
 yarn.lock
 .expo
 HELP.md
