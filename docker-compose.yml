@@ -354,7 +354,7 @@ services:
       discovery-server:
         condition: service_healthy
       recommendation-ml:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test:
         [
