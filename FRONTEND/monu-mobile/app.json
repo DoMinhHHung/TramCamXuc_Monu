@@ -1,10 +1,11 @@
 {
   "expo": {
-    "name": "Monu Mobile",
+    "name": "Monu",
     "slug": "monu-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "monumobile",
+    "icon": "./assets/faviconpng.png",
     "userInterfaceStyle": "light",
     "splash": {
       "resizeMode": "contain",
@@ -14,12 +15,19 @@
       "**/*"
     ],
     "ios": {
+      "icon": "./assets/faviconpng.png",
       "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
+        "foregroundImage": "./assets/faviconpng.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.minhhung0403.monumobile"
     },
     "web": {
       "bundler": "metro"
@@ -33,6 +41,11 @@
         }
       ],
       "expo-localization"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c1e18bff-4a1e-48d8-904b-33ff3d76f89a"
+      }
+    }
   }
 }
