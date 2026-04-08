@@ -66,6 +66,7 @@ import { getMySubscription } from '../../services/payment';
 import { apiClient } from '../../services/api';
 import { usePlayer } from '../../context/PlayerContext';
 import { notifyFeedUpdated, subscribeFeedUpdates } from '../../services/feedEvents';
+import { loadCache, saveCache } from '../../utils/swrCache';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -86,6 +87,13 @@ interface PostContentInfo {
   totalCount?: number;
   ownerName?: string;
 }
+
+type DiscoverFeedCachePayload = {
+  tab: 'for_you' | 'following';
+  userId: string | null;
+  posts: FeedPost[];
+  signature: string;
+};
 
 // tr / rc are set inside DiscoverScreen via hook (see below)
 let tr = (key: string, fallback?: string) => fallback ?? key;
@@ -1490,8 +1498,18 @@ export const DiscoverScreen = () => {
   const loadContentForPostRef = useRef(loadContentForPost);
   loadContentForPostRef.current = loadContentForPost;
 
+  const getDiscoverFeedCacheKey = useCallback(() => {
+    const scope = currentUserId ?? 'public';
+    return `discover.feed.${feedTab}.${scope}`;
+  }, [currentUserId, feedTab]);
+
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollInFlightRef = useRef(false);
+  const pollFailCountRef = useRef(0);
+
   // Load feed
-  const loadFeed = useCallback(async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
+  const loadFeed = useCallback(async (mode: 'initial' | 'refresh' | 'silent' = 'initial'): Promise<boolean> => {
+    let ok = true;
     try {
       if (mode === 'initial') setLoading(true);
       if (mode === 'refresh') setRefreshing(true);
@@ -1536,25 +1554,82 @@ export const DiscoverScreen = () => {
         setPosts(filteredPosts);
         void fetchOwnerInfos(filteredPosts);
       }
+
+      void saveCache(getDiscoverFeedCacheKey(), {
+        tab: feedTab,
+        userId: currentUserId ?? null,
+        posts: filteredPosts,
+        signature: nextSignature,
+      } satisfies DiscoverFeedCachePayload);
     } catch {
       // Keep current feed on transient errors; realtime polling will retry.
+      ok = false;
     } finally {
       if (mode === 'initial') setLoading(false);
       if (mode === 'refresh') setRefreshing(false);
     }
+    return ok;
   }, [fetchOwnerInfos, currentUserId, feedTab]);
 
-  useEffect(() => {
-    loadFeed('initial');
-    const id = setInterval(() => loadFeed('silent'), 20_000);
-    return () => clearInterval(id);
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearTimeout(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleNextPoll = useCallback((baseMs: number) => {
+    const jitter = 0.15;
+    const delta = baseMs * jitter;
+    const nextDelay = Math.max(3_000, Math.round(baseMs + (Math.random() * 2 - 1) * delta));
+    pollTimerRef.current = setTimeout(async () => {
+      if (pollInFlightRef.current) {
+        scheduleNextPoll(baseMs);
+        return;
+      }
+      pollInFlightRef.current = true;
+      const ok = await loadFeed('silent');
+      pollInFlightRef.current = false;
+
+      pollFailCountRef.current = ok ? 0 : pollFailCountRef.current + 1;
+      const backoff = ok ? 1 : Math.min(8, 2 ** pollFailCountRef.current);
+      scheduleNextPoll(Math.min(120_000, Math.round(baseMs * backoff)));
+    }, nextDelay);
   }, [loadFeed]);
 
   useFocusEffect(useCallback(() => {
-    void loadFeed('silent');
+    let cancelled = false;
+
+    // Hydrate from cache first (if any), then decide initial vs silent refresh.
+    (async () => {
+      const cached = await loadCache<DiscoverFeedCachePayload>(getDiscoverFeedCacheKey());
+      if (cancelled) return;
+
+      const hasCachedPosts = Boolean(cached?.data?.posts?.length);
+      if (hasCachedPosts) {
+        if (cached?.data?.signature && postsSignatureRef.current !== cached.data.signature) {
+          postsSignatureRef.current = cached.data.signature;
+          setPosts(cached.data.posts);
+          void fetchOwnerInfos(cached.data.posts);
+        }
+        setLoading(false);
+      }
+
+      // Immediate refresh on focus, then stable polling while focused.
+      const mode: 'initial' | 'silent' = (posts.length || hasCachedPosts) ? 'silent' : 'initial';
+      await loadFeed(mode);
+      if (cancelled) return;
+      stopPolling();
+      scheduleNextPoll(18_000);
+    })();
+
     const unsubscribe = subscribeFeedUpdates(() => { void loadFeed('silent'); });
-    return unsubscribe;
-  }, [loadFeed]));
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      stopPolling();
+    };
+  }, [fetchOwnerInfos, getDiscoverFeedCacheKey, loadFeed, posts.length, scheduleNextPoll, stopPolling]));
 
   /** Tải metadata từng bài theo lô — tránh 20–30 request song song làm chậm mạng / JS thread */
   useEffect(() => {

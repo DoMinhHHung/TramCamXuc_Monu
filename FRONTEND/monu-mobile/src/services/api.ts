@@ -160,6 +160,7 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
   if (/^\/songs\/[^/]+\/stream$/i.test(path)) return DISABLE_CACHE_TTL_MS;
 
   if (path === '/social/feed') return 20000;
+  if (path === '/social/feed/public') return 20000;
   if (path.startsWith('/social/comments')) return 15000;
 
   if (

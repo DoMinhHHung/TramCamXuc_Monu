@@ -73,6 +73,7 @@ const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
 };
 
 const getLibraryCacheStorageKey = (userScope: string) => `library.cache.${userScope}`;
+const LIBRARY_STALE_MS = 5 * 60 * 1000;
 
 type LibraryCachePayload = {
   playlists: Playlist[];
@@ -1381,30 +1382,48 @@ export const LibraryScreen = () => {
   useFocusEffect(useCallback(() => {
     const mode: 'initial' | 'silent' = libraryFocusPassRef.current > 0 ? 'silent' : 'initial';
     libraryFocusPassRef.current += 1;
-    void load(mode);
-    const pollIntervalId = setInterval(() => void load('silent'), 60_000);
-    return () => clearInterval(pollIntervalId);
+    void load(mode, { skipIfFresh: mode !== 'refresh' });
+    return undefined;
   }, [authSession?.tokens.accessToken]));
 
-  const load = async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
+  const load = async (
+    mode: 'initial' | 'refresh' | 'silent' = 'initial',
+    opts?: { skipIfFresh?: boolean },
+  ) => {
     const cacheKey = getLibraryCacheStorageKey(userScope);
-    if (mode === 'initial') {
+    const shouldHydrate = mode === 'initial';
+    const shouldCheckStaleness = Boolean(opts?.skipIfFresh) && mode !== 'refresh';
+
+    let cacheUpdatedAt: number | null = null;
+    if (shouldHydrate || shouldCheckStaleness) {
       const cached = await loadCache<LibraryCachePayload>(cacheKey);
       if (cached) {
-        setPlaylists(cached.data.playlists ?? []);
-        setSongs(cached.data.songs ?? []);
-        setAlbums(cached.data.albums ?? []);
-        setArtistProfile(cached.data.artistProfile ?? null);
-        setHasActiveSub(!!cached.data.hasActiveSub);
-        setCanCreateAlbumByPlan(!!cached.data.canCreateAlbumByPlan);
-        dataSignatureRef.current = JSON.stringify({
-          pl: (cached.data.playlists ?? []).map(p => `${p.id}:${p.totalSongs ?? 0}:${p.slug ?? ''}:${p.name ?? ''}`),
-          so: (cached.data.songs ?? []).map(s => `${s.id}:${s.status}:${s.transcodeStatus}:${s.title ?? ''}`),
-          al: (cached.data.albums ?? []).map(a => `${a.id}:${a.status}:${a.title ?? ''}:${(a.totalSongs ?? a.songs?.length ?? 0)}`),
-          artist: cached.data.artistProfile?.id ?? 'none',
-          hasSub: Boolean(cached.data.hasActiveSub),
-          canAlbum: Boolean(cached.data.canCreateAlbumByPlan),
-        });
+        cacheUpdatedAt = cached.updatedAt;
+        if (shouldHydrate) {
+          setPlaylists(cached.data.playlists ?? []);
+          setSongs(cached.data.songs ?? []);
+          setAlbums(cached.data.albums ?? []);
+          setArtistProfile(cached.data.artistProfile ?? null);
+          setHasActiveSub(!!cached.data.hasActiveSub);
+          setCanCreateAlbumByPlan(!!cached.data.canCreateAlbumByPlan);
+          dataSignatureRef.current = JSON.stringify({
+            pl: (cached.data.playlists ?? []).map(p => `${p.id}:${p.totalSongs ?? 0}:${p.slug ?? ''}:${p.name ?? ''}`),
+            so: (cached.data.songs ?? []).map(s => `${s.id}:${s.status}:${s.transcodeStatus}:${s.title ?? ''}`),
+            al: (cached.data.albums ?? []).map(a => `${a.id}:${a.status}:${a.title ?? ''}:${(a.totalSongs ?? a.songs?.length ?? 0)}`),
+            artist: cached.data.artistProfile?.id ?? 'none',
+            hasSub: Boolean(cached.data.hasActiveSub),
+            canAlbum: Boolean(cached.data.canCreateAlbumByPlan),
+          });
+        }
+      }
+    }
+
+    if (shouldCheckStaleness && cacheUpdatedAt != null) {
+      const age = Date.now() - cacheUpdatedAt;
+      if (age < LIBRARY_STALE_MS) {
+        setLoading(false);
+        if (mode === 'refresh') setRefreshing(false);
+        return;
       }
     }
     try {

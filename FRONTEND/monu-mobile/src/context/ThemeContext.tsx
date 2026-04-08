@@ -9,7 +9,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { THEMES, ThemeName, ThemeColors, darkTheme, getThemeName } from '../config/themes';
+import { THEMES, ThemeName, ThemeColors, getThemeName } from '../config/themes';
 
 interface ThemeContextType {
   /** Current theme colors */
@@ -37,9 +37,9 @@ const THEME_STORAGE_KEY = 'monu_app_theme';
  */
 const getInitialTheme = (systemDarkMode: boolean | null): ThemeName => {
   // Default product theme: classical.
-  // If follow-system is enabled we only switch between dark/light there.
+  // If follow-system is enabled we only switch between dark + a non-light fallback.
   if (systemDarkMode === true) return 'dark';
-  if (systemDarkMode === false) return 'light';
+  if (systemDarkMode === false) return 'classic';
   return 'classic';
 };
 
@@ -65,7 +65,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // Use device appearance
           const initialTheme = getInitialTheme(systemDarkMode);
           setThemeState(initialTheme);
-        } else if (savedTheme && (savedTheme === 'dark' || savedTheme === 'light' || savedTheme === 'classic' || savedTheme === 'sunset' || savedTheme === 'ocean' || savedTheme === 'neonGen')) {
+        } else if (savedTheme && (savedTheme === 'dark' || savedTheme === 'classic' || savedTheme === 'sunset' || savedTheme === 'ocean' || savedTheme === 'neonGen')) {
           setThemeState(savedTheme as any);
         } else {
           // Default
@@ -86,7 +86,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Update theme if system appearance changes and followSystem is true
   useEffect(() => {
     if (followSystem && systemDarkMode !== null) {
-      const newTheme = systemDarkMode ? 'dark' : 'light';
+      const newTheme: ThemeName = systemDarkMode ? 'dark' : 'classic';
       setThemeState(newTheme);
     }
   }, [systemDarkMode, followSystem]);
@@ -97,7 +97,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setFollowSystemState(true);
         AsyncStorage.setItem(THEME_STORAGE_KEY + '_follow_system', 'true');
         // Apply current system theme
-        const systemTheme = systemDarkMode ? 'dark' : 'light';
+        const systemTheme: ThemeName = systemDarkMode ? 'dark' : 'classic';
         setThemeState(systemTheme);
       } else {
         setFollowSystemState(false);
@@ -115,7 +115,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   const colors = THEMES[theme];
-  const availableThemes: ThemeName[] = ['dark', 'light', 'classic', 'sunset', 'ocean', 'neonGen'];
+  const availableThemes: ThemeName[] = ['dark', 'classic', 'sunset', 'ocean', 'neonGen'];
 
   return (
     <ThemeContext.Provider

@@ -36,7 +36,6 @@ export const SettingsScreen = () => {
 
     const THEME_OPTIONS: { id: ThemeName; label: string; emoji: string }[] = useMemo(() => [
         { id: 'dark', label: t('themes.dark'), emoji: '🌙' },
-        { id: 'light', label: t('themes.light'), emoji: '☀️' },
         { id: 'classic', label: t('themes.classic'), emoji: '✨' },
     ], [t]);
 
@@ -181,7 +180,7 @@ export const SettingsScreen = () => {
                         <Text style={styles.infoLabel}>
                             {t('screens.settings.appName') || 'Ứng dụng'}
                         </Text>
-                        <Text style={styles.infoValue}>Monu Music</Text>
+                        <Text style={styles.infoValue}>Monu</Text>
                     </View>
                 </View>
 

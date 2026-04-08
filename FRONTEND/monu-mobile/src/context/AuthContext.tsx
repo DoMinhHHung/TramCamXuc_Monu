@@ -16,6 +16,7 @@ interface AuthContextValue {
   loginWithSocialToken: (provider: SocialProvider, token: string) => Promise<void>;
   loginDirect: (accessToken: string, refreshTokenValue: string) => Promise<void>;
   rehydrateByRefreshToken: (refreshTokenValue: string) => Promise<void>;
+  refreshSession: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -215,6 +216,13 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     await finalizeLogin(tokens);
   };
 
+  const refreshSession = async (): Promise<void> => {
+    const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+    if (!storedRefreshToken) return;
+    const tokens = await refreshToken({ refreshToken: storedRefreshToken });
+    await finalizeLogin(tokens);
+  };
+
   const refreshProfile = async (): Promise<void> => {
     if (!authSession) return;
 
@@ -233,6 +241,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       loginWithSocialToken,
       loginDirect,
       rehydrateByRefreshToken,
+      refreshSession,
       refreshProfile,
       logout,
     }),

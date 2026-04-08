@@ -611,26 +611,36 @@ export const PremiumScreen = () => {
 
     const fetchData = useCallback(async (silent = false) => {
         const cacheKey = getPremiumCacheStorageKey(userScope);
-        if (!silent) {
-            const cached = await loadCache<PremiumCachePayload>(cacheKey);
-            if (cached) {
-                setPlans(cached.data.plans ?? []);
-                setCurrentSub(cached.data.currentSub ?? null);
-                if (cached.data.selectedPlanId) {
-                    const cachedSelected = (cached.data.plans ?? []).find((plan) => plan.id === cached.data.selectedPlanId);
-                    if (cachedSelected) setSelectedPlan(cachedSelected);
-                }
-                // Seed signature so the next fetch only updates if something actually changed.
-                dataSignatureRef.current = JSON.stringify({
-                    plans: (cached.data.plans ?? []).map(p => `${p.id}:${p.price}:${p.subsName}`),
-                    sub: cached.data.currentSub ? `${cached.data.currentSub.status}:${cached.data.currentSub.expiresAt ?? ''}:${cached.data.currentSub.plan?.id ?? ''}` : 'none',
-                });
+        const cached = await loadCache<PremiumCachePayload>(cacheKey);
+        if (cached && !silent) {
+            setPlans(cached.data.plans ?? []);
+            setCurrentSub(cached.data.currentSub ?? null);
+            if (cached.data.selectedPlanId) {
+                const cachedSelected = (cached.data.plans ?? []).find((plan) => plan.id === cached.data.selectedPlanId);
+                if (cachedSelected) setSelectedPlan(cachedSelected);
+            }
+            dataSignatureRef.current = JSON.stringify({
+                plans: (cached.data.plans ?? []).map(p => `${p.id}:${p.price}:${p.subsName}`),
+                sub: cached.data.currentSub ? `${cached.data.currentSub.status}:${cached.data.currentSub.expiresAt ?? ''}:${cached.data.currentSub.plan?.id ?? ''}` : 'none',
+            });
+
+            setLoading(false);
+        }
+
+        if (silent && cached) {
+            const age = Date.now() - cached.updatedAt;
+            if (age < PREMIUM_CACHE_TTL_MS) {
+                return;
             }
         }
         try {
             if (!silent) {
-                // If we already have something on screen, don't block UI; refresh silently.
-                const hasUI = plans.length > 0 || currentSub !== null;
+                // If we already have something on screen (or cache), don't block UI; refresh silently.
+                const hasUI =
+                    (cached?.data?.plans?.length ?? 0) > 0
+                    || cached?.data?.currentSub != null
+                    || plans.length > 0
+                    || currentSub !== null;
                 if (hasUI) setBackgroundRefreshing(true);
                 else setLoading(true);
             } else {

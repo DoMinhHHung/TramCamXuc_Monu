@@ -21,11 +21,13 @@ import { COLORS } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
 import { apiClient } from '../../services/api';
 import { useTranslation } from '../../context/LocalizationContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const RegisterArtistScreen = () => {
     const navigation = useNavigation<any>();
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
+    const { refreshSession } = useAuth();
 
     const [stageName, setStageName] = useState('');
     const [bio, setBio] = useState('');
@@ -38,10 +40,24 @@ export const RegisterArtistScreen = () => {
         if (!canSubmit) return;
         setLoading(true);
         try {
-            await apiClient.post('/artists/register', {
+            const res = await apiClient.post<{ newToken?: string }>('/artists/register', {
                 stageName: stageName.trim(),
                 bio: bio.trim() || t('screens.registerArtist.defaultBio', 'Artist from Monu'),
             });
+
+            const newToken = (res as any)?.data?.newToken as string | undefined;
+            // music-service may return a new access token; otherwise refresh using stored refresh token.
+            if (newToken) {
+                // Reuse existing refresh token; just replace access token via refreshSession flow.
+                // Best-effort: if refresh fails, user can continue and token will refresh later.
+                try {
+                    await refreshSession();
+                } catch {}
+            } else {
+                try {
+                    await refreshSession();
+                } catch {}
+            }
             Alert.alert(
                 t('screens.registerArtist.successTitle', '🎉 Registration successful!'),
                 t('screens.registerArtist.successMessage', 'Your artist profile is under review (1–3 days). You will receive an email notification once approved.'),

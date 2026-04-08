@@ -118,62 +118,6 @@ export const darkTheme: ThemeColors = {
 };
 
 /**
- * Light theme – Modern and clean
- * Neutral palette with vibrant accents
- */
-export const lightTheme: ThemeColors = {
-  // Primary app colors
-  bg: '#F7F5FA',
-  surface: '#FFFFFF',
-  surfaceLow: '#F2F0F8',
-  surfaceMid: '#E8E6F0',
-  surfaceDim: '#D9D7E8',
-
-  // Text colors
-  text: '#1A1A24',
-  textSecondary: '#6B6B7D',
-  muted: '#9B9BAD',
-
-  // Accent/brand colors – purple maintains identity
-  accent: '#8B5CF6',
-  accentFill20: 'rgba(139, 92, 246, 0.20)',
-  accentFill35: 'rgba(139, 92, 246, 0.35)',
-  accentBorder25: 'rgba(139, 92, 246, 0.25)',
-  accentBorder35: 'rgba(139, 92, 246, 0.35)',
-
-  // Borders and dividers
-  border: '#E8E6F0',
-  divider: '#F0EEF8',
-
-  // Status colors
-  success: '#059669',
-  error: '#DC2626',
-  warning: '#D97706',
-  info: '#2563EB',
-
-  // Gradients
-  gradViolet: '#EDE9FE',
-  gradPurple: '#F3E8FF',
-  gradIndigo: '#EEF2FF',
-  gradNavy: '#F0F4FF',
-  gradDark: '#FAF9FB',
-
-  // Card gradients
-  cardHealingFrom: '#F3E8FF',
-  cardTrendingFrom: '#FEF3C7',
-  cardTrendingTo: '#FED7AA',
-  cardAcousticFrom: '#DCFCE7',
-  cardAcousticTo: '#BBFBBB',
-  cardLofiFrom: '#EFF6FF',
-  cardLofiTo: '#BFDBFE',
-
-  // Legacy
-  white: '#1A1A24',
-  accentTint8: 'rgba(139, 92, 246, 0.08)',
-  accentLowTint: 'rgba(139, 92, 246, 0.12)',
-};
-
-/**
  * Classic theme – AMOLED with warm accents
  * Deep blacks with golden/orange highlights for premium feel
  */
@@ -400,11 +344,10 @@ export const neonGenTheme: ThemeColors = {
 /**
  * Theme variants exported for selection
  */
-export type ThemeName = 'dark' | 'light' | 'classic' | 'sunset' | 'ocean' | 'neonGen';
+export type ThemeName = 'dark' | 'classic' | 'sunset' | 'ocean' | 'neonGen';
 
 export const THEMES: Record<ThemeName, ThemeColors> = {
   dark: darkTheme,
-  light: lightTheme,
   classic: classicTheme,
   sunset: sunsetTheme,
   ocean: oceanTheme,
@@ -417,7 +360,6 @@ export const THEMES: Record<ThemeName, ThemeColors> = {
 export const getThemeName = (theme: ThemeName): string => {
   const names: Record<ThemeName, string> = {
     dark: 'Dark Mode',
-    light: 'Light Mode',
     classic: 'Classic',
     sunset: 'Sunset',
     ocean: 'Ocean',

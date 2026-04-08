@@ -58,7 +58,7 @@ import { openInSpotify, soundCloudTrackToSong } from '../services/externalMusic'
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const TOP_ARTIST_CARD_STEP = 292;
-const HEADER_HEIGHT = 110;
+const HEADER_COLLAPSE_DISTANCE = 110;
 
 const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
   const hex = backgroundColor.replace('#', '');
@@ -101,6 +101,7 @@ export const HomeScreen = () => {
   const { startDownload, isDownloaded, getJobStatus } = useDownload();
   const { t } = useTranslation();
   const themeColors = useThemeColors();
+  const headerSpacer = useMemo(() => insets.top + 16 + HEADER_COLLAPSE_DISTANCE, [insets.top]);
 
   const rec = useRecommendations();
 
@@ -385,34 +386,34 @@ export const HomeScreen = () => {
     if (h >= 5 && h < 10) {
       return {
         greeting: `Chào buổi sáng, ${name}! ☀️`,
-        suggest: 'Nhạc buổi sáng nhẹ nhàng',
+        suggest: 'Khởi động ngày mới với Monu',
         emoji: '☕',
       };
     }
     if (h >= 10 && h < 13) {
       return {
         greeting: `Chào ${name}! 🌤`,
-        suggest: 'Nhạc làm việc tập trung',
+        suggest: 'Buổi trưa vui vẻ',
         emoji: '💼',
       };
     }
     if (h >= 13 && h < 17) {
       return {
         greeting: `Good afternoon, ${name}! 🌤`,
-        suggest: 'Nhạc giải lao buổi chiều',
+        suggest: 'Nghe nhạc cùng Monu thôi !!!',
         emoji: '🌿',
       };
     }
     if (h >= 17 && h < 22) {
       return {
         greeting: `Chào buổi tối, ${name}! 🌆`,
-        suggest: 'Nhạc thư giãn cuối ngày',
+        suggest: 'Thư giãn chút nhé',
         emoji: '🌙',
       };
     }
     return {
       greeting: `Chúc ngủ ngon, ${name}! 🌙`,
-      suggest: 'Nhạc ru ngủ nhẹ nhàng',
+      suggest: 'Chill chút, rồi đi ngủ nhé',
       emoji: '⭐',
     };
   };
@@ -439,8 +440,8 @@ export const HomeScreen = () => {
             transform: [
               {
                 translateY: scrollY.interpolate({
-                  inputRange: [0, HEADER_HEIGHT],
-                  outputRange: [0, -HEADER_HEIGHT],
+                  inputRange: [0, HEADER_COLLAPSE_DISTANCE],
+                  outputRange: [0, -HEADER_COLLAPSE_DISTANCE],
                   extrapolate: 'clamp',
                 }),
               },
@@ -481,7 +482,7 @@ export const HomeScreen = () => {
 
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: HEADER_HEIGHT + 16, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingTop: headerSpacer, paddingBottom: 100 }}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: true },
