@@ -420,6 +420,7 @@ public class SongServiceImpl implements SongService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<SongResponse> searchSongs(String keyword, UUID genreId, UUID artistId, Pageable pageable) {
         String pattern = (keyword == null || keyword.isBlank()) ? null : "%" + keyword + "%";
         UUID viewerId = tryGetCurrentUserId();

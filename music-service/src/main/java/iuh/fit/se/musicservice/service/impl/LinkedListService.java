@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.time.LocalDateTime;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -213,6 +214,38 @@ public class LinkedListService {
         }
 
         return result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // HEAL — rebuild the whole list order deterministically (addedAt)
+    // Used when we detect broken head chain / detached nodes.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Transactional
+    public void heal(UUID playlistId) {
+        List<PlaylistSong> nodes = playlistSongRepository.findAllByPlaylistId(playlistId);
+        if (nodes.isEmpty()) {
+            playlistRepository.updateHead(playlistId, null);
+            return;
+        }
+
+        // Stable ordering: by addedAt, then id (avoid ties)
+        nodes.sort(Comparator
+                .comparing((PlaylistSong ps) -> Optional.ofNullable(ps.getAddedAt()).orElse(LocalDateTime.MIN))
+                .thenComparing(PlaylistSong::getId));
+
+        for (int i = 0; i < nodes.size(); i++) {
+            PlaylistSong prev = i > 0 ? nodes.get(i - 1) : null;
+            PlaylistSong cur  = nodes.get(i);
+            PlaylistSong next = i < nodes.size() - 1 ? nodes.get(i + 1) : null;
+            cur.setPrevId(prev != null ? prev.getId() : null);
+            cur.setNextId(next != null ? next.getId() : null);
+        }
+
+        playlistSongRepository.saveAll(nodes);
+        playlistRepository.updateHead(playlistId, nodes.get(0).getId());
+
+        log.warn("[LL-HEAL] playlist={} rebuilt linked list order (nodes={})", playlistId, nodes.size());
     }
 
     // ─────────────────────────────────────────────────────────────────────────
