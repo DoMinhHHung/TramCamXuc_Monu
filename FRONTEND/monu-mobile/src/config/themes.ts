@@ -344,10 +344,11 @@ export const neonGenTheme: ThemeColors = {
 /**
  * Theme variants exported for selection
  */
-export type ThemeName = 'dark' | 'classic' | 'sunset' | 'ocean' | 'neonGen';
+export type ThemeName = 'dark' | 'light' | 'classic' | 'sunset' | 'ocean' | 'neonGen';
 
 export const THEMES: Record<ThemeName, ThemeColors> = {
   dark: darkTheme,
+  light: lightTheme,
   classic: classicTheme,
   sunset: sunsetTheme,
   ocean: oceanTheme,
@@ -360,6 +361,7 @@ export const THEMES: Record<ThemeName, ThemeColors> = {
 export const getThemeName = (theme: ThemeName): string => {
   const names: Record<ThemeName, string> = {
     dark: 'Dark Mode',
+    light: 'Light Mode',
     classic: 'Classic',
     sunset: 'Sunset',
     ocean: 'Ocean',
