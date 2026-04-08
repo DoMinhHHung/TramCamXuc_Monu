@@ -6,7 +6,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS }                 from '../config/colors';
-import { scale, verticalScale } from '../utils/responsive';
 import { useAuth }                from '../context/AuthContext';
 import { usePlayer }              from '../context/PlayerContext';
 import { UploadProvider }         from '../context/UploadContext';
@@ -130,9 +129,9 @@ const MainTabNavigator = () => (
                 tabBarStyle: {
                     backgroundColor: COLORS.surface,
                     borderTopColor:  COLORS.border,
-                    height:      verticalScale(72),
-                    paddingBottom: verticalScale(6),
-                    paddingTop:    verticalScale(6),
+                    height:      78,
+                    paddingBottom: 8,
+                    paddingTop:    8,
                 },
                 tabBarActiveTintColor:   COLORS.text,
                 tabBarInactiveTintColor: COLORS.muted,
@@ -141,7 +140,7 @@ const MainTabNavigator = () => (
                         <AnimatedDecorIcon active={focused} intensity="medium">
                             <MaterialIcons
                                 name={meta.icon as any}
-                                size={isCreate ? scale(20) : scale(18)}
+                                size={isCreate ? 20 : 18}
                                 color={isCreate ? COLORS.white : color}
                             />
                         </AnimatedDecorIcon>
