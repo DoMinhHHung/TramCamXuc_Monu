@@ -46,6 +46,7 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
                                                                 WHERE sr.song_id = s.id
                                                                         AND sr.reporter_id = :viewerId
                                         ))
+            ORDER BY s.created_at DESC
             """,
             countQuery = """
             SELECT COUNT(DISTINCT s.id) FROM songs s

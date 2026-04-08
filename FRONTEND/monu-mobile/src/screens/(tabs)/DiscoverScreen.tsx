@@ -1537,7 +1537,7 @@ export const DiscoverScreen = () => {
         void fetchOwnerInfos(filteredPosts);
       }
     } catch {
-      if (mode !== 'silent') setPosts([]);
+      // Keep current feed on transient errors; realtime polling will retry.
     } finally {
       if (mode === 'initial') setLoading(false);
       if (mode === 'refresh') setRefreshing(false);
@@ -1749,7 +1749,7 @@ export const DiscoverScreen = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => loadFeed('refresh')} tintColor={COLORS.accent} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => loadFeed('refresh')} tintColor={themeColors.accent} />
         }
         contentContainerStyle={{ paddingBottom: 100 }}
       >

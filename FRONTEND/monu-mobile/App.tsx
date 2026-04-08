@@ -1,4 +1,6 @@
+import 'react-native-gesture-handler';
 import React from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
@@ -12,21 +14,23 @@ import { AppNavigator }        from './src/navigation/AppNavigator';
 
 export default function App() {
     return (
-        <SafeAreaProvider>
-            <LocalizationProvider>
-                <ThemeProvider>
-                    <AuthProvider>
-                      <HeartCacheProvider>
-                        <PlayerProvider>
-                            <DownloadProvider>
-                                <StatusBar style="dark" />
-                                <AppNavigator />
-                            </DownloadProvider>
-                        </PlayerProvider>
-                      </HeartCacheProvider>
-                    </AuthProvider>
-                </ThemeProvider>
-            </LocalizationProvider>
-        </SafeAreaProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+                <LocalizationProvider>
+                    <ThemeProvider>
+                        <AuthProvider>
+                          <HeartCacheProvider>
+                            <PlayerProvider>
+                                <DownloadProvider>
+                                    <StatusBar style="dark" />
+                                    <AppNavigator />
+                                </DownloadProvider>
+                            </PlayerProvider>
+                          </HeartCacheProvider>
+                        </AuthProvider>
+                    </ThemeProvider>
+                </LocalizationProvider>
+            </SafeAreaProvider>
+        </GestureHandlerRootView>
     );
 }

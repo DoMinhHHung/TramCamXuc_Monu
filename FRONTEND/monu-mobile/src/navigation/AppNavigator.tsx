@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { NavigationContainer, LinkingOptions } from '@react-navigation/native';
+import { NavigationContainer, LinkingOptions, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -113,7 +113,7 @@ const tabMeta: Record<keyof MainTabParamList, { label: string; icon: string }> =
     Premium:  { label: 'Premium',   icon: 'redeem'        },
 };
 
-const linking: LinkingOptions<RootStackParamList> = {
+const linking: LinkingOptions<any> = {
     prefixes: ['monumobile://'],
     config: { screens: { MainTabs: 'home' } },
 };
@@ -157,11 +157,20 @@ const MainTabNavigator = () => (
     </Tab.Navigator>
 );
 
-const GlobalOverlays = () => {
+const GlobalOverlays = ({ routeName }: { routeName: string | null }) => {
     const { pendingAd, dismissAd, currentSong, adNotice } = usePlayer();
+    const allowAdNotice = routeName != null && (
+      routeName === 'MainTabs'
+      || routeName === 'Search'
+      || routeName === 'PlaylistDetail'
+      || routeName === 'AlbumDetail'
+      || routeName === 'GenreDetail'
+      || routeName === 'Insights'
+      || routeName === 'Profile'
+    );
     return (
         <>
-            <AdNoticeBanner notice={adNotice} />
+            <AdNoticeBanner notice={adNotice} enabled={allowAdNotice} />
             <StreamingStatusBanner />
             <MiniPlayer />
             <UploadProgressBanner />
@@ -175,6 +184,8 @@ export const AppNavigator = () => {
     const { authSession, isInitializing } = useAuth();
     const { theme, followSystem } = useTheme();
     const { language } = useTranslation();
+    const navigationRef = useNavigationContainerRef();
+    const [routeName, setRouteName] = React.useState<string | null>(null);
 
     if (isInitializing) {
         return (
@@ -190,7 +201,13 @@ export const AppNavigator = () => {
 
     return (
         <UploadProvider>
-            <NavigationContainer key={uiSyncKey} linking={linking}>
+            <NavigationContainer
+              ref={navigationRef}
+              key={uiSyncKey}
+              linking={linking}
+              onReady={() => setRouteName(navigationRef.getCurrentRoute()?.name ?? null)}
+              onStateChange={() => setRouteName(navigationRef.getCurrentRoute()?.name ?? null)}
+            >
                 <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
                     {authSession ? (
                         needsOnboarding ? (
@@ -237,7 +254,7 @@ export const AppNavigator = () => {
                         </>
                     )}
                 </Stack.Navigator>
-                {authSession && !needsOnboarding && <GlobalOverlays />}
+                {authSession && !needsOnboarding && <GlobalOverlays routeName={routeName} />}
             </NavigationContainer>
         </UploadProvider>
     );

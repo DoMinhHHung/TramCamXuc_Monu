@@ -58,6 +58,16 @@ type PremiumCachePayload = {
 const getPendingPaymentStorageKey = (userScope: string) => `premium.pendingPayment.${userScope}`;
 const getPremiumCacheStorageKey = (userScope: string) => `premium.cache.${userScope}`;
 
+const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
+    const hex = backgroundColor.replace('#', '');
+    if (hex.length !== 6) return 'light';
+    const red = Number.parseInt(hex.slice(0, 2), 16);
+    const green = Number.parseInt(hex.slice(2, 4), 16);
+    const blue = Number.parseInt(hex.slice(4, 6), 16);
+    const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+    return luminance > 0.6 ? 'dark' : 'light';
+};
+
 const usePulseOpacity = () => {
     const opacity = useRef(new Animated.Value(0.36)).current;
     useEffect(() => {
@@ -73,29 +83,29 @@ const usePulseOpacity = () => {
     return opacity;
 };
 
-const SkeletonBlock = ({ style }: { style: ViewStyle }) => {
+const SkeletonBlock = ({ style, skeletonStyles }: { style: ViewStyle; skeletonStyles: PremiumStyles }) => {
     const opacity = usePulseOpacity();
-    return <Animated.View style={[styles.skeletonBlock, { opacity }, style]} />;
+    return <Animated.View style={[skeletonStyles.skeletonBlock, { opacity }, style]} />;
 };
 
-const PremiumSkeleton = () => (
-    <View style={styles.skeletonRoot}>
-        <View style={styles.skeletonHero}>
-            <SkeletonBlock style={styles.skeletonCrown} />
-            <SkeletonBlock style={styles.skeletonTitle} />
-            <SkeletonBlock style={styles.skeletonSubtitle} />
-            <SkeletonBlock style={styles.skeletonBadge} />
+const PremiumSkeleton = ({ skeletonStyles }: { skeletonStyles: PremiumStyles }) => (
+    <View style={skeletonStyles.skeletonRoot}>
+        <View style={skeletonStyles.skeletonHero}>
+            <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonCrown} />
+            <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonTitle} />
+            <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonSubtitle} />
+            <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonBadge} />
         </View>
-        <View style={styles.skeletonBody}>
-            <SkeletonBlock style={styles.skeletonSectionTitle} />
-            <View style={styles.skeletonPlanRow}>
-                <SkeletonBlock style={styles.skeletonPlanCard} />
-                <SkeletonBlock style={styles.skeletonPlanCard} />
+        <View style={skeletonStyles.skeletonBody}>
+            <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonSectionTitle} />
+            <View style={skeletonStyles.skeletonPlanRow}>
+                <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonPlanCard} />
+                <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonPlanCard} />
             </View>
-            <SkeletonBlock style={styles.skeletonCta} />
-            <SkeletonBlock style={styles.skeletonFeatureRow} />
-            <SkeletonBlock style={styles.skeletonFeatureRow} />
-            <SkeletonBlock style={styles.skeletonGuarantee} />
+            <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonCta} />
+            <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonFeatureRow} />
+            <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonFeatureRow} />
+            <SkeletonBlock skeletonStyles={skeletonStyles} style={skeletonStyles.skeletonGuarantee} />
         </View>
     </View>
 );
@@ -210,11 +220,13 @@ const StarParticle = ({
                           y,
                           size,
                           delay,
+                          accentColor,
                       }: {
     x: number;
     y: number;
     size: number;
     delay: number;
+    accentColor: string;
 }) => {
     const opacity = useRef(new Animated.Value(0)).current;
 
@@ -239,7 +251,7 @@ const StarParticle = ({
                 width: size,
                 height: size,
                 borderRadius: size / 2,
-                backgroundColor: '#C084FC',
+                backgroundColor: accentColor,
                 opacity,
             }}
         />
@@ -253,11 +265,15 @@ const PlanCard = ({
                       isSelected,
                       isCurrent,
                       onSelect,
+                      styles,
+                      themeColors,
                   }: {
     plan: SubscriptionPlan;
     isSelected: boolean;
     isCurrent: boolean;
     onSelect: () => void;
+    styles: PremiumStyles;
+    themeColors: ColorScheme;
 }) => {
     const scaleAnim = useRef(new Animated.Value(1)).current;
     const isFree = plan.price === 0 || plan.subsName.toLowerCase().includes('free');
@@ -277,7 +293,7 @@ const PlanCard = ({
             <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
                 {isSelected && !isFree ? (
                     <LinearGradient
-                        colors={['#7C3AED', '#C084FC', '#7C3AED']}
+                        colors={[themeColors.accentDim, themeColors.accent, themeColors.accentDim]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={[styles.planCard, styles.planCardSelectedGradient]}
@@ -288,6 +304,7 @@ const PlanCard = ({
                             isCurrent={isCurrent}
                             isFree={isFree}
                             formatPrice={formatPrice}
+                            styles={styles}
                         />
                     </LinearGradient>
                 ) : (
@@ -304,6 +321,7 @@ const PlanCard = ({
                             isCurrent={isCurrent}
                             isFree={isFree}
                             formatPrice={formatPrice}
+                            styles={styles}
                         />
                     </View>
                 )}
@@ -318,12 +336,14 @@ const PlanCardContent = ({
                              isCurrent,
                              isFree,
                              formatPrice,
+                             styles,
                          }: {
     plan: SubscriptionPlan;
     isSelected: boolean;
     isCurrent: boolean;
     isFree: boolean;
     formatPrice: (p: number) => string;
+    styles: PremiumStyles;
 }) => (
     <>
         {isCurrent && (
@@ -367,6 +387,8 @@ const FeatureRow = ({
                         displayValue,
                         enabled,
                         index,
+                        styles,
+                        themeColors,
                     }: {
     icon: string;
     label: string;
@@ -375,6 +397,8 @@ const FeatureRow = ({
     displayValue: string;
     enabled: boolean;
     index: number;
+    styles: PremiumStyles;
+    themeColors: ColorScheme;
 }) => {
     const translateX = useRef(new Animated.Value(-30)).current;
     const opacity = useRef(new Animated.Value(0)).current;
@@ -470,7 +494,7 @@ const FeatureRow = ({
                 <MaterialCommunityIcons
                     name={enabled ? 'check-circle' : 'close-circle'}
                     size={18}
-                    color={enabled ? color : 'rgba(255,255,255,0.35)'}
+                    color={enabled ? color : themeColors.glass35}
                 />
             </View>
         </Animated.View>
@@ -484,7 +508,7 @@ export const PremiumScreen = () => {
     const { authSession } = useAuth();
     const { t } = useTranslation();
     const themeColors = useThemeColors();
-    const styles_dynamic = useMemo(() => createDynamicStyles(themeColors), [themeColors]);
+    const styles = useMemo(() => createPremiumStyles(themeColors), [themeColors]);
 
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
@@ -493,6 +517,7 @@ export const PremiumScreen = () => {
     const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const premiumFocusPassRef = useRef(0);
+    const dataSignatureRef = useRef<string>('');
     const [purchasing, setPurchasing] = useState(false);
     const [canceling, setCanceling] = useState(false);
     const [cancelingInAppOrder, setCancelingInAppOrder] = useState(false);
@@ -595,35 +620,59 @@ export const PremiumScreen = () => {
                     const cachedSelected = (cached.data.plans ?? []).find((plan) => plan.id === cached.data.selectedPlanId);
                     if (cachedSelected) setSelectedPlan(cachedSelected);
                 }
+                // Seed signature so the next fetch only updates if something actually changed.
+                dataSignatureRef.current = JSON.stringify({
+                    plans: (cached.data.plans ?? []).map(p => `${p.id}:${p.price}:${p.subsName}`),
+                    sub: cached.data.currentSub ? `${cached.data.currentSub.status}:${cached.data.currentSub.expiresAt ?? ''}:${cached.data.currentSub.plan?.id ?? ''}` : 'none',
+                });
             }
         }
         try {
-            if (!silent) setLoading(true);
-            else setBackgroundRefreshing(true);
+            if (!silent) {
+                // If we already have something on screen, don't block UI; refresh silently.
+                const hasUI = plans.length > 0 || currentSub !== null;
+                if (hasUI) setBackgroundRefreshing(true);
+                else setLoading(true);
+            } else {
+                setBackgroundRefreshing(true);
+            }
             setLoadError(null);
             const [plansData, subData] = await Promise.allSettled([
                 fetchWithRetry(() => getActiveSubscriptionPlans(), 2),
                 authSession ? fetchWithRetry(() => getMySubscription(), 2) : Promise.resolve(null as UserSubscription | null),
             ]);
 
-            if (plansData.status === 'fulfilled') {
-                setPlans(plansData.value);
-                const paid = plansData.value.filter(
+            const nextPlans = plansData.status === 'fulfilled' ? plansData.value : null;
+            const nextSub = subData.status === 'fulfilled' ? (subData.value ?? null) : null;
+
+            const nextSignature = JSON.stringify({
+                plans: (nextPlans ?? plans).map(p => `${p.id}:${p.price}:${p.subsName}`),
+                sub: nextSub ? `${nextSub.status}:${nextSub.expiresAt ?? ''}:${nextSub.plan?.id ?? ''}` : 'none',
+            });
+
+            // Only commit state updates if data meaningfully changed.
+            if (dataSignatureRef.current !== nextSignature) {
+                dataSignatureRef.current = nextSignature;
+                if (nextPlans) {
+                    setPlans(nextPlans);
+                }
+                setCurrentSub(nextSub);
+            }
+
+            // Ensure selectedPlan is stable: if user hasn't picked, auto-pick cheapest paid.
+            if (nextPlans) {
+                const paid = nextPlans.filter(
                     (p) => p.price > 0 && !p.subsName.toLowerCase().includes('free'),
                 );
                 if (paid.length > 0 && !selectedPlan) {
                     setSelectedPlan(paid.reduce((a, b) => (a.price < b.price ? a : b)));
                 }
             }
-            if (subData.status === 'fulfilled') {
-                setCurrentSub(subData.value ?? null);
-            } else {
-                setCurrentSub(null);
-            }
-            if (plansData.status === 'fulfilled') {
+
+            if (nextPlans) {
                 void saveCache(cacheKey, {
-                    plans: plansData.value,
-                    currentSub: subData.status === 'fulfilled' ? (subData.value ?? null) : null,
+                    plans: nextPlans,
+                    currentSub: nextSub,
                     selectedPlanId: selectedPlan?.id ?? null,
                     updatedAt: Date.now(),
                 } satisfies PremiumCachePayload);
@@ -637,7 +686,7 @@ export const PremiumScreen = () => {
             if (!silent) setLoading(false);
             setBackgroundRefreshing(false);
         }
-    }, [authSession, selectedPlan, userScope]);
+    }, [authSession, currentSub, plans.length, selectedPlan, userScope]);
 
     useEffect(() => {
         premiumFocusPassRef.current = 0;
@@ -916,8 +965,8 @@ export const PremiumScreen = () => {
     if (loading) {
         return (
             <View style={styles.root}>
-                <StatusBar style="light" />
-                <PremiumSkeleton />
+                <StatusBar style={getStatusBarStyle(themeColors.bg)} />
+                <PremiumSkeleton skeletonStyles={styles} />
             </View>
         );
     }
@@ -925,7 +974,7 @@ export const PremiumScreen = () => {
     if (loadError && plans.length === 0) {
         return (
             <View style={styles.root}>
-                <StatusBar style="light" />
+                <StatusBar style={getStatusBarStyle(themeColors.bg)} />
                 <View style={{ paddingTop: insets.top + 20 }}>
                     <RetryState
                         title="Không tải được Premium"
@@ -942,7 +991,7 @@ export const PremiumScreen = () => {
 
     return (
         <View style={styles.root}>
-            <StatusBar style="light" />
+            <StatusBar style={getStatusBarStyle(themeColors.bg)} />
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: insets.bottom + 48 }}
@@ -951,12 +1000,19 @@ export const PremiumScreen = () => {
                 <View style={[styles.hero, { paddingTop: insets.top + 24 }]}>
                     {/* Star particles */}
                     {stars.map((s) => (
-                        <StarParticle key={s.id} x={s.x} y={s.y} size={s.size} delay={s.delay} />
+                        <StarParticle
+                            key={s.id}
+                            x={s.x}
+                            y={s.y}
+                            size={s.size}
+                            delay={s.delay}
+                            accentColor={themeColors.accent}
+                        />
                     ))}
 
                     {/* Hero gradient */}
                     <LinearGradient
-                        colors={['#1a0040', '#2D1B69', '#0D0D14']}
+                        colors={[themeColors.gradViolet, themeColors.gradPurple, themeColors.bg]}
                         locations={[0, 0.55, 1]}
                         style={StyleSheet.absoluteFill}
                     />
@@ -1000,7 +1056,7 @@ export const PremiumScreen = () => {
                 <View style={styles.body}>
                     {backgroundRefreshing && (
                         <View style={styles.streamingBar}>
-                            <ActivityIndicator size="small" color="#C084FC" />
+                            <ActivityIndicator size="small" color={themeColors.accent} />
                             <Text style={styles.streamingText}>Đang cập nhật gói Premium mới nhất...</Text>
                         </View>
                     )}
@@ -1017,6 +1073,8 @@ export const PremiumScreen = () => {
                                         isSelected={selectedPlan?.id === plan.id}
                                         isCurrent={currentSub?.plan?.id === plan.id && isActive}
                                         onSelect={() => setSelectedPlan(plan)}
+                                        styles={styles}
+                                        themeColors={themeColors}
                                     />
                                 ))}
                             </View>
@@ -1032,13 +1090,17 @@ export const PremiumScreen = () => {
                                 style={({ pressed }) => [styles.ctaBtn, pressed && { opacity: 0.9 }]}
                             >
                                 <LinearGradient
-                                    colors={purchasing ? ['#555', '#555'] : ['#F59E0B', '#EF4444', '#C084FC']}
+                                    colors={
+                                        purchasing
+                                            ? [themeColors.surfaceMid, themeColors.surfaceMid]
+                                            : [themeColors.warning, themeColors.error, themeColors.accent]
+                                    }
                                     start={{ x: 0, y: 0 }}
                                     end={{ x: 1, y: 0 }}
                                     style={styles.ctaGradient}
                                 >
                                     {purchasing ? (
-                                        <ActivityIndicator color="#fff" />
+                                        <ActivityIndicator color={themeColors.white} />
                                     ) : (
                                         <>
                                             <Text style={styles.ctaIcon}>💳</Text>
@@ -1065,7 +1127,7 @@ export const PremiumScreen = () => {
                             ]}
                         >
                             {canceling ? (
-                                <ActivityIndicator color="#FCA5A5" />
+                                <ActivityIndicator color={themeColors.error} />
                             ) : (
                                 <Text style={styles.cancelBtnText}>Hủy gói cước</Text>
                             )}
@@ -1133,7 +1195,7 @@ export const PremiumScreen = () => {
                                 ]}
                             >
                                 {cancelingInAppOrder ? (
-                                    <ActivityIndicator color="#FCA5A5" />
+                                    <ActivityIndicator color={themeColors.error} />
                                 ) : (
                                     <Text style={styles.cancelInAppOrderBtnText}>{t('premium.cancelOrder', 'Hủy đơn thanh toán này')}</Text>
                                 )}
@@ -1160,13 +1222,15 @@ export const PremiumScreen = () => {
                                 displayValue={f.displayValue}
                                 enabled={f.enabled}
                                 index={i}
+                                styles={styles}
+                                themeColors={themeColors}
                             />
                         ))}
                     </View>
 
                     {/* ── Guarantee strip ── */}
                     <LinearGradient
-                        colors={['#1a1040', '#2D1B69']}
+                        colors={[themeColors.premiumCardFrom, themeColors.gradPurple]}
                         style={styles.guaranteeCard}
                     >
                         <Text style={styles.guaranteeEmoji}>🛡️</Text>
@@ -1183,12 +1247,10 @@ export const PremiumScreen = () => {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const createDynamicStyles = (colors: ColorScheme) => ({});
-
-const styles = StyleSheet.create({
+const createPremiumStyles = (colors: ColorScheme) => StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: '#0D0D14',
+        backgroundColor: colors.bg,
     },
 
     // ── Hero ────────────────────────────────────────────────────────────────────
@@ -1204,13 +1266,13 @@ const styles = StyleSheet.create({
         width: 280,
         height: 280,
         borderRadius: 140,
-        backgroundColor: '#7C3AED',
+        backgroundColor: colors.accentDim,
         top: -60,
         alignSelf: 'center',
     },
     crownWrap: {
         marginBottom: 20,
-        shadowColor: '#F59E0B',
+        shadowColor: colors.warning,
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.6,
         shadowRadius: 20,
@@ -1225,14 +1287,14 @@ const styles = StyleSheet.create({
     },
     crownEmoji: { fontSize: 44 },
     heroTitle: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontSize: 32,
         fontWeight: '800',
         letterSpacing: 0.5,
         marginBottom: 8,
     },
     heroSubtitle: {
-        color: 'rgba(255,255,255,0.55)',
+        color: colors.glass50,
         fontSize: 15,
         marginBottom: 24,
         textAlign: 'center',
@@ -1254,10 +1316,10 @@ const styles = StyleSheet.create({
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: '#34D399',
+        backgroundColor: colors.success,
     },
     activeBadgeText: {
-        color: '#34D399',
+        color: colors.success,
         fontWeight: '700',
         fontSize: 13,
     },
@@ -1265,22 +1327,22 @@ const styles = StyleSheet.create({
     // ── Price tease ───────────────────────────────────────────────────────────
     priceTease: {
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.07)',
+        backgroundColor: colors.glass07,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderColor: colors.glass12,
         paddingHorizontal: 28,
         paddingVertical: 14,
     },
     priceTeaseLabel: {
-        color: 'rgba(255,255,255,0.45)',
+        color: colors.glass45,
         fontSize: 10,
         fontWeight: '800',
         letterSpacing: 2,
         marginBottom: 2,
     },
     priceTeaseValue: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontSize: 34,
         fontWeight: '800',
         lineHeight: 38,
@@ -1290,7 +1352,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     priceTeaseDuration: {
-        color: 'rgba(255,255,255,0.5)',
+        color: colors.glass50,
         fontSize: 13,
         marginTop: 2,
     },
@@ -1307,12 +1369,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 10,
         borderRadius: 12,
-        backgroundColor: 'rgba(255,255,255,0.06)',
+        backgroundColor: colors.glass06,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
+        borderColor: colors.glass12,
     },
     streamingText: {
-        color: 'rgba(255,255,255,0.72)',
+        color: colors.glass70,
         fontSize: 12,
         fontWeight: '600',
     },
@@ -1320,7 +1382,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     sectionHeading: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontSize: 18,
         fontWeight: '700',
         marginBottom: 14,
@@ -1334,9 +1396,9 @@ const styles = StyleSheet.create({
     planCard: {
         borderRadius: 16,
         padding: 16,
-        backgroundColor: '#1E1A38',
+        backgroundColor: colors.surface,
         borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.08)',
+        borderColor: colors.glass08,
         alignItems: 'center',
         minHeight: 110,
         justifyContent: 'center',
@@ -1344,7 +1406,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     planCardSelected: {
-        borderColor: '#C084FC',
+        borderColor: colors.accent,
     },
     planCardSelectedGradient: {
         borderRadius: 16,
@@ -1357,7 +1419,7 @@ const styles = StyleSheet.create({
         borderWidth: 0,
     },
     planCardFree: {
-        borderColor: 'rgba(255,255,255,0.06)',
+        borderColor: colors.glass06,
         opacity: 0.6,
     },
     currentBadge: {
@@ -1370,7 +1432,7 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
     },
     currentBadgeText: {
-        color: '#34D399',
+        color: colors.success,
         fontSize: 8,
         fontWeight: '800',
         letterSpacing: 0.5,
@@ -1379,52 +1441,52 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 6,
         right: 6,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: colors.glass20,
         borderRadius: 6,
         paddingHorizontal: 6,
         paddingVertical: 2,
     },
     popularBadgeText: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontSize: 8,
         fontWeight: '800',
         letterSpacing: 0.5,
     },
     planName: {
-        color: 'rgba(255,255,255,0.7)',
+        color: colors.glass70,
         fontSize: 13,
         fontWeight: '600',
         marginBottom: 6,
         textAlign: 'center',
     },
     planNameSelected: {
-        color: '#FFFFFF',
+        color: colors.white,
     },
     planPrice: {
-        color: '#A78BFA',
+        color: colors.accent,
         fontSize: 22,
         fontWeight: '800',
         textAlign: 'center',
         lineHeight: 26,
     },
     planPriceSelected: {
-        color: '#FFFFFF',
+        color: colors.white,
     },
     planPriceCurrency: {
         fontSize: 14,
         fontWeight: '600',
     },
     planDuration: {
-        color: 'rgba(255,255,255,0.45)',
+        color: colors.glass45,
         fontSize: 11,
         textAlign: 'center',
         marginTop: 2,
     },
     planDurationSelected: {
-        color: 'rgba(255,255,255,0.75)',
+        color: colors.glass70,
     },
     planFreeLabel: {
-        color: 'rgba(255,255,255,0.35)',
+        color: colors.glass35,
         fontSize: 14,
         fontWeight: '500',
     },
@@ -1434,7 +1496,7 @@ const styles = StyleSheet.create({
         borderRadius: 999,
         overflow: 'hidden',
         marginBottom: 28,
-        shadowColor: '#F59E0B',
+        shadowColor: colors.warning,
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.4,
         shadowRadius: 16,
@@ -1450,7 +1512,7 @@ const styles = StyleSheet.create({
     },
     ctaIcon: { fontSize: 20 },
     ctaText: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontWeight: '800',
         fontSize: 16,
     },
@@ -1472,8 +1534,8 @@ const styles = StyleSheet.create({
 
     // ── In-app payment card ──────────────────────────────────────────────────
     inAppPayCard: {
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        borderColor: 'rgba(245,158,11,0.35)',
+        backgroundColor: colors.glass05,
+        borderColor: colors.warningBorder ?? colors.warning,
         borderWidth: 1,
         borderRadius: 16,
         padding: 14,
@@ -1486,19 +1548,19 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     inAppPayTitle: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontSize: 16,
         fontWeight: '800',
     },
     inAppPayBadge: {
-        color: '#F59E0B',
+        color: colors.warning,
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 0.6,
         textTransform: 'uppercase',
     },
     qrWrap: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.white,
         borderRadius: 14,
         padding: 10,
         alignItems: 'center',
@@ -1509,33 +1571,33 @@ const styles = StyleSheet.create({
         height: 200,
     },
     inAppPayHint: {
-        color: 'rgba(255,255,255,0.65)',
+        color: colors.glass65,
         fontSize: 12,
         marginBottom: 6,
     },
     inAppPayCode: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontSize: 18,
         fontWeight: '800',
         marginBottom: 8,
     },
     inAppPayMeta: {
-        color: 'rgba(255,255,255,0.72)',
+        color: colors.glass70,
         fontSize: 12,
         marginBottom: 4,
     },
     fallbackBtn: {
         marginTop: 10,
         borderRadius: 12,
-        backgroundColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: colors.glass12,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
+        borderColor: colors.glass20,
         paddingVertical: 12,
         paddingHorizontal: 14,
         alignItems: 'center',
     },
     fallbackBtnText: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontSize: 13,
         fontWeight: '700',
     },
@@ -1565,10 +1627,10 @@ const styles = StyleSheet.create({
     dividerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: colors.glass08,
     },
     dividerLabel: {
-        color: 'rgba(255,255,255,0.35)',
+        color: colors.glass35,
         fontSize: 11,
         fontWeight: '700',
         letterSpacing: 1,
@@ -1584,11 +1646,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 14,
-        backgroundColor: 'rgba(255,255,255,0.04)',
+        backgroundColor: colors.glass04,
         borderRadius: 14,
         padding: 14,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.06)',
+        borderColor: colors.glass06,
     },
     featureRowDisabled: {
         opacity: 0.65,
@@ -1611,19 +1673,19 @@ const styles = StyleSheet.create({
         right: -2,
         top: -2,
         borderWidth: 1.4,
-        backgroundColor: 'rgba(255,255,255,0.18)',
+        backgroundColor: colors.glass15,
     },
     featureText: {
         flex: 1,
         gap: 2,
     },
     featureLabel: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontSize: 14,
         fontWeight: '700',
     },
     featureDesc: {
-        color: 'rgba(255,255,255,0.45)',
+        color: colors.glass45,
         fontSize: 12,
         lineHeight: 17,
     },
@@ -1632,12 +1694,12 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     featureValue: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontSize: 12,
         fontWeight: '700',
     },
     featureValueDisabled: {
-        color: 'rgba(255,255,255,0.5)',
+        color: colors.glass50,
     },
 
     // ── Skeleton Loading ───────────────────────────────────────────────────────
@@ -1646,7 +1708,7 @@ const styles = StyleSheet.create({
         paddingTop: 24,
     },
     skeletonBlock: {
-        backgroundColor: 'rgba(255,255,255,0.08)',
+        backgroundColor: colors.glass08,
         borderRadius: 12,
     },
     skeletonHero: {
@@ -1719,17 +1781,19 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 16,
         borderWidth: 1,
-        borderColor: 'rgba(192,132,252,0.2)',
+        borderColor: colors.accentBorder25,
     },
     guaranteeEmoji: { fontSize: 28 },
     guaranteeTitle: {
-        color: '#FFFFFF',
+        color: colors.white,
         fontSize: 13,
         fontWeight: '700',
         marginBottom: 3,
     },
     guaranteeDesc: {
-        color: 'rgba(255,255,255,0.45)',
+        color: colors.glass45,
         fontSize: 12,
     },
 });
+
+type PremiumStyles = ReturnType<typeof createPremiumStyles>;

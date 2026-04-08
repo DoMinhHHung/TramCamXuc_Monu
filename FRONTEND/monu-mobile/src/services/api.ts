@@ -76,10 +76,11 @@ const getAdaptiveTimeout = (path: string): number => {
     if (currentNetworkTier === 'slow') return 50_000;
     return 40_000;
   }
+  // Mặc định: gateway + microservices trên cloud thường > 8s khi cold / tải cao
   return {
-    fast: 8_000,
-    slow: 20_000,
-    offline: 3_000,
+    fast: 25_000,
+    slow: 45_000,
+    offline: 5_000,
   }[currentNetworkTier];
 };
 
@@ -204,13 +205,13 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
 const refreshClient: AxiosInstance = axios.create({
   baseURL: env.apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 12000,
+  timeout: 20_000,
 });
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: env.apiBaseUrl,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
+  timeout: 25_000,
 });
 
 // ─── Request interceptor ────────────────────────────────────────────────────────

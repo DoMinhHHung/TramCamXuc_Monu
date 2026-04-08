@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Fontisto, AntDesign, FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
-import { COLORS, useThemeColors } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
@@ -61,7 +61,17 @@ import { fetchWithRetry, loadCache, saveCache } from '../../utils/swrCache';
 
 type Tab = 'playlists' | 'songs' | 'albums';
 let tr = (key: string, fallback?: string) => fallback ?? key;
-let rc = COLORS;
+
+const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
+  const hex = backgroundColor.replace('#', '');
+  if (hex.length !== 6) return 'light';
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  return luminance > 0.6 ? 'dark' : 'light';
+};
+
 const getLibraryCacheStorageKey = (userScope: string) => `library.cache.${userScope}`;
 
 type LibraryCachePayload = {
@@ -80,24 +90,24 @@ type ArtistProfile = {
   status?: 'ACTIVE' | 'PENDING' | 'BANNED' | 'REJECTED';
 };
 
-const getSongStatusLabel = (song: Song): { label: string; color: string; pulse: boolean } => {
+const getSongStatusLabel = (song: Song, c: ColorScheme): { label: string; color: string; pulse: boolean } => {
   if (song.status === 'DELETED') {
-    return { label: tr('screens.library.songDeleted', 'Deleted'), color: COLORS.error, pulse: false };
+    return { label: tr('screens.library.songDeleted', 'Deleted'), color: c.error, pulse: false };
   }
   if (song.status === 'PRIVATE') {
-    return { label: tr('screens.library.private', 'Private'), color: COLORS.glass40, pulse: false };
+    return { label: tr('screens.library.private', 'Private'), color: c.glass40, pulse: false };
   }
   switch (song.transcodeStatus as string) {
     case 'PENDING':
-      return { label: tr('screens.library.releasePending', 'Pending release...'), color: COLORS.warningMid, pulse: true };
+      return { label: tr('screens.library.releasePending', 'Pending release...'), color: c.warningMid, pulse: true };
     case 'PROCESSING':
-      return { label: tr('screens.library.processing', 'Preparing, almost done ✨'), color: COLORS.accent, pulse: true };
+      return { label: tr('screens.library.processing', 'Preparing, almost done ✨'), color: c.accent, pulse: true };
     case 'FAILED':
-      return { label: tr('screens.library.releaseFailed', 'Release failed — try re-uploading'), color: COLORS.error, pulse: false };
+      return { label: tr('screens.library.releaseFailed', 'Release failed — try re-uploading'), color: c.error, pulse: false };
     case 'COMPLETED':
-      return { label: tr('screens.library.published', 'Published'), color: COLORS.success, pulse: false };
+      return { label: tr('screens.library.published', 'Published'), color: c.success, pulse: false };
     default:
-      return { label: '', color: COLORS.glass40, pulse: false };
+      return { label: '', color: c.glass40, pulse: false };
   }
 };
 
@@ -112,8 +122,10 @@ const TabBar = ({
   onChange: (t: Tab) => void;
   counts: Record<Tab, number>;
 }) => {
+  const themeColors = useThemeColors();
+  const tabStyles = useMemo(() => getTabStyles(themeColors), [themeColors]);
   const tabs: { key: Tab; label: string; icon: string | React.ReactNode }[] = [
-    { key: 'playlists', label: tr('screens.library.tabPlaylists', 'Playlists'), icon: <Fontisto name="play-list" color={rc.accent} size={14} /> },
+    { key: 'playlists', label: tr('screens.library.tabPlaylists', 'Playlists'), icon: <Fontisto name="play-list" color={themeColors.accent} size={14} /> },
     { key: 'songs', label: tr('screens.library.tabSongs', 'Songs'), icon: '🎵' },
     { key: 'albums', label: tr('screens.library.tabAlbums', 'Albums'), icon: '💿' },
   ];
@@ -143,16 +155,16 @@ const TabBar = ({
   );
 };
 
-const tabStyles = StyleSheet.create({
+const getTabStyles = (c: ColorScheme) => StyleSheet.create({
   bar: {
     flexDirection: 'row',
     marginHorizontal: 20,
     marginBottom: 16,
-    backgroundColor: COLORS.surface,
+    backgroundColor: c.surface,
     borderRadius: 14,
     padding: 4,
     borderWidth: 1,
-    borderColor: COLORS.glass08,
+    borderColor: c.glass08,
   },
   tab: {
     flex: 1,
@@ -164,15 +176,15 @@ const tabStyles = StyleSheet.create({
     gap: 5,
   },
   tabActive: {
-    backgroundColor: COLORS.accentFill20,
+    backgroundColor: c.accentFill20,
     borderWidth: 1,
-    borderColor: COLORS.accentBorder25,
+    borderColor: c.accentBorder25,
   },
   icon: { fontSize: 13 },
-  label: { color: COLORS.glass45, fontSize: 13, fontWeight: '600' },
-  labelActive: { color: COLORS.accent },
+  label: { color: c.glass45, fontSize: 13, fontWeight: '600' },
+  labelActive: { color: c.accent },
   badge: {
-    backgroundColor: COLORS.accentDim,
+    backgroundColor: c.accentDim,
     borderRadius: 8,
     minWidth: 16,
     height: 16,
@@ -180,7 +192,7 @@ const tabStyles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  badgeText: { color: COLORS.white, fontSize: 10, fontWeight: '700' },
+  badgeText: { color: c.white, fontSize: 10, fontWeight: '700' },
 });
 
 // ─── Pulsing dot for in-progress status ──────────────────────────────────────
@@ -221,7 +233,9 @@ const SongRow = ({
   onShare: () => void;
   onEdit?: () => void;
 }) => {
-  const { label, color, pulse } = getSongStatusLabel(song);
+  const themeColors = useThemeColors();
+  const songRowStyles = useMemo(() => getSongRowStyles(themeColors), [themeColors]);
+  const { label, color, pulse } = getSongStatusLabel(song, themeColors);
   const isReady = (song.transcodeStatus as string) === 'COMPLETED';
 
   return (
@@ -237,14 +251,14 @@ const SongRow = ({
         )}
         {isActive && isReady && (
           <View style={songRowStyles.playingOverlay}>
-            <Text style={{ fontSize: 14, color: COLORS.white }}>{isPlaying ? '⏸' : '▶'}</Text>
+            <Text style={{ fontSize: 14, color: themeColors.white }}>{isPlaying ? '⏸' : '▶'}</Text>
           </View>
         )}
       </Pressable>
 
       {/* Info */}
       <View style={songRowStyles.info}>
-        <Text style={[songRowStyles.title, isActive && { color: COLORS.accent }]} numberOfLines={1}>
+        <Text style={[songRowStyles.title, isActive && { color: themeColors.accent }]} numberOfLines={1}>
           {song.title}
         </Text>
         <View style={songRowStyles.statusRow}>
@@ -266,7 +280,7 @@ const SongRow = ({
         {onEdit && (
           <Pressable onPress={onEdit} hitSlop={8} style={songRowStyles.actionBtn}>
             <Text style={songRowStyles.actionIcon}>
-              <FontAwesome name="edit" color={COLORS.glass60} size={14} />
+              <FontAwesome name="edit" color={themeColors.glass60} size={14} />
             </Text>
           </Pressable>
         )}
@@ -285,7 +299,7 @@ const SongRow = ({
   );
 };
 
-const songRowStyles = StyleSheet.create({
+const getSongRowStyles = (c: ColorScheme) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -293,38 +307,38 @@ const songRowStyles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.glass06,
+    borderBottomColor: c.glass06,
   },
-  rowActive: { backgroundColor: COLORS.accentFill20 },
+  rowActive: { backgroundColor: c.accentFill20 },
   thumbWrap: { position: 'relative' },
   thumb: { width: 48, height: 48, borderRadius: 10 },
   thumbPlaceholder: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: c.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   playingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: COLORS.scrim,
+    backgroundColor: c.scrim,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   info: { flex: 1 },
-  title: { color: COLORS.white, fontSize: 14, fontWeight: '600', marginBottom: 3 },
+  title: { color: c.white, fontSize: 14, fontWeight: '600', marginBottom: 3 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   status: { fontSize: 12 },
-  artist: { color: COLORS.glass45, fontSize: 12 },
+  artist: { color: c.glass45, fontSize: 12 },
   actions: { flexDirection: 'row', gap: 4 },
   actionBtn: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: COLORS.glass08,
+    backgroundColor: c.glass08,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionIcon: { color: COLORS.glass60, fontSize: 14, fontWeight: '700' },
+  actionIcon: { color: c.glass60, fontSize: 14, fontWeight: '700' },
 });
 
 // ─── Album card ───────────────────────────────────────────────────────────────
@@ -344,11 +358,13 @@ const AlbumCard = ({
   onDelete: () => void;
   onShare: () => void;
 }) => {
+  const themeColors = useThemeColors();
+  const albumCardStyles = useMemo(() => getAlbumCardStyles(themeColors), [themeColors]);
   const [menuOpen, setMenuOpen] = useState(false);
   const statusColor =
-    album.status === 'PUBLIC' ? COLORS.success :
-      album.status === 'PRIVATE' ? COLORS.warningMid :
-        COLORS.glass40;
+    album.status === 'PUBLIC' ? themeColors.success :
+      album.status === 'PRIVATE' ? themeColors.warningMid :
+        themeColors.glass40;
   const statusLabel =
     album.status === 'PUBLIC' ? tr('screens.library.public', 'Public') :
       album.status === 'PRIVATE' ? tr('screens.library.private', 'Private') :
@@ -362,7 +378,7 @@ const AlbumCard = ({
             <Image source={{ uri: album.coverUrl }} style={albumCardStyles.coverImg} />
           ) : (
             <LinearGradient
-              colors={[COLORS.gradPurple, COLORS.gradIndigo]}
+              colors={[themeColors.gradPurple, themeColors.gradIndigo]}
               style={albumCardStyles.coverImg}
             >
               <Text style={{ fontSize: 28 }}>💿</Text>
@@ -404,7 +420,7 @@ const AlbumCard = ({
           </Pressable>
           <View style={albumCardStyles.menuDivider} />
           <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onDelete(); }}>
-            <Text style={[albumCardStyles.menuItemText, { color: COLORS.error }]}><AntDesign name="delete" color={COLORS.error} size={15} />  {tr('screens.library.deleteAlbum', 'Delete album')}</Text>
+            <Text style={[albumCardStyles.menuItemText, { color: themeColors.error }]}><AntDesign name="delete" color={themeColors.error} size={15} />  {tr('screens.library.deleteAlbum', 'Delete album')}</Text>
           </Pressable>
         </View>
       )}
@@ -412,40 +428,40 @@ const AlbumCard = ({
   );
 };
 
-const albumCardStyles = StyleSheet.create({
+const getAlbumCardStyles = (c: ColorScheme) => StyleSheet.create({
   card: {
     marginHorizontal: 20,
     marginBottom: 10,
-    backgroundColor: COLORS.surface,
+    backgroundColor: c.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: COLORS.glass08,
+    borderColor: c.glass08,
     overflow: 'visible',
   },
   main: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 12 },
   cover: { borderRadius: 10, overflow: 'hidden' },
   coverImg: { width: 56, height: 56, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   info: { flex: 1 },
-  title: { color: COLORS.white, fontSize: 15, fontWeight: '700', marginBottom: 4 },
+  title: { color: c.white, fontSize: 15, fontWeight: '700', marginBottom: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   status: { fontSize: 12, fontWeight: '600' },
-  dot: { color: COLORS.glass25 },
-  count: { color: COLORS.glass45, fontSize: 12 },
+  dot: { color: c.glass25 },
+  count: { color: c.glass45, fontSize: 12 },
   menuBtn: { position: 'absolute', top: 12, right: 12, padding: 4 },
-  menuIcon: { color: COLORS.glass45, fontSize: 12, letterSpacing: 1 },
+  menuIcon: { color: c.glass45, fontSize: 12, letterSpacing: 1 },
   menu: {
     marginHorizontal: 12,
     marginBottom: 10,
-    backgroundColor: COLORS.surfaceLow,
+    backgroundColor: c.surfaceLow,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.glass10,
+    borderColor: c.glass10,
     overflow: 'hidden',
   },
   menuItem: { paddingHorizontal: 14, paddingVertical: 11 },
-  menuItemText: { color: COLORS.white, fontSize: 14 },
-  menuDivider: { height: 1, backgroundColor: COLORS.glass08 },
+  menuItemText: { color: c.white, fontSize: 14 },
+  menuDivider: { height: 1, backgroundColor: c.glass08 },
 });
 
 // ─── Create Album Modal ───────────────────────────────────────────────────────
@@ -459,6 +475,8 @@ const CreateAlbumModal = ({
   onClose: () => void;
   onCreate: (title: string, cover?: { uri: string; fileName?: string; mimeType?: string } | null) => Promise<void>;
 }) => {
+  const themeColors = useThemeColors();
+  const modalStyles = useMemo(() => getModalStyles(themeColors), [themeColors]);
   const [title, setTitle] = useState('');
   const [cover, setCover] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [loading, setLoading] = useState(false);
@@ -490,7 +508,7 @@ const CreateAlbumModal = ({
             value={title}
             onChangeText={setTitle}
             placeholder={tr('screens.library.albumNamePlaceholder', 'Album name...')}
-            placeholderTextColor={COLORS.glass30}
+            placeholderTextColor={themeColors.glass30}
             autoFocus
           />
           <Pressable style={modalStyles.coverPicker} onPress={pickCover}>
@@ -510,7 +528,7 @@ const CreateAlbumModal = ({
               disabled={!title.trim() || loading}
             >
               {loading
-                ? <ActivityIndicator size="small" color={COLORS.white} />
+                ? <ActivityIndicator size="small" color={themeColors.white} />
                 : <Text style={modalStyles.createText}>{tr('common.create', 'Create')}</Text>
               }
             </Pressable>
@@ -521,31 +539,31 @@ const CreateAlbumModal = ({
   );
 };
 
-const modalStyles = StyleSheet.create({
+const getModalStyles = (c: ColorScheme) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.scrim,
+    backgroundColor: c.scrim,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
   card: {
     width: '100%',
-    backgroundColor: COLORS.surface,
+    backgroundColor: c.surface,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: COLORS.glass10,
+    borderColor: c.glass10,
     padding: 20,
   },
-  title: { color: COLORS.white, fontSize: 18, fontWeight: '700', marginBottom: 14 },
+  title: { color: c.white, fontSize: 18, fontWeight: '700', marginBottom: 14 },
   input: {
-    backgroundColor: COLORS.surfaceLow,
+    backgroundColor: c.surfaceLow,
     borderWidth: 1,
-    borderColor: COLORS.glass15,
+    borderColor: c.glass15,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 11,
-    color: COLORS.white,
+    color: c.white,
     fontSize: 15,
     marginBottom: 16,
   },
@@ -554,32 +572,32 @@ const modalStyles = StyleSheet.create({
     flex: 1,
     minHeight: 44,
     borderRadius: 12,
-    backgroundColor: COLORS.glass08,
+    backgroundColor: c.glass08,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.glass12,
+    borderColor: c.glass12,
   },
-  cancelText: { color: COLORS.glass60, fontWeight: '600' },
+  cancelText: { color: c.glass60, fontWeight: '600' },
   createBtn: {
     flex: 1,
     minHeight: 44,
     borderRadius: 12,
-    backgroundColor: COLORS.accentDim,
+    backgroundColor: c.accentDim,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  createText: { color: COLORS.white, fontWeight: '700' },
+  createText: { color: c.white, fontWeight: '700' },
   coverPicker: {
-    backgroundColor: COLORS.surfaceLow,
+    backgroundColor: c.surfaceLow,
     borderWidth: 1,
-    borderColor: COLORS.glass15,
+    borderColor: c.glass15,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 11,
     marginBottom: 12,
   },
-  coverPickerText: { color: COLORS.glass60, fontSize: 13 },
+  coverPickerText: { color: c.glass60, fontSize: 13 },
 });
 
 // ─── Add Song to Playlist Modal ───────────────────────────────────────────────
@@ -599,6 +617,8 @@ const AddToPlaylistModal = ({
   onAdd: (playlistId: string) => Promise<void>;
   onCreateAndAdd: (name: string) => Promise<void>;
 }) => {
+  const themeColors = useThemeColors();
+  const sheetStyles = useMemo(() => getSheetStyles(themeColors), [themeColors]);
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -623,7 +643,7 @@ const AddToPlaylistModal = ({
         <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
           {playlists.map(p => (
             <Pressable key={p.id} style={sheetStyles.item} onPress={() => onAdd(p.id)}>
-              <Text style={sheetStyles.itemIcon}><Fontisto name="play-list" color={rc.accent} size={14} /></Text>
+              <Text style={sheetStyles.itemIcon}><Fontisto name="play-list" color={themeColors.accent} size={14} /></Text>
               <Text style={sheetStyles.itemText}>{p.name}</Text>
               <Text style={sheetStyles.itemCount}>{p.totalSongs ?? 0} {tr('screens.library.songsSuffix', 'songs')}</Text>
             </Pressable>
@@ -635,7 +655,7 @@ const AddToPlaylistModal = ({
             value={newName}
             onChangeText={setNewName}
             placeholder={tr('screens.library.createPlaylistPlaceholder', 'Create new playlist...')}
-            placeholderTextColor={COLORS.glass30}
+            placeholderTextColor={themeColors.glass30}
           />
           <Pressable
             style={[sheetStyles.newBtn, !newName.trim() && { opacity: 0.4 }]}
@@ -643,7 +663,7 @@ const AddToPlaylistModal = ({
             onPress={() => { void handleCreateAndAdd(); }}
           >
             {creating
-              ? <ActivityIndicator size="small" color={COLORS.white} />
+              ? <ActivityIndicator size="small" color={themeColors.white} />
               : <Text style={sheetStyles.newBtnText}>+</Text>
             }
           </Pressable>
@@ -653,10 +673,10 @@ const AddToPlaylistModal = ({
   );
 };
 
-const sheetStyles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: COLORS.scrim },
+const getSheetStyles = (c: ColorScheme) => StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: c.scrim },
   sheet: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
@@ -666,37 +686,37 @@ const sheetStyles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.glass20,
+    backgroundColor: c.glass20,
     alignSelf: 'center',
     marginBottom: 14,
   },
-  title: { color: COLORS.white, fontSize: 17, fontWeight: '700', marginBottom: 2 },
-  subtitle: { color: COLORS.glass45, fontSize: 13, marginBottom: 12 },
+  title: { color: c.white, fontSize: 17, fontWeight: '700', marginBottom: 2 },
+  subtitle: { color: c.glass45, fontSize: 13, marginBottom: 12 },
   item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 },
   itemIcon: { fontSize: 18 },
-  itemText: { flex: 1, color: COLORS.white, fontSize: 14, fontWeight: '500' },
-  itemCount: { color: COLORS.glass40, fontSize: 12 },
+  itemText: { flex: 1, color: c.white, fontSize: 14, fontWeight: '500' },
+  itemCount: { color: c.glass40, fontSize: 12 },
   newRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   newInput: {
     flex: 1,
-    backgroundColor: COLORS.surfaceLow,
+    backgroundColor: c.surfaceLow,
     borderWidth: 1,
-    borderColor: COLORS.glass15,
+    borderColor: c.glass15,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
-    color: COLORS.white,
+    color: c.white,
     fontSize: 14,
   },
   newBtn: {
     width: 44,
     height: 44,
     borderRadius: 10,
-    backgroundColor: COLORS.accentDim,
+    backgroundColor: c.accentDim,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  newBtnText: { color: COLORS.white, fontSize: 22, fontWeight: '300' },
+  newBtnText: { color: c.white, fontSize: 22, fontWeight: '300' },
 });
 
 // ─── QR Modal ─────────────────────────────────────────────────────────────────
@@ -711,58 +731,62 @@ const QrModal = ({
   link: string;
   image?: string;
   onClose: () => void;
-}) => (
-  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-    <Pressable style={qrStyles.overlay} onPress={onClose}>
-      <View style={qrStyles.card}>
-        <Text style={qrStyles.title}>{tr('actions.shareQR', 'Share via QR')}</Text>
-        {image
-          ? <Image source={{ uri: image }} style={qrStyles.image} />
-          : <View style={qrStyles.placeholder}><Text style={qrStyles.placeholderText}>QR</Text></View>
-        }
-        <Text style={qrStyles.link} numberOfLines={2}>{link}</Text>
-        <Pressable style={qrStyles.closeBtn} onPress={onClose}>
-          <Text style={qrStyles.closeBtnText}>{tr('controls.close', 'Close')}</Text>
-        </Pressable>
-      </View>
-    </Pressable>
-  </Modal>
-);
+}) => {
+  const themeColors = useThemeColors();
+  const qrStyles = useMemo(() => getQrStyles(themeColors), [themeColors]);
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={qrStyles.overlay} onPress={onClose}>
+        <View style={qrStyles.card}>
+          <Text style={qrStyles.title}>{tr('actions.shareQR', 'Share via QR')}</Text>
+          {image
+            ? <Image source={{ uri: image }} style={qrStyles.image} />
+            : <View style={qrStyles.placeholder}><Text style={qrStyles.placeholderText}>QR</Text></View>
+          }
+          <Text style={qrStyles.link} numberOfLines={2}>{link}</Text>
+          <Pressable style={qrStyles.closeBtn} onPress={onClose}>
+            <Text style={qrStyles.closeBtnText}>{tr('controls.close', 'Close')}</Text>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+};
 
-const qrStyles = StyleSheet.create({
+const getQrStyles = (c: ColorScheme) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: COLORS.scrim,
+    backgroundColor: c.scrim,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
   },
   card: {
     width: '100%',
-    backgroundColor: COLORS.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 20,
     alignItems: 'center',
     gap: 12,
   },
-  title: { color: COLORS.white, fontSize: 17, fontWeight: '700' },
+  title: { color: c.white, fontSize: 17, fontWeight: '700' },
   image: { width: 220, height: 220, borderRadius: 12 },
   placeholder: {
     width: 220, height: 220, borderRadius: 12,
-    backgroundColor: COLORS.surfaceLow,
+    backgroundColor: c.surfaceLow,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  placeholderText: { color: COLORS.glass40, fontSize: 24 },
-  link: { color: COLORS.glass50, fontSize: 11, textAlign: 'center' },
+  placeholderText: { color: c.glass40, fontSize: 24 },
+  link: { color: c.glass50, fontSize: 11, textAlign: 'center' },
   closeBtn: {
-    backgroundColor: COLORS.accentDim,
+    backgroundColor: c.accentDim,
     borderRadius: 999,
     paddingHorizontal: 28,
     paddingVertical: 10,
     marginTop: 4,
   },
-  closeBtnText: { color: COLORS.white, fontWeight: '700' },
+  closeBtnText: { color: c.white, fontWeight: '700' },
 });
 
 // ─── Share Options Bottom Sheet ───────────────────────────────────────────────
@@ -777,42 +801,47 @@ interface ShareOptionsSheetProps {
   onDiscovery: () => void;
 }
 
-const ShareOptionsSheet = ({ visible, item, onClose, onExternal, onDiscovery }: ShareOptionsSheetProps) => (
-  <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-    <Pressable style={sheetStyles.overlay} onPress={onClose} />
-    <View style={sheetStyles.sheet}>
-      <View style={sheetStyles.handle} />
-      <Text style={sheetStyles.title}>{tr('common.share', 'Share')}</Text>
-      <Text style={sheetStyles.subtitle} numberOfLines={1}>{item?.title}</Text>
+const ShareOptionsSheet = ({ visible, item, onClose, onExternal, onDiscovery }: ShareOptionsSheetProps) => {
+  const themeColors = useThemeColors();
+  const sheetStyles = useMemo(() => getSheetStyles(themeColors), [themeColors]);
+  const shareOptionStyles = useMemo(() => getShareOptionStyles(themeColors), [themeColors]);
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={sheetStyles.overlay} onPress={onClose} />
+      <View style={sheetStyles.sheet}>
+        <View style={sheetStyles.handle} />
+        <Text style={sheetStyles.title}>{tr('common.share', 'Share')}</Text>
+        <Text style={sheetStyles.subtitle} numberOfLines={1}>{item?.title}</Text>
 
-      <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onDiscovery(); }}>
-        <View style={[shareOptionStyles.iconWrap, { backgroundColor: rc.gradIndigo }]}>
-          <Text style={{ fontSize: 20 }}>🌟</Text>
-        </View>
-        <View style={shareOptionStyles.info}>
-          <Text style={shareOptionStyles.label}>{tr('screens.library.shareToDiscovery', 'Share to Discovery')}</Text>
-          <Text style={shareOptionStyles.desc}>{tr('screens.library.shareToDiscoveryDesc', 'Post to the community feed')}</Text>
-        </View>
-      </Pressable>
+        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onDiscovery(); }}>
+          <View style={[shareOptionStyles.iconWrap, { backgroundColor: themeColors.gradIndigo }]}>
+            <Text style={{ fontSize: 20 }}>🌟</Text>
+          </View>
+          <View style={shareOptionStyles.info}>
+            <Text style={shareOptionStyles.label}>{tr('screens.library.shareToDiscovery', 'Share to Discovery')}</Text>
+            <Text style={shareOptionStyles.desc}>{tr('screens.library.shareToDiscoveryDesc', 'Post to the community feed')}</Text>
+          </View>
+        </Pressable>
 
-      <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onExternal(); }}>
-        <View style={[shareOptionStyles.iconWrap, { backgroundColor: rc.accentAlt }]}>
-          <Text style={{ fontSize: 20 }}>↗</Text>
-        </View>
-        <View style={shareOptionStyles.info}>
-          <Text style={shareOptionStyles.label}>{tr('screens.library.shareOutsideApp', 'Share outside app')}</Text>
-          <Text style={shareOptionStyles.desc}>{tr('screens.library.shareOutsideAppDesc', 'Send link via message or social networks...')}</Text>
-        </View>
-      </Pressable>
+        <Pressable style={shareOptionStyles.option} onPress={() => { onClose(); onExternal(); }}>
+          <View style={[shareOptionStyles.iconWrap, { backgroundColor: themeColors.accentAlt }]}>
+            <Text style={{ fontSize: 20 }}>↗</Text>
+          </View>
+          <View style={shareOptionStyles.info}>
+            <Text style={shareOptionStyles.label}>{tr('screens.library.shareOutsideApp', 'Share outside app')}</Text>
+            <Text style={shareOptionStyles.desc}>{tr('screens.library.shareOutsideAppDesc', 'Send link via message or social networks...')}</Text>
+          </View>
+        </Pressable>
 
-      <Pressable style={shareOptionStyles.cancelBtn} onPress={onClose}>
-        <Text style={shareOptionStyles.cancelText}>{tr('common.cancel', 'Cancel')}</Text>
-      </Pressable>
-    </View>
-  </Modal>
-);
+        <Pressable style={shareOptionStyles.cancelBtn} onPress={onClose}>
+          <Text style={shareOptionStyles.cancelText}>{tr('common.cancel', 'Cancel')}</Text>
+        </Pressable>
+      </View>
+    </Modal>
+  );
+};
 
-const shareOptionStyles = StyleSheet.create({
+const getShareOptionStyles = (c: ColorScheme) => StyleSheet.create({
   option: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -827,16 +856,16 @@ const shareOptionStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   info: { flex: 1 },
-  label: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
-  desc: { color: COLORS.glass45, fontSize: 12, marginTop: 2 },
+  label: { color: c.white, fontSize: 15, fontWeight: '600' },
+  desc: { color: c.glass45, fontSize: 12, marginTop: 2 },
   cancelBtn: {
     marginTop: 8,
     paddingVertical: 13,
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: COLORS.glass08,
+    borderTopColor: c.glass08,
   },
-  cancelText: { color: COLORS.glass60, fontSize: 15 },
+  cancelText: { color: c.glass60, fontSize: 15 },
 });
 
 // ─── Share to Discovery Modal ─────────────────────────────────────────────────
@@ -856,6 +885,8 @@ const DISCOVERY_VISIBILITY_OPTIONS: { value: 'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIV
 
 const ShareToDiscoveryModal = ({ visible, item, onClose, onPost }: ShareToDiscoveryModalProps) => {
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
+  const discoveryShareStyles = useMemo(() => getDiscoveryShareStyles(themeColors), [themeColors]);
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const [visibility, setVisibility] = useState<'PUBLIC' | 'FOLLOWERS_ONLY' | 'PRIVATE'>('PUBLIC');
@@ -899,7 +930,7 @@ const ShareToDiscoveryModal = ({ visible, item, onClose, onPost }: ShareToDiscov
               disabled={!title.trim() || posting}
             >
               {posting
-                ? <ActivityIndicator size="small" color={COLORS.white} />
+                ? <ActivityIndicator size="small" color={themeColors.white} />
                 : <Text style={discoveryShareStyles.postBtnText}>Đăng</Text>
               }
             </Pressable>
@@ -920,7 +951,7 @@ const ShareToDiscoveryModal = ({ visible, item, onClose, onPost }: ShareToDiscov
               value={title}
               onChangeText={setTitle}
               placeholder="Tiêu đề bài viết..."
-              placeholderTextColor={COLORS.glass25}
+              placeholderTextColor={themeColors.glass25}
               multiline
               autoFocus
             />
@@ -929,7 +960,7 @@ const ShareToDiscoveryModal = ({ visible, item, onClose, onPost }: ShareToDiscov
               value={caption}
               onChangeText={setCaption}
               placeholder="Mô tả thêm cho mọi người..."
-              placeholderTextColor={COLORS.glass20}
+              placeholderTextColor={themeColors.glass20}
               multiline
             />
 
@@ -954,8 +985,8 @@ const ShareToDiscoveryModal = ({ visible, item, onClose, onPost }: ShareToDiscov
   );
 };
 
-const discoveryShareStyles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const getDiscoveryShareStyles = (c: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -964,10 +995,10 @@ const discoveryShareStyles = StyleSheet.create({
     paddingVertical: 12,
   },
   cancelBtn: { minWidth: 48 },
-  cancelText: { color: COLORS.glass60, fontSize: 15 },
-  headerTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
+  cancelText: { color: c.glass60, fontSize: 15 },
+  headerTitle: { color: c.white, fontSize: 16, fontWeight: '700' },
   postBtn: {
-    backgroundColor: COLORS.accentDim,
+    backgroundColor: c.accentDim,
     borderRadius: 999,
     paddingHorizontal: 18,
     paddingVertical: 8,
@@ -976,24 +1007,24 @@ const discoveryShareStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   postBtnDisabled: { opacity: 0.35 },
-  postBtnText: { color: COLORS.white, fontWeight: '700', fontSize: 14 },
-  divider: { height: 1, backgroundColor: COLORS.glass08 },
+  postBtnText: { color: c.white, fontWeight: '700', fontSize: 14 },
+  divider: { height: 1, backgroundColor: c.glass08 },
   body: { flex: 1, paddingHorizontal: 16 },
   contentBadge: {
     marginTop: 16,
     marginBottom: 12,
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.surface,
+    backgroundColor: c.surface,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: COLORS.glass12,
+    borderColor: c.glass12,
   },
-  contentBadgeText: { color: COLORS.glass60, fontSize: 13 },
-  contentBadgeName: { color: COLORS.white, fontWeight: '600' },
+  contentBadgeText: { color: c.glass60, fontSize: 13 },
+  contentBadgeName: { color: c.white, fontWeight: '600' },
   titleInput: {
-    color: COLORS.white,
+    color: c.white,
     fontSize: 18,
     fontWeight: '700',
     lineHeight: 26,
@@ -1001,7 +1032,7 @@ const discoveryShareStyles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   captionInput: {
-    color: COLORS.glass70,
+    color: c.glass70,
     fontSize: 15,
     lineHeight: 22,
     minHeight: 100,
@@ -1015,21 +1046,21 @@ const discoveryShareStyles = StyleSheet.create({
     gap: 8,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: COLORS.glass08,
+    borderTopColor: c.glass08,
     marginTop: 12,
   },
-  visibilityLabel: { color: COLORS.glass50, fontSize: 13, fontWeight: '600', marginRight: 4 },
+  visibilityLabel: { color: c.glass50, fontSize: 13, fontWeight: '600', marginRight: 4 },
   visChip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: COLORS.glass08,
+    backgroundColor: c.glass08,
     borderWidth: 1,
-    borderColor: COLORS.glass12,
+    borderColor: c.glass12,
   },
-  visChipActive: { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
-  visChipText: { color: COLORS.glass60, fontSize: 12, fontWeight: '600' },
-  visChipTextActive: { color: COLORS.accent },
+  visChipActive: { borderColor: c.accent, backgroundColor: c.accentFill20 },
+  visChipText: { color: c.glass60, fontSize: 12, fontWeight: '600' },
+  visChipTextActive: { color: c.accent },
 });
 
 const AlbumDetailModal = ({
@@ -1045,6 +1076,9 @@ const AlbumDetailModal = ({
   onRefreshParent: () => void;
   mySongs: Song[];
 }) => {
+  const themeColors = useThemeColors();
+  const albumDetailStyles = useMemo(() => getAlbumDetailStyles(themeColors), [themeColors]);
+  const sheetStyles = useMemo(() => getSheetStyles(themeColors), [themeColors]);
   const [album, setAlbum] = useState<Album | null>(null);
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -1125,14 +1159,14 @@ const AlbumDetailModal = ({
 
         {loading ? (
           <View style={albumDetailStyles.center}>
-            <ActivityIndicator color={COLORS.accent} />
+            <ActivityIndicator color={themeColors.accent} />
           </View>
         ) : (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
             {/* Album meta */}
             <View style={albumDetailStyles.meta}>
               <LinearGradient
-                colors={[COLORS.gradPurple, COLORS.gradIndigo]}
+                colors={[themeColors.gradPurple, themeColors.gradIndigo]}
                 style={albumDetailStyles.coverArt}
               >
                 <Text style={{ fontSize: 40 }}>💿</Text>
@@ -1177,7 +1211,7 @@ const AlbumDetailModal = ({
                       {thumbUrl ? (
                         <Image source={{ uri: thumbUrl }} style={albumDetailStyles.songThumb} />
                       ) : (
-                        <View style={[albumDetailStyles.songThumb, { backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' }]}>
+                        <View style={[albumDetailStyles.songThumb, { backgroundColor: themeColors.surface, alignItems: 'center', justifyContent: 'center' }]}>
                           <Text>🎵</Text>
                         </View>
                       )}
@@ -1218,7 +1252,7 @@ const AlbumDetailModal = ({
             <Text style={sheetStyles.title}>Thêm bài hát vào album</Text>
             <Text style={sheetStyles.subtitle}>Bài hát của bạn (PUBLIC hoặc PRIVATE, đã transcode xong)</Text>
             {availableSongs.length === 0 ? (
-              <Text style={{ color: COLORS.glass40, padding: 16, textAlign: 'center' }}>
+              <Text style={{ color: themeColors.glass40, padding: 16, textAlign: 'center' }}>
                 Không có bài hát nào khả dụng.{'\n'}
                 Bài hát cần hoàn thành transcode (COMPLETED).
               </Text>
@@ -1233,7 +1267,7 @@ const AlbumDetailModal = ({
                     <Text style={sheetStyles.itemIcon}>🎵</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={sheetStyles.itemText} numberOfLines={1}>{s.title}</Text>
-                      <Text style={{ color: COLORS.glass40, fontSize: 11 }}>
+                      <Text style={{ color: themeColors.glass40, fontSize: 11 }}>
                         {s.status === 'PUBLIC' ? '🌐 Công khai' : '🔒 Riêng tư'}
                       </Text>
                     </View>
@@ -1248,8 +1282,8 @@ const AlbumDetailModal = ({
   );
 };
 
-const albumDetailStyles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const getAlbumDetailStyles = (c: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1257,38 +1291,38 @@ const albumDetailStyles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.glass08,
+    borderBottomColor: c.glass08,
     gap: 12,
   },
-  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.glass08, alignItems: 'center', justifyContent: 'center' },
-  closeBtnText: { color: COLORS.glass60, fontSize: 14 },
-  title: { flex: 1, color: COLORS.white, fontSize: 17, fontWeight: '700' },
-  addBtn: { backgroundColor: COLORS.accentDim, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
-  addBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  closeBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: c.glass08, alignItems: 'center', justifyContent: 'center' },
+  closeBtnText: { color: c.glass60, fontSize: 14 },
+  title: { flex: 1, color: c.white, fontSize: 17, fontWeight: '700' },
+  addBtn: { backgroundColor: c.accentDim, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
+  addBtnText: { color: c.white, fontSize: 13, fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   meta: { flexDirection: 'row', gap: 16, padding: 20, alignItems: 'center' },
   coverArt: { width: 80, height: 80, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   metaInfo: { flex: 1, gap: 4 },
-  metaTitle: { color: COLORS.white, fontSize: 18, fontWeight: '800' },
+  metaTitle: { color: c.white, fontSize: 18, fontWeight: '800' },
   metaBadge: { alignSelf: 'flex-start' },
-  metaStatus: { color: COLORS.glass60, fontSize: 13 },
-  metaCount: { color: COLORS.glass40, fontSize: 12 },
+  metaStatus: { color: c.glass60, fontSize: 13 },
+  metaCount: { color: c.glass40, fontSize: 12 },
   empty: { padding: 32, alignItems: 'center' },
-  emptyText: { color: COLORS.glass40, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  emptyText: { color: c.glass40, fontSize: 14, textAlign: 'center', lineHeight: 20 },
   songRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.glass06,
+    borderBottomColor: c.glass06,
   },
   songMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   songThumb: { width: 44, height: 44, borderRadius: 8 },
-  songTitle: { color: COLORS.white, fontSize: 14, fontWeight: '600' },
-  songArtist: { color: COLORS.glass45, fontSize: 12, marginTop: 2 },
-  removeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.glass08, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  removeBtnText: { color: COLORS.glass45, fontSize: 12 },
+  songTitle: { color: c.white, fontSize: 14, fontWeight: '600' },
+  songArtist: { color: c.glass45, fontSize: 12, marginTop: 2 },
+  removeBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.glass08, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  removeBtnText: { color: c.glass45, fontSize: 12 },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -1299,11 +1333,13 @@ export const LibraryScreen = () => {
   const { authSession } = useAuth();
   const { t } = useTranslation();
   const themeColors = useThemeColors();
+  const styles = useMemo(() => getMainLibraryStyles(themeColors), [themeColors]);
+  const modalStyles = useMemo(() => getModalStyles(themeColors), [themeColors]);
   tr = t;
-  rc = themeColors;
   const { playSong, currentSong, isPlaying } = usePlayer();
   const { toast, show: showToast, hide: hideToast } = useToast();
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const dataSignatureRef = useRef<string>('');
 
   const [activeTab, setActiveTab] = useState<Tab>('playlists');
   const [displayedTab, setDisplayedTab] = useState<Tab>('playlists');
@@ -1341,18 +1377,18 @@ export const LibraryScreen = () => {
 
   const userScope = authSession?.profile?.id ?? authSession?.tokens?.accessToken?.slice(-24) ?? 'anonymous';
 
-  // ── Load ──────────────────────────────────────────────────────────────────
+  // ── Load (stale-while-revalidate) ─────────────────────────────────────────
   useFocusEffect(useCallback(() => {
-    const silent = libraryFocusPassRef.current > 0;
+    const mode: 'initial' | 'silent' = libraryFocusPassRef.current > 0 ? 'silent' : 'initial';
     libraryFocusPassRef.current += 1;
-    void load(silent);
-    const pollIntervalId = setInterval(() => void load(true), 60_000);
+    void load(mode);
+    const pollIntervalId = setInterval(() => void load('silent'), 60_000);
     return () => clearInterval(pollIntervalId);
   }, [authSession?.tokens.accessToken]));
 
-  const load = async (silent = false) => {
+  const load = async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
     const cacheKey = getLibraryCacheStorageKey(userScope);
-    if (!silent) {
+    if (mode === 'initial') {
       const cached = await loadCache<LibraryCachePayload>(cacheKey);
       if (cached) {
         setPlaylists(cached.data.playlists ?? []);
@@ -1361,11 +1397,23 @@ export const LibraryScreen = () => {
         setArtistProfile(cached.data.artistProfile ?? null);
         setHasActiveSub(!!cached.data.hasActiveSub);
         setCanCreateAlbumByPlan(!!cached.data.canCreateAlbumByPlan);
+        dataSignatureRef.current = JSON.stringify({
+          pl: (cached.data.playlists ?? []).map(p => `${p.id}:${p.totalSongs ?? 0}:${p.slug ?? ''}:${p.name ?? ''}`),
+          so: (cached.data.songs ?? []).map(s => `${s.id}:${s.status}:${s.transcodeStatus}:${s.title ?? ''}`),
+          al: (cached.data.albums ?? []).map(a => `${a.id}:${a.status}:${a.title ?? ''}:${(a.totalSongs ?? a.songs?.length ?? 0)}`),
+          artist: cached.data.artistProfile?.id ?? 'none',
+          hasSub: Boolean(cached.data.hasActiveSub),
+          canAlbum: Boolean(cached.data.canCreateAlbumByPlan),
+        });
       }
     }
     try {
-      if (!silent) setLoading(true);
-      else setRefreshing(false);
+      if (mode === 'initial') {
+        // Only block if we have nothing to render yet.
+        const hasUI = playlists.length > 0 || songs.length > 0 || albums.length > 0;
+        if (!hasUI) setLoading(true);
+      }
+      if (mode === 'refresh') setRefreshing(true);
       const [plRes, soRes, alRes, artistRes, subRes] = await Promise.allSettled([
         fetchWithRetry(() => getMyPlaylists({ page: 1, size: 50 }), 2),
         fetchWithRetry(() => getMySongs({ page: 1, size: 50 }), 2),
@@ -1374,15 +1422,47 @@ export const LibraryScreen = () => {
         fetchWithRetry(() => getMySubscription(), 1),
       ]);
 
-      if (plRes.status === 'fulfilled') setPlaylists(plRes.value.content ?? []);
-      if (soRes.status === 'fulfilled') setSongs(soRes.value.content ?? []);
-      if (alRes.status === 'fulfilled') setAlbums(alRes.value.content ?? []);
+      const nextPlaylists = plRes.status === 'fulfilled' ? (plRes.value.content ?? []) : playlists;
+      const nextSongs = soRes.status === 'fulfilled' ? (soRes.value.content ?? []) : songs;
+      const nextAlbums = alRes.status === 'fulfilled' ? (alRes.value.content ?? []) : albums;
+      const nextArtist = artistRes.status === 'fulfilled' ? (artistRes.value.data ?? null) : (artistProfile ?? null);
+
+      let nextHasActiveSub = false;
+      let nextCanCreateAlbumByPlan = false;
+      if (subRes.status === 'fulfilled') {
+        const sub = subRes.value;
+        const active = sub?.status === 'ACTIVE' && new Date(sub.expiresAt).getTime() > Date.now();
+        const features = sub?.plan?.features ?? {};
+        const hasAlbumFeature = Boolean(features.create_album ?? features.can_become_artist);
+        nextHasActiveSub = active;
+        nextCanCreateAlbumByPlan = active && hasAlbumFeature;
+      }
+
+      const nextSignature = JSON.stringify({
+        pl: nextPlaylists.map(p => `${p.id}:${p.totalSongs ?? 0}:${p.slug ?? ''}:${p.name ?? ''}`),
+        so: nextSongs.map(s => `${s.id}:${s.status}:${s.transcodeStatus}:${s.title ?? ''}`),
+        al: nextAlbums.map(a => `${a.id}:${a.status}:${a.title ?? ''}:${(a.totalSongs ?? a.songs?.length ?? 0)}`),
+        artist: nextArtist?.id ?? 'none',
+        hasSub: nextHasActiveSub,
+        canAlbum: nextCanCreateAlbumByPlan,
+      });
+
+      if (dataSignatureRef.current !== nextSignature) {
+        dataSignatureRef.current = nextSignature;
+        if (plRes.status === 'fulfilled') setPlaylists(nextPlaylists);
+        if (soRes.status === 'fulfilled') setSongs(nextSongs);
+        if (alRes.status === 'fulfilled') setAlbums(nextAlbums);
+        if (artistRes.status === 'fulfilled') setArtistProfile(nextArtist);
+        setHasActiveSub(nextHasActiveSub);
+        setCanCreateAlbumByPlan(nextCanCreateAlbumByPlan);
+      }
+
       if (soRes.status === 'rejected') {
         const err: any = soRes.reason;
         const status = err?.response?.status;
         const backendMessage = err?.response?.data?.message;
         console.warn('Tải bài hát thất bại', { status, data: err?.response?.data, message: err?.message });
-        if (!silent) {
+        if (mode !== 'silent') {
           showToast(
             `${t('screens.library.loadSongsFailedTitle', 'Failed to load songs')}: ${backendMessage || err?.message || t('errors.tryAgain', 'Please try again.')}`,
             'error',
@@ -1390,37 +1470,20 @@ export const LibraryScreen = () => {
         }
       }
 
-      if (artistRes.status === 'fulfilled') {
-        setArtistProfile(artistRes.value.data ?? null);
-      } else {
-        setArtistProfile(null);
-      }
-      if (subRes.status === 'fulfilled') {
-        const sub = subRes.value;
-        const active = sub?.status === 'ACTIVE' && new Date(sub.expiresAt).getTime() > Date.now();
-        const features = sub?.plan?.features ?? {};
-        const hasAlbumFeature = Boolean(features.create_album ?? features.can_become_artist);
-        setHasActiveSub(active);
-        setCanCreateAlbumByPlan(active && hasAlbumFeature);
-      } else {
-        setHasActiveSub(false);
-        setCanCreateAlbumByPlan(false);
-      }
-
       if (plRes.status === 'fulfilled' || soRes.status === 'fulfilled' || alRes.status === 'fulfilled') {
         void saveCache(cacheKey, {
-          playlists: plRes.status === 'fulfilled' ? (plRes.value.content ?? playlists) : playlists,
-          songs: soRes.status === 'fulfilled' ? (soRes.value.content ?? songs) : songs,
-          albums: alRes.status === 'fulfilled' ? (alRes.value.content ?? albums) : albums,
-          artistProfile: artistRes.status === 'fulfilled' ? (artistRes.value.data ?? null) : artistProfile,
-          hasActiveSub,
-          canCreateAlbumByPlan,
+          playlists: nextPlaylists,
+          songs: nextSongs,
+          albums: nextAlbums,
+          artistProfile: nextArtist,
+          hasActiveSub: nextHasActiveSub,
+          canCreateAlbumByPlan: nextCanCreateAlbumByPlan,
           updatedAt: Date.now(),
         } satisfies LibraryCachePayload);
       }
     } finally {
       setLoading(false);
-      setRefreshing(false);
+      if (mode === 'refresh') setRefreshing(false);
     }
   };
 
@@ -1471,7 +1534,7 @@ export const LibraryScreen = () => {
       {
         text: t('common.delete'), style: 'destructive', onPress: async () => {
           await deletePlaylist(p.id);
-          await load(true);
+          await load('silent');
         }
       },
     ]);
@@ -1486,7 +1549,7 @@ export const LibraryScreen = () => {
         visibility: editPlaylist.visibility,
       });
       setEditPlaylist(null);
-      await load(true);
+      await load('silent');
     } catch (e: any) {
       showToast(e?.message ?? t('screens.library.cannotUpdate', 'Cannot update.'), 'error');
     }
@@ -1507,7 +1570,7 @@ export const LibraryScreen = () => {
       setNewPlaylistName('');
       setCreatePlaylistOpen(false);
       showToast(t('screens.library.createdPlaylist', 'Playlist created successfully.'), 'success');
-      await load(true);
+      await load('silent');
     } catch (e: any) {
       showToast(e?.message ?? t('screens.library.cannotCreatePlaylist', 'Cannot create playlist.'), 'error');
     } finally {
@@ -1556,7 +1619,7 @@ export const LibraryScreen = () => {
       }
 
       setCreateAlbumOpen(false);
-      await load(true);
+      await load('silent');
     } catch (e: any) {
       Alert.alert(t('common.error'), e?.message ?? t('screens.library.cannotCreateAlbum', 'Cannot create album.'));
     }
@@ -1565,7 +1628,7 @@ export const LibraryScreen = () => {
   const handlePublishAlbum = async (albumId: string) => {
     try {
       await apiClient.post(`/albums/${albumId}/publish`);
-      await load(true);
+      await load('silent');
       showToast(t('screens.library.albumPublicNow', 'Your album is now public.'), 'success');
     } catch (e: any) {
       showToast(
@@ -1578,7 +1641,7 @@ export const LibraryScreen = () => {
   const handleUnpublishAlbum = async (albumId: string) => {
     try {
       await apiClient.post(`/albums/${albumId}/unpublish`);
-      await load(true);
+      await load('silent');
     } catch (e: any) {
       showToast(e?.message ?? t('screens.library.cannotSetPrivate', 'Cannot set private.'), 'error');
     }
@@ -1591,7 +1654,7 @@ export const LibraryScreen = () => {
         text: t('common.delete'), style: 'destructive', onPress: async () => {
           try {
             await apiClient.delete(`/albums/${a.id}`);
-            await load(true);
+            await load('silent');
           } catch (e: any) {
             showToast(e?.message ?? t('common.error', 'Error'), 'error');
           }
@@ -1635,7 +1698,7 @@ export const LibraryScreen = () => {
       const pl = await createPlaylist({ name, visibility: 'PUBLIC' });
       await addSongToPlaylist(pl.id, addSongTo.id);
       setAddSongTo(null);
-      await load(true);
+      await load('silent');
       showToast(`${t('screens.library.songAddedToPlaylist', 'Song has been added to playlist.')} ✓`);
     } catch (e: any) {
       showToast(e?.message ?? t('common.error', 'Error'), 'error');
@@ -1712,7 +1775,7 @@ export const LibraryScreen = () => {
               <Text style={styles.iconBtnText}>↗</Text>
             </Pressable>
             <Pressable hitSlop={8} onPress={() => handleDeletePlaylist(p)} style={styles.iconBtn}>
-              <Text style={[styles.iconBtnText, { color: COLORS.error }]}><AntDesign name="delete" color={COLORS.error} size={15} /></Text>
+              <Text style={[styles.iconBtnText, { color: themeColors.error }]}><AntDesign name="delete" color={themeColors.error} size={15} /></Text>
             </Pressable>
           </View>
         </Pressable>
@@ -1815,14 +1878,14 @@ export const LibraryScreen = () => {
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
-      <StatusBar style="light" />
+      <StatusBar style={getStatusBarStyle(themeColors.bg)} />
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); void load(true); }}
-            tintColor={COLORS.accent}
+            onRefresh={() => { void load('refresh'); }}
+            tintColor={themeColors.accent}
           />
         }
         contentContainerStyle={{ paddingBottom: 120 }}
@@ -1902,7 +1965,7 @@ export const LibraryScreen = () => {
               value={newPlaylistName}
               onChangeText={setNewPlaylistName}
               placeholder={t('screens.library.createPlaylistPlaceholder', 'Create new playlist...')}
-              placeholderTextColor={COLORS.glass30}
+              placeholderTextColor={themeColors.glass30}
               autoFocus
             />
             <View style={modalStyles.actions}>
@@ -1921,7 +1984,7 @@ export const LibraryScreen = () => {
                 disabled={!newPlaylistName.trim() || creatingPlaylist}
               >
                 {creatingPlaylist
-                  ? <ActivityIndicator size="small" color={COLORS.white} />
+                  ? <ActivityIndicator size="small" color={themeColors.white} />
                   : <Text style={modalStyles.createText}>{t('common.create', 'Create')}</Text>
                 }
               </Pressable>
@@ -1942,7 +2005,7 @@ export const LibraryScreen = () => {
         visible={!!detailAlbumId}
         albumId={detailAlbumId}
         onClose={() => setDetailAlbumId(null)}
-        onRefreshParent={() => void load(true)}
+        onRefreshParent={() => void load('silent')}
         mySongs={songs}
       />
 
@@ -1980,27 +2043,27 @@ export const LibraryScreen = () => {
 
 // ─── Main styles ──────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const getMainLibraryStyles = (c: ColorScheme) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: c.bg },
 
   header: { paddingHorizontal: 20, paddingBottom: 20 },
-  headerTitle: { color: COLORS.white, fontSize: 28, fontWeight: '800' },
-  headerSub: { color: COLORS.glass40, fontSize: 13, marginTop: 4 },
+  headerTitle: { color: c.white, fontSize: 28, fontWeight: '800' },
+  headerSub: { color: c.glass40, fontSize: 13, marginTop: 4 },
 
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
   tabContent: { flex: 1 },
 
   empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 44, marginBottom: 12 },
-  emptyTitle: { color: COLORS.white, fontSize: 17, fontWeight: '700', marginBottom: 6 },
-  emptySub: { color: COLORS.glass40, fontSize: 13, textAlign: 'center' },
+  emptyTitle: { color: c.white, fontSize: 17, fontWeight: '700', marginBottom: 6 },
+  emptySub: { color: c.glass40, fontSize: 13, textAlign: 'center' },
 
   createBtn: {
     marginHorizontal: 20,
     marginBottom: 6,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: COLORS.accentBorder25,
+    borderColor: c.accentBorder25,
     borderStyle: 'dashed',
     overflow: 'hidden',
   },
@@ -2010,31 +2073,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     gap: 8,
-    backgroundColor: COLORS.accentFill20,
+    backgroundColor: c.accentFill20,
   },
-  createBtnIcon: { color: COLORS.accent, fontSize: 20, fontWeight: '300' },
-  createBtnText: { color: COLORS.accent, fontSize: 14, fontWeight: '600' },
+  createBtnIcon: { color: c.accent, fontSize: 20, fontWeight: '300' },
+  createBtnText: { color: c.accent, fontSize: 14, fontWeight: '600' },
   albumGateCard: {
     marginHorizontal: 20,
     marginBottom: 12,
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.glass12,
-    backgroundColor: COLORS.surface,
+    borderColor: c.glass12,
+    backgroundColor: c.surface,
     gap: 8,
   },
-  albumGateTitle: { color: COLORS.white, fontSize: 16, fontWeight: '700' },
-  albumGateSub: { color: COLORS.glass50, fontSize: 13, lineHeight: 20 },
+  albumGateTitle: { color: c.white, fontSize: 16, fontWeight: '700' },
+  albumGateSub: { color: c.glass50, fontSize: 13, lineHeight: 20 },
   albumGateBtn: {
     alignSelf: 'flex-start',
     marginTop: 4,
-    backgroundColor: COLORS.accentDim,
+    backgroundColor: c.accentDim,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  albumGateBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
+  albumGateBtnText: { color: c.white, fontSize: 13, fontWeight: '700' },
 
   listItem: {
     flexDirection: 'row',
@@ -2043,27 +2106,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.glass06,
+    borderBottomColor: c.glass06,
   },
   listItemThumb: {
     width: 52,
     height: 52,
     borderRadius: 10,
-    backgroundColor: COLORS.surface,
+    backgroundColor: c.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   listItemInfo: { flex: 1 },
-  listItemTitle: { color: COLORS.white, fontSize: 15, fontWeight: '600' },
-  listItemSub: { color: COLORS.glass45, fontSize: 12, marginTop: 2 },
+  listItemTitle: { color: c.white, fontSize: 15, fontWeight: '600' },
+  listItemSub: { color: c.glass45, fontSize: 12, marginTop: 2 },
   listItemActions: { flexDirection: 'row', gap: 4 },
   iconBtn: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: COLORS.glass08,
+    backgroundColor: c.glass08,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconBtnText: { color: COLORS.glass60, fontSize: 13 },
+  iconBtnText: { color: c.glass60, fontSize: 13 },
 });

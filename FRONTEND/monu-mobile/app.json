@@ -31,7 +31,8 @@
         {
           "microphonePermission": "Cho phép Monu dùng microphone để tìm kiếm bằng giọng nói"
         }
-      ]
+      ],
+      "expo-localization"
     ]
   }
 }

@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.core.Authentication;
@@ -422,7 +423,8 @@ public class SongServiceImpl implements SongService {
     public Page<SongResponse> searchSongs(String keyword, UUID genreId, UUID artistId, Pageable pageable) {
         String pattern = (keyword == null || keyword.isBlank()) ? null : "%" + keyword + "%";
         UUID viewerId = tryGetCurrentUserId();
-        return songRepository.searchPublic(pattern, genreId, artistId, viewerId, pageable)
+        Pageable safePageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        return songRepository.searchPublic(pattern, genreId, artistId, viewerId, safePageable)
                 .map(songMapper::toResponse);
     }
 

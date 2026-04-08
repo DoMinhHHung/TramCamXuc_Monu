@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 
-import { COLORS, useThemeColors } from '../../config/colors';
+import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useUpload, UploadStage } from '../../context/UploadContext';
 import { useTranslation } from '../../context/LocalizationContext';
@@ -48,6 +48,16 @@ const getUploadStageHint = (t: (key: string, fallback?: string) => string): Part
 });
 
 // Debug function for development-only logs
+const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
+  const hex = backgroundColor.replace('#', '');
+  if (hex.length !== 6) return 'light';
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  return luminance > 0.6 ? 'dark' : 'light';
+};
+
 const debugCreateUpload = (event: string, payload?: Record<string, unknown>) => {
   if (!__DEV__) return;
   const time = new Date().toISOString();
@@ -66,6 +76,7 @@ export const CreateScreen = () => {
   const { job, startUpload } = useUpload();
   const { t } = useTranslation();
   const themeColors = useThemeColors();
+  const styles = useMemo(() => getStyles(themeColors), [themeColors]);
   const UPLOAD_STAGE_HINT = getUploadStageHint(t);
   const publishAttemptRef = useRef(0);
   const lastProgressBucketRef = useRef<number>(-1);
@@ -344,7 +355,7 @@ export const CreateScreen = () => {
   if (loading) {
     return (
         <View style={styles.centerFull}>
-          <ActivityIndicator color={COLORS.accent} size="large" />
+          <ActivityIndicator color={themeColors.accent} size="large" />
         </View>
     );
   }
@@ -377,7 +388,7 @@ export const CreateScreen = () => {
   // ─────────────────────────────────────────────────────────────────────────
   return (
       <View style={styles.root}>
-        <StatusBar style="light" />
+        <StatusBar style={getStatusBarStyle(themeColors.bg)} />
         <ScrollView
             contentContainerStyle={{ paddingBottom: 120 }}
             showsVerticalScrollIndicator={false}
@@ -408,8 +419,8 @@ export const CreateScreen = () => {
             {job && job.stage !== 'idle' && (
                 <View style={[
                   styles.statusCard,
-                  job.stage === 'error'  && { borderColor: COLORS.error },
-                  job.stage === 'done'   && { borderColor: COLORS.success },
+                  job.stage === 'error'  && { borderColor: themeColors.error },
+                  job.stage === 'done'   && { borderColor: themeColors.success },
                 ]}>
                   <Text style={styles.statusTitle}>
                     {job.stage === 'done'  ? t('screens.create.uploadDoneTitle', '✓ Upload completed') :
@@ -455,7 +466,7 @@ export const CreateScreen = () => {
                             value={stageName}
                             onChangeText={setStageName}
                             placeholder={t('screens.create.stageNamePlaceholder', 'Your stage name')}
-                            placeholderTextColor={COLORS.glass35}
+                            placeholderTextColor={themeColors.glass35}
                         />
                         <Pressable
                             style={[styles.primaryBtn,
@@ -464,7 +475,7 @@ export const CreateScreen = () => {
                             disabled={registerLoading}
                         >
                           {registerLoading
-                              ? <ActivityIndicator color={COLORS.white} />
+                              ? <ActivityIndicator color={themeColors.white} />
                               : <Text style={styles.primaryBtnText}>{t('screens.create.registerArtistButton', 'Register Artist')}</Text>
                           }
                         </Pressable>
@@ -503,7 +514,7 @@ export const CreateScreen = () => {
                       value={title}
                       onChangeText={setTitle}
                         placeholder={t('screens.create.songTitlePlaceholder', 'Enter song title...')}
-                      placeholderTextColor={COLORS.glass35}
+                      placeholderTextColor={themeColors.glass35}
                       editable={!isUploadActive}
                   />
 
@@ -652,7 +663,7 @@ export const CreateScreen = () => {
                   <Text style={styles.fieldLabel}>
                     {t('labels.genre', 'Genre')}
                     {selectedGenreIds.length > 0 &&
-                        <Text style={{ color: COLORS.accent }}>
+                        <Text style={{ color: themeColors.accent }}>
                           {' '}({selectedGenreIds.length})
                         </Text>
                     }
@@ -698,7 +709,7 @@ export const CreateScreen = () => {
                     >
                       <View style={styles.publishBtnRow}>
                         {isUploadActive ? (
-                            <ActivityIndicator color={COLORS.white} size="small" />
+                            <ActivityIndicator color={themeColors.white} size="small" />
                         ) : null}
                         <Text style={styles.publishBtnText}>
                           {isUploadActive
@@ -733,29 +744,29 @@ export const CreateScreen = () => {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ColorScheme) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
   },
 
   centerFull: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
   },
   gateEmoji: { fontSize: 48, marginBottom: 16 },
   gateTitle: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
     marginBottom: 8,
   },
   gateSub: {
-    color: COLORS.glass50,
+    color: colors.glass50,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -767,13 +778,13 @@ const styles = StyleSheet.create({
   },
   heroEmoji: { fontSize: 52, marginBottom: 12 },
   heroTitle: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 28,
     fontWeight: '800',
     marginBottom: 6,
   },
   heroSub: {
-    color: COLORS.glass50,
+    color: colors.glass50,
     fontSize: 14,
     textAlign: 'center',
   },
@@ -785,24 +796,24 @@ const styles = StyleSheet.create({
 
   // ── Status card ──────────────────────────────────────────────────────────
   statusCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: COLORS.accentBorder25,
+    borderColor: colors.accentBorder25,
     padding: 16,
     gap: 6,
   },
   statusTitle: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },
   statusSong: {
-    color: COLORS.glass60,
+    color: colors.glass60,
     fontSize: 13,
   },
   statusHint: {
-    color: COLORS.glass40,
+    color: colors.glass40,
     fontSize: 12,
     lineHeight: 17,
   },
@@ -815,16 +826,16 @@ const styles = StyleSheet.create({
   progressTrack: {
     flex: 1,
     height: 4,
-    backgroundColor: COLORS.glass10,
+    backgroundColor: colors.glass10,
     borderRadius: 2,
   },
   progressFill: {
     height: 4,
-    backgroundColor: COLORS.accent,
+    backgroundColor: colors.accent,
     borderRadius: 2,
   },
   progressPct: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontSize: 12,
     fontWeight: '700',
     minWidth: 34,
@@ -833,27 +844,27 @@ const styles = StyleSheet.create({
 
   // ── Card ────────────────────────────────────────────────────────────────
   card: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: COLORS.glass10,
+    borderColor: colors.glass10,
     padding: 18,
     gap: 10,
   },
   cardTitle: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 18,
     fontWeight: '700',
   },
   cardDesc: {
-    color: COLORS.glass60,
+    color: colors.glass60,
     fontSize: 14,
     lineHeight: 20,
   },
 
   // ── Form fields ──────────────────────────────────────────────────────────
   fieldLabel: {
-    color: COLORS.glass40,
+    color: colors.glass40,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
@@ -862,27 +873,27 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: COLORS.glass15,
-    backgroundColor: COLORS.surfaceLow,
+    borderColor: colors.glass15,
+    backgroundColor: colors.surfaceLow,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 15,
   },
 
   // ── File picker ──────────────────────────────────────────────────────────
   filePicker: {
     borderWidth: 1.5,
-    borderColor: COLORS.glass15,
+    borderColor: colors.glass15,
     borderStyle: 'dashed',
     borderRadius: 12,
     overflow: 'hidden',
   },
   filePickerSelected: {
     borderStyle: 'solid',
-    borderColor: COLORS.accentBorder35,
-    backgroundColor: COLORS.accentFill20,
+    borderColor: colors.accentBorder35,
+    backgroundColor: colors.accentFill20,
   },
   filePickerEmpty: {
     alignItems: 'center',
@@ -890,18 +901,18 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   filePickerPlus: {
-    color: COLORS.glass35,
+    color: colors.glass35,
     fontSize: 28,
     lineHeight: 32,
     fontWeight: '300',
   },
   filePickerHint: {
-    color: COLORS.glass50,
+    color: colors.glass50,
     fontSize: 14,
     fontWeight: '600',
   },
   filePickerFormats: {
-    color: COLORS.glass25,
+    color: colors.glass25,
     fontSize: 11,
     letterSpacing: 0.5,
   },
@@ -915,17 +926,17 @@ const styles = StyleSheet.create({
   fileIcon: { fontSize: 24 },
   fileInfo: { flex: 1 },
   fileName: {
-    color: COLORS.white,
+    color: colors.white,
     fontSize: 14,
     fontWeight: '600',
   },
   fileSize: {
-    color: COLORS.glass45,
+    color: colors.glass45,
     fontSize: 12,
     marginTop: 2,
   },
   fileChange: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontSize: 13,
     fontWeight: '600',
   },
@@ -939,21 +950,21 @@ const styles = StyleSheet.create({
   genreChip: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: COLORS.glass20,
+    borderColor: colors.glass20,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    backgroundColor: COLORS.surfaceLow,
+    backgroundColor: colors.surfaceLow,
   },
   genreChipActive: {
-    borderColor: COLORS.accent,
-    backgroundColor: COLORS.accentFill20,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentFill20,
   },
   genreText: {
-    color: COLORS.glass70,
+    color: colors.glass70,
     fontSize: 13,
   },
   genreTextActive: {
-    color: COLORS.accent,
+    color: colors.accent,
     fontWeight: '600',
   },
 
@@ -977,12 +988,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   publishBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '800',
     fontSize: 16,
   },
   publishNote: {
-    color: COLORS.glass30,
+    color: colors.glass30,
     fontSize: 12,
     lineHeight: 17,
     textAlign: 'center',
@@ -1004,14 +1015,14 @@ const styles = StyleSheet.create({
 
   // ── Shared ───────────────────────────────────────────────────────────────
   primaryBtn: {
-    backgroundColor: COLORS.accentDim,
+    backgroundColor: colors.accentDim,
     borderRadius: 12,
     minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryBtnText: {
-    color: COLORS.white,
+    color: colors.white,
     fontWeight: '700',
     fontSize: 15,
   },

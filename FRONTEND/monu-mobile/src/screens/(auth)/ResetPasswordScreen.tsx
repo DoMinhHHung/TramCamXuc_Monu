@@ -140,7 +140,7 @@ export default function ResetPasswordScreen() {
                     {otp.map((digit, index) => (
                         <TextInput
                             key={index}
-                            ref={ref => (inputs.current[index] = ref)}
+                            ref={(ref) => { inputs.current[index] = ref; }}
                             style={[
                                 styles.cell,
                                 digit && styles.cellFilled,

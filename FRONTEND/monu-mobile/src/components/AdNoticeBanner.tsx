@@ -1,18 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { AdNotice } from '../context/PlayerContext';
 
 interface AdNoticeBannerProps {
   notice: AdNotice | null;
+  enabled?: boolean;
 }
 
 type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-export const AdNoticeBanner = ({ notice }: AdNoticeBannerProps) => {
+export const AdNoticeBanner = ({ notice, enabled = true }: AdNoticeBannerProps) => {
+  const insets = useSafeAreaInsets();
   const [isDismissed, setIsDismissed] = useState(false);
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const prevNoticeKeyRef = useRef<string | null>(null);
+  const autoHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentNoticeKey = useMemo(() => (
     notice ? `${notice.title}|${notice.message}|${notice.eventsRemaining}|${notice.secondsRemaining}` : null
   ), [notice]);
@@ -34,6 +38,18 @@ export const AdNoticeBanner = ({ notice }: AdNoticeBannerProps) => {
   }, [slideAnim]);
 
   useEffect(() => {
+    if (autoHideTimerRef.current) {
+      clearTimeout(autoHideTimerRef.current);
+      autoHideTimerRef.current = null;
+    }
+
+    if (!enabled) {
+      setIsDismissed(false);
+      closeNotice();
+      prevNoticeKeyRef.current = null;
+      return;
+    }
+
     if (!notice) {
       setIsDismissed(false);
       closeNotice();
@@ -48,16 +64,19 @@ export const AdNoticeBanner = ({ notice }: AdNoticeBannerProps) => {
 
     if (!isDismissed) {
       openNotice();
+      autoHideTimerRef.current = setTimeout(() => {
+        setIsDismissed(true);
+      }, 5000);
     } else {
       closeNotice();
     }
-  }, [notice, currentNoticeKey, isDismissed, openNotice, closeNotice]);
+  }, [enabled, notice, currentNoticeKey, isDismissed, openNotice, closeNotice]);
 
   const handleDismiss = useCallback(() => {
     setIsDismissed(true);
   }, []);
 
-  if (!notice || isDismissed) return null;
+  if (!enabled || !notice || isDismissed) return null;
 
   const noticeType: 'info' | 'warning' =
     notice.eventsRemaining <= 1 || notice.secondsRemaining <= 60 ? 'warning' : 'info';
@@ -77,6 +96,7 @@ export const AdNoticeBanner = ({ notice }: AdNoticeBannerProps) => {
     <Animated.View
       style={[
         styles.container,
+        { top: insets.top },
         {
           transform: [{ translateY: slideAnim }],
         },
