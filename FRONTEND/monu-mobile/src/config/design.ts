@@ -5,43 +5,44 @@
  * Import these constants instead of hard-coding magic numbers in screens.
  * ─────────────────────────────────────────────────────────────────────────────
  */
+import { moderateScale, scale } from '../utils/responsive';
 
 // ── Spacing ──────────────────────────────────────────────────────────────────
 /** Consistent spacing scale (px). Use SPACING.* everywhere instead of raw numbers. */
 export const SPACING = {
   /** 2px – hair-line gap */
-  xxs: 2,
+  xxs: scale(2),
   /** 4px – tight inline gap */
-  xs: 4,
+  xs: scale(4),
   /** 8px – default small gap */
-  sm: 8,
+  sm: scale(8),
   /** 12px – comfortable inner padding */
-  md: 12,
+  md: scale(12),
   /** 16px – standard section padding */
-  lg: 16,
+  lg: scale(16),
   /** 20px – screen-edge horizontal padding */
-  xl: 20,
+  xl: scale(20),
   /** 24px – hero / card internal padding */
-  xxl: 24,
+  xxl: scale(24),
   /** 32px – large section separator */
-  section: 32,
+  section: scale(32),
 } as const;
 
 // ── Border Radius ─────────────────────────────────────────────────────────────
 /** Unified border-radius scale. */
 export const RADIUS = {
   /** 6px – tiny pill / tag */
-  xs: 6,
+  xs: scale(6),
   /** 8px – small chip / badge */
-  sm: 8,
+  sm: scale(8),
   /** 12px – standard card corner */
-  md: 12,
+  md: scale(12),
   /** 16px – large card / modal */
-  lg: 16,
+  lg: scale(16),
   /** 20px – bottom sheet top corners */
-  xl: 20,
+  xl: scale(20),
   /** 24px – hero cards */
-  xxl: 24,
+  xxl: scale(24),
   /** 999 – full pill / circle */
   full: 999,
 } as const;
@@ -50,27 +51,27 @@ export const RADIUS = {
 /** Font-size scale. */
 export const FONT_SIZE = {
   /** 10px – badge / label tiny */
-  xxs: 10,
+  xxs: moderateScale(10),
   /** 11px – caption / supplemental info */
-  xs: 11,
+  xs: moderateScale(11),
   /** 12px – secondary text */
-  sm: 12,
+  sm: moderateScale(12),
   /** 13px – body small */
-  body_sm: 13,
+  body_sm: moderateScale(13),
   /** 14px – body default */
-  body: 14,
+  body: moderateScale(14),
   /** 15px – body medium */
-  body_md: 15,
+  body_md: moderateScale(15),
   /** 16px – card title / section heading */
-  md: 16,
+  md: moderateScale(16),
   /** 18px – modal title */
-  lg: 18,
+  lg: moderateScale(18),
   /** 20px – screen title */
-  xl: 20,
+  xl: moderateScale(20),
   /** 22px – hero value */
-  xxl: 22,
+  xxl: moderateScale(22),
   /** 28px – display title */
-  display: 28,
+  display: moderateScale(28),
 } as const;
 
 /** Font-weight helpers. */

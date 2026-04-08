@@ -14,6 +14,7 @@ import { COLORS, ColorScheme, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
+import { moderateScale, scale, verticalScale } from '../../utils/responsive';
 
 WebBrowser.maybeCompleteAuthSession();
 const GATEWAY_URL = 'https://phazelsound.oopsgolden.id.vn';
@@ -69,7 +70,7 @@ export const RegisterOptionsScreen = () => {
 
         <LinearGradient
           colors={[themeColors.gradNavy, themeColors.bg]}
-            style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
+            style={[styles.gradientTop, { paddingTop: insets.top + verticalScale(12) }]}
         >
           <BackButton onPress={() => navigation.navigate('Welcome')} />
 
@@ -82,7 +83,7 @@ export const RegisterOptionsScreen = () => {
           </View>
         </LinearGradient>
 
-        <View style={[styles.content, { paddingBottom: insets.bottom + 32 }]}>
+        <View style={[styles.content, { paddingBottom: insets.bottom + verticalScale(28) }]}>
           <Pressable
               style={styles.emailBtn}
               onPress={() => navigation.navigate('Register')}
@@ -124,20 +125,20 @@ export const RegisterOptionsScreen = () => {
 
 const createStyles = (colors: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  gradientTop: { paddingHorizontal: 24, paddingBottom: 32 },
-  heroText: { alignItems: 'center', marginTop: 40 },
-  heroEmoji: { fontSize: 48, marginBottom: 16 },
-  title: { color: colors.white, fontSize: 34, fontWeight: '800', marginBottom: 8 },
-  subtitle: { color: colors.glass50, fontSize: 16, textAlign: 'center', lineHeight: 24 },
-  content: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
-  emailBtn: { borderRadius: 999, overflow: 'hidden', marginBottom: 16 },
+  gradientTop: { paddingHorizontal: scale(24), paddingBottom: verticalScale(28) },
+  heroText: { alignItems: 'center', marginTop: verticalScale(34) },
+  heroEmoji: { fontSize: moderateScale(42), marginBottom: verticalScale(14) },
+  title: { color: colors.white, fontSize: moderateScale(30), fontWeight: '800', marginBottom: verticalScale(8) },
+  subtitle: { color: colors.glass50, fontSize: moderateScale(15), textAlign: 'center', lineHeight: verticalScale(22) },
+  content: { flex: 1, paddingHorizontal: scale(24), justifyContent: 'center' },
+  emailBtn: { borderRadius: 999, overflow: 'hidden', marginBottom: verticalScale(14) },
   emailBtnGradient: {
-    minHeight: 56,
+    minHeight: verticalScale(54),
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emailText: { color: colors.white, fontSize: 16, fontWeight: '800' },
-  footer: { alignItems: 'center', marginTop: 32 },
-  footerText: { color: colors.glass45, fontSize: 15 },
+  emailText: { color: colors.white, fontSize: moderateScale(15), fontWeight: '800' },
+  footer: { alignItems: 'center', marginTop: verticalScale(28) },
+  footerText: { color: colors.glass45, fontSize: moderateScale(14) },
   footerLink: { color: colors.accent, fontWeight: '700' },
 });
