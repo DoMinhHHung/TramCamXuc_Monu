@@ -1,28 +1,45 @@
 import { apiClient } from './api';
+import type { AxiosError } from 'axios';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface SubscriptionPlan {
+  /** UUID string */
   id: string;
   subsName: string;
-  subsDescription: string;
-  price: number;
+  /**
+   * Backend field is `description`. Keep optional for compatibility.
+   */
+  description?: string;
+  /**
+   * Some older callers used `subsDescription`. Keep optional.
+   */
+  subsDescription?: string;
+  /**
+   * Backend returns BigDecimal; runtime can be number or string depending on serializer.
+   */
+  price: number | string;
   durationDays: number;
   features: Record<string, any>;
-  status: 'ACTIVE' | 'INACTIVE';
-  createdAt: string;
-  updatedAt: string;
+  /**
+   * Backend uses `isActive: boolean` for plan visibility.
+   */
+  isActive?: boolean;
+  displayOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface UserSubscription {
   id: string;
   userId: string;
   plan: SubscriptionPlan;
-  status: 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'PENDING';
-  startedAt: string;
-  expiresAt: string;
-  createdAt: string;
-  updatedAt: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'PENDING' | 'SUSPENDED';
+  startedAt?: string;
+  expiresAt?: string;
+  autoRenew?: boolean;
+  cancelledAt?: string;
+  createdAt?: string;
 }
 
 export interface PaymentResponse {
@@ -40,6 +57,8 @@ export interface PurchaseSubscriptionRequest {
 export interface PaymentCancelRequest {
   cancellationReason?: string;
 }
+
+export type PaymentLinkInfo = unknown;
 
 // ─── Payment API ──────────────────────────────────────────────────────────────
 
@@ -73,6 +92,23 @@ export const getMySubscription = async (): Promise<UserSubscription> => {
 };
 
 /**
+ * Get my active subscription, or null if user has none.
+ *
+ * Backend (payment-service) returns 404 + code=2004 when no active subscription exists.
+ */
+export const getMySubscriptionOrNull = async (): Promise<UserSubscription | null> => {
+  try {
+    return await getMySubscription();
+  } catch (e) {
+    const err = e as AxiosError<any>;
+    const status = err.response?.status;
+    const code = err.response?.data?.code;
+    if (status === 404 || code === 2004) return null;
+    throw e;
+  }
+};
+
+/**
  * Get my subscription history
  * GET /subscriptions/my/history
  */
@@ -98,4 +134,15 @@ export const cancelPaymentLink = async (
   request?: PaymentCancelRequest
 ): Promise<void> => {
   await apiClient.put(`/payments/${orderCode}/cancel`, request ?? {});
+};
+
+/**
+ * Get payment link information by order code.
+ * GET /payments/{orderCode}
+ *
+ * Response shape depends on PayOS SDK. Treat as unknown and let callers interpret carefully.
+ */
+export const getPaymentInfo = async (orderCode: number): Promise<PaymentLinkInfo> => {
+  const response = await apiClient.get<PaymentLinkInfo>(`/payments/${orderCode}`);
+  return response.data;
 };

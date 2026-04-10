@@ -19,6 +19,12 @@ public class OutboundUserResponse {
     private String email;
     private String name;
 
+    private String givenName;
+    private String familyName;
+
+    private String firstName;
+    private String lastName;
+
     private String id;
 
     private String picture;

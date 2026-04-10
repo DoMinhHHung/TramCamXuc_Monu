@@ -12,6 +12,7 @@ import { useThemeColors } from '../config/colors';
 import { HorizontalRecommendationSkeleton } from './SkeletonLoader';
 import { ReasonBadge } from './ReasonBadge';
 import { FeedbackType, RecommendedSong } from '../services/recommendation';
+import { AppIcon } from '../config/appIcons';
 
 interface CardProps {
   item: RecommendedSong;
@@ -53,24 +54,26 @@ const SongCard = memo(({ item, isActive, onPress, onLongPress, onFeedback }: Car
             colors={[colors.gradPurple, colors.gradIndigo]}
             style={[styles.thumb, styles.thumbFallback]}
           >
-            <Text style={styles.thumbIcon}>🎵</Text>
+            <AppIcon name="musicNote" size={34} color={colors.glass70} />
           </LinearGradient>
         )}
         {isActive && (
           <View style={styles.activeOverlay}>
-            <Text style={styles.activeIcon}>▶</Text>
+            <AppIcon name="play" size={18} color={colors.text} />
           </View>
         )}
       </View>
 
       <View style={styles.info}>
-        <Text style={[styles.title, isActive && styles.titleActive]} numberOfLines={2}>
+        <Text style={[styles.title, isActive && styles.titleActive]} numberOfLines={1}>
           {item.title}
         </Text>
         <Text style={styles.artist} numberOfLines={1}>
           {item.primaryArtist?.stageName}
         </Text>
-        <ReasonBadge reasonType={item.reasonType} reason={item.reason} variant="full" />
+        <View style={styles.reasonWrap}>
+          <ReasonBadge reasonType={item.reasonType} reason={item.reason} variant="full" />
+        </View>
       </View>
 
       {onFeedback && (
@@ -79,7 +82,7 @@ const SongCard = memo(({ item, isActive, onPress, onLongPress, onFeedback }: Car
           onPress={() => onFeedback(item.songId, 'DISLIKE')}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={styles.dislikeBtnText}>✕</Text>
+          <AppIcon name="close" size={14} color={colors.textSecondary} />
         </Pressable>
       )}
     </Pressable>
@@ -146,6 +149,7 @@ const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.crea
   listContent: { paddingHorizontal: 20, gap: 10 },
   card: {
     width: CARD_WIDTH,
+    height: 220,
     backgroundColor: colors.surface,
     borderRadius: 14,
     overflow: 'hidden',
@@ -156,18 +160,17 @@ const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.crea
   thumbWrap: { position: 'relative' },
   thumb: { width: CARD_WIDTH, height: CARD_WIDTH, borderRadius: 0 },
   thumbFallback: { alignItems: 'center', justifyContent: 'center' },
-  thumbIcon: { fontSize: 36 },
   activeOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.scrim,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  activeIcon: { fontSize: 16, color: colors.text },
-  info: { padding: 10, gap: 4 },
+  info: { padding: 10, height: 72, justifyContent: 'space-between' },
   title: { color: colors.text, fontSize: 13, fontWeight: '700', lineHeight: 17 },
   titleActive: { color: colors.accent },
   artist: { color: colors.textSecondary, fontSize: 11 },
+  reasonWrap: { minHeight: 20, justifyContent: 'flex-end' },
   dislikeBtn: {
     position: 'absolute',
     top: 6,
@@ -179,7 +182,6 @@ const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.crea
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dislikeBtnText: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
   emptyWrap: {
     paddingHorizontal: 20,
     paddingVertical: 12,

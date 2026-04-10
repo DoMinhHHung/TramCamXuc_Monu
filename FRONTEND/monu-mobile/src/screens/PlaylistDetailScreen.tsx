@@ -22,6 +22,7 @@ import { AntDesign } from '@expo/vector-icons';
 import DraggableFlatList, { type RenderItemParams } from 'react-native-draggable-flatlist';
 
 import { COLORS, useThemeColors } from '../config/colors';
+import { useLayoutConstants } from '../config/layout';
 import { BackButton } from '../components/BackButton';
 import { RetryState } from '../components/RetryState';
 import { SectionSkeleton } from '../components/SkeletonLoader';
@@ -234,6 +235,7 @@ export const PlaylistDetailScreen = () => {
   const route      = useRoute<any>();
   const navigation = useNavigation<any>();
   const insets     = useSafeAreaInsets();
+  const layout = useLayoutConstants();
   const slug       = route.params?.slug as string;
   const fallbackName = route.params?.name as string | undefined;
 
@@ -400,21 +402,25 @@ export const PlaylistDetailScreen = () => {
   // ── Xoá bài ────────────────────────────────────────────────────────────────
   const handleRemoveSong = useCallback(async (song: PlaylistSong) => {
     if (!playlist?.id) return;
-    Alert.alert('Xoá khỏi playlist?', `"${song.title}" sẽ bị xoá.`, [
-      { text: t('common.cancel'), style: 'cancel' },
+    Alert.alert(
+      t('playlistDetails.removeFromPlaylistTitle', isVi ? 'Xoá khỏi playlist?' : 'Remove from playlist?'),
+      t('playlistDetails.removeFromPlaylistMessage', isVi ? `"${song.title}" sẽ bị xoá.` : `"${song.title}" will be removed.`).replace('{title}', song.title),
+      [
+        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
       {
-        text: t('common.delete'),
+        text: t('common.delete', 'Delete'),
         style: 'destructive',
         onPress: async () => {
           try {
             await removeSongFromPlaylist(playlist.id, song.songId);
             await loadPlaylist();
           } catch (err: any) {
-            Alert.alert(t('common.error'), err?.message);
+            Alert.alert(t('common.error', 'Error'), err?.message);
           }
         },
       },
-    ]);
+      ],
+    );
   }, [playlist, loadPlaylist]);
 
   // ── Styles phụ thuộc theme ─────────────────────────────────────────────────
@@ -427,7 +433,7 @@ export const PlaylistDetailScreen = () => {
         <DraggableFlatList
           data={playlist?.songs ?? []}
           keyExtractor={(item) => item.playlistSongId || item.songId}
-          contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 12, paddingTop: 8 }}
+          contentContainerStyle={{ paddingBottom: layout.tabBarHeight + layout.miniPlayerHeight + 16, paddingHorizontal: 12, paddingTop: 8 }}
           ListHeaderComponent={(
             <>
               <LinearGradient
@@ -448,7 +454,7 @@ export const PlaylistDetailScreen = () => {
                       hitSlop={8}
                     >
                       <Text style={screenStyles.addSongsBtnText}>
-                        + {isVi ? 'Thêm bài hát' : 'Add songs'}
+                        + {t('playlistDetails.addSongsCta', isVi ? 'Thêm bài hát' : 'Add songs')}
                       </Text>
                     </Pressable>
                   )}
@@ -554,7 +560,7 @@ export const PlaylistDetailScreen = () => {
           <KeyboardAvoidingView style={{ flex: 1, backgroundColor: themeColors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={[screenStyles.modalHeader, { paddingTop: insets.top + 10 }]}>
               <Text style={screenStyles.modalTitle}>
-                {isVi ? 'Thêm bài hát' : 'Add songs'}
+                {t('playlistDetails.addSongsTitle', isVi ? 'Thêm bài hát' : 'Add songs')}
               </Text>
               <Pressable
                 onPress={async () => {
@@ -565,7 +571,7 @@ export const PlaylistDetailScreen = () => {
                 style={screenStyles.modalDoneBtn}
               >
                 <Text style={screenStyles.modalDoneBtnText}>
-                  {isVi ? 'Xong' : 'Done'}
+                  {t('common.done', isVi ? 'Xong' : 'Done')}
                 </Text>
               </Pressable>
             </View>
@@ -574,7 +580,7 @@ export const PlaylistDetailScreen = () => {
               <TextInput
                 value={addQuery}
                 onChangeText={setAddQuery}
-                placeholder={isVi ? 'Tìm bài hát hoặc nghệ sĩ...' : 'Search songs or artists...'}
+                placeholder={t('playlistDetails.searchPlaceholder', isVi ? 'Tìm bài hát hoặc nghệ sĩ...' : 'Search songs or artists...')}
                 placeholderTextColor={themeColors.glass30}
                 style={screenStyles.modalSearchInput}
                 autoCorrect={false}

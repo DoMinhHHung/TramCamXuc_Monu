@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '../context/LocalizationContext';
+import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 
 import { COLORS } from '../config/colors';
 import { AudioQuality, RepeatMode, usePlayer } from '../context/PlayerContext';
@@ -15,7 +16,7 @@ import {
 } from '../services/music';
 import { getSongShareQr } from '../services/social';
 import { SongActionSheet } from './SongActionSheet';
-import { AppIcon } from './AppIcon';
+import { AppIcon } from '../config/appIcons';
 import { HeartButton } from './HeartButton';
 import { ReportReasonSheet } from './ReportReasonSheet';
 
@@ -27,7 +28,6 @@ const formatTime = (seconds: number): string => {
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
 };
-import { FontAwesome, Foundation, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
 const THUMB_RADIUS = 10;
 
@@ -39,9 +39,9 @@ const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
 ];
 
 const RepeatIcon = ({ mode }: { mode: RepeatMode }) => {
-    if (mode === 'one') return <MaterialIcons name="repeat-one" color="#fff" size={22} />;
-    if (mode === 'all') return <MaterialCommunityIcons name="repeat" color="#fff" size={22} />;
-    return <MaterialIcons name="repeat" color={COLORS.glass35} size={22} />;
+    if (mode === 'one') return <AppIcon name="repeatOne" color="#fff" size={22} />;
+    if (mode === 'all') return <AppIcon name="repeat" color="#fff" size={22} />;
+    return <AppIcon name="repeat" color={COLORS.glass35} size={22} />;
 };
 
 // ─── Lyric Viewer ──────────────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ const LyricViewer = React.memo(({ lyricData, loading, error, currentTimeMs, onSe
     if (error) {
         return (
             <View style={lyricStyles.center}>
-                <Text style={lyricStyles.noLyricIcon}>📝</Text>
+                <AppIcon name="emojiNotePad" size={48} color={COLORS.glass60} style={lyricStyles.noLyricIcon} />
                 <Text style={lyricStyles.noLyricText}>{error}</Text>
             </View>
         );
@@ -99,7 +99,7 @@ const LyricViewer = React.memo(({ lyricData, loading, error, currentTimeMs, onSe
     if (!lyricData || lines.length === 0) {
         return (
             <View style={lyricStyles.center}>
-                <Text style={lyricStyles.noLyricIcon}>🎵</Text>
+                <AppIcon name="emojiMusic" size={48} color={COLORS.glass60} style={lyricStyles.noLyricIcon} />
                 <Text style={lyricStyles.noLyricText}>Chưa có lời bài hát</Text>
             </View>
         );
@@ -164,7 +164,7 @@ const lyricStyles = StyleSheet.create({
     loadingText: {
         color: COLORS.glass50, fontSize: 14, marginTop: 12,
     },
-    noLyricIcon: { fontSize: 48, marginBottom: 12 },
+    noLyricIcon: { marginBottom: 12 },
     noLyricText: { color: COLORS.glass40, fontSize: 15, textAlign: 'center' },
     scrollView: { flex: 1 },
     scrollContent: { paddingHorizontal: 24 },
@@ -381,7 +381,7 @@ export const FullPlayerModal = () => {
                     {/* Header */}
                     <View style={styles.header}>
                         <Pressable onPress={() => setFullScreen(false)} hitSlop={12} style={styles.chevronBtn}>
-                            <AppIcon set="MaterialIcons" name="keyboard-arrow-down" size={28} color={COLORS.glass60} />
+                            <AppIcon name="chevronDown" size={28} color={COLORS.glass60} />
                         </Pressable>
 
                         {/* Page indicators */}
@@ -406,7 +406,7 @@ export const FullPlayerModal = () => {
                         )}
 
                         <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}>
-                            <Text style={styles.moreBtn}>⋯</Text>
+                            <AppIcon name="more" size={22} color={COLORS.white} />
                         </Pressable>
                     </View>
 
@@ -428,7 +428,7 @@ export const FullPlayerModal = () => {
                                 {currentSong.thumbnailUrl
                                     ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.artwork} />
                                     : <View style={[styles.artwork, styles.artworkPlaceholder]}>
-                                        <AppIcon set="MaterialIcons" name="music-note" size={64} color={COLORS.glass35} />
+                                        <AppIcon name="musicNote" size={64} color={COLORS.glass35} />
                                     </View>
                                 }
                             </View>
@@ -439,7 +439,7 @@ export const FullPlayerModal = () => {
                                 <View style={styles.songMetaRow}>
                                     <Text style={styles.artistName} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
                                     <View style={styles.heartWrap}>
-                                        <HeartButton songId={currentSong.id} size={20} />
+                                        <HeartButton songId={currentSong.id} size={24} variant="card" />
                                     </View>
                                 </View>
                                 {currentSong.genres?.length > 0 && (
@@ -481,29 +481,33 @@ export const FullPlayerModal = () => {
                             {/* Controls */}
                             <View style={styles.controls}>
                                 <Pressable style={styles.sideBtn} onPress={toggleShuffle} hitSlop={8}>
-                                    <Foundation
-                                        name="shuffle"
-                                        color={isShuffled ? COLORS.accent : COLORS.glass40}
-                                        size={22}
+                                    <AppIcon
+                                      name="shuffle"
+                                      color={isShuffled ? COLORS.accent : COLORS.glass40}
+                                      size={22}
                                     />
                                     {isShuffled && <View style={styles.modeDot} />}
                                 </Pressable>
 
+                                <Pressable style={styles.sideBtn} onPress={() => { stopPlayer(); }} hitSlop={8}>
+                                    <AppIcon name="stop" color={COLORS.glass80} size={22} />
+                                </Pressable>
+
                                 <Pressable style={styles.sideBtn} onPress={playPrev}>
-                                    <MaterialCommunityIcons name="skip-previous" color={COLORS.glass80} size={32} />
+                                    <AppIcon name="skipPrev" color={COLORS.glass80} size={32} />
                                 </Pressable>
 
                                 <Pressable style={styles.playBtn} onPress={togglePlay}>
                                     {!isLoaded
                                         ? <ActivityIndicator color={COLORS.bg} size="small" />
                                         : isPlaying
-                                            ? <AppIcon set="MaterialIcons" name="pause" size={32} color={COLORS.bg} />
-                                            : <AppIcon set="MaterialIcons" name="play-arrow" size={34} color={COLORS.bg} />
+                                            ? <AppIcon name="pause" size={32} color={COLORS.bg} />
+                                            : <AppIcon name="play" size={34} color={COLORS.bg} />
                                     }
                                 </Pressable>
 
                                 <Pressable style={styles.sideBtn} onPress={playNext}>
-                                    <MaterialCommunityIcons name="skip-next" color={COLORS.glass80} size={32} />
+                                    <AppIcon name="skipNext" color={COLORS.glass80} size={32} />
                                 </Pressable>
 
                                 <Pressable style={styles.sideBtn} onPress={cycleRepeatMode} hitSlop={8}>
@@ -515,13 +519,13 @@ export const FullPlayerModal = () => {
                             {/* Mode label */}
                             <View style={styles.modeLabels}>
                                 {isShuffled && (
-                                    <Text style={styles.modeLabelText}><Foundation name="shuffle" color="#34D399" size={13} /> Phát ngẫu nhiên</Text>
+                                    <Text style={styles.modeLabelText}><AppIcon name="shuffle" color="#34D399" size={13} /> Phát ngẫu nhiên</Text>
                                 )}
                                 {repeatMode === 'one' && (
-                                    <Text style={styles.modeLabelText}><MaterialIcons name="repeat-one" color="#fff" size={13} /> Lặp bài này</Text>
+                                    <Text style={styles.modeLabelText}><AppIcon name="repeatOne" color="#fff" size={13} /> Lặp bài này</Text>
                                 )}
                                 {repeatMode === 'all' && (
-                                    <Text style={styles.modeLabelText}><MaterialCommunityIcons name="repeat" color="#fff" size={13} /> Lặp danh sách</Text>
+                                    <Text style={styles.modeLabelText}><AppIcon name="repeat" color="#fff" size={13} /> Lặp danh sách</Text>
                                 )}
                             </View>
 
@@ -562,7 +566,7 @@ export const FullPlayerModal = () => {
                                                         isSelected   && styles.qualityBtnTextActive,
                                                         !isAvailable && styles.qualityBtnTextLocked,
                                                     ]}>
-                                                        {opt.label}{!isAvailable ? '🔒' : ''}
+                                                        {opt.label}
                                                     </Text>
                                                 </Pressable>
                                             );
@@ -583,13 +587,16 @@ export const FullPlayerModal = () => {
                             {/* Lyric hint */}
                             {showLyricsTab && activePage === 0 && (
                                 <Pressable style={styles.lyricHint} onPress={() => goToPage(1)}>
-                                    <Text style={styles.lyricHintText}>📝 Vuốt sang phải để xem lời nhạc</Text>
+                                    <Text style={styles.lyricHintText}>
+                                      <AppIcon name="emojiNotePad" size={13} color={COLORS.glass25} />{' '}
+                                      Vuốt sang phải để xem lời nhạc
+                                    </Text>
                                 </Pressable>
                             )}
 
                             {/* Stats */}
                             <View style={styles.stats}>
-                                <AppIcon set="MaterialIcons" name="headset" size={14} color={COLORS.glass30} />
+                                <AppIcon name="headset" size={14} color={COLORS.glass30} />
                                 <Text style={styles.statsText}>
                                     {'  '}{currentSong.playCount?.toLocaleString('vi-VN') ?? 0} lượt nghe
                                 </Text>
@@ -622,7 +629,7 @@ export const FullPlayerModal = () => {
                                     {currentSong.thumbnailUrl
                                         ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.lyricMiniArt} />
                                         : <View style={[styles.lyricMiniArt, { backgroundColor: COLORS.accentFill20 }]}>
-                                            <Text style={{ fontSize: 14 }}>🎵</Text>
+                                            <AppIcon name="emojiMusic" size={14} color={COLORS.white} />
                                         </View>
                                     }
                                     <View style={{ flex: 1 }}>
@@ -631,8 +638,8 @@ export const FullPlayerModal = () => {
                                     </View>
                                     <Pressable onPress={togglePlay} hitSlop={8}>
                                         {isPlaying
-                                            ? <AppIcon set="MaterialIcons" name="pause" size={24} color={COLORS.white} />
-                                            : <AppIcon set="MaterialIcons" name="play-arrow" size={24} color={COLORS.white} />
+                                            ? <AppIcon name="pause" size={24} color={COLORS.white} />
+                                            : <AppIcon name="play" size={24} color={COLORS.white} />
                                         }
                                     </Pressable>
                                 </View>
@@ -665,7 +672,7 @@ export const FullPlayerModal = () => {
                         onClose={() => setMenuOpen(false)}
                         actions={[
                             {
-                                icon: '↗',
+                                icon: <AppIcon name="share" size={20} color={COLORS.white} />,
                                 label: 'Chia sẻ qua QR',
                                 onPress: async () => {
                                     const qr = await getSongShareQr(currentSong.id);
@@ -673,7 +680,7 @@ export const FullPlayerModal = () => {
                                 },
                             },
                             ...(!isSoundCloudTrack ? [{
-                                icon: '➕',
+                                icon: <AppIcon name="addToPlaylist" size={20} color={COLORS.white} />,
                                 label: 'Thêm vào playlist',
                                 onPress: () => openPlaylistPicker(),
                             }] : []),
@@ -687,11 +694,17 @@ export const FullPlayerModal = () => {
                                 },
                             }] : []),
                             {
-                                icon: '🚩',
+                                icon: <AppIcon name="report" size={20} color={COLORS.error} />,
                                 label: 'Báo cáo bài hát',
                                 destructive: true,
                                 separator: true,
                                 onPress: openReportReasonPicker,
+                            },
+                            {
+                                icon: <AppIcon name="stop" size={20} color={COLORS.white} />,
+                                label: 'Dừng phát',
+                                destructive: true,
+                                onPress: () => stopPlayer(),
                             },
                         ]}
                     />
@@ -729,7 +742,7 @@ export const FullPlayerModal = () => {
                                     style={styles.playlistInput}
                                     value={newPlaylistName}
                                     onChangeText={setNewPlaylistName}
-                                    placeholder="Tạo playlist mới"
+                                    placeholder="Tạo danh sách phát mới"
                                     placeholderTextColor={COLORS.glass45}
                                 />
                                 <Pressable onPress={async () => {

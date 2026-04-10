@@ -16,6 +16,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
+import { useLayoutConstants } from '../../config/layout';
 import { useAuth } from '../../context/AuthContext';
 import { useUpload, UploadStage } from '../../context/UploadContext';
 import { useTranslation } from '../../context/LocalizationContext';
@@ -72,6 +73,7 @@ const debugCreateUpload = (event: string, payload?: Record<string, unknown>) => 
 
 export const CreateScreen = () => {
   const insets     = useSafeAreaInsets();
+  const layout = useLayoutConstants();
   const { authSession } = useAuth();
   const { job, startUpload } = useUpload();
   const { t } = useTranslation();
@@ -148,7 +150,8 @@ export const CreateScreen = () => {
       setHasActiveSub(
           subRes.status === 'fulfilled' &&
           subRes.value?.status === 'ACTIVE' &&
-          new Date(subRes.value.expiresAt).getTime() > Date.now()
+          Boolean(subRes.value.expiresAt) &&
+          new Date(subRes.value.expiresAt as string).getTime() > Date.now()
       );
       setGenres(
           genreRes.status === 'fulfilled'
@@ -390,7 +393,7 @@ export const CreateScreen = () => {
       <View style={styles.root}>
         <StatusBar style={getStatusBarStyle(themeColors.bg)} />
         <ScrollView
-            contentContainerStyle={{ paddingBottom: 120 }}
+            contentContainerStyle={{ paddingBottom: layout.tabBarHeight + layout.miniPlayerHeight + 16 }}
             showsVerticalScrollIndicator={false}
         >
           {/* ── Hero header ──────────────────────────────────────────── */}

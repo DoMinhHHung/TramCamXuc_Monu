@@ -223,18 +223,31 @@ public class AuthServiceImpl implements AuthService {
         if (info.getEmail() == null || info.getEmail().isBlank())
             throw new AppException(ErrorCode.EMAIL_IS_REQUIRED);
 
-        User user = userRepository.findByEmail(info.getEmail()).orElseGet(() ->
-                userRepository.save(User.builder()
-                        .email(info.getEmail())
-                        .password(passwordEncoder.encode(generatePassword()))
-                        .role(Role.USER)
-                        .status(AccountStatus.ACTIVE)
-                        .provider(request.getProvider())
-                        .providerId(info.getId())
-                        .fullName(info.getName())
-                        .avatarUrl(info.getPicture())
-                        .build())
-        );
+        String displayName = resolveOAuthDisplayName(info);
+
+        User user = userRepository.findByEmail(info.getEmail()).orElse(null);
+        if (user == null) {
+            user = userRepository.save(User.builder()
+                    .email(info.getEmail())
+                    .password(passwordEncoder.encode(generatePassword()))
+                    .role(Role.USER)
+                    .status(AccountStatus.ACTIVE)
+                    .provider(request.getProvider())
+                    .providerId(info.getId())
+                    .fullName(displayName)
+                    .avatarUrl(info.getPicture())
+                    .build());
+        } else if (shouldRefreshOAuthFullName(user, displayName)) {
+            user.setFullName(displayName);
+            if (info.getPicture() != null && !info.getPicture().isBlank()) {
+                user.setAvatarUrl(info.getPicture());
+            }
+            user.setProvider(request.getProvider());
+            if (info.getId() != null && !info.getId().isBlank()) {
+                user.setProviderId(info.getId());
+            }
+            userRepository.save(user);
+        }
 
         return buildTokenResponse(user);
     }
@@ -266,6 +279,61 @@ public class AuthServiceImpl implements AuthService {
     // ────────────────────────────────────────────────────────────
     // PRIVATE HELPERS
     // ────────────────────────────────────────────────────────────
+
+    /**
+     * Display name for Google/Facebook: use provider "name" parts only, never the email address.
+     */
+    private String resolveOAuthDisplayName(OutboundUserResponse info) {
+        String email = info.getEmail() != null ? info.getEmail().trim() : "";
+
+        String primary = trimToNull(info.getName());
+        if (isUsableDisplayName(primary, email)) {
+            return primary;
+        }
+
+        String fromGoogle = joinNameParts(info.getGivenName(), info.getFamilyName());
+        if (isUsableDisplayName(fromGoogle, email)) {
+            return fromGoogle;
+        }
+
+        String fromFacebook = joinNameParts(info.getFirstName(), info.getLastName());
+        if (isUsableDisplayName(fromFacebook, email)) {
+            return fromFacebook;
+        }
+
+        return "User";
+    }
+
+    private static String trimToNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
+
+    private static String joinNameParts(String a, String b) {
+        String x = trimToNull(a);
+        String y = trimToNull(b);
+        if (x == null && y == null) return null;
+        if (x == null) return y;
+        if (y == null) return x;
+        return x + " " + y;
+    }
+
+    private static boolean isUsableDisplayName(String candidate, String email) {
+        if (candidate == null || candidate.isEmpty()) return false;
+        if (email.isEmpty()) return true;
+        return !candidate.equalsIgnoreCase(email);
+    }
+
+    /** Fix accounts where full_name was mistakenly set to the email; refresh from latest OAuth profile. */
+    private boolean shouldRefreshOAuthFullName(User user, String displayName) {
+        if (displayName == null || displayName.isBlank()) return false;
+        String current = user.getFullName();
+        if (current == null || current.isBlank()) return true;
+        String email = user.getEmail();
+        if (email != null && current.trim().equalsIgnoreCase(email.trim())) return true;
+        return false;
+    }
 
     private AuthenticationResponse buildTokenResponse(User user) {
         String accessToken  = generateToken(user, validDuration);

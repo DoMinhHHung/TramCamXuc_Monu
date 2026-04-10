@@ -3,9 +3,10 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { NavigationContainer, LinkingOptions, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { MaterialIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS }                 from '../config/colors';
+import { AppIcon, AppIconName }   from '../config/appIcons';
 import { useAuth }                from '../context/AuthContext';
 import { usePlayer }              from '../context/PlayerContext';
 import { UploadProvider }         from '../context/UploadContext';
@@ -105,12 +106,12 @@ export type MainTabParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab   = createBottomTabNavigator<MainTabParamList>();
 
-const tabMeta: Record<keyof MainTabParamList, { label: string; icon: string }> = {
-    Home:     { label: 'Trang chủ', icon: 'home'          },
-    Discover: { label: 'Khám phá',  icon: 'explore'       },
-    Create:   { label: 'Tạo',       icon: 'add'           },
-    Library:  { label: 'Thư viện',  icon: 'library-music' },
-    Premium:  { label: 'Premium',   icon: 'redeem'        },
+const tabMeta: Record<keyof MainTabParamList, { label: string; icon: AppIconName }> = {
+    Home:     { label: 'Trang chủ', icon: 'home'     },
+    Discover: { label: 'Khám phá',  icon: 'discover' },
+    Create:   { label: 'Tạo',       icon: 'create'   },
+    Library:  { label: 'Thư viện',  icon: 'library'  },
+    Premium:  { label: 'Premium',   icon: 'premium'  },
 };
 
 const linking: LinkingOptions<any> = {
@@ -118,44 +119,50 @@ const linking: LinkingOptions<any> = {
     config: { screens: { MainTabs: 'home' } },
 };
 
-const MainTabNavigator = () => (
-    <Tab.Navigator
-        screenOptions={({ route }: any) => {
-            const meta     = tabMeta[route.name as keyof MainTabParamList];
-            const isCreate = route.name === 'Create';
-            return {
-                headerShown: false,
-                tabBarLabel: meta.label,
-                tabBarStyle: {
-                    backgroundColor: COLORS.surface,
-                    borderTopColor:  COLORS.border,
-                    height:      78,
-                    paddingBottom: 8,
-                    paddingTop:    8,
-                },
-                tabBarActiveTintColor:   COLORS.text,
-                tabBarInactiveTintColor: COLORS.muted,
-                tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-                    <View style={[styles.tabIconWrap, isCreate && styles.createIconWrap]}>
-                        <AnimatedDecorIcon active={focused} intensity="medium">
-                            <MaterialIcons
-                                name={meta.icon as any}
-                                size={isCreate ? 20 : 18}
-                                color={isCreate ? COLORS.white : color}
-                            />
-                        </AnimatedDecorIcon>
-                    </View>
-                ),
-            };
-        }}
-    >
-        <Tab.Screen name="Home"     component={HomeScreen}     />
-        <Tab.Screen name="Discover" component={DiscoverScreen} />
-        <Tab.Screen name="Create"   component={CreateScreen}   />
-        <Tab.Screen name="Library"  component={LibraryScreen}  />
-        <Tab.Screen name="Premium"  component={PremiumScreen}  />
-    </Tab.Navigator>
-);
+const MainTabNavigator = () => {
+    const insets = useSafeAreaInsets();
+    const TAB_BAR_BASE = 58;
+    const tabBarHeight = TAB_BAR_BASE + insets.bottom;
+
+    return (
+        <Tab.Navigator
+            screenOptions={({ route }: any) => {
+                const meta     = tabMeta[route.name as keyof MainTabParamList];
+                const isCreate = route.name === 'Create';
+                return {
+                    headerShown: false,
+                    tabBarLabel: meta.label,
+                    tabBarStyle: {
+                        backgroundColor: COLORS.surface,
+                        borderTopColor:  COLORS.border,
+                        height: tabBarHeight,
+                        paddingBottom: Math.max(8, insets.bottom),
+                        paddingTop: 8,
+                    },
+                    tabBarActiveTintColor:   COLORS.text,
+                    tabBarInactiveTintColor: COLORS.muted,
+                    tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+                        <View style={[styles.tabIconWrap, isCreate && styles.createIconWrap]}>
+                            <AnimatedDecorIcon active={focused} intensity="medium">
+                                <AppIcon
+                                  name={meta.icon}
+                                  size={isCreate ? 20 : 18}
+                                  color={isCreate ? COLORS.white : color}
+                                />
+                            </AnimatedDecorIcon>
+                        </View>
+                    ),
+                };
+            }}
+        >
+            <Tab.Screen name="Home"     component={HomeScreen}     />
+            <Tab.Screen name="Discover" component={DiscoverScreen} />
+            <Tab.Screen name="Create"   component={CreateScreen}   />
+            <Tab.Screen name="Library"  component={LibraryScreen}  />
+            <Tab.Screen name="Premium"  component={PremiumScreen}  />
+        </Tab.Navigator>
+    );
+};
 
 const GlobalOverlays = ({ routeName }: { routeName: string | null }) => {
     const { pendingAd, dismissAd, currentSong, adNotice } = usePlayer();

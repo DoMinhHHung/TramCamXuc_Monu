@@ -41,7 +41,7 @@ public class IdentityClient {
     public OutboundUserResponse getUserInfoFromFacebook(String token) {
         try {
             return restClient.get()
-                    .uri("https://graph.facebook.com/me?access_token={token}&fields=id,email,name,picture.width(640).height(640)", token)
+                    .uri("https://graph.facebook.com/me?access_token={token}&fields=id,email,name,first_name,last_name,picture.width(640).height(640)", token)
                     .retrieve()
                     .body(OutboundUserResponse.class);
         } catch (Exception e) {

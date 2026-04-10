@@ -646,6 +646,7 @@
     "subscribe": "Subscribe Now",
     "currentPlan": "Current Plan",
     "inAppTitle": "In-app payment",
+    "checking": "Checking payment...",
     "pendingLabel": "Pending",
     "remainingPrefix": "Remaining",
     "transferContent": "Transfer content",
@@ -703,7 +704,12 @@
     "lastUpdated": "Last updated",
     "curated": "Curated",
     "playlistEmpty": "This playlist is empty",
-    "addSongsToGetStarted": "Add songs to get started"
+    "addSongsToGetStarted": "Add songs to get started",
+    "addSongsTitle": "Add songs",
+    "addSongsCta": "Add songs",
+    "searchPlaceholder": "Search songs or artists...",
+    "removeFromPlaylistTitle": "Remove from playlist?",
+    "removeFromPlaylistMessage": "\"{title}\" will be removed."
   },
   "albumDetails": {
     "songs": "songs",

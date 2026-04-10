@@ -1,20 +1,24 @@
 import React from 'react';
-import { Pressable, Text } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { useAuth } from '../context/AuthContext';
 import { useHeartCache } from '../context/HeartCacheContext';
 import { heartSong, unheartSong } from '../services/social';
 import { haptic } from '../utils/haptics';
+import { useThemeColors } from '../config/colors';
+import { AppIcon } from '../config/appIcons';
 
 interface HeartButtonProps {
     songId: string;
     size?: number;
     onToggle?: (hearted: boolean) => void;
+    variant?: 'plain' | 'card';
 }
 
-export const HeartButton = ({ songId, size = 22, onToggle }: HeartButtonProps) => {
+export const HeartButton = ({ songId, size = 24, onToggle, variant = 'plain' }: HeartButtonProps) => {
     const { authSession } = useAuth();
     const { isHearted, setHearted } = useHeartCache();
+    const colors = useThemeColors();
 
     const hearted = isHearted(songId);
 
@@ -42,11 +46,44 @@ export const HeartButton = ({ songId, size = 22, onToggle }: HeartButtonProps) =
     return (
         <Pressable
             onPress={handlePress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            style={[
+              styles.base,
+              variant === 'card' && [
+                styles.card,
+                {
+                  backgroundColor: colors.glass08,
+                  borderColor: hearted ? 'rgba(255,64,129,0.3)' : colors.glass12,
+                },
+              ],
+            ]}
         >
-            <Text style={{ fontSize: size, color: hearted ? '#ff4081' : 'rgba(255,255,255,0.4)' }}>
-                {hearted ? '♥' : '♡'}
-            </Text>
+            <View style={styles.iconWrap}>
+              <AppIcon
+                name={hearted ? 'heartFilled' : 'heartOutline'}
+                size={size}
+                color={hearted ? '#ff4081' : colors.glass40}
+              />
+            </View>
         </Pressable>
     );
 };
+
+const styles = StyleSheet.create({
+  base: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: {
+    borderWidth: 1,
+  },
+  iconWrap: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

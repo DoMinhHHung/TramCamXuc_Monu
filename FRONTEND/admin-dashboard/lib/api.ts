@@ -21,7 +21,6 @@ export class ApiError extends Error {
 }
 
 export interface ApiFetchInit extends RequestInit {
-    /** Client-side cache TTL (ms). Only applies to GET requests with empty body. */
     ttlMs?: number;
 }
 

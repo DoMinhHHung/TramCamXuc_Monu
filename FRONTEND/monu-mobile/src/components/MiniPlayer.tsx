@@ -7,10 +7,10 @@ import { haptic } from '../utils/haptics';
 import { usePlayer } from '../context/PlayerContext';
 import { useThemeColors, ColorScheme } from '../config/colors';
 import { Fold } from 'react-native-animated-spinkit';
-import { AppIcon } from './AppIcon';
+import { AppIcon } from '../config/appIcons';
 import { RADIUS, SHADOW } from '../config/design';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const TAB_BAR_HEIGHT  = 78;
 const MINI_HEIGHT     = 64;
 const SWIPE_THRESHOLD = 60;
 
@@ -21,6 +21,10 @@ export const MiniPlayer = () => {
         togglePlay, playNext, setFullScreen, stopPlayer,
         repeatMode, isShuffled,
     } = usePlayer();
+
+    const insets = useSafeAreaInsets();
+    const TAB_BAR_BASE = 58;
+    const tabBarHeight = TAB_BAR_BASE + insets.bottom;
 
     const themeColors = useThemeColors();
     const styles = useMemo(() => getStyles(themeColors), [themeColors]);
@@ -55,7 +59,7 @@ export const MiniPlayer = () => {
                     Animated.parallel([
                         swipedLeft
                             ? Animated.timing(translateX, { toValue: -500, duration: 220, useNativeDriver: true })
-                            : Animated.timing(translateY, { toValue: MINI_HEIGHT + TAB_BAR_HEIGHT + 40, duration: 200, useNativeDriver: true }),
+                            : Animated.timing(translateY, { toValue: MINI_HEIGHT + tabBarHeight + 40, duration: 200, useNativeDriver: true }),
                         Animated.timing(dragOpacity, { toValue: 0.2, duration: 180, useNativeDriver: true }),
                     ]).start(() => {
                         translateY.setValue(0);
@@ -86,7 +90,11 @@ export const MiniPlayer = () => {
 
     return (
         <Animated.View
-            style={[styles.container, { opacity: dragOpacity, transform: [{ translateY }, { translateX }] }]}
+            style={[
+                styles.container,
+                { bottom: tabBarHeight },
+                { opacity: dragOpacity, transform: [{ translateY }, { translateX }] },
+            ]}
             {...panResponder.panHandlers}
         >
             {/* Progress bar */}
@@ -102,7 +110,7 @@ export const MiniPlayer = () => {
                 {currentSong.thumbnailUrl
                     ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.thumbnail} />
                     : <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
-                        <AppIcon set="MaterialIcons" name="music-note" size={20} color={themeColors.muted} />
+                        <AppIcon name="musicNote" size={20} color={themeColors.muted} />
                     </View>
                 }
 
@@ -112,13 +120,13 @@ export const MiniPlayer = () => {
                     <View style={styles.metaRow}>
                         <Text style={styles.artist} numberOfLines={1}>{currentSong.primaryArtist?.stageName ?? ''}</Text>
                         {isShuffled && (
-                            <AppIcon set="MaterialIcons" name="shuffle" size={11} color={themeColors.accent} />
+                            <AppIcon name="shuffle" size={11} color={themeColors.accent} />
                         )}
                         {repeatMode === 'one' && (
-                            <AppIcon set="MaterialIcons" name="repeat-one" size={11} color={themeColors.accent} />
+                            <AppIcon name="repeatOne" size={11} color={themeColors.accent} />
                         )}
                         {repeatMode === 'all' && (
-                            <AppIcon set="MaterialCommunityIcons" name="repeat" size={11} color={themeColors.accent} />
+                            <AppIcon name="repeat" size={11} color={themeColors.accent} />
                         )}
                     </View>
                 </View>
@@ -136,13 +144,25 @@ export const MiniPlayer = () => {
                         {!isLoaded ? (
                             <Fold size={20} color={themeColors.muted} />
                         ) : isPlaying ? (
-                            <AppIcon set="MaterialIcons" name="pause" size={26} color={themeColors.text} />
+                            <AppIcon name="pause" size={26} color={themeColors.text} />
                         ) : (
-                            <AppIcon set="MaterialIcons" name="play-arrow" size={28} color={themeColors.text} />
+                            <AppIcon name="play" size={28} color={themeColors.text} />
                         )}
                     </Pressable>
                     <Pressable style={styles.iconBtn} hitSlop={12} onPress={e => { e.stopPropagation(); playNext(); }}>
-                        <AppIcon set="MaterialIcons" name="skip-next" size={24} color={themeColors.text} />
+                        <AppIcon name="skipNext" size={24} color={themeColors.text} />
+                    </Pressable>
+
+                    <Pressable
+                        style={styles.stopBtn}
+                        hitSlop={12}
+                        onPress={(e) => {
+                            e.stopPropagation();
+                            haptic.medium();
+                            stopPlayer();
+                        }}
+                    >
+                        <AppIcon name="close" size={18} color={themeColors.muted} />
                     </Pressable>
                 </View>
             </Pressable>
@@ -155,7 +175,7 @@ export const MiniPlayer = () => {
 
 const getStyles = (colors: ColorScheme) => StyleSheet.create({
     container: {
-        position: 'absolute', bottom: TAB_BAR_HEIGHT, left: 8, right: 8,
+        position: 'absolute', left: 8, right: 8,
         height: MINI_HEIGHT,
         backgroundColor: colors.surface,
         borderRadius: RADIUS.lg,
@@ -175,5 +195,16 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     artist:               { color: colors.muted,  fontSize: 11, fontWeight: '400' },
     controls:             { flexDirection: 'row', alignItems: 'center', gap: 2 },
     iconBtn:              { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+    stopBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: colors.glass08,
+        borderWidth: 1,
+        borderColor: colors.glass12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 4,
+    },
     swipeHandle:          {position: 'absolute', top: 6, alignSelf: 'center',width: 36, height: 4, borderRadius: 2,backgroundColor: colors.glass35,   },
 });

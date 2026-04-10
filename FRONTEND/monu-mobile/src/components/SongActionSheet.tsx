@@ -16,13 +16,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeColors } from '../config/colors';
-import { MUSIC_EMOJIS } from '../config/emojis';
+import { AppIcon } from '../config/appIcons';
+import { useTranslation } from '../context/LocalizationContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface SheetAction {
-  /** Emoji hoặc ký tự icon */
-  icon: string | React.ReactNode;
+  /** Icon node (prefer AppIcon from src/config/appIcons.ts) */
+  icon: React.ReactNode;
   label: string;
   sublabel?: string;
   onPress: () => void | Promise<void>;
@@ -42,8 +43,6 @@ interface SongActionSheetProps {
   subtitle?: string;
   /** URL thumbnail để hiện ảnh thay vì emoji */
   thumbnailUrl?: string;
-  /** Emoji fallback khi không có thumbnailUrl */
-  thumbnailEmoji?: string;
   onClose: () => void;
   actions: SheetAction[];
 }
@@ -55,10 +54,10 @@ export const SongActionSheet = ({
   title,
   subtitle,
   thumbnailUrl,
-  thumbnailEmoji = MUSIC_EMOJIS.song,
   onClose,
   actions,
 }: SongActionSheetProps) => {
+  const { t } = useTranslation();
   const colors = useThemeColors();
   const styles = useMemo(() => getStyles(colors), [colors]);
   const safeActions = Array.isArray(actions) ? actions : [];
@@ -67,11 +66,7 @@ export const SongActionSheet = ({
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const isClosing = useRef(false);
 
-  const renderActionIcon = useCallback((icon: string | React.ReactNode) => {
-    if (typeof icon === 'string') {
-      return <Text style={styles.iconText}>{icon}</Text>;
-    }
-
+  const renderActionIcon = useCallback((icon: React.ReactNode) => {
     return <View style={styles.iconNodeWrap}>{icon}</View>;
   }, [styles.iconNodeWrap]);
 
@@ -180,7 +175,7 @@ export const SongActionSheet = ({
                         />
                     ) : (
                         <View style={styles.thumbPlaceholder}>
-                          <Text style={styles.thumbEmoji}>{thumbnailEmoji}</Text>
+                          <AppIcon name="musicNote" size={22} color={colors.textSecondary} />
                         </View>
                     )}
                   </View>
@@ -258,7 +253,10 @@ export const SongActionSheet = ({
                           action.disabled && { opacity: 0.3 },
                         ]}
                     >
-                      {action.disabled ? '🔒' : '›'}
+                      {action.disabled
+                        ? <AppIcon name="lock" size={16} color={colors.muted} />
+                        : <AppIcon name="chevronRight" size={20} color={colors.muted} />
+                      }
                     </Text>
                   </Pressable>
                 </React.Fragment>
@@ -274,7 +272,7 @@ export const SongActionSheet = ({
                 ]}
                 onPress={handleClose}
             >
-              <Text style={styles.cancelText}>Đóng</Text>
+              <Text style={styles.cancelText}>{t('common.close', 'Close')}</Text>
             </Pressable>
           </View>
         </Animated.View>
@@ -312,7 +310,6 @@ const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.crea
     borderWidth: 1, borderColor: colors.accentBorder25,
     alignItems: 'center', justifyContent: 'center',
   },
-  thumbEmoji: { fontSize: 26 },
   headerText: { flex: 1 },
   headerTitle: { color: colors.text, fontSize: 16, fontWeight: '700', lineHeight: 21, marginBottom: 3 },
   headerSub: { color: colors.muted, fontSize: 13 },
@@ -326,7 +323,6 @@ const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.crea
   iconWrapDestructive: { backgroundColor: `${colors.error}20` },
   iconWrapDisabled: { backgroundColor: colors.surfaceLow },
   iconNodeWrap: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
-  iconText: { fontSize: 20, lineHeight: 22, textAlign: 'center' },
   labelWrap: { flex: 1 },
   actionLabel: { color: colors.text, fontSize: 15, fontWeight: '500' },
   actionLabelDestructive: { color: colors.error },

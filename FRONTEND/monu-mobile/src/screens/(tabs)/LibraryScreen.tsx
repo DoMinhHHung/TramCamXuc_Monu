@@ -24,6 +24,7 @@ import { Fontisto, AntDesign, FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
+import { useLayoutConstants } from '../../config/layout';
 import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
 import { usePlayer } from '../../context/PlayerContext';
@@ -1330,6 +1331,7 @@ const getAlbumDetailStyles = (c: ColorScheme) => StyleSheet.create({
 
 export const LibraryScreen = () => {
   const insets = useSafeAreaInsets();
+  const layout = useLayoutConstants();
   const navigation = useNavigation<any>();
   const { authSession } = useAuth();
   const { t } = useTranslation();
@@ -1382,7 +1384,7 @@ export const LibraryScreen = () => {
   useFocusEffect(useCallback(() => {
     const mode: 'initial' | 'silent' = libraryFocusPassRef.current > 0 ? 'silent' : 'initial';
     libraryFocusPassRef.current += 1;
-    void load(mode, { skipIfFresh: mode !== 'refresh' });
+    void load(mode, { skipIfFresh: mode === 'silent' });
     return undefined;
   }, [authSession?.tokens.accessToken]));
 
@@ -1422,7 +1424,6 @@ export const LibraryScreen = () => {
       const age = Date.now() - cacheUpdatedAt;
       if (age < LIBRARY_STALE_MS) {
         setLoading(false);
-        if (mode === 'refresh') setRefreshing(false);
         return;
       }
     }
@@ -1450,7 +1451,10 @@ export const LibraryScreen = () => {
       let nextCanCreateAlbumByPlan = false;
       if (subRes.status === 'fulfilled') {
         const sub = subRes.value;
-        const active = sub?.status === 'ACTIVE' && new Date(sub.expiresAt).getTime() > Date.now();
+        const active =
+            sub?.status === 'ACTIVE' &&
+            Boolean(sub.expiresAt) &&
+            new Date(sub.expiresAt as string).getTime() > Date.now();
         const features = sub?.plan?.features ?? {};
         const hasAlbumFeature = Boolean(features.create_album ?? features.can_become_artist);
         nextHasActiveSub = active;
@@ -1907,7 +1911,7 @@ export const LibraryScreen = () => {
             tintColor={themeColors.accent}
           />
         }
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: layout.tabBarHeight + layout.miniPlayerHeight + 16 }}
       >
         {/* Header */}
         <LinearGradient
