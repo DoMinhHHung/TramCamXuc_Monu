@@ -67,7 +67,15 @@ public enum ErrorCode {
     SONG_NOT_AVAILABLE_FOR_PLAYLIST  (2505, "Song is not available to add to playlist",              HttpStatus.BAD_REQUEST),
 
     // ── Subscription ────────────────────────────────────────────────────────
-    FREE_SUBSCRIPTION_NOT_ALLOWED    (2600, "This feature requires a paid subscription",             HttpStatus.PAYMENT_REQUIRED);
+    FREE_SUBSCRIPTION_NOT_ALLOWED    (2600, "This feature requires a paid subscription",             HttpStatus.PAYMENT_REQUIRED),
+
+    // ── AI Music ─────────────────────────────────────────────────────────────
+    AI_MUSIC_DISABLED                (2700, "AI music is not enabled for your subscription",            HttpStatus.PAYMENT_REQUIRED),
+    AI_MUSIC_QUOTA_EXCEEDED          (2701, "AI music monthly quota exceeded",                          HttpStatus.TOO_MANY_REQUESTS),
+    AI_MUSIC_JOB_NOT_FOUND           (2702, "AI music job not found or expired",                        HttpStatus.NOT_FOUND),
+    AI_MUSIC_JOB_INVALID_STATE       (2703, "AI music job is not ready for this action",                HttpStatus.CONFLICT),
+    AI_MUSIC_EXTERNAL_FAILED         (2704, "External AI music provider failed",                          HttpStatus.BAD_GATEWAY),
+    AI_MUSIC_LYRICS_TOO_LONG         (2705, "Lyrics exceed maximum length",                             HttpStatus.BAD_REQUEST);
 
     private final int code;
     private final String message;

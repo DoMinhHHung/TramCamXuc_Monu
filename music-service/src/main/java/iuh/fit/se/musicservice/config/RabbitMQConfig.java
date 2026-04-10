@@ -51,6 +51,10 @@ public class RabbitMQConfig {
 
     public static final String FEED_FANOUT_EXCHANGE = "feed.content.fanout.exchange";
 
+    /** Async ElevenLabs music generation pipeline. */
+    public static final String AI_MUSIC_GENERATE_QUEUE   = "ai.music.generate.queue";
+    public static final String AI_MUSIC_GENERATE_ROUTING = "song.ai.music.generate";
+
     @Bean
     public FanoutExchange feedFanoutExchange() {
         return new FanoutExchange(FEED_FANOUT_EXCHANGE, true, false);
@@ -147,6 +151,11 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(JAMENDO_DOWNLOAD_DLQ).build();
     }
 
+    @Bean
+    public Queue aiMusicGenerateQueue() {
+        return QueueBuilder.durable(AI_MUSIC_GENERATE_QUEUE).build();
+    }
+
     // ── Bindings ───────────────────────────────────────────────────────────────
     @Bean
     public Binding bindTranscodeSuccess(Queue transcodeSuccessQueue,
@@ -188,5 +197,11 @@ public class RabbitMQConfig {
                                           TopicExchange jamendoExchange) {
         return BindingBuilder.bind(jamendoDownloadDlq)
                 .to(jamendoExchange).with(JAMENDO_DLQ_ROUTING_KEY);
+    }
+
+    @Bean
+    public Binding bindAiMusicGenerate(Queue aiMusicGenerateQueue, TopicExchange musicExchange) {
+        return BindingBuilder.bind(aiMusicGenerateQueue)
+                .to(musicExchange).with(AI_MUSIC_GENERATE_ROUTING);
     }
 }

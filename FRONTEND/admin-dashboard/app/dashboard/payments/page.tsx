@@ -6,7 +6,7 @@ import {
     Plus, PencilSimple, Trash, ToggleLeft, ToggleRight,
     ArrowClockwise, X, Check, Warning, CaretDown, CaretUp,
     MusicNote, CloudArrowDown, WifiSlash, SpeakerX, UserCircle,
-    VinylRecord, MagicWand, StackSimple,
+    VinylRecord, MagicWand, StackSimple, Sparkle,
 } from '@phosphor-icons/react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,6 +32,11 @@ interface PlanFeatures {
     can_become_artist?: boolean;
     create_album?:      boolean;
     recommendation?:    string;    // "basic" | "advance"
+    /** Sinh nhạc AI (ElevenLabs) — khớp payment-service AiMusicQuotaServiceImpl */
+    ai_music_enabled?:                 boolean;
+    ai_music_generations_per_month?: number;
+    ai_music_max_duration_seconds?:  number;
+    ai_music_max_minutes_per_month?: number;
     [key: string]: unknown;        // extra custom keys
 }
 
@@ -53,7 +58,7 @@ interface FeatureDef {
     defaultVal: string | boolean | number;
 }
 
-const FEATURE_DEFS: FeatureDef[] = [
+const FEATURE_DEFS_STANDARD: FeatureDef[] = [
     { key: 'quality',           label: 'Chất lượng âm thanh', hint: 'Bitrate tối đa user được nghe',    type: 'select',  icon: MusicNote,      options: [...QUALITY_OPTIONS], defaultVal: '128kbps' },
     { key: 'no_ads',            label: 'Tắt quảng cáo',       hint: 'Không hiển thị ads khi nghe nhạc', type: 'toggle',  icon: SpeakerX,       defaultVal: false },
     { key: 'offline',           label: 'Nghe offline',         hint: 'Cache nhạc để nghe không cần mạng',type: 'toggle',  icon: WifiSlash,      defaultVal: false },
@@ -63,6 +68,16 @@ const FEATURE_DEFS: FeatureDef[] = [
     { key: 'create_album',      label: 'Tạo Album',            hint: 'Artist được tạo và quản lý album', type: 'toggle',  icon: VinylRecord,    defaultVal: false },
     { key: 'recommendation',    label: 'Thuật toán gợi ý',     hint: 'basic = cơ bản / advance = AI',   type: 'select',  icon: MagicWand,      options: [...RECOMMEND_OPTIONS], defaultVal: 'basic' },
 ];
+
+/** Quota AI nhạc — backend: payment-service AiMusicQuotaServiceImpl */
+const FEATURE_DEFS_AI: FeatureDef[] = [
+    { key: 'ai_music_enabled', label: 'Bật sinh nhạc AI', hint: 'Artist có tab “Tạo nhạc với AI” (cần bật “Có thể làm Artist” + ElevenLabs)', type: 'toggle', icon: Sparkle, defaultVal: false },
+    { key: 'ai_music_generations_per_month', label: 'Số lần sinh / tháng', hint: 'Mỗi user — chu kỳ theo yyyy-MM (VN)', type: 'number', icon: Sparkle, min: 0, max: 999, defaultVal: 5 },
+    { key: 'ai_music_max_duration_seconds', label: 'Tối đa giây / lần sinh', hint: 'Độ dài mục tiêu mỗi request (3–600)', type: 'number', icon: Sparkle, min: 3, max: 600, defaultVal: 120 },
+    { key: 'ai_music_max_minutes_per_month', label: 'Tối đa phút nhạc AI / tháng', hint: 'Tổng độ dài audio đã sinh mỗi user (theo tháng)', type: 'number', icon: Sparkle, min: 1, max: 10000, defaultVal: 30 },
+];
+
+const FEATURE_DEFS: FeatureDef[] = [...FEATURE_DEFS_STANDARD, ...FEATURE_DEFS_AI];
 
 const KNOWN_KEYS = new Set(FEATURE_DEFS.map(f => f.key));
 
@@ -221,7 +236,24 @@ function FeaturesEditor({ value, onChange }: FeaturesEditorProps) {
         <div className="border border-zinc-200 dark:border-white/[0.08]">
             {/* Standard features */}
             <div className="px-4 py-1">
-                {FEATURE_DEFS.map(def => (
+                {FEATURE_DEFS_STANDARD.map(def => (
+                    <FeatureRow
+                        key={def.key}
+                        def={def}
+                        value={value[def.key] ?? def.defaultVal}
+                        onChange={set}
+                    />
+                ))}
+            </div>
+
+            <div className="border-t border-zinc-200 dark:border-white/[0.08] px-4 pt-3 pb-1">
+                <p className="text-[10px] font-semibold tracking-widest text-zinc-400 dark:text-zinc-600 mb-2">
+                    SINH NHẠC AI (ELEVENLABS / GOOGLE LỜI)
+                </p>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-600 mb-2 leading-relaxed">
+                    Bật cùng <span className="font-medium text-zinc-700 dark:text-zinc-400">Có thể làm Artist</span>. Quota áp theo tháng (Asia/Ho_Chi_Minh).
+                </p>
+                {FEATURE_DEFS_AI.map(def => (
                     <FeatureRow
                         key={def.key}
                         def={def}
@@ -301,6 +333,10 @@ interface FormData {
 const emptyFeatures: PlanFeatures = {
     quality: '128kbps', no_ads: false, offline: false, download: false,
     playlist_limit: 5, can_become_artist: false, create_album: false, recommendation: 'basic',
+    ai_music_enabled: false,
+    ai_music_generations_per_month: 5,
+    ai_music_max_duration_seconds: 120,
+    ai_music_max_minutes_per_month: 30,
 };
 
 function PlanModal({ plan, onClose, onSave }: {
@@ -470,6 +506,7 @@ function FeatureSummary({ features }: { features: PlanFeatures }) {
 
     const quality = features.quality ?? '—';
     const total   = Object.keys(features).length;
+    const aiOn    = Boolean(features.ai_music_enabled);
 
     return (
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -484,6 +521,12 @@ function FeatureSummary({ features }: { features: PlanFeatures }) {
           text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20">
           {checks} tính năng
         </span>
+            )}
+            {aiOn && (
+                <span className="inline-flex items-center px-1.5 py-px text-[9px] font-medium border
+          text-violet-600 dark:text-violet-400 border-violet-200 dark:border-violet-700 bg-violet-50 dark:bg-violet-900/20">
+                    AI nhạc
+                </span>
             )}
             {total > 0 && (
                 <span className="text-[9px] text-zinc-400 dark:text-zinc-600">{total} keys</span>

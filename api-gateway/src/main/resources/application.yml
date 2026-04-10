@@ -205,6 +205,18 @@ spring:
                 redis-rate-limiter.burstCapacity: 1
                 redis-rate-limiter.requestedTokens: 1
 
+        - id: music-ai-music-api
+          uri: lb://MUSIC-SERVICE
+          predicates:
+            - Path=/ai-music/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 15
+                redis-rate-limiter.burstCapacity: 30
+                redis-rate-limiter.requestedTokens: 1
+
         - id: music-service-api
           uri: lb://MUSIC-SERVICE
           predicates:

@@ -40,6 +40,10 @@ public class SubscriptionPlan {
      * JSON chứa các feature:
      * {"quality":"lossless","no_ads":true,"offline":true,
      *  "download":true,"playlist_limit":100,"can_become_artist":true,
+     *  "ai_music_enabled":true,
+     *  "ai_music_generations_per_month":5,
+     *  "ai_music_max_duration_seconds":120,
+     *  "ai_music_max_minutes_per_month":30,
      *  "create_album":true,"recommendation":"advanced"}
      */
     @Type(JsonBinaryType.class)

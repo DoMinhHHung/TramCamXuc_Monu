@@ -183,4 +183,35 @@ public class MinioStorageService {
             return false;
         }
     }
+
+    public void deleteRawObject(String objectKey) {
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(rawBucket)
+                            .object(objectKey)
+                            .build());
+            log.info("Deleted raw object: {}", objectKey);
+        } catch (Exception e) {
+            log.warn("Failed to delete raw object {}: {}", objectKey, e.getMessage());
+        }
+    }
+
+    /**
+     * Copy trong cùng bucket raw (preview AI → raw bài hát chính thức).
+     */
+    public void copyRawObject(String sourceKey, String destKey) {
+        try {
+            minioClient.copyObject(
+                    CopyObjectArgs.builder()
+                            .bucket(rawBucket)
+                            .object(destKey)
+                            .source(CopySource.builder().bucket(rawBucket).object(sourceKey).build())
+                            .build());
+            log.info("Copied raw {} → {}", sourceKey, destKey);
+        } catch (Exception e) {
+            log.error("copyRawObject failed {} → {}", sourceKey, destKey, e);
+            throw new RuntimeException("MinIO copy failed", e);
+        }
+    }
 }
