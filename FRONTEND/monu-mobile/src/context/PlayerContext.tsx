@@ -305,7 +305,11 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
     // ── Audio session ──────────────────────────────────────────────────────────
     useEffect(() => {
-        setAudioModeAsync({ playsInSilentMode: true }).catch(() => { });
+        setAudioModeAsync({
+            playsInSilentMode: true,
+            staysActiveInBackground: true,
+            shouldDuckAndroid: true,
+        } as any).catch(() => { });
     }, []);
 
     // ── Autoplay + seek sau khi HLS load: 2 frame defer để native gắn segment rồi mới play ─

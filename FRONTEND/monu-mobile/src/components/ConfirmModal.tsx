@@ -1,7 +1,12 @@
-import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { COLORS } from '../config/colors';
+import { useThemeColors } from '../config/colors';
+import { AppIcon } from '../config/appIcons';
+import { haptic } from '../utils/haptics';
+import { useTranslation } from '../context/LocalizationContext';
 
 interface ConfirmModalProps {
   visible: boolean;
@@ -19,54 +24,136 @@ export const ConfirmModal = ({
   title,
   message,
   confirmText,
-  cancelText = 'Hủy',
+  cancelText,
   destructive = false,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) => {
+  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const cardScale = useRef(new Animated.Value(0.92)).current;
+
+  useEffect(() => {
+    if (!visible) {
+      overlayOpacity.setValue(0);
+      cardScale.setValue(0.92);
+      return;
+    }
+
+    Animated.parallel([
+      Animated.timing(overlayOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+      Animated.spring(cardScale, {
+        toValue: 1,
+        tension: 80,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [visible, overlayOpacity, cardScale]);
+
+  const cancelLabel = cancelText ?? t('common.cancel', 'Cancel');
+  const iconName = destructive ? 'delete' : 'check';
+  const iconColor = destructive ? colors.error : colors.accent;
+  const primaryGradient = destructive
+    ? ['rgba(239,68,68,0.95)', 'rgba(239,68,68,0.70)', 'rgba(239,68,68,0.95)']
+    : [colors.accent, (colors as any).accentAlt ?? colors.accent, colors.accent];
+
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onCancel}>
-      <View style={styles.overlay}>
-        <View style={styles.content}>
+      <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
+
+        <Animated.View style={[styles.card, { transform: [{ scale: cardScale }] }]}>
+          <View style={styles.iconWrap}>
+            <AppIcon name={iconName} size={22} color={iconColor} />
+          </View>
+
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
+
           <View style={styles.actions}>
-            <Pressable style={[styles.button, styles.cancel]} onPress={onCancel}>
-              <Text style={styles.cancelText}>{cancelText}</Text>
+            <Pressable
+              onPress={() => {
+                haptic.medium();
+                onConfirm();
+              }}
+              style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+            >
+              <LinearGradient
+                colors={primaryGradient as any}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.primaryBtnGrad}
+              >
+                <Text style={styles.primaryText}>{confirmText}</Text>
+              </LinearGradient>
             </Pressable>
-            <Pressable style={[styles.button, destructive ? styles.destructive : styles.confirm]} onPress={onConfirm}>
-              <Text style={styles.confirmText}>{confirmText}</Text>
+
+            <Pressable
+              onPress={onCancel}
+              style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
+            >
+              <Text style={styles.cancelText}>{cancelLabel}</Text>
             </Pressable>
           </View>
-        </View>
-      </View>
+
+          <View style={{ height: insets.bottom + 6 }} />
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (C: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.68)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
-  content: {
+  card: {
     width: '100%',
-    backgroundColor: COLORS.surface,
-    borderRadius: 18,
+    maxWidth: 420,
+    backgroundColor: 'rgba(20,20,28,0.92)',
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 20,
+    borderColor: 'rgba(255,255,255,0.10)',
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 14,
   },
-  title: { color: COLORS.text, fontSize: 20, fontWeight: '700', marginBottom: 8 },
-  message: { color: COLORS.muted, fontSize: 14, lineHeight: 20, marginBottom: 18 },
-  actions: { flexDirection: 'row', gap: 10 },
-  button: { flex: 1, borderRadius: 12, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  cancel: { backgroundColor: COLORS.bg, borderWidth: 1, borderColor: COLORS.border },
-  confirm: { backgroundColor: COLORS.accentDim },
-  destructive: { backgroundColor: COLORS.error },
-  cancelText: { color: COLORS.text, fontWeight: '600' },
-  confirmText: { color: COLORS.white, fontWeight: '700' },
+  iconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: C.glass08,
+    borderWidth: 1,
+    borderColor: C.glass12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 10,
+  },
+  title: { color: C.text, fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
+  message: { color: C.muted, fontSize: 14, lineHeight: 21, textAlign: 'center', marginBottom: 16 },
+  actions: { gap: 10 },
+  primaryBtn: { borderRadius: 16, overflow: 'hidden' },
+  primaryBtnGrad: { minHeight: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  primaryText: { color: C.white, fontSize: 15, fontWeight: '800' },
+  cancelBtn: {
+    minHeight: 48,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  cancelText: { color: C.glass80, fontSize: 15, fontWeight: '700' },
+  pressed: { opacity: 0.88, transform: [{ scale: 0.97 }] },
 });

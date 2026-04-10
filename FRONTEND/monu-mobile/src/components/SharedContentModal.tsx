@@ -162,7 +162,7 @@ export const SaveContentModal: React.FC<SaveContentModalProps> = ({
                         style={saveStyles.newInput}
                         value={newName}
                         onChangeText={setNewName}
-                        placeholder="Tạo playlist mới và lưu..."
+                        placeholder="Tạo danh sách phát mới và lưu..."
                         placeholderTextColor={COLORS.glass30}
                     />
                     <Pressable

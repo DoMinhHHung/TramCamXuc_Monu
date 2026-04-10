@@ -16,6 +16,9 @@
     ],
     "ios": {
       "icon": "./assets/faviconpng.png",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      },
       "supportsTablet": true
     },
     "android": {
@@ -25,7 +28,10 @@
       },
       "permissions": [
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.WAKE_LOCK"
       ],
       "package": "com.minhhung0403.monumobile"
     },

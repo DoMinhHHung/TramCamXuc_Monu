@@ -27,7 +27,7 @@ function formatFeature(key: string, value: any): FeatureItem | null {
         offline: "Nghe ngoại tuyến",
         download: "Tải nhạc",
         create_album: "Tạo album",
-        playlist_limit: "Giới hạn playlist",
+        playlist_limit: "Giới hạn danh sách phát",
         recommendation: "Gợi ý nhạc",
         quality: "Chất lượng",
         can_become_artist: "Đăng ký nghệ sĩ",

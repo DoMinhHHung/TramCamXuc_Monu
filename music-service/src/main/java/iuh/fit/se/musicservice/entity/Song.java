@@ -11,16 +11,6 @@ import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Song entity – đã loại bỏ toàn bộ cơ chế duyệt (ApprovalStatus).
- *
- * Luồng trạng thái mới:
- *   1. Artist request upload → status = DRAFT, transcodeStatus = PENDING
- *   2. Artist confirm upload → transcodeStatus = PROCESSING (gửi transcode job)
- *   3. Transcode hoàn thành  → transcodeStatus = COMPLETED, status tự động = PUBLIC
- *   4. Artist có thể đổi PUBLIC ↔ PRIVATE
- *   5. Admin soft-delete khi vi phạm → status = DELETED
- */
 @Getter
 @Setter
 @SuperBuilder
@@ -47,7 +37,6 @@ public class Song extends BaseEntity {
     @Column(nullable = false, unique = true, length = 255)
     private String slug;
 
-    // ── Artist (chỉ lưu userId + artistId; không join sang identity-service) ──
     @Column(name = "primary_artist_id", nullable = false)
     private UUID primaryArtistId;
 
@@ -66,16 +55,12 @@ public class Song extends BaseEntity {
     )
     private Set<Genre> genres;
 
-    // ── File info ──────────────────────────────────────────────────────────────
-    /** Key file raw trên MinIO raw-songs bucket */
     @Column(name = "raw_file_key", length = 500)
     private String rawFileKey;
 
-    /** Key cover raw được upload qua presigned URL trước khi confirm */
     @Column(name = "cover_file_key", length = 500)
     private String coverFileKey;
 
-    /** Relative path tới master.m3u8 trong public-songs bucket */
     @Column(name = "hls_master_url", length = 500)
     private String hlsMasterUrl;
 
@@ -100,15 +85,12 @@ public class Song extends BaseEntity {
     private TranscodeStatus transcodeStatus = TranscodeStatus.PENDING;
 
     // ── Soft delete ────────────────────────────────────────────────────────────
-    /** Thời điểm admin soft-delete bài hát vi phạm; null = chưa bị xóa */
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    /** Admin thực hiện xóa */
     @Column(name = "deleted_by")
     private UUID deletedBy;
 
-    /** Lý do admin xóa */
     @Column(name = "delete_reason", length = 1000)
     private String deleteReason;
 
@@ -118,7 +100,6 @@ public class Song extends BaseEntity {
     private Long playCount = 0L;
 
     // ── Ownership ─────────────────────────────────────────────────────────────
-    /** userId của artist sở hữu bài hát */
     @Column(name = "owner_user_id", nullable = false)
     private UUID ownerUserId;
 

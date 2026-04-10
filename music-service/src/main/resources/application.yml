@@ -133,3 +133,10 @@ spotify:
 soundcloud:
   client-id: ${SOUNDCLOUD_CLIENT_ID}
   client-secret: ${SOUNDCLOUD_CLIENT_SECRET}
+
+elevenlabs:
+  api-key-primary: ${ELEVENLABS_API_KEY_PRIMARY:}
+  api-key-secondary: ${ELEVENLABS_API_KEY_SECONDARY:}
+
+google:
+  api-key: ${GOOGLE_API_KEY:}

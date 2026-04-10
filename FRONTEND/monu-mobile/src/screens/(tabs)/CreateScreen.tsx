@@ -13,15 +13,26 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
+import Slider from '@react-native-community/slider';
+import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
+import { useLayoutConstants } from '../../config/layout';
 import { useAuth } from '../../context/AuthContext';
 import { useUpload, UploadStage } from '../../context/UploadContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { apiClient } from '../../services/api';
 import { Genre } from '../../services/music';
 import { getPopularGenres } from '../../services/favorites';
+import {
+  acceptAiMusicJob,
+  createAiMusicJob,
+  getAiMusicJob,
+  improveLyricsWithGoogle,
+  rejectAiMusicJob,
+} from '../../services/aiMusic';
 import { getMySubscription } from '../../services/payment';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
@@ -38,6 +49,13 @@ type ArtistProfile = {
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const truthyFeature = (v: unknown): boolean => {
+  if (v === true) return true;
+  if (typeof v === 'string') return v === '1' || v.toLowerCase() === 'true';
+  if (typeof v === 'number') return v !== 0;
+  return false;
+};
 
 const getUploadStageHint = (t: (key: string, fallback?: string) => string): Partial<Record<UploadStage, string>> => ({
   requesting: t('screens.create.uploadHintRequesting', 'Connecting to server...'),
@@ -72,6 +90,7 @@ const debugCreateUpload = (event: string, payload?: Record<string, unknown>) => 
 
 export const CreateScreen = () => {
   const insets     = useSafeAreaInsets();
+  const layout = useLayoutConstants();
   const { authSession } = useAuth();
   const { job, startUpload } = useUpload();
   const { t } = useTranslation();
@@ -86,6 +105,7 @@ export const CreateScreen = () => {
   const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
   const [hasActiveSub, setHasActiveSub]   = useState(false);
   const [genres, setGenres]               = useState<Genre[]>([]);
+  const [planFeatures, setPlanFeatures]   = useState<Record<string, unknown>>({});
 
   // ── Form state ─────────────────────────────────────────────────────────────
   const [title, setTitle]                 = useState('');
@@ -97,6 +117,19 @@ export const CreateScreen = () => {
   // ── Artist register form ───────────────────────────────────────────────────
   const [stageName, setStageName]         = useState('');
   const [registerLoading, setRegisterLoading] = useState(false);
+
+  // ── AI music (ElevenLabs + Google lyrics) ─────────────────────────────────
+  const [aiTitle, setAiTitle]             = useState('');
+  const [aiLyrics, setAiLyrics]           = useState('');
+  const [aiStyle, setAiStyle]             = useState('');
+  const [aiDurationSec, setAiDurationSec] = useState(60);
+  const [aiGenreIds, setAiGenreIds]       = useState<string[]>([]);
+  const [aiJobId, setAiJobId]             = useState<string | null>(null);
+  const [aiJobStatus, setAiJobStatus]     = useState<string | null>(null);
+  const [aiPreviewUrl, setAiPreviewUrl]   = useState<string | null>(null);
+  const [aiError, setAiError]             = useState<string | null>(null);
+  const [aiBusy, setAiBusy]               = useState(false);
+  const [improveBusy, setImproveBusy]   = useState(false);
 
   // ── Load on mount ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -148,8 +181,14 @@ export const CreateScreen = () => {
       setHasActiveSub(
           subRes.status === 'fulfilled' &&
           subRes.value?.status === 'ACTIVE' &&
-          new Date(subRes.value.expiresAt).getTime() > Date.now()
+          Boolean(subRes.value.expiresAt) &&
+          new Date(subRes.value.expiresAt as string).getTime() > Date.now()
       );
+      if (subRes.status === 'fulfilled' && subRes.value?.plan?.features) {
+        setPlanFeatures(subRes.value.plan.features as Record<string, unknown>);
+      } else {
+        setPlanFeatures({});
+      }
       setGenres(
           genreRes.status === 'fulfilled'
               ? (genreRes.value as unknown as Genre[])
@@ -167,6 +206,10 @@ export const CreateScreen = () => {
   const canUpload      = !isBanned && isArtist && hasActiveSub;
   const isUploadActive = job !== null &&
       ['requesting', 'uploading', 'confirming'].includes(job.stage);
+
+  const aiMusicPlanEnabled =
+      truthyFeature(planFeatures.ai_music_enabled) && truthyFeature(planFeatures.can_become_artist);
+  const showAiMusicSection = canUpload && aiMusicPlanEnabled;
 
   // ── Actions ────────────────────────────────────────────────────────────────
   const handlePickFile = async () => {
@@ -351,6 +394,159 @@ export const CreateScreen = () => {
     );
   };
 
+  const toggleAiGenre = (id: string) => {
+    setAiGenreIds(prev =>
+        prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id]
+    );
+  };
+
+  useEffect(() => {
+    if (!aiJobId) return;
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | undefined;
+
+    const poll = async () => {
+      try {
+        const j = await getAiMusicJob(aiJobId);
+        if (cancelled) return true;
+        setAiJobStatus(j.status);
+        setAiPreviewUrl(j.previewUrl ?? null);
+        setAiError(j.errorMessage ?? null);
+        return j.status === 'READY' || j.status === 'FAILED';
+      } catch {
+        if (!cancelled) setAiError(t('screens.create.aiMusicPollError', 'Could not refresh job status.'));
+        return true;
+      }
+    };
+
+    void (async () => {
+      const done = await poll();
+      if (done || cancelled) return;
+      interval = setInterval(async () => {
+        const finished = await poll();
+        if (finished && interval) clearInterval(interval);
+      }, 2500);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
+  }, [aiJobId, t]);
+
+  const handlePickAiLyricFile = async () => {
+    const picked = await DocumentPicker.getDocumentAsync({
+      type: ['text/*', 'application/x-subrip', 'application/octet-stream'],
+      multiple: false,
+      copyToCacheDirectory: true,
+    });
+    if (picked.canceled) return;
+    const file = picked.assets[0];
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (!LYRIC_EXTENSIONS.includes(ext as any)) {
+      Alert.alert(
+        t('screens.create.unsupportedFormatTitle', 'Unsupported format'),
+        `${t('screens.create.lyricAllowedFormatsHint', 'Chỉ hỗ trợ')}: ${LYRIC_EXTENSIONS.join(', ').toUpperCase()}`
+      );
+      return;
+    }
+    try {
+      const text = await FileSystem.readAsStringAsync(file.uri, { encoding: 'utf8' });
+      setAiLyrics(text);
+    } catch {
+      Alert.alert(t('common.error'), t('screens.create.aiMusicReadLyricFailed', 'Could not read lyric file.'));
+    }
+  };
+
+  const handleImproveLyrics = async () => {
+    if (!aiLyrics.trim()) {
+      Alert.alert(t('screens.create.missingInfoTitle', 'Missing information'), t('screens.create.aiMusicNeedLyrics', 'Enter or import lyrics first.'));
+      return;
+    }
+    setImproveBusy(true);
+    try {
+      const improved = await improveLyricsWithGoogle(aiLyrics.trim());
+      setAiLyrics(improved);
+    } catch (err: any) {
+      Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? t('screens.create.aiMusicImproveFailed', 'Could not improve lyrics.'));
+    } finally {
+      setImproveBusy(false);
+    }
+  };
+
+  const handleAiMusicSubmit = async () => {
+    if (!aiTitle.trim()) {
+      Alert.alert(t('screens.create.missingInfoTitle', 'Missing information'), t('screens.create.missingTitle', 'Enter song title.'));
+      return;
+    }
+    if (aiGenreIds.length === 0) {
+      Alert.alert(t('screens.create.missingInfoTitle', 'Missing information'), t('screens.create.missingGenre', 'Select at least 1 genre.'));
+      return;
+    }
+    if (!aiLyrics.trim()) {
+      Alert.alert(t('screens.create.missingInfoTitle', 'Missing information'), t('screens.create.aiMusicNeedLyrics', 'Enter or import lyrics first.'));
+      return;
+    }
+    setAiBusy(true);
+    setAiError(null);
+    setAiPreviewUrl(null);
+    setAiJobStatus(null);
+    setAiJobId(null);
+    try {
+      const job = await createAiMusicJob({
+        title: aiTitle.trim(),
+        genreIds: aiGenreIds,
+        lyrics: aiLyrics.trim(),
+        stylePrompt: aiStyle.trim() || undefined,
+        durationSeconds: Math.round(aiDurationSec),
+      });
+      setAiJobId(job.jobId);
+      setAiJobStatus(job.status);
+    } catch (err: any) {
+      Alert.alert(
+        t('common.error'),
+        err?.response?.data?.message ?? err?.message ?? t('screens.create.aiMusicSubmitFailed', 'Could not start AI music job.')
+      );
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const handleAiAccept = async () => {
+    if (!aiJobId) return;
+    setAiBusy(true);
+    try {
+      await acceptAiMusicJob(aiJobId);
+      Alert.alert(t('screens.create.aiMusicAcceptedTitle', 'Saved'), t('screens.create.aiMusicAcceptedMessage', 'Your song is processing. Check My songs in a few minutes.'));
+      setAiJobId(null);
+      setAiJobStatus(null);
+      setAiPreviewUrl(null);
+      setAiError(null);
+      setAiTitle('');
+      setAiLyrics('');
+    } catch (err: any) {
+      Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? '');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const handleAiReject = async () => {
+    if (!aiJobId) return;
+    setAiBusy(true);
+    try {
+      await rejectAiMusicJob(aiJobId);
+      setAiJobId(null);
+      setAiJobStatus(null);
+      setAiPreviewUrl(null);
+      setAiError(null);
+    } catch (err: any) {
+      Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? '');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
   // ── Render loading ─────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -390,7 +586,7 @@ export const CreateScreen = () => {
       <View style={styles.root}>
         <StatusBar style={getStatusBarStyle(themeColors.bg)} />
         <ScrollView
-            contentContainerStyle={{ paddingBottom: 120 }}
+            contentContainerStyle={{ paddingBottom: layout.tabBarHeight + layout.miniPlayerHeight + 16 }}
             showsVerticalScrollIndicator={false}
         >
           {/* ── Hero header ──────────────────────────────────────────── */}
@@ -736,9 +932,175 @@ export const CreateScreen = () => {
                 </View>
             )}
 
+            {showAiMusicSection && (
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>{t('screens.create.aiMusicTitle', 'Create music with AI')}</Text>
+                  <Text style={styles.cardDesc}>
+                    {t('screens.create.aiMusicDesc', 'Write lyrics or import a file, pick style and length. Preview on device, then accept to publish like a normal upload.')}
+                  </Text>
+
+                  <Text style={styles.fieldLabel}>{t('screens.create.songTitleLabel', 'Song title')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={aiTitle}
+                    onChangeText={setAiTitle}
+                    placeholder={t('screens.create.songTitlePlaceholder', 'Enter song title...')}
+                    placeholderTextColor={themeColors.glass35}
+                    editable={!aiBusy}
+                  />
+
+                  <Text style={styles.fieldLabel}>{t('screens.create.aiMusicLyricsLabel', 'Lyrics')}</Text>
+                  <TextInput
+                    style={[styles.input, { minHeight: 120, textAlignVertical: 'top' }]}
+                    value={aiLyrics}
+                    onChangeText={setAiLyrics}
+                    multiline
+                    placeholder={t('screens.create.aiMusicLyricsPlaceholder', 'Paste lyrics or use a file…')}
+                    placeholderTextColor={themeColors.glass35}
+                    editable={!aiBusy}
+                  />
+
+                  <View style={styles.aiMusicRow}>
+                    <Pressable
+                      style={[styles.secondaryBtn, aiBusy && styles.disabledBtn]}
+                      onPress={handlePickAiLyricFile}
+                      disabled={aiBusy}
+                    >
+                      <Text style={styles.secondaryBtnText}>{t('screens.create.aiMusicPickLyricFile', 'Import lyric file')}</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.secondaryBtn, (aiBusy || improveBusy) && styles.disabledBtn]}
+                      onPress={handleImproveLyrics}
+                      disabled={aiBusy || improveBusy}
+                    >
+                      {improveBusy ? (
+                        <ActivityIndicator color={themeColors.accent} size="small" />
+                      ) : (
+                        <Text style={styles.secondaryBtnText}>{t('screens.create.aiMusicImproveLyrics', 'Improve with Google AI')}</Text>
+                      )}
+                    </Pressable>
+                  </View>
+
+                  <Text style={styles.fieldLabel}>{t('screens.create.aiMusicStyleLabel', 'Style / mood (optional)')}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={aiStyle}
+                    onChangeText={setAiStyle}
+                    placeholder={t('screens.create.aiMusicStylePlaceholder', 'e.g. acoustic Vietnamese ballad, 90 BPM')}
+                    placeholderTextColor={themeColors.glass35}
+                    editable={!aiBusy}
+                  />
+
+                  <Text style={styles.fieldLabel}>
+                    {t('screens.create.aiMusicDurationLabel', 'Target length')}: {Math.round(aiDurationSec)}s
+                  </Text>
+                  <Slider
+                    style={{ width: '100%', height: 36 }}
+                    minimumValue={15}
+                    maximumValue={180}
+                    step={5}
+                    value={aiDurationSec}
+                    onValueChange={setAiDurationSec}
+                    minimumTrackTintColor={themeColors.accent}
+                    maximumTrackTintColor={themeColors.glass15}
+                    thumbTintColor={themeColors.accent}
+                    disabled={aiBusy}
+                  />
+
+                  <Text style={styles.fieldLabel}>
+                    {t('labels.genre', 'Genre')} ({aiGenreIds.length})
+                  </Text>
+                  <View style={styles.genreWrap}>
+                    {genres.map(g => {
+                      const active = aiGenreIds.includes(g.id);
+                      return (
+                        <Pressable
+                          key={g.id}
+                          style={[styles.genreChip, active && styles.genreChipActive, aiBusy && styles.disabledBtn]}
+                          onPress={() => !aiBusy && toggleAiGenre(g.id)}
+                        >
+                          <Text style={[styles.genreText, active && styles.genreTextActive]}>{g.name}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  <Pressable
+                    style={[styles.primaryBtn, aiBusy && styles.disabledBtn]}
+                    onPress={handleAiMusicSubmit}
+                    disabled={aiBusy || !!aiJobId}
+                  >
+                    {aiBusy ? (
+                      <ActivityIndicator color={themeColors.white} />
+                    ) : (
+                      <Text style={styles.primaryBtnText}>
+                        {aiJobId
+                          ? t('screens.create.aiMusicJobRunning', 'Generation in progress…')
+                          : t('screens.create.aiMusicSubmit', 'Generate with AI')}
+                      </Text>
+                    )}
+                  </Pressable>
+
+                  {aiJobId ? (
+                    <View style={styles.aiMusicStatus}>
+                      <Text style={styles.cardDesc}>
+                        {t('screens.create.aiMusicStatusPrefix', 'Status')}: {aiJobStatus ?? '…'}
+                      </Text>
+                      {aiError ? <Text style={[styles.cardDesc, { color: themeColors.error }]}>{aiError}</Text> : null}
+                      <AiMusicPreviewControls previewUrl={aiPreviewUrl} accent={themeColors.accent} />
+                      {aiJobStatus === 'READY' && aiPreviewUrl ? (
+                        <View style={styles.aiMusicRow}>
+                          <Pressable style={[styles.primaryBtn, { flex: 1 }, aiBusy && styles.disabledBtn]} onPress={handleAiAccept} disabled={aiBusy}>
+                            <Text style={styles.primaryBtnText}>{t('screens.create.aiMusicAccept', 'Accept & publish')}</Text>
+                          </Pressable>
+                          <Pressable style={[styles.secondaryBtn, { flex: 1 }, aiBusy && styles.disabledBtn]} onPress={handleAiReject} disabled={aiBusy}>
+                            <Text style={styles.secondaryBtnText}>{t('screens.create.aiMusicReject', 'Discard preview')}</Text>
+                          </Pressable>
+                        </View>
+                      ) : null}
+                      {aiJobStatus === 'FAILED' ? (
+                        <Pressable style={[styles.secondaryBtn, aiBusy && styles.disabledBtn]} onPress={() => { setAiJobId(null); setAiJobStatus(null); setAiPreviewUrl(null); setAiError(null); }} disabled={aiBusy}>
+                          <Text style={styles.secondaryBtnText}>{t('screens.create.aiMusicTryAgain', 'Clear & try again')}</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
+            )}
+
           </View>
         </ScrollView>
       </View>
+  );
+};
+
+type PreviewProps = { previewUrl: string | null; accent: string };
+
+const AiMusicPreviewControls = ({ previewUrl, accent }: PreviewProps) => {
+  const player = useAudioPlayer(null);
+  const st = useAudioPlayerStatus(player);
+
+  useEffect(() => {
+    if (previewUrl) {
+      player.replace({ uri: previewUrl });
+    } else {
+      try {
+        player.pause();
+      } catch { /* noop */ }
+    }
+  }, [previewUrl, player]);
+
+  if (!previewUrl) return null;
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
+      <Pressable
+        onPress={() => (st.playing ? player.pause() : player.play())}
+        style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, backgroundColor: `${accent}33` }}
+      >
+        <Text style={{ color: accent, fontWeight: '700' }}>{st.playing ? 'Pause' : 'Play preview'}</Text>
+      </Pressable>
+    </View>
   );
 };
 
@@ -1028,5 +1390,33 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   disabledBtn: {
     opacity: 0.45,
+  },
+
+  aiMusicRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  secondaryBtn: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.glass20,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    flexGrow: 1,
+  },
+  secondaryBtnText: {
+    color: colors.accent,
+    fontWeight: '700',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  aiMusicStatus: {
+    marginTop: 8,
+    gap: 8,
   },
 });

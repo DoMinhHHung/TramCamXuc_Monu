@@ -283,8 +283,8 @@ const SaveContentModal: React.FC<SaveContentModalProps> = ({
     }
     if (playlistLimit !== null && playlists.length >= playlistLimit) {
       Alert.alert(
-        'Đã đạt giới hạn playlist',
-        `Gói hiện tại cho phép tối đa ${playlistLimit} playlist. Vui lòng xoá bớt hoặc nâng cấp gói để tạo mới.`,
+        'Đã đạt giới hạn tạo danh sách phát',
+        `Gói hiện tại cho phép tối đa ${playlistLimit} danh sách phát. Vui lòng xoá bớt hoặc nâng cấp gói để tạo mới.`,
       );
       return;
     }
