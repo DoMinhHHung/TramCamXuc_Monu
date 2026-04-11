@@ -127,10 +127,28 @@ public class SonautoMusicService {
     private ObjectNode buildV2Body(AiMusicGenerateMessage message) {
         ObjectNode body = objectMapper.createObjectNode();
         String lyrics = message.getLyrics() != null ? message.getLyrics().trim() : "";
-        if (StringUtils.hasText(lyrics)) {
+        boolean hasLyrics = StringUtils.hasText(lyrics);
+
+        if (hasLyrics) {
             body.put("lyrics", lyrics);
+            body.put("prompt", AiMusicMessagePrompts.buildSonautoStylePrompt(message));
+            body.put("instrumental", false);
+        } else {
+            body.set("tags", buildStyleTags(message));
+            body.put("prompt", AiMusicMessagePrompts.buildSonautoStylePrompt(message));
+            body.put("instrumental", true);
+            body.put("bpm", "auto");
         }
-        body.put("prompt", AiMusicMessagePrompts.buildSonautoStylePrompt(message));
+
+        body.put("prompt_strength", 2.0);
+        body.put("balance_strength", 0.7);
+        body.put("num_songs", 1);
+        body.put("output_format", "mp3");
+        body.put("output_bit_rate", 128);
+        return body;
+    }
+
+    private ArrayNode buildStyleTags(AiMusicGenerateMessage message) {
         ArrayNode tags = objectMapper.createArrayNode();
         List<String> names = message.getGenreNames();
         if (names != null) {
@@ -151,15 +169,7 @@ public class SonautoMusicService {
         if (tags.isEmpty()) {
             tags.add("pop");
         }
-        body.set("tags", tags);
-        body.put("instrumental", !StringUtils.hasText(lyrics));
-        body.put("prompt_strength", 2.0);
-        body.put("balance_strength", 0.7);
-        body.put("num_songs", 1);
-        body.put("output_format", "mp3");
-        body.put("output_bit_rate", 128);
-        body.put("bpm", "auto");
-        return body;
+        return tags;
     }
 
     private byte[] downloadFirstSong(JsonNode doc, String taskId) {
