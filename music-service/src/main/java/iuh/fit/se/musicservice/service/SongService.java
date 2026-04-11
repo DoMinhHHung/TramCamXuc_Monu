@@ -22,6 +22,9 @@ public interface SongService {
     SongResponse updateSong(UUID songId, SongUpdateRequest request);
     void deleteSong(UUID songId);
     Page<SongResponse> getMySongs(Pageable pageable);
+
+    SongResponse getOwnedSongById(UUID songId);
+
     String getDownloadUrl(UUID songId);
 
     // ── Public ─────────────────────────────────────────────────────────────────

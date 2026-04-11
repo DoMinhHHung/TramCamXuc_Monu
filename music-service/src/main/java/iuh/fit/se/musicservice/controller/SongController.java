@@ -79,6 +79,14 @@ public class SongController {
                 .build();
     }
 
+    @GetMapping("/me/{songId}")
+    @PreAuthorize("hasAnyRole('ARTIST', 'USER')")
+    public ApiResponse<SongResponse> getOwnedSongById(@PathVariable UUID songId) {
+        return ApiResponse.<SongResponse>builder()
+                .result(songService.getOwnedSongById(songId))
+                .build();
+    }
+
     /**
      * Lấy thông tin bài hát PUBLIC theo ID.
      * GET /songs/{songId}

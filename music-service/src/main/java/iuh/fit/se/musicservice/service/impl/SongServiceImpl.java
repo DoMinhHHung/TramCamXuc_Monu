@@ -287,6 +287,15 @@ public class SongServiceImpl implements SongService {
 
     @Override
     @Transactional(readOnly = true)
+    public SongResponse getOwnedSongById(UUID songId) {
+        UUID userId = currentUserId();
+        Song song = songRepository.findByIdAndOwnerUserId(songId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
+        return songMapper.toResponse(song);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public String getDownloadUrl(UUID songId) {
         UUID userId = currentUserId();
 
@@ -308,7 +317,14 @@ public class SongServiceImpl implements SongService {
     @Override
     @Transactional(readOnly = true)
     public SongResponse getSongById(UUID songId) {
-        Song song = songRepository.findPublicByIdVisible(songId, tryGetCurrentUserId())
+        UUID viewerId = tryGetCurrentUserId();
+        if (viewerId != null) {
+            Optional<Song> owned = songRepository.findByIdAndOwnerUserId(songId, viewerId);
+            if (owned.isPresent()) {
+                return songMapper.toResponse(owned.get());
+            }
+        }
+        Song song = songRepository.findPublicByIdVisible(songId, viewerId)
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
         return songMapper.toResponse(song);
     }

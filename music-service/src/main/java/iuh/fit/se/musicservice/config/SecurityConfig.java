@@ -41,6 +41,7 @@ public class SecurityConfig {
                                 "/external/soundcloud/tracks/*/proxy", // Public proxy stream
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/songs/me/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/songs/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/artists/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/albums/*").permitAll()

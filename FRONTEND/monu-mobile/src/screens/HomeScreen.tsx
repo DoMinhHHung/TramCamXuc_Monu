@@ -583,7 +583,8 @@ export const HomeScreen = () => {
           </>
         ) : null}
 
-        {rec.loading && !rec.globalTrending.length && !rec.basicHomeFeed && !rec.advanceHomeFeed && (
+        {rec.loading && !rec.globalTrending.length && !rec.basicHomeFeed
+          && (!rec.advancedRecEnabled || !rec.advanceHomeFeed) && (
           <View>
             <SectionSkeleton rows={2} />
             <SectionSkeleton rows={2} />
@@ -605,7 +606,7 @@ export const HomeScreen = () => {
           />
         )}
 
-        {authSession && (
+        {authSession && rec.advancedRecEnabled ? (
           <RecommendationSection
             icon="🤖"
             title={t('screens.home.recommendAdvancedForYou')}
@@ -618,7 +619,7 @@ export const HomeScreen = () => {
             onFeedback={handleFeedback}
             hasBadge={!!rec.advanceHomeFeed?.forYou?.length}
           />
-        )}
+        ) : null}
 
 
         <SongSection

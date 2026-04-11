@@ -54,6 +54,8 @@ export interface FeedPostRequest {
 
 export interface ShareResponse {
   shareUrl: string;
+  /** monumobile://song/{id} — mở app */
+  mobileDeepLink?: string | null;
   qrCodeBase64?: string;
   platform?: string;
   shareCount?: number;

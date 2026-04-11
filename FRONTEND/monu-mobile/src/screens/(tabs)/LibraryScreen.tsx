@@ -1439,7 +1439,7 @@ export const LibraryScreen = () => {
   useFocusEffect(useCallback(() => {
     const mode: 'initial' | 'silent' = libraryFocusPassRef.current > 0 ? 'silent' : 'initial';
     libraryFocusPassRef.current += 1;
-    void load(mode, { skipIfFresh: mode === 'silent' });
+    void load(mode, { skipIfFresh: false });
     return undefined;
   }, [authSession?.tokens.accessToken]));
 
@@ -1465,7 +1465,7 @@ export const LibraryScreen = () => {
           setCanCreateAlbumByPlan(!!cached.data.canCreateAlbumByPlan);
           dataSignatureRef.current = JSON.stringify({
             pl: (cached.data.playlists ?? []).map(p => `${p.id}:${p.totalSongs ?? 0}:${p.slug ?? ''}:${p.name ?? ''}`),
-            so: (cached.data.songs ?? []).map(s => `${s.id}:${s.status}:${s.transcodeStatus}:${s.title ?? ''}`),
+            so: (cached.data.songs ?? []).map(s => `${s.id}:${s.status}:${s.transcodeStatus}:${s.sourceType ?? ''}:${s.title ?? ''}`),
             al: (cached.data.albums ?? []).map(a => `${a.id}:${a.status}:${a.title ?? ''}:${(a.totalSongs ?? a.songs?.length ?? 0)}`),
             artist: cached.data.artistProfile?.id ?? 'none',
             hasSub: Boolean(cached.data.hasActiveSub),
@@ -1518,7 +1518,7 @@ export const LibraryScreen = () => {
 
       const nextSignature = JSON.stringify({
         pl: nextPlaylists.map(p => `${p.id}:${p.totalSongs ?? 0}:${p.slug ?? ''}:${p.name ?? ''}`),
-        so: nextSongs.map(s => `${s.id}:${s.status}:${s.transcodeStatus}:${s.title ?? ''}`),
+        so: nextSongs.map(s => `${s.id}:${s.status}:${s.transcodeStatus}:${s.sourceType ?? ''}:${s.title ?? ''}`),
         al: nextAlbums.map(a => `${a.id}:${a.status}:${a.title ?? ''}:${(a.totalSongs ?? a.songs?.length ?? 0)}`),
         artist: nextArtist?.id ?? 'none',
         hasSub: nextHasActiveSub,
@@ -1580,7 +1580,11 @@ export const LibraryScreen = () => {
       const res = type === 'playlist' ? await getPlaylistShareLink(id) :
         type === 'song' ? await getSongShareLink(id) :
           await getAlbumShareLink(id);
-      await Share.share({ message: `${title}\n${res.shareUrl}` });
+      const deep = res.mobileDeepLink?.trim();
+      const msg = deep
+        ? `${title}\n${res.shareUrl}\n${t('screens.library.shareOpenInApp', 'Open in app')}: ${deep}`
+        : `${title}\n${res.shareUrl}`;
+      await Share.share({ message: msg });
     } catch (e: any) {
       showToast(e?.message ?? t('screens.library.cannotShare', 'Cannot share.'), 'error');
     }

@@ -2,6 +2,7 @@ package iuh.fit.se.recommendationservice.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import iuh.fit.se.recommendationservice.client.IdentityInternalClient;
 import iuh.fit.se.recommendationservice.client.MlServiceClient;
 import iuh.fit.se.recommendationservice.client.MusicInternalClient;
 import iuh.fit.se.recommendationservice.config.RecommendationFetchExecutorConfig;
@@ -10,6 +11,7 @@ import iuh.fit.se.recommendationservice.dto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -63,6 +65,7 @@ public class RecommendationOrchestratorService {
 
     private final MlServiceClient                mlClient;
     private final MusicInternalClient            musicClient;
+    private final IdentityInternalClient         identityClient;
     private final SocialRecommendationService    socialService;
     private final TrendingScoreService           trendingService;
     private final RecommendationRanker           ranker;
@@ -77,6 +80,7 @@ public class RecommendationOrchestratorService {
     public RecommendationOrchestratorService(
             MlServiceClient mlClient,
             MusicInternalClient musicClient,
+            IdentityInternalClient identityClient,
             SocialRecommendationService socialService,
             TrendingScoreService trendingService,
             RecommendationRanker ranker,
@@ -87,6 +91,7 @@ public class RecommendationOrchestratorService {
             @Qualifier(RecommendationFetchExecutorConfig.BEAN_NAME) Executor fetchExecutor) {
         this.mlClient = mlClient;
         this.musicClient = musicClient;
+        this.identityClient = identityClient;
         this.socialService = socialService;
         this.trendingService = trendingService;
         this.ranker = ranker;
@@ -103,7 +108,6 @@ public class RecommendationOrchestratorService {
 
     /**
      * Tổng hợp toàn bộ home feed recommendation.
-     * Cache-aside: check Redis trước, nếu miss thì build và cache.
      */
     public HomeRecommendationResponse getHomeFeed(UUID userId, boolean debug) {
         return defaultMode() == RecommendationMode.BASIC
@@ -299,8 +303,17 @@ public class RecommendationOrchestratorService {
 
         waitAllParallelFetches(userId, futureFriends, futureArtists);
 
-        List<RecommendedSongDto> forYouSection = coldStartHandler.getColdStartRecommendations(
-                userId, pageSize, disliked);
+        boolean hasOnboardingPicks = userHasOnboardingFavorites(userId);
+
+        List<RecommendedSongDto> forYouSection;
+        if (!hasOnboardingPicks) {
+            forYouSection = basicForYouFromNewest(pageSize, disliked);
+            if (forYouSection.isEmpty()) {
+                forYouSection = coldStartHandler.getColdStartRecommendations(userId, pageSize, disliked);
+            }
+        } else {
+            forYouSection = coldStartHandler.getColdStartRecommendations(userId, pageSize, disliked);
+        }
 
         if (forYouSection.isEmpty() && !trendingIds.isEmpty()) {
             Set<String> trendingFiltered = trendingIds.stream()
@@ -339,6 +352,54 @@ public class RecommendationOrchestratorService {
                 .newReleases(newReleasesSection)
                 .friendsAreListening(friendsSection)
                 .recentlyPlayedIds(recentlyPlayedIds)
+                .build();
+    }
+
+    private boolean userHasOnboardingFavorites(UUID userId) {
+        try {
+            ApiResponse<UserFavoritesDto> resp = identityClient.getUserFavorites(userId.toString());
+            UserFavoritesDto fav = resp != null ? resp.getResult() : null;
+            return fav != null
+                    && Boolean.TRUE.equals(fav.getPickFavorite())
+                    && (!CollectionUtils.isEmpty(fav.getFavoriteArtistIds())
+                    || !CollectionUtils.isEmpty(fav.getFavoriteGenreIds()));
+        } catch (Exception e) {
+            log.debug("[Orchestrator] Could not read onboarding favorites for {}: {}", userId, e.getMessage());
+            return false;
+        }
+    }
+
+    private List<RecommendedSongDto> basicForYouFromNewest(int pageSize, Set<String> disliked) {
+        try {
+            ApiResponse<Page<SongDetailDto>> resp = musicClient.getNewestSongs(1, pageSize + 12);
+            if (resp == null || resp.getResult() == null
+                    || CollectionUtils.isEmpty(resp.getResult().getContent())) {
+                return Collections.emptyList();
+            }
+            return resp.getResult().getContent().stream()
+                    .filter(s -> !disliked.contains(s.getId()))
+                    .limit(pageSize)
+                    .map(this::toRecommendedFromDetailNewRelease)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            log.warn("[Orchestrator] basicForYouFromNewest failed: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private RecommendedSongDto toRecommendedFromDetailNewRelease(SongDetailDto s) {
+        SongDetailDto.ArtistInfo a = s.getPrimaryArtist();
+        return RecommendedSongDto.builder()
+                .songId(s.getId())
+                .title(s.getTitle())
+                .slug(s.getSlug())
+                .thumbnailUrl(s.getThumbnailUrl())
+                .durationSeconds(s.getDurationSeconds())
+                .playCount(s.getPlayCount())
+                .artistId(a != null ? a.getArtistId() : null)
+                .artistStageName(a != null ? a.getStageName() : null)
+                .artistAvatarUrl(a != null ? a.getAvatarUrl() : null)
+                .reason(RecommendedSongDto.ReasonType.NEW_RELEASE)
                 .build();
     }
 

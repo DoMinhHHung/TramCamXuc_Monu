@@ -23,6 +23,7 @@ import {
   deleteLyric,
   Genre,
   getLyric,
+  getOwnedSongById,
   LyricResponse,
   Song,
   SongStatus,
@@ -30,14 +31,10 @@ import {
   uploadLyric,
 } from '../services/music';
 import { getPopularGenres } from '../services/favorites';
-import { apiClient } from '../services/api';
 
 const LYRIC_EXTENSIONS = ['lrc', 'srt', 'txt'] as const;
 
 type EditSongRouteParams = { songId: string };
-
-const unwrap = <T,>(data: any): T =>
-  data && typeof data === 'object' && 'result' in data ? (data as any).result as T : data as T;
 
 export const EditSongScreen = () => {
   const insets = useSafeAreaInsets();
@@ -73,14 +70,15 @@ export const EditSongScreen = () => {
 
   const loadData = async () => {
     setLoading(true);
+    setSong(null);
     try {
       const [songRes, genreRes] = await Promise.allSettled([
-        apiClient.get<Song>(`/songs/${songId}`),
+        getOwnedSongById(songId),
         getPopularGenres(30),
       ]);
 
       if (songRes.status === 'fulfilled') {
-        const s = unwrap<Song>(songRes.value.data);
+        const s = songRes.value;
         setSong(s);
         setTitle(s.title);
         setSelectedGenreIds(s.genres?.map(g => g.id) ?? []);
@@ -263,7 +261,8 @@ export const EditSongScreen = () => {
                 {song.primaryArtist?.stageName}
               </Text>
               <Text style={styles.songPreviewMeta}>
-                🎧 {song.playCount?.toLocaleString('vi-VN') ?? 0} lượt nghe
+                🎧 {song.playCount?.toLocaleString() ?? 0}{' '}
+                {t('screens.editSong.playCountSuffix', 'plays')}
               </Text>
             </View>
           </View>
