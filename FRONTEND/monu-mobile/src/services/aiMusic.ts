@@ -7,6 +7,7 @@ export interface AiMusicJob {
   title: string;
   previewUrl?: string | null;
   errorMessage?: string | null;
+  draftSongId?: string | null;
 }
 
 /** apiClient đã unwrap `ApiResponse.result` trong response interceptor — dùng `res.data` trực tiếp. */
@@ -33,6 +34,11 @@ export const getAiMusicJob = async (jobId: string): Promise<AiMusicJob> => {
 
 export const acceptAiMusicJob = async (jobId: string): Promise<Song> => {
   const res = await apiClient.post<Song>(`/ai-music/jobs/${jobId}/accept`);
+  return res.data;
+};
+
+export const keepPrivateAiMusicJob = async (jobId: string): Promise<Song> => {
+  const res = await apiClient.post<Song>(`/ai-music/jobs/${jobId}/keep-private`);
   return res.data;
 };
 

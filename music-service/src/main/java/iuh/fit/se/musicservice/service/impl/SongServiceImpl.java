@@ -329,6 +329,26 @@ public class SongServiceImpl implements SongService {
         if (song.isDeleted()) {
             throw new AppException(ErrorCode.SONG_NOT_AVAILABLE);
         }
+
+        if (song.getSourceType() == SourceType.AI
+                && song.getTranscodeStatus() == TranscodeStatus.PENDING
+                && song.getRawFileKey() != null
+                && !song.getRawFileKey().isBlank()) {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null || !auth.isAuthenticated()
+                    || "anonymousUser".equals(auth.getPrincipal())) {
+                throw new AppException(ErrorCode.UNAUTHENTICATED);
+            }
+            UUID currentUserId = UUID.fromString(auth.getName());
+            boolean isOwner = song.getOwnerUserId().equals(currentUserId);
+            boolean isAdmin = auth.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+            if (!isOwner && !isAdmin) {
+                throw new AppException(ErrorCode.SONG_UNAUTHORIZED_ACCESS);
+            }
+            return storageService.generatePresignedPlaybackUrl(song.getRawFileKey(), "preview.mp3", 60);
+        }
+
         if (song.getTranscodeStatus() != TranscodeStatus.COMPLETED) {
             throw new AppException(ErrorCode.SONG_NOT_READY);
         }

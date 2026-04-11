@@ -31,6 +31,7 @@ import {
   createAiMusicJob,
   getAiMusicJob,
   improveLyricsWithGoogle,
+  keepPrivateAiMusicJob,
   rejectAiMusicJob,
 } from '../../services/aiMusic';
 import { getMySubscription } from '../../services/payment';
@@ -41,6 +42,17 @@ import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 const ALLOWED_EXTENSIONS = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'] as const;
 const LYRIC_EXTENSIONS = ['lrc', 'srt', 'txt'] as const;
 const COVER_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'] as const;
+
+/** Chuẩn hoá trạng thái job AI (PENDING, PROCESSING, READY, FAILED). */
+function formatAiJobStatus(
+  translate: (key: string, fallback?: string) => string,
+  status: string | null
+): string {
+  if (!status) return '…';
+  const key = `screens.create.aiJobStatus_${status}`;
+  const out = translate(key, status);
+  return out === key ? status : out;
+}
 
 type ArtistProfile = {
   id: string;
@@ -517,7 +529,38 @@ export const CreateScreen = () => {
     setAiBusy(true);
     try {
       await acceptAiMusicJob(aiJobId);
-      Alert.alert(t('screens.create.aiMusicAcceptedTitle', 'Saved'), t('screens.create.aiMusicAcceptedMessage', 'Your song is processing. Check My songs in a few minutes.'));
+      Alert.alert(
+        t('screens.create.aiMusicAcceptedTitle', 'Saved'),
+        t(
+          'screens.create.aiMusicAcceptedMessagePublish',
+          'Your song is processing for public release. Check Library → Songs.'
+        )
+      );
+      setAiJobId(null);
+      setAiJobStatus(null);
+      setAiPreviewUrl(null);
+      setAiError(null);
+      setAiTitle('');
+      setAiLyrics('');
+    } catch (err: any) {
+      Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? '');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const handleAiKeepPrivate = async () => {
+    if (!aiJobId) return;
+    setAiBusy(true);
+    try {
+      await keepPrivateAiMusicJob(aiJobId);
+      Alert.alert(
+        t('screens.create.aiMusicAcceptedTitle', 'Saved'),
+        t(
+          'screens.create.aiMusicAcceptedMessagePrivate',
+          'Saved as private. Check Library → Songs to play or manage.'
+        )
+      );
       setAiJobId(null);
       setAiJobStatus(null);
       setAiPreviewUrl(null);
@@ -1050,16 +1093,27 @@ export const CreateScreen = () => {
                   {aiJobId ? (
                     <View style={styles.aiMusicStatus}>
                       <Text style={styles.cardDesc}>
-                        {t('screens.create.aiMusicStatusPrefix', 'Status')}: {aiJobStatus ?? '…'}
+                        {t('screens.create.aiMusicStatusPrefix', 'Status')}: {formatAiJobStatus(t, aiJobStatus)}
                       </Text>
                       {aiError ? <Text style={[styles.cardDesc, { color: themeColors.error }]}>{aiError}</Text> : null}
                       <AiMusicPreviewControls previewUrl={aiPreviewUrl} accent={themeColors.accent} />
-                      {aiJobStatus === 'READY' && aiPreviewUrl ? (
-                        <View style={styles.aiMusicRow}>
-                          <Pressable style={[styles.primaryBtn, { flex: 1 }, aiBusy && styles.disabledBtn]} onPress={handleAiAccept} disabled={aiBusy}>
-                            <Text style={styles.primaryBtnText}>{t('screens.create.aiMusicAccept', 'Accept & publish')}</Text>
-                          </Pressable>
-                          <Pressable style={[styles.secondaryBtn, { flex: 1 }, aiBusy && styles.disabledBtn]} onPress={handleAiReject} disabled={aiBusy}>
+                      {aiJobStatus === 'READY' ? (
+                        <View style={{ gap: 8, marginTop: 4 }}>
+                          <Text style={[styles.cardDesc, { fontSize: 12 }]}>
+                            {t(
+                              'screens.create.aiMusicLibraryHint',
+                              'The draft is also listed under Library → Songs. You can decide there.'
+                            )}
+                          </Text>
+                          <View style={styles.aiMusicRow}>
+                            <Pressable style={[styles.primaryBtn, { flex: 1 }, aiBusy && styles.disabledBtn]} onPress={handleAiAccept} disabled={aiBusy}>
+                              <Text style={styles.primaryBtnText}>{t('screens.create.aiMusicAccept', 'Publish (public)')}</Text>
+                            </Pressable>
+                            <Pressable style={[styles.secondaryBtn, { flex: 1 }, aiBusy && styles.disabledBtn]} onPress={handleAiKeepPrivate} disabled={aiBusy}>
+                              <Text style={styles.secondaryBtnText}>{t('screens.create.aiMusicKeepPrivate', 'Keep private')}</Text>
+                            </Pressable>
+                          </View>
+                          <Pressable style={[styles.secondaryBtn, aiBusy && styles.disabledBtn]} onPress={handleAiReject} disabled={aiBusy}>
                             <Text style={styles.secondaryBtnText}>{t('screens.create.aiMusicReject', 'Discard preview')}</Text>
                           </Pressable>
                         </View>
@@ -1083,6 +1137,7 @@ export const CreateScreen = () => {
 type PreviewProps = { previewUrl: string | null; accent: string };
 
 const AiMusicPreviewControls = ({ previewUrl, accent }: PreviewProps) => {
+  const { t } = useTranslation();
   const player = useAudioPlayer(null);
   const st = useAudioPlayerStatus(player);
 
@@ -1104,7 +1159,11 @@ const AiMusicPreviewControls = ({ previewUrl, accent }: PreviewProps) => {
         onPress={() => (st.playing ? player.pause() : player.play())}
         style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, backgroundColor: `${accent}33` }}
       >
-        <Text style={{ color: accent, fontWeight: '700' }}>{st.playing ? 'Pause' : 'Play preview'}</Text>
+        <Text style={{ color: accent, fontWeight: '700' }}>
+          {st.playing
+            ? t('screens.create.aiMusicPreviewPause', 'Pause')
+            : t('screens.create.aiMusicPreviewPlay', 'Play preview')}
+        </Text>
       </Pressable>
     </View>
   );

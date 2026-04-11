@@ -17,4 +17,5 @@ public class AiMusicJobResponse {
     private String title;
     private String previewUrl;
     private String errorMessage;
+    private UUID draftSongId;
 }

@@ -1,6 +1,7 @@
 package iuh.fit.se.musicservice.controller;
 
 import iuh.fit.se.musicservice.dto.request.AiMusicCreateJobRequest;
+import iuh.fit.se.musicservice.dto.request.AiMusicFinalizeRequest;
 import iuh.fit.se.musicservice.dto.request.ImproveLyricsRequest;
 import iuh.fit.se.musicservice.dto.response.AiMusicJobResponse;
 import iuh.fit.se.musicservice.dto.response.ApiResponse;
@@ -65,10 +66,31 @@ public class AiMusicController {
                 .build();
     }
 
+    @PostMapping("/jobs/{jobId}/keep-private")
+    @PreAuthorize("hasRole('ARTIST')")
+    public ApiResponse<SongResponse> keepPrivate(@PathVariable UUID jobId) {
+        return ApiResponse.<SongResponse>builder()
+                .result(aiMusicJobService.keepPrivateJob(jobId))
+                .message("Saved as private, transcoding started")
+                .build();
+    }
+
     @PostMapping("/jobs/{jobId}/reject")
     @PreAuthorize("hasRole('ARTIST')")
     public ApiResponse<Void> reject(@PathVariable UUID jobId) {
         aiMusicJobService.rejectJob(jobId);
         return ApiResponse.<Void>builder().message("Preview discarded").build();
+    }
+
+    /** Finalize bản nháp AI từ Library (publish hoặc chỉ private). */
+    @PostMapping("/songs/{songId}/finalize")
+    @PreAuthorize("hasRole('ARTIST')")
+    public ApiResponse<SongResponse> finalizeDraft(
+            @PathVariable UUID songId,
+            @Valid @RequestBody AiMusicFinalizeRequest request) {
+        return ApiResponse.<SongResponse>builder()
+                .result(aiMusicJobService.finalizeDraftBySongId(songId, Boolean.TRUE.equals(request.getPublish())))
+                .message("Transcoding started")
+                .build();
     }
 }
