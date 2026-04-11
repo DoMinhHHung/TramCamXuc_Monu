@@ -175,7 +175,15 @@ public class AiMusicJobServiceImpl implements AiMusicJobService {
 
         String previewUrl = null;
         if ("READY".equals(state.getStatus()) && StringUtils.hasText(state.getPreviewRawKey())) {
-            previewUrl = storageService.generatePresignedDownloadUrl(state.getPreviewRawKey(), "preview.mp3");
+            previewUrl = storageService.generatePresignedPlaybackUrl(state.getPreviewRawKey(), "preview.mp3", 60);
+        }
+
+        UUID draftSongId = null;
+        if (StringUtils.hasText(state.getDraftSongId())) {
+            try {
+                draftSongId = UUID.fromString(state.getDraftSongId());
+            } catch (Exception ignored) {
+            }
         }
 
         return AiMusicJobResponse.builder()
@@ -184,6 +192,7 @@ public class AiMusicJobServiceImpl implements AiMusicJobService {
                 .title(state.getTitle())
                 .previewUrl(previewUrl)
                 .errorMessage(state.getErrorMessage())
+                .draftSongId(draftSongId)
                 .build();
     }
 
@@ -197,6 +206,15 @@ public class AiMusicJobServiceImpl implements AiMusicJobService {
         }
         if (!"READY".equals(state.getStatus())) {
             throw new AppException(ErrorCode.AI_MUSIC_JOB_INVALID_STATE);
+        }
+
+        if (StringUtils.hasText(state.getDraftSongId())) {
+            Song song = songRepository.findById(UUID.fromString(state.getDraftSongId()))
+                    .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
+            if (!song.getOwnerUserId().equals(userId)) {
+                throw new AppException(ErrorCode.UNAUTHORIZED);
+            }
+            return finalizeExistingAiDraftSong(song, true, jobId);
         }
 
         Artist artist = artistRepository.findByUserId(userId)
@@ -232,6 +250,94 @@ public class AiMusicJobServiceImpl implements AiMusicJobService {
 
         song = songRepository.save(song);
 
+        sendTranscodeMessage(song);
+
+        stringRedisTemplate.delete(REDIS_PREFIX + jobId);
+
+        log.info("AI music job {} accepted (legacy) → song {}", jobId, songId);
+        return songMapper.toResponse(song);
+    }
+
+    @Override
+    @Transactional
+    public SongResponse keepPrivateJob(UUID jobId) {
+        UUID userId = currentUserId();
+        AiMusicJobRedisState state = readState(jobId);
+        if (!userId.toString().equals(state.getUserId())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        if (!"READY".equals(state.getStatus())) {
+            throw new AppException(ErrorCode.AI_MUSIC_JOB_INVALID_STATE);
+        }
+        if (!StringUtils.hasText(state.getDraftSongId())) {
+            throw new AppException(ErrorCode.AI_MUSIC_JOB_INVALID_STATE);
+        }
+        Song song = songRepository.findById(UUID.fromString(state.getDraftSongId()))
+                .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
+        if (!song.getOwnerUserId().equals(userId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        return finalizeExistingAiDraftSong(song, false, jobId);
+    }
+
+    @Override
+    @Transactional
+    public SongResponse finalizeDraftBySongId(UUID songId, boolean publish) {
+        UUID userId = currentUserId();
+        Song song = songRepository.findById(songId)
+                .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
+        if (!song.getOwnerUserId().equals(userId)) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+        validateAiDraftAwaitingFinalization(song);
+        UUID redisJobId = song.getAiJobId();
+        return finalizeExistingAiDraftSong(song, publish, redisJobId);
+    }
+
+    private void validateAiDraftAwaitingFinalization(Song song) {
+        if (song.getSourceType() != SourceType.AI || song.getStatus() != SongStatus.DRAFT) {
+            throw new AppException(ErrorCode.AI_MUSIC_JOB_INVALID_STATE);
+        }
+        if (song.getTranscodeStatus() != TranscodeStatus.PENDING) {
+            throw new AppException(ErrorCode.AI_MUSIC_JOB_INVALID_STATE);
+        }
+        if (!StringUtils.hasText(song.getRawFileKey()) || !song.getRawFileKey().startsWith("ai-preview/")) {
+            throw new AppException(ErrorCode.AI_MUSIC_JOB_INVALID_STATE);
+        }
+    }
+
+    private SongResponse finalizeExistingAiDraftSong(Song song, boolean publish, UUID redisJobId) {
+        validateAiDraftAwaitingFinalization(song);
+        UUID userId = song.getOwnerUserId();
+        UUID songId = song.getId();
+        String finalKey = String.format("raw/%s/%s.mp3", userId, songId);
+
+        storageService.copyRawObject(song.getRawFileKey(), finalKey);
+        storageService.deleteRawObject(song.getRawFileKey());
+        song.setRawFileKey(finalKey);
+
+        if (publish) {
+            song.setStatus(SongStatus.DRAFT);
+            song.setAiVisibilityTarget(SongStatus.PUBLIC);
+        } else {
+            song.setStatus(SongStatus.PRIVATE);
+            song.setAiVisibilityTarget(null);
+        }
+        song.setTranscodeStatus(TranscodeStatus.PROCESSING);
+        song.setAiJobId(null);
+        songRepository.save(song);
+
+        sendTranscodeMessage(song);
+
+        if (redisJobId != null) {
+            stringRedisTemplate.delete(REDIS_PREFIX + redisJobId);
+        }
+
+        log.info("AI draft song {} finalized publish={}", songId, publish);
+        return songMapper.toResponse(songRepository.findById(songId).orElseThrow());
+    }
+
+    private void sendTranscodeMessage(Song song) {
         Map<String, Object> transcodeMsg = Map.of(
                 "songId", song.getId().toString(),
                 "rawFileKey", song.getRawFileKey(),
@@ -241,21 +347,24 @@ public class AiMusicJobServiceImpl implements AiMusicJobService {
                 RabbitMQConfig.MUSIC_EXCHANGE,
                 RabbitMQConfig.TRANSCODE_ROUTING_KEY,
                 transcodeMsg);
-
-        stringRedisTemplate.delete(REDIS_PREFIX + jobId);
-
-        log.info("AI music job {} accepted → song {}", jobId, songId);
-        return songMapper.toResponse(song);
     }
 
     @Override
+    @Transactional
     public void rejectJob(UUID jobId) {
         UUID userId = currentUserId();
         AiMusicJobRedisState state = readState(jobId);
         if (!userId.toString().equals(state.getUserId())) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
-        if (StringUtils.hasText(state.getPreviewRawKey())) {
+        if (StringUtils.hasText(state.getDraftSongId())) {
+            songRepository.findById(UUID.fromString(state.getDraftSongId())).ifPresent(song -> {
+                if (StringUtils.hasText(song.getRawFileKey())) {
+                    storageService.deleteRawObject(song.getRawFileKey());
+                }
+                songRepository.delete(song);
+            });
+        } else if (StringUtils.hasText(state.getPreviewRawKey())) {
             storageService.deleteRawObject(state.getPreviewRawKey());
         }
         stringRedisTemplate.delete(REDIS_PREFIX + jobId);

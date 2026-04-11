@@ -16,5 +16,9 @@ public interface AiMusicJobService {
 
     SongResponse acceptJob(UUID jobId);
 
+    SongResponse keepPrivateJob(UUID jobId);
+
     void rejectJob(UUID jobId);
+
+    SongResponse finalizeDraftBySongId(UUID songId, boolean publish);
 }

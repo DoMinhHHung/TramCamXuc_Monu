@@ -111,6 +111,13 @@ public class Song extends BaseEntity {
     @Builder.Default
     private SourceType sourceType = SourceType.LOCAL;
 
+    @Column(name = "ai_job_id")
+    private UUID aiJobId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ai_visibility_target")
+    private SongStatus aiVisibilityTarget;
+
     @Column(name = "soundcloud_id", unique = true)
     private String soundcloudId;
 

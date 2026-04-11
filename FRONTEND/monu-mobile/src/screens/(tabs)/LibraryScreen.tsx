@@ -35,6 +35,7 @@ import {
   createAlbum,
   createPlaylist,
   deletePlaylist,
+  finalizeAiDraftSong,
   getMyAlbums,
   getMyPlaylists,
   getMySongs,
@@ -95,6 +96,13 @@ type ArtistProfile = {
 const getSongStatusLabel = (song: Song, c: ColorScheme): { label: string; color: string; pulse: boolean } => {
   if (song.status === 'DELETED') {
     return { label: tr('screens.library.songDeleted', 'Deleted'), color: c.error, pulse: false };
+  }
+  if (song.sourceType === 'AI' && song.status === 'DRAFT' && song.transcodeStatus === 'PENDING') {
+    return {
+      label: tr('screens.library.aiAwaitingDecision', 'AI draft — choose visibility'),
+      color: c.warningMid,
+      pulse: true,
+    };
   }
   if (song.status === 'PRIVATE') {
     return { label: tr('screens.library.private', 'Private'), color: c.glass40, pulse: false };
@@ -226,6 +234,10 @@ const SongRow = ({
   onAddToPlaylist,
   onShare,
   onEdit,
+  showAiReview,
+  onAiPublish,
+  onAiKeepPrivate,
+  aiFinalizeBusy,
 }: {
   song: Song;
   isActive: boolean;
@@ -234,16 +246,22 @@ const SongRow = ({
   onAddToPlaylist: () => void;
   onShare: () => void;
   onEdit?: () => void;
+  showAiReview?: boolean;
+  onAiPublish?: () => void;
+  onAiKeepPrivate?: () => void;
+  aiFinalizeBusy?: boolean;
 }) => {
   const themeColors = useThemeColors();
+  const { t } = useTranslation();
   const songRowStyles = useMemo(() => getSongRowStyles(themeColors), [themeColors]);
   const { label, color, pulse } = getSongStatusLabel(song, themeColors);
   const isReady = (song.transcodeStatus as string) === 'COMPLETED';
+  const canPlayStream = isReady || !!showAiReview;
 
   return (
     <View style={[songRowStyles.row, isActive && songRowStyles.rowActive]}>
       {/* Thumbnail */}
-      <Pressable onPress={isReady ? onPlay : undefined} style={songRowStyles.thumbWrap}>
+      <Pressable onPress={canPlayStream ? onPlay : undefined} style={songRowStyles.thumbWrap}>
         {song.thumbnailUrl ? (
           <Image source={{ uri: song.thumbnailUrl }} style={songRowStyles.thumb} />
         ) : (
@@ -251,7 +269,7 @@ const SongRow = ({
             <Text style={{ fontSize: 20 }}>🎵</Text>
           </View>
         )}
-        {isActive && isReady && (
+        {isActive && canPlayStream && (
           <View style={songRowStyles.playingOverlay}>
             <Text style={{ fontSize: 14, color: themeColors.white }}>{isPlaying ? '⏸' : '▶'}</Text>
           </View>
@@ -297,6 +315,42 @@ const SongRow = ({
           </>
         )}
       </View>
+      {showAiReview && onAiPublish && onAiKeepPrivate ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginLeft: 80, marginRight: 20 }}>
+          <Pressable
+            onPress={onAiPublish}
+            disabled={aiFinalizeBusy}
+            style={{
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              borderRadius: 8,
+              backgroundColor: themeColors.accentDim,
+              opacity: aiFinalizeBusy ? 0.5 : 1,
+            }}
+          >
+            <Text style={{ color: themeColors.white, fontWeight: '700', fontSize: 12 }}>
+              {t('screens.library.aiPublishPublic', 'Go public')}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={onAiKeepPrivate}
+            disabled={aiFinalizeBusy}
+            style={{
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: themeColors.glass20,
+              opacity: aiFinalizeBusy ? 0.5 : 1,
+            }}
+          >
+            <Text style={{ color: themeColors.accent, fontWeight: '700', fontSize: 12 }}>
+              {t('screens.library.aiKeepPrivate', 'Keep private')}
+            </Text>
+          </Pressable>
+          {aiFinalizeBusy ? <ActivityIndicator color={themeColors.accent} size="small" /> : null}
+        </View>
+      ) : null}
     </View>
   );
 };
@@ -1366,6 +1420,7 @@ export const LibraryScreen = () => {
   const [detailAlbumId, setDetailAlbumId] = useState<string | null>(null);
   const [editPlaylist, setEditPlaylist] = useState<Playlist | null>(null);
   const [editPlaylistName, setEditPlaylistName] = useState('');
+  const [aiFinSongId, setAiFinSongId] = useState<string | null>(null);
 
   // Share flow
   const [shareOptionsItem, setShareOptionsItem] = useState<{ type: ShareItemType; id: string; title: string } | null>(null);
@@ -1728,6 +1783,22 @@ export const LibraryScreen = () => {
     }
   };
 
+  const handleAiFinalizeSong = async (songId: string, publish: boolean) => {
+    setAiFinSongId(songId);
+    try {
+      await finalizeAiDraftSong(songId, publish);
+      showToast(t('screens.library.aiFinalizeOk', 'Updated.'), 'success');
+      await load('refresh');
+    } catch (e: any) {
+      showToast(
+        e?.response?.data?.message ?? e?.message ?? t('common.error', 'Error'),
+        'error',
+      );
+    } finally {
+      setAiFinSongId(null);
+    }
+  };
+
   const switchTab = useCallback((newTab: Tab) => {
     if (newTab === activeTab) return;
 
@@ -1814,18 +1885,26 @@ export const LibraryScreen = () => {
           <Text style={styles.emptyTitle}>{t('screens.library.noSongs', 'No songs yet')}</Text>
           <Text style={styles.emptySub}>{t('screens.library.noSongsHint', 'Upload songs in the Create tab')}</Text>
         </View>
-      ) : songs.map(s => (
-        <SongRow
-          key={s.id}
-          song={s}
-          isActive={currentSong?.id === s.id}
-          isPlaying={currentSong?.id === s.id && isPlaying}
-          onPlay={() => playSong(s, songs)}
-          onAddToPlaylist={() => setAddSongTo(s)}
-          onShare={() => openShareOptions('song', s.id, s.title)}
-          onEdit={isArtist ? () => navigation.navigate('EditSong', { songId: s.id }) : undefined}
-        />
-      ))}
+      ) : songs.map(s => {
+        const aiDraftPending =
+          s.sourceType === 'AI' && s.status === 'DRAFT' && s.transcodeStatus === 'PENDING';
+        return (
+          <SongRow
+            key={s.id}
+            song={s}
+            isActive={currentSong?.id === s.id}
+            isPlaying={currentSong?.id === s.id && isPlaying}
+            onPlay={() => playSong(s, songs)}
+            onAddToPlaylist={() => setAddSongTo(s)}
+            onShare={() => openShareOptions('song', s.id, s.title)}
+            onEdit={isArtist ? () => navigation.navigate('EditSong', { songId: s.id }) : undefined}
+            showAiReview={aiDraftPending}
+            onAiPublish={aiDraftPending ? () => void handleAiFinalizeSong(s.id, true) : undefined}
+            onAiKeepPrivate={aiDraftPending ? () => void handleAiFinalizeSong(s.id, false) : undefined}
+            aiFinalizeBusy={aiFinSongId === s.id}
+          />
+        );
+      })}
     </>
   );
 

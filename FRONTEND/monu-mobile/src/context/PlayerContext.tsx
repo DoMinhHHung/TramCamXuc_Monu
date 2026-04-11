@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 
-import { recordPlay, recordListen, Song } from '../services/music';
+import { getSongStreamUrl, recordPlay, recordListen, Song } from '../services/music';
 import { getMySubscription } from '../services/payment';
 import { getNextAd, AdDelivery } from '../services/ads';
 import { isSongDownloaded } from '../services/download';
@@ -531,6 +531,12 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             try {
                 if (song.sourceType === 'SOUNDCLOUD' && song.soundcloudId) {
                     uri = await getSoundCloudStreamUrl(song.soundcloudId);
+                } else if (
+                    song.sourceType === 'AI' &&
+                    song.status === 'DRAFT' &&
+                    song.transcodeStatus === 'PENDING'
+                ) {
+                    uri = await getSongStreamUrl(song.id);
                 } else {
                     const localUri = await isSongDownloaded(song.id);
                     uri = localUri ?? buildStreamUri(song, quality);

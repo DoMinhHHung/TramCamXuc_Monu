@@ -23,5 +23,6 @@ public class AiMusicJobRedisState {
     private String stylePrompt;
     private int durationSeconds;
     private String previewRawKey;
+    private String draftSongId;
     private String errorMessage;
 }

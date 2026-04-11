@@ -108,6 +108,29 @@ public class MinioStorageService {
     }
 
     /**
+     * Presigned GET để phát MP3 trên app (inline, TTL dài) — AI preview / raw trước transcode.
+     */
+    public String generatePresignedPlaybackUrl(String objectKey, String fileName, int expiryMinutes) {
+        try {
+            Map<String, String> extraHeaders = new HashMap<>();
+            extraHeaders.put("response-content-disposition",
+                    "inline; filename=\"" + fileName + "\"");
+
+            return presignedMinioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(rawBucket)
+                            .object(objectKey)
+                            .expiry(Math.max(5, expiryMinutes), TimeUnit.MINUTES)
+                            .extraQueryParams(extraHeaders)
+                            .build());
+        } catch (Exception e) {
+            log.error("Cannot generate presigned playback URL for key: {}", objectKey, e);
+            throw new RuntimeException("Storage service error", e);
+        }
+    }
+
+    /**
      * GET presigned URL để stream HLS (trả về mobile).
      */
     public String generatePresignedStreamUrl(String objectKey) {

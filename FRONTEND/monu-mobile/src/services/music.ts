@@ -35,7 +35,7 @@ export interface Song {
   updatedAt: string;
   uploadUrl?: string;
   coverUploadUrl?: string;
-  sourceType?: 'LOCAL' | 'JAMENDO' | 'SOUNDCLOUD';
+  sourceType?: 'LOCAL' | 'JAMENDO' | 'SOUNDCLOUD' | 'AI';
   soundcloudId?: string;
   soundcloudPermalink?: string;
   soundcloudWaveformUrl?: string;
@@ -212,6 +212,16 @@ export const getSongsByIds = async (ids: string[]): Promise<Song[]> => {
     params: { ids: ids.join(',') },
   });
   return unwrap<Song[]>(response.data);
+};
+
+export const getSongStreamUrl = async (songId: string): Promise<string> => {
+  const res = await apiClient.get<string>(`/songs/${songId}/stream`);
+  return res.data;
+};
+
+export const finalizeAiDraftSong = async (songId: string, publish: boolean): Promise<Song> => {
+  const res = await apiClient.post<Song>(`/ai-music/songs/${songId}/finalize`, { publish });
+  return res.data;
 };
 
 export const getMySongs = async (params?: { page?: number; size?: number; noCache?: boolean }): Promise<PageResponse<Song>> => {

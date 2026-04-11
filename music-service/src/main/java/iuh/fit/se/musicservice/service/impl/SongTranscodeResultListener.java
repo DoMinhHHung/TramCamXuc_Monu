@@ -3,6 +3,7 @@ package iuh.fit.se.musicservice.service.impl;
 import com.rabbitmq.client.Channel;
 import iuh.fit.se.musicservice.config.RabbitMQConfig;
 import iuh.fit.se.musicservice.enums.SongStatus;
+import iuh.fit.se.musicservice.enums.SourceType;
 import iuh.fit.se.musicservice.enums.TranscodeStatus;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,13 +44,17 @@ public class SongTranscodeResultListener {
                 song.setDurationSeconds(duration);
                 song.setHlsMasterUrl(hlsMasterUrl);
 
-                if (song.getStatus() == SongStatus.DRAFT) {
+                if (song.getAiVisibilityTarget() != null) {
+                    song.setStatus(song.getAiVisibilityTarget());
+                    song.setAiVisibilityTarget(null);
+                } else if (song.getStatus() == SongStatus.DRAFT
+                        && song.getSourceType() != SourceType.AI) {
                     song.setStatus(SongStatus.PUBLIC);
                 }
 
                 songRepository.save(song);
-                log.info("Song {} transcoded successfully → PUBLIC. Duration={}s, HLS={}",
-                        songId, duration, hlsMasterUrl);
+                log.info("Song {} transcoded successfully → status={}. Duration={}s, HLS={}",
+                        songId, song.getStatus(), duration, hlsMasterUrl);
 
             }, () -> log.warn("Transcode callback: song {} not found in DB", songId));
 

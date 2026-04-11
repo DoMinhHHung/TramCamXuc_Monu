@@ -18,6 +18,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +33,7 @@ public class AiMusicGenerateListener {
     private final AiMusicCompositionService aiMusicCompositionService;
     private final MinioStorageService minioStorageService;
     private final PaymentAiMusicInternalClient paymentAiMusicInternalClient;
+    private final AiMusicDraftSongService aiMusicDraftSongService;
 
     @RabbitListener(queues = RabbitMQConfig.AI_MUSIC_GENERATE_QUEUE, ackMode = "MANUAL")
     public void onMessage(
@@ -77,10 +79,12 @@ public class AiMusicGenerateListener {
                 return;
             }
 
+            UUID draftSongId = aiMusicDraftSongService.createDraftForAiJob(jobId, state, message.getUserId());
+            state.setDraftSongId(draftSongId.toString());
             state.setStatus("READY");
             state.setErrorMessage(null);
             persistState(key, state);
-            log.info("[AiMusicWorker] done jobId={}", jobId);
+            log.info("[AiMusicWorker] done jobId={} draftSongId={}", jobId, draftSongId);
             channel.basicAck(deliveryTag, false);
         } catch (Exception e) {
             log.error("[AiMusicWorker] failed jobId={}", jobId, e);
