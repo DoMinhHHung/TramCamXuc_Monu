@@ -8,7 +8,7 @@ import iuh.fit.se.musicservice.config.RabbitMQConfig;
 import iuh.fit.se.musicservice.dto.internal.AiMusicJobRedisState;
 import iuh.fit.se.musicservice.dto.internal.payment.InternalAiMusicConsumeRequest;
 import iuh.fit.se.musicservice.dto.messaging.AiMusicGenerateMessage;
-import iuh.fit.se.musicservice.service.ElevenLabsMusicService;
+import iuh.fit.se.musicservice.service.AiMusicCompositionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -16,12 +16,8 @@ import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
 import java.io.IOException;
 import java.time.Duration;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,7 +29,7 @@ public class AiMusicGenerateListener {
 
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
-    private final ElevenLabsMusicService elevenLabsMusicService;
+    private final AiMusicCompositionService aiMusicCompositionService;
     private final MinioStorageService minioStorageService;
     private final PaymentAiMusicInternalClient paymentAiMusicInternalClient;
 
@@ -60,8 +56,7 @@ public class AiMusicGenerateListener {
             state.setErrorMessage(null);
             persistState(key, state);
 
-            String prompt = buildPrompt(message);
-            byte[] audio = elevenLabsMusicService.composeMusic(prompt, message.getDurationSeconds() * 1000);
+            byte[] audio = aiMusicCompositionService.composeMusic(message);
 
             minioStorageService.uploadRawBytes(state.getPreviewRawKey(), audio, "audio/mpeg");
 
@@ -110,24 +105,4 @@ public class AiMusicGenerateListener {
         stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(state), JOB_TTL);
     }
 
-    private static String buildPrompt(AiMusicGenerateMessage m) {
-        String style = StringUtils.hasText(m.getStylePrompt())
-                ? m.getStylePrompt()
-                : "Modern pop song with clear vocals matching the lyrics language.";
-        List<String> names = m.getGenreNames();
-        String genres = (names == null || names.isEmpty())
-                ? ""
-                : names.stream().map(String::trim).collect(Collectors.joining(", "));
-
-        return """
-                Musical direction: %s
-                Genres / mood tags: %s
-
-                The following text is the lyrics. Sing them naturally in the same language as written.
-                Keep structure (verses / chorus) if line breaks suggest it.
-
-                --- LYRICS ---
-                %s
-                """.formatted(style, genres.isEmpty() ? "(not specified)" : genres, m.getLyrics());
-    }
 }

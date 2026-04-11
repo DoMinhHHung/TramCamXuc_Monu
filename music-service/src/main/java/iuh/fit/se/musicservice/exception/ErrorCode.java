@@ -75,7 +75,8 @@ public enum ErrorCode {
     AI_MUSIC_JOB_NOT_FOUND           (2702, "AI music job not found or expired",                        HttpStatus.NOT_FOUND),
     AI_MUSIC_JOB_INVALID_STATE       (2703, "AI music job is not ready for this action",                HttpStatus.CONFLICT),
     AI_MUSIC_EXTERNAL_FAILED         (2704, "External AI music provider failed",                          HttpStatus.BAD_GATEWAY),
-    AI_MUSIC_LYRICS_TOO_LONG         (2705, "Lyrics exceed maximum length",                             HttpStatus.BAD_REQUEST);
+    AI_MUSIC_LYRICS_TOO_LONG         (2705, "Lyrics exceed maximum length",                             HttpStatus.BAD_REQUEST),
+    AI_MUSIC_ELEVENLABS_QUOTA        (2706, "AI music provider refused credits or rate limit (HTTP 402/429)", HttpStatus.PAYMENT_REQUIRED);
 
     private final int code;
     private final String message;

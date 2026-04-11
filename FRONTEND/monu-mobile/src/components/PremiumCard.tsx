@@ -34,7 +34,6 @@ function formatFeature(key: string, value: any): FeatureItem | null {
     };
 
     const valueMap: Record<string, string> = {
-        lossless: "Lossless",
         high: "Cao",
         medium: "Trung bình",
         low: "Thấp",

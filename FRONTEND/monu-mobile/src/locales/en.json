@@ -421,6 +421,7 @@
       "lyricAllowedFormatsHint": "Only supported",
       "aiMusicTitle": "Create music with AI",
       "aiMusicDesc": "Write lyrics or import a file, pick style and length. Preview on device, then accept to publish like a normal upload.",
+      "aiMusicAttribution": "AI music is powered by Sonauto (ElevenLabs as backup). Sonauto requires attribution for user-facing API use.",
       "aiMusicLyricsLabel": "Lyrics",
       "aiMusicLyricsPlaceholder": "Paste lyrics or import a file…",
       "aiMusicPickLyricFile": "Import lyric file (.txt, .lrc, .srt)",

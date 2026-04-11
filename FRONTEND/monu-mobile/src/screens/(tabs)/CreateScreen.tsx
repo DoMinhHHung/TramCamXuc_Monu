@@ -938,6 +938,12 @@ export const CreateScreen = () => {
                   <Text style={styles.cardDesc}>
                     {t('screens.create.aiMusicDesc', 'Write lyrics or import a file, pick style and length. Preview on device, then accept to publish like a normal upload.')}
                   </Text>
+                  <Text style={styles.aiMusicAttribution}>
+                    {t(
+                      'screens.create.aiMusicAttribution',
+                      'AI music is powered by Sonauto (ElevenLabs as backup). Sonauto requires attribution for user-facing API use.'
+                    )}
+                  </Text>
 
                   <Text style={styles.fieldLabel}>{t('screens.create.songTitleLabel', 'Song title')}</Text>
                   <TextInput
@@ -1222,6 +1228,13 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     color: colors.glass60,
     fontSize: 14,
     lineHeight: 20,
+  },
+  aiMusicAttribution: {
+    color: colors.glass40,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 2,
+    fontStyle: 'italic',
   },
 
   // ── Form fields ──────────────────────────────────────────────────────────
