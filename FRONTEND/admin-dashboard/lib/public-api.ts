@@ -28,3 +28,29 @@ export async function fetchPublicTrending(size = 40): Promise<Record<string, unk
   const page = (body?.result ?? body) as { content?: Record<string, unknown>[] };
   return page?.content ?? [];
 }
+
+/** Playlist theo UUID — GET /playlists/id/{id} (public / collaborative) */
+export async function fetchPublicPlaylist(id: string): Promise<Record<string, unknown> | null> {
+  const base = getPublicGatewayBase();
+  if (!base) return null;
+  const res = await fetch(`${base}/playlists/id/${encodeURIComponent(id)}`, {
+    next: { revalidate: 120 },
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return null;
+  const body = await res.json();
+  return (body?.result ?? body) as Record<string, unknown>;
+}
+
+/** Album theo UUID — GET /albums/{id} */
+export async function fetchPublicAlbum(id: string): Promise<Record<string, unknown> | null> {
+  const base = getPublicGatewayBase();
+  if (!base) return null;
+  const res = await fetch(`${base}/albums/${encodeURIComponent(id)}`, {
+    next: { revalidate: 120 },
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return null;
+  const body = await res.json();
+  return (body?.result ?? body) as Record<string, unknown>;
+}

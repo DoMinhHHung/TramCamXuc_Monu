@@ -89,9 +89,20 @@ public class ShareServiceImpl implements ShareService {
         return songShareRepository.countBySongId(songId);
     }
 
+    private String trimTrailingSlash(String url) {
+        if (url == null || url.isBlank()) {
+            return "";
+        }
+        String u = url.trim();
+        return u.endsWith("/") ? u.substring(0, u.length() - 1) : u;
+    }
+
+    private String webBase() {
+        return trimTrailingSlash(frontendUrl);
+    }
+
     private String buildWebSongUrl(UUID songId) {
-        String base = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
-        return base + "/share/song/" + songId;
+        return webBase() + "/share/song/" + songId;
     }
 
     private String buildSongDeepLink(UUID songId) {
@@ -105,19 +116,52 @@ public class ShareServiceImpl implements ShareService {
         return b + "/song/" + songId;
     }
 
+    private String buildWebPlaylistUrl(UUID playlistId) {
+        return webBase() + "/share/playlist/" + playlistId;
+    }
+
+    private String buildPlaylistDeepLink(UUID playlistId) {
+        String b = deepLinkBase.trim();
+        if (b.endsWith("://")) {
+            return b + "playlist/" + playlistId;
+        }
+        if (b.endsWith("/")) {
+            return b + "playlist/" + playlistId;
+        }
+        return b + "/playlist/" + playlistId;
+    }
+
+    private String buildWebAlbumUrl(UUID albumId) {
+        return webBase() + "/share/album/" + albumId;
+    }
+
+    private String buildAlbumDeepLink(UUID albumId) {
+        String b = deepLinkBase.trim();
+        if (b.endsWith("://")) {
+            return b + "album/" + albumId;
+        }
+        if (b.endsWith("/")) {
+            return b + "album/" + albumId;
+        }
+        return b + "/album/" + albumId;
+    }
+
     @Override
     public ShareResponse getPlaylistShareLink(UUID playlistId, String platform) {
-        String url = frontendUrl + "/playlist/" + playlistId;
+        String url = buildWebPlaylistUrl(playlistId);
+        String deep = buildPlaylistDeepLink(playlistId);
         String platformUrl = buildPlatformUrl(platform, url);
         return ShareResponse.builder()
                 .shareUrl(platformUrl)
+                .mobileDeepLink(deep)
                 .platform(platform)
                 .build();
     }
 
     @Override
     public ShareResponse getPlaylistQrCode(UUID playlistId) {
-        String url = frontendUrl + "/playlist/" + playlistId;
+        String url = buildWebPlaylistUrl(playlistId);
+        String deep = buildPlaylistDeepLink(playlistId);
         try {
             QRCodeWriter writer = new QRCodeWriter();
             BitMatrix matrix = writer.encode(url, BarcodeFormat.QR_CODE, 300, 300);
@@ -126,28 +170,36 @@ public class ShareServiceImpl implements ShareService {
             String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
             return ShareResponse.builder()
                     .shareUrl(url)
+                    .mobileDeepLink(deep)
                     .qrCodeBase64("data:image/png;base64," + base64)
                     .platform("qr")
                     .build();
         } catch (Exception e) {
             log.error("Playlist QR generation failed for playlistId={}", playlistId, e);
-            return ShareResponse.builder().shareUrl(url).platform("qr").build();
+            return ShareResponse.builder()
+                    .shareUrl(url)
+                    .mobileDeepLink(deep)
+                    .platform("qr")
+                    .build();
         }
     }
 
     @Override
     public ShareResponse getAlbumShareLink(UUID albumId, String platform) {
-        String url = frontendUrl + "/album/" + albumId;
+        String url = buildWebAlbumUrl(albumId);
+        String deep = buildAlbumDeepLink(albumId);
         String platformUrl = buildPlatformUrl(platform, url);
         return ShareResponse.builder()
                 .shareUrl(platformUrl)
+                .mobileDeepLink(deep)
                 .platform(platform)
                 .build();
     }
 
     @Override
     public ShareResponse getAlbumQrCode(UUID albumId) {
-        String url = frontendUrl + "/album/" + albumId;
+        String url = buildWebAlbumUrl(albumId);
+        String deep = buildAlbumDeepLink(albumId);
         try {
             QRCodeWriter writer = new QRCodeWriter();
             BitMatrix matrix = writer.encode(url, BarcodeFormat.QR_CODE, 300, 300);
@@ -156,12 +208,17 @@ public class ShareServiceImpl implements ShareService {
             String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
             return ShareResponse.builder()
                     .shareUrl(url)
+                    .mobileDeepLink(deep)
                     .qrCodeBase64("data:image/png;base64," + base64)
                     .platform("qr")
                     .build();
         } catch (Exception e) {
             log.error("Album QR generation failed for albumId={}", albumId, e);
-            return ShareResponse.builder().shareUrl(url).platform("qr").build();
+            return ShareResponse.builder()
+                    .shareUrl(url)
+                    .mobileDeepLink(deep)
+                    .platform("qr")
+                    .build();
         }
     }
 

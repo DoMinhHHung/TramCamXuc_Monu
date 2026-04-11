@@ -190,7 +190,7 @@ services:
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID}
       PAYOS_API_KEY: ${PAYOS_API_KEY}
       PAYOS_CHECK_SUM: ${PAYOS_CHECK_SUM}
-      FRONTEND_URL: ${FRONTEND_URL:-https://phazelsound.oopsgolden.id.vn}
+      FRONTEND_URL: ${FRONTEND_URL:-https://tram-cam-xuc-monu.vercel.app}
       SPRING_DATASOURCE_USERNAME: postgres.jzytcnpyacdldabcgcnc
     depends_on:
       discovery-server:
@@ -282,8 +282,8 @@ services:
       SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
       MONGODB_URI: ${MONGODB_URI}
       MINIO_AI_BUCKET: ${MINIO_AI_BUCKET:-ai-training-data}
-      # Public URL trang share (admin Next: /share/...) + có thể trùng domain gateway
-      FRONTEND_URL: ${FRONTEND_URL:-https://phazelsound.oopsgolden.id.vn}
+      # Public URL trang share (Next trên Vercel: /share/song|playlist|album/...)
+      FRONTEND_URL: ${FRONTEND_URL:-https://tram-cam-xuc-monu.vercel.app}
       SHARE_DEEP_LINK_BASE: ${SHARE_DEEP_LINK_BASE:-monumobile://}
     depends_on:
       discovery-server:

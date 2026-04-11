@@ -67,8 +67,15 @@ export const SongActionSheet = ({
   const isClosing = useRef(false);
 
   const renderActionIcon = useCallback((icon: React.ReactNode) => {
+    if (typeof icon === 'string' || typeof icon === 'number') {
+      return (
+        <View style={styles.iconNodeWrap}>
+          <Text style={styles.emojiIcon}>{icon}</Text>
+        </View>
+      );
+    }
     return <View style={styles.iconNodeWrap}>{icon}</View>;
-  }, [styles.iconNodeWrap]);
+  }, [styles.emojiIcon, styles.iconNodeWrap]);
 
   // ── Animations ───────────────────────────────────────────────────────────
 
@@ -246,10 +253,10 @@ export const SongActionSheet = ({
                       )}
                     </View>
 
-                    {/* Chevron / lock */}
-                    <Text
+                    {/* Chevron / lock — không bọc AppIcon trong <Text> (RN lỗi) */}
+                    <View
                         style={[
-                          styles.actionChevron,
+                          styles.actionChevronWrap,
                           action.disabled && { opacity: 0.3 },
                         ]}
                     >
@@ -257,7 +264,7 @@ export const SongActionSheet = ({
                         ? <AppIcon name="lock" size={16} color={colors.muted} />
                         : <AppIcon name="chevronRight" size={20} color={colors.muted} />
                       }
-                    </Text>
+                    </View>
                   </Pressable>
                 </React.Fragment>
             ))}
@@ -323,12 +330,13 @@ const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.crea
   iconWrapDestructive: { backgroundColor: `${colors.error}20` },
   iconWrapDisabled: { backgroundColor: colors.surfaceLow },
   iconNodeWrap: { width: 22, height: 22, alignItems: 'center', justifyContent: 'center' },
+  emojiIcon: { fontSize: 18, lineHeight: 22, textAlign: 'center' },
   labelWrap: { flex: 1 },
   actionLabel: { color: colors.text, fontSize: 15, fontWeight: '500' },
   actionLabelDestructive: { color: colors.error },
   actionLabelDisabled: { color: colors.muted },
   actionSublabel: { color: colors.muted, fontSize: 12, marginTop: 2 },
-  actionChevron: { color: colors.muted, fontSize: 22, fontWeight: '300' },
+  actionChevronWrap: { width: 28, alignItems: 'center', justifyContent: 'center' },
   cancelWrapper: { paddingHorizontal: 10, paddingTop: 6 },
   cancelBtn: { borderRadius: 16, backgroundColor: colors.surfaceLow, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: colors.divider },
   cancelBtnPressed: { backgroundColor: colors.surfaceMid },

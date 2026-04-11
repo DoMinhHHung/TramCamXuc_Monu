@@ -9,7 +9,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -32,6 +31,7 @@ import {
   StatsStripSkeleton,
 } from '../components/SkeletonLoader';
 import { SongSection } from '../components/SongSection';
+import { AddToPlaylistSheet } from '../components/AddToPlaylistSheet';
 import { SongActionSheet } from '../components/SongActionSheet';
 import { AnimatedDecorIcon } from '../components/AnimatedDecorIcon';
 import {
@@ -163,7 +163,6 @@ export const HomeScreen = () => {
   const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
   const [reportSheetOpen, setReportSheetOpen] = useState(false);
   const [reportSongId, setReportSongId] = useState<string | null>(null);
-  const [newPlaylistName, setNewPlaylistName] = useState('');
   const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
 
   const topArtistsScrollRef = useRef<ScrollView | null>(null);
@@ -269,8 +268,8 @@ export const HomeScreen = () => {
     }
   }, [songToAdd]);
 
-  const handleCreateAndAdd = useCallback(async () => {
-    if (!songToAdd || !newPlaylistName.trim()) return;
+  const handleCreateAndAdd = useCallback(async (name: string) => {
+    if (!songToAdd || !name.trim()) return;
     if (isSoundCloudExternalSong(songToAdd)) {
       Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
       setPlaylistPickerOpen(false);
@@ -278,15 +277,14 @@ export const HomeScreen = () => {
       return;
     }
     try {
-      const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
+      const pl = await createPlaylist({ name: name.trim(), visibility: 'PUBLIC' });
       await addSongToPlaylist(pl.id, songToAdd.id);
-      setNewPlaylistName('');
       setPlaylistPickerOpen(false);
       setSongToAdd(null);
     } catch (e: unknown) {
       Alert.alert('Lỗi', e instanceof Error ? e.message : 'Không thể tạo playlist');
     }
-  }, [songToAdd, newPlaylistName]);
+  }, [songToAdd]);
 
   const openReportReasonPicker = useCallback((songId: string) => {
     setReportSongId(songId);
@@ -921,48 +919,24 @@ export const HomeScreen = () => {
         t={t}
       />
 
-      <Modal
+      <AddToPlaylistSheet
         visible={playlistPickerOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
+        songTitle={songToAdd?.title ?? ''}
+        songSubtitle={songToAdd?.primaryArtist?.stageName}
+        thumbnailUrl={songToAdd?.thumbnailUrl}
+        playlists={(localPlaylists || []).map(p => ({
+          id: p.id,
+          name: p.name,
+          totalSongs: p.totalSongs,
+        }))}
+        onClose={() => {
           setPlaylistPickerOpen(false);
           setSongToAdd(null);
         }}
-      >
-        <View style={styles.backdrop}>
-          <View style={styles.modalCard}>
-            <Pressable
-              style={styles.modalClose}
-              onPress={() => {
-                setPlaylistPickerOpen(false);
-                setSongToAdd(null);
-              }}
-            >
-              <Text style={styles.modalCloseIcon}>✕</Text>
-            </Pressable>
-
-            <Text style={styles.modalTitle}>Thêm vào playlist</Text>
-            <ScrollView style={{ maxHeight: 240 }}>
-              {(localPlaylists || []).map((p) => (
-                <Pressable key={p.id} onPress={() => { void handleAddToPlaylist(p.id); }}>
-                  <Text style={styles.modalItem}>{p.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-            <TextInput
-              style={styles.playlistInput}
-              value={newPlaylistName}
-              onChangeText={setNewPlaylistName}
-              placeholder="Tạo playlist mới"
-              placeholderTextColor={themeColors.glass45}
-            />
-            <Pressable onPress={() => { void handleCreateAndAdd(); }}>
-              <Text style={styles.modalItemAccent}>+ Tạo mới và thêm</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
+        onSelectPlaylist={(id) => handleAddToPlaylist(id)}
+        onCreateAndAdd={(name) => handleCreateAndAdd(name)}
+        addDisabled={songToAdd ? isSoundCloudExternalSong(songToAdd) : false}
+      />
 
       <Modal
         visible={!!qrModal}
@@ -1161,15 +1135,5 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   modalCloseIcon: { color: colors.text, fontSize: 16, fontWeight: '700' },
   modalItem: { color: colors.textSecondary, fontSize: 14, marginTop: 8 },
-  modalItemAccent: { color: colors.accent, fontSize: 14, fontWeight: '700', marginTop: 10 },
-  playlistInput: {
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginTop: 10,
-  },
   qrImage: { width: 220, height: 220, borderRadius: 8, alignSelf: 'center', marginTop: 12 },
 });
