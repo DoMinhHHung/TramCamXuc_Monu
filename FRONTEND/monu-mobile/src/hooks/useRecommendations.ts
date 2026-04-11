@@ -27,6 +27,18 @@ const toErrorMessage = (reason: unknown): string => {
   return 'Không thể tải recommendation';
 };
 
+/** Gói Premium có thể ghi `advanced`, `advance`, `ai`… — đồng bộ với recommendation-service (mode advance). */
+export function isAdvancedRecommendationPlan(features?: Record<string, unknown> | null): boolean {
+  if (!features || typeof features !== 'object') return false;
+  const raw =
+    (features as Record<string, unknown>).recommendation ??
+    (features as Record<string, unknown>).recommendations;
+  if (raw === true || raw === 1) return true;
+  if (typeof raw !== 'string') return false;
+  const v = raw.trim().toLowerCase();
+  return v === 'advanced' || v === 'advance' || v === 'ai' || v === 'ml';
+}
+
 const mapMusicSongToRecommended = (song: Song): RecommendedSong => ({
   songId: song.id,
   title: song.title,
@@ -116,11 +128,13 @@ export function useRecommendations() {
       return errors;
     }
 
-    const sub = await getMySubscriptionOrNull();
-    const adv =
-      String(sub?.plan?.features?.recommendation ?? '')
-        .toLowerCase()
-        .trim() === 'advanced';
+    let adv = false;
+    try {
+      const sub = await getMySubscriptionOrNull();
+      adv = isAdvancedRecommendationPlan(sub?.plan?.features as Record<string, unknown> | undefined);
+    } catch {
+      adv = false;
+    }
     if (isMountedRef.current) {
       setAdvancedRecEnabled(adv);
     }
@@ -199,6 +213,7 @@ export function useRecommendations() {
           if (c.basicHomeFeed) setBasicHomeFeed(c.basicHomeFeed);
           if (c.advanceHomeFeed) setAdvanceHomeFeed(c.advanceHomeFeed);
           if (c.socialRecs?.length) setSocialRecs(c.socialRecs);
+          if (typeof c.advancedRecEnabled === 'boolean') setAdvancedRecEnabled(c.advancedRecEnabled);
           setLoading(false);
         }
       } catch { /* ignore */ }
@@ -241,8 +256,9 @@ export function useRecommendations() {
       basicHomeFeed,
       advanceHomeFeed,
       socialRecs,
+      advancedRecEnabled,
     })).catch(() => {});
-  }, [lastUpdatedAt]);
+  }, [lastUpdatedAt, globalTrending, newReleases, basicHomeFeed, advanceHomeFeed, socialRecs, advancedRecEnabled]);
 
   const refresh = useCallback(async () => {
     await fetchAll(false);

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator, Animated, Dimensions, FlatList, Image,
     Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
-    Pressable, ScrollView, StyleSheet, Text, View, TextInput, Alert, Linking,
+    Pressable, ScrollView, StyleSheet, Text, View, Alert, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '../context/LocalizationContext';
@@ -15,6 +15,7 @@ import {
     LyricLine, LyricResponse, Playlist,
 } from '../services/music';
 import { getSongShareQr } from '../services/social';
+import { AddToPlaylistSheet } from './AddToPlaylistSheet';
 import { SongActionSheet } from './SongActionSheet';
 import { AppIcon } from '../config/appIcons';
 import { HeartButton } from './HeartButton';
@@ -203,7 +204,6 @@ export const FullPlayerModal = () => {
     const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
     const [reportSheetOpen, setReportSheetOpen] = useState(false);
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
-    const [newPlaylistName, setNewPlaylistName] = useState('');
     const [shareQr, setShareQr] = useState<string | null>(null);
     const [isSeeking, setIsSeeking] = useState(false);
 
@@ -717,53 +717,60 @@ export const FullPlayerModal = () => {
                         t={t}
                     />
 
-                    {/* Playlist picker */}
-                    <Modal visible={playlistPickerOpen} transparent animationType="slide" onRequestClose={() => setPlaylistPickerOpen(false)}>
-                        <Pressable style={styles.menuBackdrop} onPress={() => setPlaylistPickerOpen(false)}>
-                            <View style={styles.menuSheet}>
-                                <Text style={styles.menuTitle}>Thêm vào playlist</Text>
-                                {playlists.map((p) => (
-                                    <Pressable key={p.id} onPress={async () => {
-                                        if (isSoundCloudTrack) {
-                                            Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
-                                            setPlaylistPickerOpen(false);
-                                            return;
-                                        }
-                                        try {
-                                            await addSongToPlaylist(p.id, currentSong.id);
-                                            Alert.alert('Thành công', `Đã thêm vào ${p.name}`);
-                                            setPlaylistPickerOpen(false);
-                                        } catch (error: any) {
-                                            Alert.alert('Lỗi', error?.message || 'Không thể thêm vào playlist');
-                                        }
-                                    }}><Text style={styles.menuItem}>{p.name}</Text></Pressable>
-                                ))}
-                                <TextInput
-                                    style={styles.playlistInput}
-                                    value={newPlaylistName}
-                                    onChangeText={setNewPlaylistName}
-                                    placeholder="Tạo danh sách phát mới"
-                                    placeholderTextColor={COLORS.glass45}
-                                />
-                                <Pressable onPress={async () => {
-                                    if (!newPlaylistName.trim()) return;
-                                    if (isSoundCloudTrack) {
-                                        Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
-                                        setPlaylistPickerOpen(false);
-                                        return;
-                                    }
-                                    try {
-                                        const pl = await createPlaylist({ name: newPlaylistName.trim(), visibility: 'PUBLIC' });
-                                        await addSongToPlaylist(pl.id, currentSong.id);
-                                        setNewPlaylistName('');
-                                        setPlaylistPickerOpen(false);
-                                    } catch (error: any) {
-                                        Alert.alert('Lỗi', error?.message || 'Không thể tạo playlist mới');
-                                    }
-                                }}><Text style={styles.menuItemAccent}>+ Tạo mới và thêm</Text></Pressable>
-                            </View>
-                        </Pressable>
-                    </Modal>
+                    <AddToPlaylistSheet
+                        visible={playlistPickerOpen}
+                        songTitle={currentSong.title}
+                        songSubtitle={currentSong.primaryArtist?.stageName}
+                        thumbnailUrl={currentSong.thumbnailUrl}
+                        playlists={playlists.map((p) => ({
+                            id: p.id,
+                            name: p.name,
+                            totalSongs: p.totalSongs,
+                        }))}
+                        onClose={() => setPlaylistPickerOpen(false)}
+                        onSelectPlaylist={async (playlistId) => {
+                            if (isSoundCloudTrack) {
+                                Alert.alert(
+                                    t('common.error', 'Error'),
+                                    t('screens.library.soundcloudPlaylistNotSupported', 'SoundCloud track cannot be added to internal playlists.'),
+                                );
+                                setPlaylistPickerOpen(false);
+                                return;
+                            }
+                            try {
+                                await addSongToPlaylist(playlistId, currentSong.id);
+                                const plName = playlists.find((x) => x.id === playlistId)?.name ?? '';
+                                Alert.alert(
+                                    t('screens.library.addedTitle', 'Added'),
+                                    plName
+                                        ? `${t('screens.library.songAddedToPlaylist', 'Song added to playlist.')} (${plName})`
+                                        : t('screens.library.songAddedToPlaylist', 'Song added to playlist.'),
+                                );
+                                setPlaylistPickerOpen(false);
+                            } catch (error: any) {
+                                Alert.alert(t('common.error', 'Error'), error?.message || t('common.error', 'Error'));
+                            }
+                        }}
+                        onCreateAndAdd={async (name) => {
+                            if (isSoundCloudTrack) {
+                                Alert.alert(
+                                    t('common.error', 'Error'),
+                                    t('screens.library.soundcloudPlaylistNotSupported', 'SoundCloud track cannot be added to internal playlists.'),
+                                );
+                                setPlaylistPickerOpen(false);
+                                return;
+                            }
+                            try {
+                                const pl = await createPlaylist({ name: name.trim(), visibility: 'PUBLIC' });
+                                await addSongToPlaylist(pl.id, currentSong.id);
+                                setPlaylistPickerOpen(false);
+                                Alert.alert(t('screens.library.addedTitle', 'Added'), t('screens.library.createdPlaylist', 'Playlist created.'));
+                            } catch (error: any) {
+                                Alert.alert(t('common.error', 'Error'), error?.message || t('common.error', 'Error'));
+                            }
+                        }}
+                        addDisabled={isSoundCloudTrack}
+                    />
 
                     {/* QR share */}
                     <Modal visible={!!shareQr} transparent animationType="fade" onRequestClose={() => setShareQr(null)}>
@@ -887,8 +894,6 @@ const styles = StyleSheet.create({
     menuSheet:          { backgroundColor: '#18181f', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, gap: 10 },
     menuTitle:          { color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
     menuItem:           { color: COLORS.glass80, fontSize: 14, marginBottom: 8 },
-    menuItemAccent:     { color: COLORS.accent, fontSize: 14, fontWeight: '700' },
-    playlistInput:      { color: COLORS.white, borderWidth: 1, borderColor: COLORS.glass15, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
     stats:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
     statsText:          { color: COLORS.glass25, fontSize: 12 },
     scAttribution: {

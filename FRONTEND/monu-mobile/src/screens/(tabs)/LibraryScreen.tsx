@@ -54,6 +54,7 @@ import {
   getSongShareQr,
 } from '../../services/social';
 import { apiClient } from '../../services/api';
+import { AddToPlaylistSheet } from '../../components/AddToPlaylistSheet';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 import { Toast, useToast } from '../../components/Toast';
 import { getMySubscription } from '../../services/payment';
@@ -656,79 +657,6 @@ const getModalStyles = (c: ColorScheme) => StyleSheet.create({
   coverPickerText: { color: c.glass60, fontSize: 13 },
 });
 
-// ─── Add Song to Playlist Modal ───────────────────────────────────────────────
-
-const AddToPlaylistModal = ({
-  visible,
-  song,
-  playlists,
-  onClose,
-  onAdd,
-  onCreateAndAdd,
-}: {
-  visible: boolean;
-  song: Song | null;
-  playlists: Playlist[];
-  onClose: () => void;
-  onAdd: (playlistId: string) => Promise<void>;
-  onCreateAndAdd: (name: string) => Promise<void>;
-}) => {
-  const themeColors = useThemeColors();
-  const sheetStyles = useMemo(() => getSheetStyles(themeColors), [themeColors]);
-  const [newName, setNewName] = useState('');
-  const [creating, setCreating] = useState(false);
-
-  const handleCreateAndAdd = async () => {
-    if (!newName.trim() || creating) return;
-    setCreating(true);
-    try {
-      await onCreateAndAdd(newName.trim());
-      setNewName('');
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={sheetStyles.overlay} onPress={onClose} />
-      <View style={sheetStyles.sheet}>
-        <View style={sheetStyles.handle} />
-        <Text style={sheetStyles.title}>{tr('actions.addToPlaylist', 'Add to playlist')}</Text>
-        <Text style={sheetStyles.subtitle} numberOfLines={1}>{song?.title}</Text>
-        <ScrollView style={{ maxHeight: 220 }} showsVerticalScrollIndicator={false}>
-          {playlists.map(p => (
-            <Pressable key={p.id} style={sheetStyles.item} onPress={() => onAdd(p.id)}>
-              <Text style={sheetStyles.itemIcon}><Fontisto name="play-list" color={themeColors.accent} size={14} /></Text>
-              <Text style={sheetStyles.itemText}>{p.name}</Text>
-              <Text style={sheetStyles.itemCount}>{p.totalSongs ?? 0} {tr('screens.library.songsSuffix', 'songs')}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-        <View style={sheetStyles.newRow}>
-          <TextInput
-            style={sheetStyles.newInput}
-            value={newName}
-            onChangeText={setNewName}
-            placeholder={tr('screens.library.createPlaylistPlaceholder', 'Create new playlist...')}
-            placeholderTextColor={themeColors.glass30}
-          />
-          <Pressable
-            style={[sheetStyles.newBtn, !newName.trim() && { opacity: 0.4 }]}
-            disabled={!newName.trim() || creating}
-            onPress={() => { void handleCreateAndAdd(); }}
-          >
-            {creating
-              ? <ActivityIndicator size="small" color={themeColors.white} />
-              : <Text style={sheetStyles.newBtnText}>+</Text>
-            }
-          </Pressable>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
 const getSheetStyles = (c: ColorScheme) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: c.scrim },
   sheet: {
@@ -751,28 +679,6 @@ const getSheetStyles = (c: ColorScheme) => StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 },
   itemIcon: { fontSize: 18 },
   itemText: { flex: 1, color: c.white, fontSize: 14, fontWeight: '500' },
-  itemCount: { color: c.glass40, fontSize: 12 },
-  newRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  newInput: {
-    flex: 1,
-    backgroundColor: c.surfaceLow,
-    borderWidth: 1,
-    borderColor: c.glass15,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    color: c.white,
-    fontSize: 14,
-  },
-  newBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: c.accentDim,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  newBtnText: { color: c.white, fontSize: 22, fontWeight: '300' },
 });
 
 // ─── QR Modal ─────────────────────────────────────────────────────────────────
@@ -855,9 +761,10 @@ interface ShareOptionsSheetProps {
   onClose: () => void;
   onExternal: () => void;
   onDiscovery: () => void;
+  onQr: (item: { type: ShareItemType; id: string; title: string }) => void;
 }
 
-const ShareOptionsSheet = ({ visible, item, onClose, onExternal, onDiscovery }: ShareOptionsSheetProps) => {
+const ShareOptionsSheet = ({ visible, item, onClose, onExternal, onDiscovery, onQr }: ShareOptionsSheetProps) => {
   const themeColors = useThemeColors();
   const sheetStyles = useMemo(() => getSheetStyles(themeColors), [themeColors]);
   const shareOptionStyles = useMemo(() => getShareOptionStyles(themeColors), [themeColors]);
@@ -886,6 +793,24 @@ const ShareOptionsSheet = ({ visible, item, onClose, onExternal, onDiscovery }: 
           <View style={shareOptionStyles.info}>
             <Text style={shareOptionStyles.label}>{tr('screens.library.shareOutsideApp', 'Share outside app')}</Text>
             <Text style={shareOptionStyles.desc}>{tr('screens.library.shareOutsideAppDesc', 'Send link via message or social networks...')}</Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          style={shareOptionStyles.option}
+          onPress={() => {
+            if (!item) return;
+            const it = item;
+            onClose();
+            onQr(it);
+          }}
+        >
+          <View style={[shareOptionStyles.iconWrap, { backgroundColor: themeColors.surfaceMid }]}>
+            <Text style={{ fontSize: 20 }}>📱</Text>
+          </View>
+          <View style={shareOptionStyles.info}>
+            <Text style={shareOptionStyles.label}>{tr('screens.library.shareViaQr', 'Share via QR code')}</Text>
+            <Text style={shareOptionStyles.desc}>{tr('screens.library.shareViaQrDesc', 'Show a QR others can scan to open the link')}</Text>
           </View>
         </Pressable>
 
@@ -1425,6 +1350,7 @@ export const LibraryScreen = () => {
   // Share flow
   const [shareOptionsItem, setShareOptionsItem] = useState<{ type: ShareItemType; id: string; title: string } | null>(null);
   const [discoveryShareItem, setDiscoveryShareItem] = useState<{ type: ShareItemType; id: string; title: string } | null>(null);
+  const [shareQrData, setShareQrData] = useState<{ link: string; image?: string } | null>(null);
 
   /** Lần đầu vào tab: có spinner; các lần sau chỉ refresh nền — tránh chặn UI mỗi lần chuyển tab */
   const libraryFocusPassRef = useRef(0);
@@ -1585,6 +1511,22 @@ export const LibraryScreen = () => {
         ? `${title}\n${res.shareUrl}\n${t('screens.library.shareOpenInApp', 'Open in app')}: ${deep}`
         : `${title}\n${res.shareUrl}`;
       await Share.share({ message: msg });
+    } catch (e: any) {
+      showToast(e?.message ?? t('screens.library.cannotShare', 'Cannot share.'), 'error');
+    }
+  };
+
+  const handleShareQrForItem = async (item: { type: ShareItemType; id: string; title: string }) => {
+    try {
+      const res = item.type === 'playlist'
+        ? await getPlaylistShareQr(item.id)
+        : item.type === 'song'
+          ? await getSongShareQr(item.id)
+          : await getAlbumShareQr(item.id);
+      setShareQrData({
+        link: res.shareUrl,
+        image: res.qrCodeBase64 ?? undefined,
+      });
     } catch (e: any) {
       showToast(e?.message ?? t('screens.library.cannotShare', 'Cannot share.'), 'error');
     }
@@ -2116,13 +2058,16 @@ export const LibraryScreen = () => {
       />
 
       {/* Add to playlist */}
-      <AddToPlaylistModal
+      <AddToPlaylistSheet
         visible={!!addSongTo}
-        song={addSongTo}
-        playlists={playlists}
+        songTitle={addSongTo?.title ?? ''}
+        songSubtitle={addSongTo?.primaryArtist?.stageName}
+        thumbnailUrl={addSongTo?.thumbnailUrl}
+        playlists={playlists.map(p => ({ id: p.id, name: p.name, totalSongs: p.totalSongs }))}
         onClose={() => setAddSongTo(null)}
-        onAdd={handleAddToPlaylist}
+        onSelectPlaylist={handleAddToPlaylist}
         onCreateAndAdd={handleCreateAndAddToPlaylist}
+        addDisabled={addSongTo ? isSoundCloudExternalSong(addSongTo) : false}
       />
 
       {/* Share options sheet */}
@@ -2132,6 +2077,14 @@ export const LibraryScreen = () => {
         onClose={() => setShareOptionsItem(null)}
         onExternal={() => void handleShareExternal()}
         onDiscovery={() => setDiscoveryShareItem(shareOptionsItem)}
+        onQr={(it) => { void handleShareQrForItem(it); }}
+      />
+
+      <QrModal
+        visible={!!shareQrData}
+        link={shareQrData?.link ?? ''}
+        image={shareQrData?.image}
+        onClose={() => setShareQrData(null)}
       />
 
       {/* Share to Discovery modal */}
