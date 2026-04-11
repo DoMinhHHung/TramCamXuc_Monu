@@ -51,7 +51,7 @@ public class RabbitMQConfig {
 
     public static final String FEED_FANOUT_EXCHANGE = "feed.content.fanout.exchange";
 
-    /** Async ElevenLabs music generation pipeline. */
+    /** Async AI music generation (Sonauto → ElevenLabs fallback). */
     public static final String AI_MUSIC_GENERATE_QUEUE   = "ai.music.generate.queue";
     public static final String AI_MUSIC_GENERATE_ROUTING = "song.ai.music.generate";
 

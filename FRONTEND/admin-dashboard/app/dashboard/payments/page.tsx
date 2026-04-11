@@ -32,7 +32,7 @@ interface PlanFeatures {
     can_become_artist?: boolean;
     create_album?:      boolean;
     recommendation?:    string;    // "basic" | "advance"
-    /** Sinh nhạc AI (ElevenLabs) — khớp payment-service AiMusicQuotaServiceImpl */
+    /** Sinh nhạc AI — khớp payment-service AiMusicQuotaServiceImpl (không phụ thuộc Sonauto/ElevenLabs) */
     ai_music_enabled?:                 boolean;
     ai_music_generations_per_month?: number;
     ai_music_max_duration_seconds?:  number;
@@ -43,7 +43,7 @@ interface PlanFeatures {
 interface PageResult { content: Plan[]; totalElements: number; totalPages: number }
 
 // ─── Feature schema definition ────────────────────────────────────────────────
-const QUALITY_OPTIONS   = ['128kbps', '256kbps', '320kbps', 'lossless'] as const;
+const QUALITY_OPTIONS   = ['128kbps', '256kbps', '320kbps'] as const;
 const RECOMMEND_OPTIONS = ['basic', 'advance'] as const;
 
 interface FeatureDef {
@@ -69,9 +69,9 @@ const FEATURE_DEFS_STANDARD: FeatureDef[] = [
     { key: 'recommendation',    label: 'Thuật toán gợi ý',     hint: 'basic = cơ bản / advance = AI',   type: 'select',  icon: MagicWand,      options: [...RECOMMEND_OPTIONS], defaultVal: 'basic' },
 ];
 
-/** Quota AI nhạc — backend: payment-service AiMusicQuotaServiceImpl */
+/** Quota AI nhạc (lần sinh / phút / giây mỗi lần) — backend: payment-service; engine nhạc ở music-service */
 const FEATURE_DEFS_AI: FeatureDef[] = [
-    { key: 'ai_music_enabled', label: 'Bật sinh nhạc AI', hint: 'Artist có tab “Tạo nhạc với AI” (cần bật “Có thể làm Artist” + ElevenLabs)', type: 'toggle', icon: Sparkle, defaultVal: false },
+    { key: 'ai_music_enabled', label: 'Bật sinh nhạc AI', hint: 'Tab “Tạo nhạc với AI” khi bật “Có thể làm Artist”. Nhạc: Sonauto (ưu tiên) / ElevenLabs dự phòng; cải lời: Google.', type: 'toggle', icon: Sparkle, defaultVal: false },
     { key: 'ai_music_generations_per_month', label: 'Số lần sinh / tháng', hint: 'Mỗi user — chu kỳ theo yyyy-MM (VN)', type: 'number', icon: Sparkle, min: 0, max: 999, defaultVal: 5 },
     { key: 'ai_music_max_duration_seconds', label: 'Tối đa giây / lần sinh', hint: 'Độ dài mục tiêu mỗi request (3–600)', type: 'number', icon: Sparkle, min: 3, max: 600, defaultVal: 120 },
     { key: 'ai_music_max_minutes_per_month', label: 'Tối đa phút nhạc AI / tháng', hint: 'Tổng độ dài audio đã sinh mỗi user (theo tháng)', type: 'number', icon: Sparkle, min: 1, max: 10000, defaultVal: 30 },
@@ -248,7 +248,7 @@ function FeaturesEditor({ value, onChange }: FeaturesEditorProps) {
 
             <div className="border-t border-zinc-200 dark:border-white/[0.08] px-4 pt-3 pb-1">
                 <p className="text-[10px] font-semibold tracking-widest text-zinc-400 dark:text-zinc-600 mb-2">
-                    SINH NHẠC AI (ELEVENLABS / GOOGLE LỜI)
+                    SINH NHẠC AI (SONAUTO / ELEVENLABS / GOOGLE LỜI)
                 </p>
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-600 mb-2 leading-relaxed">
                     Bật cùng <span className="font-medium text-zinc-700 dark:text-zinc-400">Có thể làm Artist</span>. Quota áp theo tháng (Asia/Ho_Chi_Minh).
@@ -511,7 +511,7 @@ function FeatureSummary({ features }: { features: PlanFeatures }) {
     return (
         <div className="flex items-center gap-1.5 flex-wrap">
       <span className={`inline-flex items-center px-1.5 py-px text-[9px] font-medium border
-        ${quality === 'lossless' ? 'text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20' :
+        ${
           quality === '320kbps'  ? 'text-blue-600 dark:text-blue-400   border-blue-200   dark:border-blue-700   bg-blue-50   dark:bg-blue-900/20' :
               'text-zinc-600 dark:text-zinc-400   border-zinc-200   dark:border-zinc-700   bg-zinc-50   dark:bg-zinc-900'}`}>
         {quality}

@@ -11,6 +11,7 @@ from app.data.puller import DataPuller
 from app.core.clients import get_async_redis, get_minio, get_sync_redis, RedisKeys
 from app.core.settings import get_settings
 from app.core.logging import get_logger
+import asyncio
 import json
 import math
 
@@ -214,28 +215,35 @@ async def health_check():
     """
     Kiểm tra sức khỏe của service và model freshness.
     Spring service dùng endpoint này để quyết định có gọi Python hay không.
+    Luôn trả JSON 200; không để TimeoutError từ Redis (Upstash xa) làm 500.
     """
     redis = get_async_redis()
     details = {}
 
-    # Check Redis
     redis_ok = False
     try:
-        await redis.ping()
+        await asyncio.wait_for(redis.ping(), timeout=8.0)
         redis_ok = True
     except Exception as e:
         details["redis_error"] = str(e)
 
-    # Lấy model versions
-    cf_version = await redis.get(RedisKeys.CF_MODEL_VERSION) if redis_ok else None
-    cb_version = await redis.get(RedisKeys.CB_MODEL_VERSION) if redis_ok else None
-
-    # Đếm số vectors (sampling để không scan toàn bộ)
+    cf_version = None
+    cb_version = None
     cf_count = 0
     cb_count = 0
     if redis_ok:
         try:
-            # scan với count=1 chỉ để check xem có key không
+            cf_version, cb_version = await asyncio.wait_for(
+                asyncio.gather(
+                    redis.get(RedisKeys.CF_MODEL_VERSION),
+                    redis.get(RedisKeys.CB_MODEL_VERSION),
+                ),
+                timeout=25.0,
+            )
+        except Exception as e:
+            details["redis_versions_error"] = str(e)
+
+        try:
             cf_keys = list(await _async_scan(redis, "ml:cf:user:*", count=100))
             cf_count = len(cf_keys)
             cb_keys = list(await _async_scan(redis, "ml:cb:features:*", count=100))

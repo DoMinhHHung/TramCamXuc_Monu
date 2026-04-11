@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     redis_password: str = ""
     redis_db: int = 0
     redis_ssl: bool = True
+    redis_socket_timeout: float = 30.0
+    redis_connect_timeout: float = 10.0
     # TTL cho cached vectors — dài hơn Spring service vì Python tính toán nặng hơn
     redis_cf_vector_ttl: int = 3600 * 24      # 24h — user vectors
     redis_cb_vector_ttl: int = 3600 * 48      # 48h — song feature vectors (ổn định hơn)

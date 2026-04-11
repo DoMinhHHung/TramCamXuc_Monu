@@ -26,8 +26,8 @@ def get_async_redis() -> aioredis.Redis:
             password=settings.redis_password,
             ssl=settings.redis_ssl,
             decode_responses=True,
-            socket_connect_timeout=5,
-            socket_timeout=5,
+            socket_connect_timeout=settings.redis_connect_timeout,
+            socket_timeout=settings.redis_socket_timeout,
             retry_on_timeout=True,
         )
     return _async_redis_pool
@@ -43,8 +43,8 @@ def get_sync_redis() -> sync_redis.Redis:
             password=settings.redis_password,
             ssl=settings.redis_ssl,
             decode_responses=True,
-            socket_connect_timeout=5,
-            socket_timeout=30,
+            socket_connect_timeout=int(settings.redis_connect_timeout),
+            socket_timeout=int(settings.redis_socket_timeout),
             retry_on_timeout=True,
         )
     return _sync_redis_client

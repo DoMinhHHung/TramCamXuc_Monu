@@ -134,6 +134,13 @@ soundcloud:
   client-id: ${SOUNDCLOUD_CLIENT_ID}
   client-secret: ${SOUNDCLOUD_CLIENT_SECRET}
 
+# Sonauto: https://sonauto.ai/developers#documentation — Bearer API key, v2 ~1m35s/track, MP3 128
+sonauto:
+  api-key: ${SONAUTO_SECRET_KEY:}
+  base-url: ${SONAUTO_BASE_URL:https://api.sonauto.ai/v1}
+  poll-interval-ms: ${SONAUTO_POLL_INTERVAL_MS:3000}
+  poll-timeout-ms: ${SONAUTO_POLL_TIMEOUT_MS:900000}
+
 elevenlabs:
   api-key-primary: ${ELEVENLABS_API_KEY_PRIMARY:}
   api-key-secondary: ${ELEVENLABS_API_KEY_SECONDARY:}

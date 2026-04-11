@@ -440,6 +440,7 @@
       "lyricAllowedFormatsHint": "Chỉ hỗ trợ",
       "aiMusicTitle": "Tạo nhạc với AI",
       "aiMusicDesc": "Viết lời hoặc nhập file, chọn phong cách và độ dài. Nghe thử trên máy, đồng ý để đăng như upload thường.",
+      "aiMusicAttribution": "Nhạc AI dùng Sonauto (ElevenLabs dự phòng). Theo điều khoản API Sonauto, giao diện người dùng cần ghi nhận Sonauto.",
       "aiMusicLyricsLabel": "Lời bài hát",
       "aiMusicLyricsPlaceholder": "Dán lời hoặc nhập file…",
       "aiMusicPickLyricFile": "Nhập file lời (.txt, .lrc, .srt)",
