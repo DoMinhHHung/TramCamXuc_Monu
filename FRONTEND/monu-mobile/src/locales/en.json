@@ -17,7 +17,9 @@
     "offline": "You're offline",
     "comingSoon": "Coming Soon",
     "remove": "Remove",
-    "goBack": "Go back"
+    "goBack": "Go back",
+    "unitMB": "MB",
+    "unitKB": "KB"
   },
   "report": {
     "title": "Choose report reason",
@@ -408,6 +410,9 @@
       "subscriptionExpiredMessagePrefix": "Your subscription has expired. Go to",
       "subscriptionExpiredMessageSuffix": "to renew and continue uploading music.",
       "publishNewSong": "Publish new song",
+      "tabNewUpload": "New upload",
+      "tabAiMusic": "Create with AI",
+      "aiMusicMainButtonReady": "Preview ready — choose an action below",
       "songTitleLabel": "Song title",
       "songTitlePlaceholder": "Enter song title...",
       "musicFileLabel": "Music file",
@@ -417,6 +422,7 @@
       "publishButton": "Publish ↑",
       "publishNote": "After publishing, you can leave this screen. Upload will continue in the background and show in the status card below.",
       "lyricFileLabel": "Lyric file (optional)",
+      "coverImageLabel": "Cover image (optional)",
       "chooseLyricFile": "Add lyric file",
       "lyricAllowedFormatsHint": "Only supported",
       "aiMusicTitle": "Create music with AI",
@@ -429,6 +435,7 @@
       "aiMusicStyleLabel": "Style / mood (optional)",
       "aiMusicStylePlaceholder": "e.g. slow Vietnamese ballad, acoustic",
       "aiMusicDurationLabel": "Target length",
+      "aiMusicDurationMax": "max",
       "aiMusicSubmit": "Generate with AI",
       "aiMusicJobRunning": "Generating…",
       "aiMusicStatusPrefix": "Status",
@@ -455,6 +462,7 @@
     },
     "editSong": {
       "title": "Edit Song",
+      "playCountSuffix": "plays",
       "infoSection": "Song Info",
       "statusLabel": "Status",
       "lyricSection": "Lyrics",
@@ -563,6 +571,7 @@
       "shareQrDesc": "Generate a QR code to scan",
       "loadSongsFailedTitle": "Failed to load songs",
       "cannotShare": "Cannot share.",
+      "shareOpenInApp": "Open in app",
       "postedTitle": "Posted!",
       "postedToDiscovery": "Your post has been shared to Discovery.",
       "cannotPostToDiscovery": "Cannot post to Discovery.",

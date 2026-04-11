@@ -282,7 +282,9 @@ services:
       SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
       MONGODB_URI: ${MONGODB_URI}
       MINIO_AI_BUCKET: ${MINIO_AI_BUCKET:-ai-training-data}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      # Public URL trang share (admin Next: /share/...) + có thể trùng domain gateway
+      FRONTEND_URL: ${FRONTEND_URL:-https://phazelsound.oopsgolden.id.vn}
+      SHARE_DEEP_LINK_BASE: ${SHARE_DEEP_LINK_BASE:-monumobile://}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -294,6 +296,8 @@ services:
       start_period: 80s
 
   # ─── 10. RECOMMENDATION ML (Python) ─────────────────────────
+  # Không dùng Compose profile: `docker compose up -d --build` đã khởi chạy ML mặc định.
+  # recommendation-service depends_on recommendation-ml — nếu tắt ML, chỉnh depends_on / ML_SERVICE_URL.
   recommendation-ml:
     <<: [*common]
     build: { context: ./recommendation-ml }

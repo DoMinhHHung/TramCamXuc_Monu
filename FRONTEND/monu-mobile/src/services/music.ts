@@ -236,6 +236,13 @@ export const getMySongs = async (params?: { page?: number; size?: number; noCach
   return unwrap<PageResponse<Song>>(response.data);
 };
 
+export const getOwnedSongById = async (songId: string): Promise<Song> => {
+  const response = await apiClient.get<Song>(`/songs/me/${songId}`, {
+    params: { _nocache: Date.now() },
+  });
+  return unwrap<Song>(response.data);
+};
+
 export const requestUploadSong = async (payload: {
   title: string;
   fileExtension: string;

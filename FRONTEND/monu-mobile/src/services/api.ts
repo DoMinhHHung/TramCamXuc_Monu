@@ -189,6 +189,14 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
       path === '/subscriptions/my/history'
   ) return SIX_HOURS_MS;
 
+  // Chi tiết bài (chỉnh sửa / refresh trạng thái) — không cache để tránh 404/stale sau đổi quyền sở hữu
+  if (/^\/songs\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(path)) {
+    return DISABLE_CACHE_TTL_MS;
+  }
+  if (/^\/songs\/me\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(path)) {
+    return DISABLE_CACHE_TTL_MS;
+  }
+
   if (
       /^\/songs\/[^/]+$/i.test(path) ||
       /^\/albums\/(my\/)?[^/]+$/i.test(path) ||

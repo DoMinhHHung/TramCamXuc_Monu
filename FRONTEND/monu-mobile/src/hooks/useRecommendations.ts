@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { Song, getTrendingSongs } from '../services/music';
+import { getMySubscriptionOrNull } from '../services/payment';
 
 const REC_CACHE_KEY = 'rec_cache_v2';
 import {
@@ -46,6 +47,7 @@ export function useRecommendations() {
   const [globalTrending, setGlobalTrending] = useState<RecommendedSong[]>([]);
   const [newReleases, setNewReleases] = useState<RecommendedSong[]>([]);
   const [socialRecs, setSocialRecs] = useState<RecommendedSong[]>([]);
+  const [advancedRecEnabled, setAdvancedRecEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
@@ -114,9 +116,18 @@ export function useRecommendations() {
       return errors;
     }
 
+    const sub = await getMySubscriptionOrNull();
+    const adv =
+      String(sub?.plan?.features?.recommendation ?? '')
+        .toLowerCase()
+        .trim() === 'advanced';
+    if (isMountedRef.current) {
+      setAdvancedRecEnabled(adv);
+    }
+
     const [basicResult, advanceResult, socialResult] = await Promise.allSettled([
       getBasicHomeRecommendations(false),
-      getAdvanceHomeRecommendations(false),
+      adv ? getAdvanceHomeRecommendations(false) : Promise.resolve(null),
       getSocialRecommendations(20),
     ]);
 
@@ -129,9 +140,12 @@ export function useRecommendations() {
     }
 
     if (advanceResult.status === 'fulfilled') {
-      setAdvanceHomeFeed(advanceResult.value as HomeRecommendation);
-    } else {
+      setAdvanceHomeFeed((advanceResult.value as HomeRecommendation | null) ?? null);
+    } else if (adv) {
       errors.push(`Không tải được gợi ý AI: ${toErrorMessage(advanceResult.reason)}`);
+      setAdvanceHomeFeed(null);
+    } else {
+      setAdvanceHomeFeed(null);
     }
 
     if (socialResult.status === 'fulfilled') {
@@ -271,6 +285,7 @@ export function useRecommendations() {
   return useMemo(() => ({
     basicHomeFeed,
     advanceHomeFeed,
+    advancedRecEnabled,
     globalTrending,
     newReleases,
     socialRecs,
@@ -279,5 +294,5 @@ export function useRecommendations() {
     lastUpdatedAt,
     refresh,
     sendFeedback,
-  }), [basicHomeFeed, advanceHomeFeed, globalTrending, newReleases, socialRecs, loading, error, lastUpdatedAt, refresh, sendFeedback]);
+  }), [basicHomeFeed, advanceHomeFeed, advancedRecEnabled, globalTrending, newReleases, socialRecs, loading, error, lastUpdatedAt, refresh, sendFeedback]);
 }

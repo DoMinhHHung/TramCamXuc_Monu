@@ -60,6 +60,8 @@ eureka:
 app:
   frontend:
     url: ${FRONTEND_URL:http://localhost:3000}
+  share:
+    deep-link-base: ${SHARE_DEEP_LINK_BASE:monumobile://}
 
 springdoc:
   api-docs:

@@ -60,4 +60,12 @@ public interface MusicInternalClient {
     ApiResponse<Page<SongDetailDto>> getTrendingSongs(
             @RequestParam(defaultValue = "1")  int page,
             @RequestParam(defaultValue = "20") int size);
+
+    /**
+     * Bài mới đăng (PUBLIC + transcode xong) — dùng cho “Đề xuất cơ bản” khi user chưa chọn genre/artist lúc onboarding.
+     */
+    @GetMapping("/songs/newest")
+    ApiResponse<Page<SongDetailDto>> getNewestSongs(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size);
 }

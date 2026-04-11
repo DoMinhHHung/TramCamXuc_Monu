@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import Slider from '@react-native-community/slider';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
@@ -142,6 +143,14 @@ export const CreateScreen = () => {
   const [aiError, setAiError]             = useState<string | null>(null);
   const [aiBusy, setAiBusy]               = useState(false);
   const [improveBusy, setImproveBusy]   = useState(false);
+  const [createTab, setCreateTab]       = useState<'upload' | 'ai'>('upload');
+
+  const resetAiMusicUi = useCallback(() => {
+    setAiJobId(null);
+    setAiJobStatus(null);
+    setAiPreviewUrl(null);
+    setAiError(null);
+  }, []);
 
   // ── Load on mount ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -222,6 +231,21 @@ export const CreateScreen = () => {
   const aiMusicPlanEnabled =
       truthyFeature(planFeatures.ai_music_enabled) && truthyFeature(planFeatures.can_become_artist);
   const showAiMusicSection = canUpload && aiMusicPlanEnabled;
+
+  const aiMaxDurationSec = useMemo(() => {
+    const raw = planFeatures.ai_music_max_duration_seconds;
+    const n = typeof raw === 'number' ? raw : Number.parseInt(String(raw ?? ''), 10);
+    if (!Number.isFinite(n) || n < 15) return 180;
+    return Math.min(600, n);
+  }, [planFeatures]);
+
+  useEffect(() => {
+    setAiDurationSec((d) => Math.min(d, aiMaxDurationSec));
+  }, [aiMaxDurationSec]);
+
+  const aiGenerationRunning = Boolean(
+    aiJobId && aiJobStatus && !['READY', 'FAILED'].includes(aiJobStatus),
+  );
 
   // ── Actions ────────────────────────────────────────────────────────────────
   const handlePickFile = async () => {
@@ -412,6 +436,26 @@ export const CreateScreen = () => {
     );
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!aiJobId) return undefined;
+      let cancelled = false;
+      void (async () => {
+        try {
+          await getAiMusicJob(aiJobId);
+        } catch (e: any) {
+          if (cancelled) return;
+          if (e?.response?.status === 404) {
+            resetAiMusicUi();
+          }
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [aiJobId, resetAiMusicUi]),
+  );
+
   useEffect(() => {
     if (!aiJobId) return;
     let cancelled = false;
@@ -425,8 +469,13 @@ export const CreateScreen = () => {
         setAiPreviewUrl(j.previewUrl ?? null);
         setAiError(j.errorMessage ?? null);
         return j.status === 'READY' || j.status === 'FAILED';
-      } catch {
-        if (!cancelled) setAiError(t('screens.create.aiMusicPollError', 'Could not refresh job status.'));
+      } catch (err: any) {
+        if (cancelled) return true;
+        if (err?.response?.status === 404) {
+          resetAiMusicUi();
+          return true;
+        }
+        setAiError(t('screens.create.aiMusicPollError', 'Could not refresh job status.'));
         return true;
       }
     };
@@ -444,7 +493,7 @@ export const CreateScreen = () => {
       cancelled = true;
       if (interval) clearInterval(interval);
     };
-  }, [aiJobId, t]);
+  }, [aiJobId, t, resetAiMusicUi]);
 
   const handlePickAiLyricFile = async () => {
     const picked = await DocumentPicker.getDocumentAsync({
@@ -536,10 +585,7 @@ export const CreateScreen = () => {
           'Your song is processing for public release. Check Library → Songs.'
         )
       );
-      setAiJobId(null);
-      setAiJobStatus(null);
-      setAiPreviewUrl(null);
-      setAiError(null);
+      resetAiMusicUi();
       setAiTitle('');
       setAiLyrics('');
     } catch (err: any) {
@@ -561,10 +607,7 @@ export const CreateScreen = () => {
           'Saved as private. Check Library → Songs to play or manage.'
         )
       );
-      setAiJobId(null);
-      setAiJobStatus(null);
-      setAiPreviewUrl(null);
-      setAiError(null);
+      resetAiMusicUi();
       setAiTitle('');
       setAiLyrics('');
     } catch (err: any) {
@@ -579,10 +622,7 @@ export const CreateScreen = () => {
     setAiBusy(true);
     try {
       await rejectAiMusicJob(aiJobId);
-      setAiJobId(null);
-      setAiJobStatus(null);
-      setAiPreviewUrl(null);
-      setAiError(null);
+      resetAiMusicUi();
     } catch (err: any) {
       Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? '');
     } finally {
@@ -741,8 +781,47 @@ export const CreateScreen = () => {
                 </View>
             )}
 
+            {canUpload && showAiMusicSection && (
+                <View style={styles.createTabRow}>
+                  <Pressable
+                    onPress={() => setCreateTab('upload')}
+                    style={[
+                      styles.createTabBtn,
+                      createTab === 'upload' && styles.createTabBtnActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.createTabBtnText,
+                        createTab === 'upload' && styles.createTabBtnTextActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {t('screens.create.tabNewUpload', 'New upload')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setCreateTab('ai')}
+                    style={[
+                      styles.createTabBtn,
+                      createTab === 'ai' && styles.createTabBtnActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.createTabBtnText,
+                        createTab === 'ai' && styles.createTabBtnTextActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {t('screens.create.tabAiMusic', 'Create with AI')}
+                    </Text>
+                  </Pressable>
+                </View>
+            )}
+
             {/* ── Upload form (chỉ khi canUpload) ─────────────────── */}
-            {canUpload && (
+            {canUpload && (!showAiMusicSection || createTab === 'upload') && (
                 <View style={styles.card}>
                   <Text style={styles.cardTitle}>{t('screens.create.publishNewSong', 'Publish new song')}</Text>
 
@@ -777,7 +856,7 @@ export const CreateScreen = () => {
                             </Text>
                             <Text style={styles.fileSize}>
                               {pickedFile.size
-                                  ? `${(pickedFile.size / 1024 / 1024).toFixed(1)} MB`
+                                  ? `${(pickedFile.size / 1024 / 1024).toFixed(1)} ${t('common.unitMB', 'MB')}`
                                   : ''}
                               {'  ·  '}
                               {pickedFile.name.split('.').pop()?.toUpperCase()}
@@ -820,7 +899,7 @@ export const CreateScreen = () => {
                             </Text>
                             <Text style={styles.fileSize}>
                               {pickedLyric.size
-                                  ? `${(pickedLyric.size / 1024).toFixed(1)} KB`
+                                  ? `${(pickedLyric.size / 1024).toFixed(1)} ${t('common.unitKB', 'KB')}`
                                   : ''}
                               {'  ·  '}
                               {pickedLyric.name.split('.').pop()?.toUpperCase()}
@@ -869,9 +948,9 @@ export const CreateScreen = () => {
                           <Text style={styles.fileName} numberOfLines={1}>
                             {pickedCover.fileName ?? pickedCover.uri.split('/').pop()}
                           </Text>
-                          <Text style={styles.fileSize}>
-                            {pickedCover.fileSize
-                              ? `${(pickedCover.fileSize / 1024).toFixed(1)} KB`
+                            <Text style={styles.fileSize}>
+                              {pickedCover.fileSize
+                              ? `${(pickedCover.fileSize / 1024).toFixed(1)} ${t('common.unitKB', 'KB')}`
                               : ''}
                           </Text>
                         </View>
@@ -975,7 +1054,7 @@ export const CreateScreen = () => {
                 </View>
             )}
 
-            {showAiMusicSection && (
+            {canUpload && showAiMusicSection && createTab === 'ai' && (
                 <View style={styles.card}>
                   <Text style={styles.cardTitle}>{t('screens.create.aiMusicTitle', 'Create music with AI')}</Text>
                   <Text style={styles.cardDesc}>
@@ -1042,14 +1121,16 @@ export const CreateScreen = () => {
 
                   <Text style={styles.fieldLabel}>
                     {t('screens.create.aiMusicDurationLabel', 'Target length')}: {Math.round(aiDurationSec)}s
+                    {' '}
+                    ({t('screens.create.aiMusicDurationMax', 'max')} {aiMaxDurationSec}s)
                   </Text>
                   <Slider
                     style={{ width: '100%', height: 36 }}
                     minimumValue={15}
-                    maximumValue={180}
+                    maximumValue={aiMaxDurationSec}
                     step={5}
-                    value={aiDurationSec}
-                    onValueChange={setAiDurationSec}
+                    value={Math.min(aiDurationSec, aiMaxDurationSec)}
+                    onValueChange={(v) => setAiDurationSec(Math.min(v, aiMaxDurationSec))}
                     minimumTrackTintColor={themeColors.accent}
                     maximumTrackTintColor={themeColors.glass15}
                     thumbTintColor={themeColors.accent}
@@ -1075,17 +1156,29 @@ export const CreateScreen = () => {
                   </View>
 
                   <Pressable
-                    style={[styles.primaryBtn, aiBusy && styles.disabledBtn]}
+                    style={[
+                      styles.primaryBtn,
+                      (aiBusy || aiGenerationRunning || (aiJobId !== null && aiJobStatus === 'READY')) && styles.disabledBtn,
+                    ]}
                     onPress={handleAiMusicSubmit}
-                    disabled={aiBusy || !!aiJobId}
+                    disabled={
+                      aiBusy ||
+                      aiGenerationRunning ||
+                      (aiJobId !== null && aiJobStatus === 'READY')
+                    }
                   >
                     {aiBusy ? (
                       <ActivityIndicator color={themeColors.white} />
                     ) : (
                       <Text style={styles.primaryBtnText}>
-                        {aiJobId
+                        {aiGenerationRunning
                           ? t('screens.create.aiMusicJobRunning', 'Generation in progress…')
-                          : t('screens.create.aiMusicSubmit', 'Generate with AI')}
+                          : aiJobId && aiJobStatus === 'READY'
+                            ? t(
+                                'screens.create.aiMusicMainButtonReady',
+                                'Preview ready — choose an action below',
+                              )
+                            : t('screens.create.aiMusicSubmit', 'Generate with AI')}
                       </Text>
                     )}
                   </Pressable>
@@ -1119,7 +1212,7 @@ export const CreateScreen = () => {
                         </View>
                       ) : null}
                       {aiJobStatus === 'FAILED' ? (
-                        <Pressable style={[styles.secondaryBtn, aiBusy && styles.disabledBtn]} onPress={() => { setAiJobId(null); setAiJobStatus(null); setAiPreviewUrl(null); setAiError(null); }} disabled={aiBusy}>
+                        <Pressable style={[styles.secondaryBtn, aiBusy && styles.disabledBtn]} onPress={() => resetAiMusicUi()} disabled={aiBusy}>
                           <Text style={styles.secondaryBtnText}>{t('screens.create.aiMusicTryAgain', 'Clear & try again')}</Text>
                         </Pressable>
                       ) : null}
@@ -1219,6 +1312,35 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   body: {
     paddingHorizontal: 20,
     gap: 14,
+  },
+
+  createTabRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  createTabBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.glass08,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  createTabBtnActive: {
+    borderColor: colors.accent,
+    backgroundColor: `${colors.accent}24`,
+  },
+  createTabBtnText: {
+    color: colors.glass50,
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  createTabBtnTextActive: {
+    color: colors.white,
   },
 
   // ── Status card ──────────────────────────────────────────────────────────

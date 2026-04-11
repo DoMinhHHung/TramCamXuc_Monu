@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +25,9 @@ public class ShareServiceImpl implements ShareService {
 
     @Value("${app.frontend.url}")
     private String frontendUrl;
+
+    @Value("${app.share.deep-link-base:monumobile://}")
+    private String deepLinkBase;
 
     private final SongShareRepository songShareRepository;
 
@@ -34,11 +38,13 @@ public class ShareServiceImpl implements ShareService {
 
     @Override
     public ShareResponse getShareLink(UUID songId, UUID artistId, String platform, UUID userId) {
-        String url = frontendUrl + "/songs/" + songId;
-        String platformUrl = buildPlatformUrl(platform, url);
-        recordShare(songId, artistId, userId, platform);
+        String webUrl = buildWebSongUrl(songId);
+        String deep = buildSongDeepLink(songId);
+        String platformUrl = buildPlatformUrl(platform, webUrl);
+        CompletableFuture.runAsync(() -> recordShare(songId, artistId, userId, platform));
         return ShareResponse.builder()
                 .shareUrl(platformUrl)
+                .mobileDeepLink(deep)
                 .platform(platform)
                 .shareCount(songShareRepository.countBySongId(songId))
                 .build();
@@ -51,16 +57,18 @@ public class ShareServiceImpl implements ShareService {
 
     @Override
     public ShareResponse getQrCode(UUID songId, UUID artistId, UUID userId) {
-        String url = frontendUrl + "/songs/" + songId;
-        recordShare(songId, artistId, userId, "qr");
+        String webUrl = buildWebSongUrl(songId);
+        String deep = buildSongDeepLink(songId);
+        CompletableFuture.runAsync(() -> recordShare(songId, artistId, userId, "qr"));
         try {
             QRCodeWriter writer = new QRCodeWriter();
-            BitMatrix matrix = writer.encode(url, BarcodeFormat.QR_CODE, 300, 300);
+            BitMatrix matrix = writer.encode(webUrl, BarcodeFormat.QR_CODE, 300, 300);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             MatrixToImageWriter.writeToStream(matrix, "PNG", baos);
             String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
             return ShareResponse.builder()
-                    .shareUrl(url)
+                    .shareUrl(webUrl)
+                    .mobileDeepLink(deep)
                     .qrCodeBase64("data:image/png;base64," + base64)
                     .platform("qr")
                     .shareCount(songShareRepository.countBySongId(songId))
@@ -68,7 +76,9 @@ public class ShareServiceImpl implements ShareService {
         } catch (Exception e) {
             log.error("QR code generation failed for songId={}", songId, e);
             return ShareResponse.builder()
-                    .shareUrl(url).platform("qr")
+                    .shareUrl(webUrl)
+                    .mobileDeepLink(deep)
+                    .platform("qr")
                     .shareCount(songShareRepository.countBySongId(songId))
                     .build();
         }
@@ -77,6 +87,22 @@ public class ShareServiceImpl implements ShareService {
     @Override
     public long getShareCount(UUID songId) {
         return songShareRepository.countBySongId(songId);
+    }
+
+    private String buildWebSongUrl(UUID songId) {
+        String base = frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
+        return base + "/share/song/" + songId;
+    }
+
+    private String buildSongDeepLink(UUID songId) {
+        String b = deepLinkBase.trim();
+        if (b.endsWith("://")) {
+            return b + "song/" + songId;
+        }
+        if (b.endsWith("/")) {
+            return b + "song/" + songId;
+        }
+        return b + "/song/" + songId;
     }
 
     @Override
