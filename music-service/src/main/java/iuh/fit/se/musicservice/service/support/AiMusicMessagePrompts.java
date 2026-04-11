@@ -10,7 +10,6 @@ public final class AiMusicMessagePrompts {
 
     private AiMusicMessagePrompts() {}
 
-    /** Prompt dạng một khối cho ElevenLabs (và fallback tương thích). */
     public static String buildElevenLabsPrompt(AiMusicGenerateMessage m) {
         String style = StringUtils.hasText(m.getStylePrompt())
                 ? m.getStylePrompt()
@@ -33,7 +32,6 @@ public final class AiMusicMessagePrompts {
                 m.getLyrics() != null ? m.getLyrics() : "");
     }
 
-    /** Phần mô tả phong cách / độ dài cho Sonauto {@code prompt} (tách khỏi {@code lyrics}). */
     public static String buildSonautoStylePrompt(AiMusicGenerateMessage m) {
         String style = StringUtils.hasText(m.getStylePrompt())
                 ? m.getStylePrompt()

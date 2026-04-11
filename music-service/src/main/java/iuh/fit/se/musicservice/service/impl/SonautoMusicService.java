@@ -23,11 +23,6 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 
-/**
- * Sonauto API v2: POST /generations/v2 rồi poll GET /generations/{task_id}, tải MP3 từ {@code song_paths}.
- *
- * @see <a href="https://sonauto.ai/developers#documentation">Sonauto API docs</a>
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -52,9 +47,6 @@ public class SonautoMusicService {
         return StringUtils.hasText(apiKey);
     }
 
-    /**
-     * @throws AppException khi Sonauto trả lỗi rõ ràng hoặc hết thời gian chờ
-     */
     public byte[] generate(AiMusicGenerateMessage message) {
         if (!isConfigured()) {
             throw new IllegalStateException("Sonauto API key not configured");
@@ -62,7 +54,7 @@ public class SonautoMusicService {
 
         ObjectNode body = buildV2Body(message);
         String createUrl = trimSlash(baseUrl) + "/generations/v2";
-        String taskId;
+        String taskId = null;
         try {
             HttpHeaders headers = authHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -84,6 +76,10 @@ public class SonautoMusicService {
             throw e;
         } catch (Exception e) {
             log.error("[Sonauto] create request failed", e);
+            throw new AppException(ErrorCode.AI_MUSIC_EXTERNAL_FAILED);
+        }
+
+        if (!StringUtils.hasText(taskId)) {
             throw new AppException(ErrorCode.AI_MUSIC_EXTERNAL_FAILED);
         }
 
