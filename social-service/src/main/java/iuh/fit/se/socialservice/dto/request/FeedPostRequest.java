@@ -20,4 +20,8 @@ public class FeedPostRequest {
     private FeedPost.ContentType contentType;   // SONG | ALBUM | PLAYLIST
     private String               title;
     private String               coverImageUrl;
+
+    /** Optional — stored on post for feed author display */
+    private String ownerDisplayName;
+    private String ownerAvatarUrl;
 }

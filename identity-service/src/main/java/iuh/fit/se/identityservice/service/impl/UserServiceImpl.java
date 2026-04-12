@@ -5,6 +5,7 @@ import iuh.fit.se.identityservice.dto.request.ChangePasswordRequest;
 import iuh.fit.se.identityservice.dto.request.ProfileUpdateRequest;
 import iuh.fit.se.identityservice.dto.request.UpdateFavoritesRequest;
 import iuh.fit.se.identityservice.dto.response.FavoritesResponse;
+import iuh.fit.se.identityservice.dto.response.PublicUserProfileResponse;
 import iuh.fit.se.identityservice.dto.response.UserResponse;
 import iuh.fit.se.identityservice.entity.User;
 import iuh.fit.se.identityservice.enums.AccountStatus;
@@ -100,6 +101,31 @@ public class UserServiceImpl implements UserService {
         if (user.getRole() == Role.ADMIN)
             throw new AppException(ErrorCode.CANNOT_ACCESS_ADMIN);
         return userMapper.toResponse(user);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfile(String userId) {
+        User user = userRepository.findById(UUID.fromString(userId))
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        if (user.getRole() == Role.ADMIN)
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        if (user.getStatus() != AccountStatus.ACTIVE)
+            throw new AppException(ErrorCode.USER_NOT_EXISTED);
+        String name = user.getFullName();
+        if (name == null || name.isBlank()) {
+            String email = user.getEmail();
+            if (email != null && email.contains("@")) {
+                name = email.substring(0, email.indexOf('@'));
+            } else {
+                name = "User";
+            }
+        }
+        return PublicUserProfileResponse.builder()
+                .id(user.getId())
+                .fullName(name.trim())
+                .avatarUrl(user.getAvatarUrl())
+                .build();
     }
 
     @Override

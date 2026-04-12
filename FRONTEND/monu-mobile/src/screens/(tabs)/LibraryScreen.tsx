@@ -260,92 +260,82 @@ const SongRow = ({
   const canPlayStream = isReady || !!showAiReview;
 
   return (
-    <View style={[songRowStyles.row, isActive && songRowStyles.rowActive]}>
-      {/* Thumbnail */}
-      <Pressable onPress={canPlayStream ? onPlay : undefined} style={songRowStyles.thumbWrap}>
-        {song.thumbnailUrl ? (
-          <Image source={{ uri: song.thumbnailUrl }} style={songRowStyles.thumb} />
-        ) : (
-          <View style={[songRowStyles.thumb, songRowStyles.thumbPlaceholder]}>
-            <Text style={{ fontSize: 20 }}>🎵</Text>
-          </View>
-        )}
-        {isActive && canPlayStream && (
-          <View style={songRowStyles.playingOverlay}>
-            <Text style={{ fontSize: 14, color: themeColors.white }}>{isPlaying ? '⏸' : '▶'}</Text>
-          </View>
-        )}
-      </Pressable>
-
-      {/* Info */}
-      <View style={songRowStyles.info}>
-        <Text style={[songRowStyles.title, isActive && { color: themeColors.accent }]} numberOfLines={1}>
-          {song.title}
-        </Text>
-        <View style={songRowStyles.statusRow}>
-          {pulse && <PulsingDot color={color} />}
-          {label ? (
-            <Text style={[songRowStyles.status, { color }]} numberOfLines={1}>
-              {label}
-            </Text>
+    <View style={[songRowStyles.rowOuter, isActive && songRowStyles.rowActive]}>
+      <View style={songRowStyles.rowMain}>
+        {/* Thumbnail */}
+        <Pressable onPress={canPlayStream ? onPlay : undefined} style={songRowStyles.thumbWrap}>
+          {song.thumbnailUrl ? (
+            <Image source={{ uri: song.thumbnailUrl }} style={songRowStyles.thumb} />
           ) : (
-            <Text style={songRowStyles.artist} numberOfLines={1}>
-              {song.primaryArtist?.stageName}
-            </Text>
+            <View style={[songRowStyles.thumb, songRowStyles.thumbPlaceholder]}>
+              <Text style={{ fontSize: 20 }}>🎵</Text>
+            </View>
+          )}
+          {isActive && canPlayStream && (
+            <View style={songRowStyles.playingOverlay}>
+              <FontAwesome name={isPlaying ? 'pause' : 'play'} size={14} color={themeColors.white} />
+            </View>
+          )}
+        </Pressable>
+
+        {/* Info */}
+        <View style={songRowStyles.info}>
+          <Text style={[songRowStyles.title, isActive && { color: themeColors.accent }]} numberOfLines={1}>
+            {song.title}
+          </Text>
+          <View style={songRowStyles.statusRow}>
+            {pulse && <PulsingDot color={color} />}
+            {label ? (
+              <Text style={[songRowStyles.status, { color }]} numberOfLines={1}>
+                {label}
+              </Text>
+            ) : (
+              <Text style={songRowStyles.artist} numberOfLines={1}>
+                {song.primaryArtist?.stageName}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {/* Actions */}
+        <View style={songRowStyles.actions}>
+          {onEdit && (
+            <Pressable onPress={onEdit} hitSlop={8} style={songRowStyles.actionBtn}>
+              <Text style={songRowStyles.actionIcon}>
+                <FontAwesome name="edit" color={themeColors.glass60} size={14} />
+              </Text>
+            </Pressable>
+          )}
+          {isReady && (
+            <>
+              <Pressable onPress={onShare} hitSlop={8} style={songRowStyles.actionBtn}>
+                <Text style={songRowStyles.actionIcon}>↗</Text>
+              </Pressable>
+              <Pressable onPress={onAddToPlaylist} hitSlop={8} style={songRowStyles.actionBtn}>
+                <Text style={songRowStyles.actionIcon}>+</Text>
+              </Pressable>
+            </>
           )}
         </View>
       </View>
 
-      {/* Actions */}
-      <View style={songRowStyles.actions}>
-        {onEdit && (
-          <Pressable onPress={onEdit} hitSlop={8} style={songRowStyles.actionBtn}>
-            <Text style={songRowStyles.actionIcon}>
-              <FontAwesome name="edit" color={themeColors.glass60} size={14} />
-            </Text>
-          </Pressable>
-        )}
-        {isReady && (
-          <>
-            <Pressable onPress={onShare} hitSlop={8} style={songRowStyles.actionBtn}>
-              <Text style={songRowStyles.actionIcon}>↗</Text>
-            </Pressable>
-            <Pressable onPress={onAddToPlaylist} hitSlop={8} style={songRowStyles.actionBtn}>
-              <Text style={songRowStyles.actionIcon}>+</Text>
-            </Pressable>
-          </>
-        )}
-      </View>
       {showAiReview && onAiPublish && onAiKeepPrivate ? (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginLeft: 80, marginRight: 20 }}>
+        <View style={songRowStyles.aiDecisionBar}>
           <Pressable
             onPress={onAiPublish}
             disabled={aiFinalizeBusy}
-            style={{
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 8,
-              backgroundColor: themeColors.accentDim,
-              opacity: aiFinalizeBusy ? 0.5 : 1,
-            }}
+            style={[songRowStyles.aiDecisionBtnPrimary, aiFinalizeBusy && songRowStyles.aiDecisionBtnDisabled]}
           >
-            <Text style={{ color: themeColors.white, fontWeight: '700', fontSize: 12 }}>
+            <Text style={songRowStyles.aiDecisionBtnPrimaryText}>
               {t('screens.library.aiPublishPublic', 'Go public')}
             </Text>
           </Pressable>
           <Pressable
             onPress={onAiKeepPrivate}
             disabled={aiFinalizeBusy}
-            style={{
-              paddingVertical: 8,
-              paddingHorizontal: 12,
-              borderRadius: 8,
-              borderWidth: 1,
-              borderColor: themeColors.glass20,
-              opacity: aiFinalizeBusy ? 0.5 : 1,
-            }}
+            style={[songRowStyles.aiDecisionBtnSecondary, aiFinalizeBusy && songRowStyles.aiDecisionBtnDisabled]}
           >
-            <Text style={{ color: themeColors.accent, fontWeight: '700', fontSize: 12 }}>
+            <Text style={songRowStyles.aiDecisionBtnSecondaryText}>
               {t('screens.library.aiKeepPrivate', 'Keep private')}
             </Text>
           </Pressable>
@@ -357,16 +347,43 @@ const SongRow = ({
 };
 
 const getSongRowStyles = (c: ColorScheme) => StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  rowOuter: {
     paddingVertical: 10,
     paddingHorizontal: 20,
-    gap: 12,
     borderBottomWidth: 1,
     borderBottomColor: c.glass06,
   },
+  rowMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   rowActive: { backgroundColor: c.accentFill20 },
+  aiDecisionBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingLeft: 60,
+  },
+  aiDecisionBtnPrimary: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: c.accentDim,
+  },
+  aiDecisionBtnSecondary: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: c.glass20,
+    backgroundColor: c.glass06,
+  },
+  aiDecisionBtnDisabled: { opacity: 0.5 },
+  aiDecisionBtnPrimaryText: { color: c.white, fontWeight: '700', fontSize: 12 },
+  aiDecisionBtnSecondaryText: { color: c.accent, fontWeight: '700', fontSize: 12 },
   thumbWrap: { position: 'relative' },
   thumb: { width: 48, height: 48, borderRadius: 10 },
   thumbPlaceholder: {
@@ -1589,7 +1606,6 @@ export const LibraryScreen = () => {
         visibility: 'PUBLIC',
       });
 
-      // Update immediately so users see feedback without waiting for full reload.
       setPlaylists((prev) => [created, ...prev.filter((p) => p.id !== created.id)]);
       setNewPlaylistName('');
       setCreatePlaylistOpen(false);

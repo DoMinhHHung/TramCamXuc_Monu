@@ -111,7 +111,7 @@ const tabMeta: Record<keyof MainTabParamList, { label: string; icon: AppIconName
     Discover: { label: 'Khám phá',  icon: 'discover' },
     Create:   { label: 'Tạo',       icon: 'create'   },
     Library:  { label: 'Thư viện',  icon: 'library'  },
-    Premium:  { label: 'Premium',   icon: 'premium'  },
+    Premium:  { label: 'Monu Plus',   icon: 'premium'  },
 };
 
 const linking: LinkingOptions<any> = {

@@ -331,7 +331,7 @@ export const FullPlayerModal = () => {
 
     const openPlaylistPicker = () => {
         if (isSoundCloudTrack) {
-            Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist nội bộ.');
+            Alert.alert('Không hỗ trợ', 'Bài hát SoundCloud hiện không hỗ trợ thêm vào playlist.');
             return;
         }
         setPlaylistPickerOpen(true);
@@ -487,10 +487,6 @@ export const FullPlayerModal = () => {
                                       size={22}
                                     />
                                     {isShuffled && <View style={styles.modeDot} />}
-                                </Pressable>
-
-                                <Pressable style={styles.sideBtn} onPress={() => { stopPlayer(); }} hitSlop={8}>
-                                    <AppIcon name="stop" color={COLORS.glass80} size={22} />
                                 </Pressable>
 
                                 <Pressable style={styles.sideBtn} onPress={playPrev}>

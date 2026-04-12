@@ -379,40 +379,58 @@ export const HomeScreen = () => {
 
   const getContextualGreeting = () => {
     const h = new Date().getHours();
-    const name = displayName.split(' ')[0] || displayName;
+    const name = displayName.trim().replace(/\s+/g, ' ') || displayName;
 
-    if (h >= 5 && h < 10) {
-      return {
+    const slots: Array<{
+      from: number;
+      to: number;
+      greeting: string;
+      suggest: string;
+      emoji: string;
+    }> = [
+      {
+        from: 5,
+        to: 10,
         greeting: `Chào buổi sáng, ${name}! ☀️`,
         suggest: 'Khởi động ngày mới với Monu',
-        emoji: '☕',
-      };
-    }
-    if (h >= 10 && h < 13) {
-      return {
+        emoji: '☀️',
+      },
+      {
+        from: 10,
+        to: 13,
         greeting: `Chào ${name}! 🌤`,
         suggest: 'Buổi trưa vui vẻ',
-        emoji: '💼',
-      };
-    }
-    if (h >= 13 && h < 17) {
-      return {
-        greeting: `Good afternoon, ${name}! 🌤`,
-        suggest: 'Nghe nhạc cùng Monu thôi !!!',
-        emoji: '🌿',
-      };
-    }
-    if (h >= 17 && h < 22) {
-      return {
+        emoji: '🌤',
+      },
+      {
+        from: 13,
+        to: 17,
+        greeting: `Chào buổi trưa, ${name}! 🌤`,
+        suggest: 'Nghỉ trưa cùng Monu!!!',
+        emoji: '🌤',
+      },
+      {
+        from: 17,
+        to: 22,
         greeting: `Chào buổi tối, ${name}! 🌆`,
-        suggest: 'Thư giãn chút nhé',
-        emoji: '🌙',
+        suggest: 'Thư giãn chút',
+        emoji: '🌆',
+      },
+    ];
+
+    const match = slots.find((s) => h >= s.from && h < s.to);
+    if (match) {
+      return {
+        greeting: match.greeting,
+        suggest: match.suggest,
+        emoji: match.emoji,
       };
     }
+
     return {
       greeting: `Chúc ngủ ngon, ${name}! 🌙`,
-      suggest: 'Chill chút, rồi đi ngủ nhé',
-      emoji: '⭐',
+      suggest: 'Chill chút, rồi đi ngủ',
+      emoji: '🌙',
     };
   };
 
@@ -457,9 +475,6 @@ export const HomeScreen = () => {
             <Text style={styles.greetingSuggest}>
               {homeGreeting.emoji} {homeGreeting.suggest}
             </Text>
-            {updatedLabel && (
-              <Text style={styles.updatedLabel}>{updatedLabel}</Text>
-            )}
           </View>
           <View style={styles.avatarCircle}>
             <AnimatedDecorIcon intensity="medium">

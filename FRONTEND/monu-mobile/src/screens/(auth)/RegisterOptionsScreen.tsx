@@ -94,7 +94,7 @@ export const RegisterOptionsScreen = () => {
                 end={{ x: 1, y: 0 }}
                 style={styles.emailBtnGradient}
             >
-              <Text style={styles.emailText}>{t('screens.authOptions.continueWithEmail', 'Continue with Email')}</Text>
+              <Text style={styles.emailText}>{t('screens.authOptions.continueWithEmail_Register', 'Register with Email')}</Text>
             </LinearGradient>
           </Pressable>
 

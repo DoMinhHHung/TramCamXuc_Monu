@@ -132,6 +132,8 @@ public class FeedServiceImpl implements FeedService {
         FeedPost post = FeedPost.builder()
                 .ownerId(ownerId)
                 .ownerType(ownerType)
+                .ownerDisplayName(req.getOwnerDisplayName())
+                .ownerAvatarUrl(req.getOwnerAvatarUrl())
                 .contentType(req.getContentType() != null
                         ? req.getContentType() : FeedPost.ContentType.TEXT)
                 .contentId(req.getContentId())
@@ -243,6 +245,8 @@ public class FeedServiceImpl implements FeedService {
         boolean liked = likedPostIds != null && likedPostIds.contains(p.getId());
         return FeedPostResponse.builder()
                 .id(p.getId()).ownerId(p.getOwnerId()).ownerType(p.getOwnerType())
+                .ownerDisplayName(p.getOwnerDisplayName())
+                .ownerAvatarUrl(p.getOwnerAvatarUrl())
                 .contentType(p.getContentType()).contentId(p.getContentId())
                 .title(p.getTitle()).caption(p.getCaption())
                 .coverImageUrl(p.getCoverImageUrl()).visibility(p.getVisibility())
@@ -257,6 +261,8 @@ public class FeedServiceImpl implements FeedService {
                 feedPostLikeRepository.existsByUserIdAndPostId(viewerId, p.getId());
         return FeedPostResponse.builder()
                 .id(p.getId()).ownerId(p.getOwnerId()).ownerType(p.getOwnerType())
+                .ownerDisplayName(p.getOwnerDisplayName())
+                .ownerAvatarUrl(p.getOwnerAvatarUrl())
                 .contentType(p.getContentType()).contentId(p.getContentId())
                 .title(p.getTitle()).caption(p.getCaption())
                 .coverImageUrl(p.getCoverImageUrl()).visibility(p.getVisibility())

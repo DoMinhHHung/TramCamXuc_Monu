@@ -1,0 +1,43 @@
+name: Build APK (Expo EAS)
+
+on:
+  push:
+    branches:
+      - base
+  workflow_dispatch:
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: FRONTEND/monu-mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: FRONTEND/monu-mobile
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@^18.5.0
+
+      - name: Verify Expo login
+        working-directory: FRONTEND/monu-mobile
+        run: eas whoami
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build APK with EAS
+        working-directory: FRONTEND/monu-mobile
+        run: eas build -p android --profile preview --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Done
+        run: echo "Build triggered successfully. Check Expo dashboard for APK link."

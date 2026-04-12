@@ -28,6 +28,9 @@ public class FeedPost {
     private UUID   ownerId;
     private String ownerType;
 
+    private String ownerDisplayName;
+    private String ownerAvatarUrl;
+
     private ContentType contentType;
     private UUID        contentId;
 

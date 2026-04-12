@@ -4,6 +4,7 @@ import iuh.fit.se.identityservice.dto.request.ChangePasswordRequest;
 import iuh.fit.se.identityservice.dto.request.ProfileUpdateRequest;
 import iuh.fit.se.identityservice.dto.request.UpdateFavoritesRequest;
 import iuh.fit.se.identityservice.dto.response.FavoritesResponse;
+import iuh.fit.se.identityservice.dto.response.PublicUserProfileResponse;
 import iuh.fit.se.identityservice.dto.response.UserResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +25,8 @@ public interface UserService {
     Page<UserResponse> getAllUsers(Pageable pageable);
 
     UserResponse getUserById(String id);
+
+    PublicUserProfileResponse getPublicProfile(String userId);
 
     void banUser(String id);
 

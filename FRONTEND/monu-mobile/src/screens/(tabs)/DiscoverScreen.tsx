@@ -58,11 +58,13 @@ import {
   createPlaylist,
   getMyAlbums,
   getMyPlaylists,
+  getMySongs,
   isSoundCloudExternalSong,
   Album,
   Playlist,
 } from '../../services/music';
 import { getMySubscription } from '../../services/payment';
+import { getPublicUserProfile } from '../../services/auth';
 import { apiClient } from '../../services/api';
 import { usePlayer } from '../../context/PlayerContext';
 import { notifyFeedUpdated, subscribeFeedUpdates } from '../../services/feedEvents';
@@ -666,35 +668,138 @@ const VISIBILITY_OPTIONS: { value: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'; labe
   { value: 'PRIVATE', label: 'Riêng tư', icon: '🔒' },
 ];
 
+type ComposeAttachment = {
+  contentType: 'SONG' | 'PLAYLIST' | 'ALBUM';
+  contentId: string;
+  title: string;
+  coverImageUrl?: string | null;
+};
+
 interface ComposeModalProps {
   visible: boolean;
   userId: string;
   displayName: string | null;
+  avatarUrl?: string | null;
   onClose: () => void;
-  onPost: (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY') => Promise<void>;
+  onPost: (
+    title: string,
+    caption: string,
+    visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY',
+    attachment: ComposeAttachment | null,
+  ) => Promise<void>;
   posting: boolean;
 }
 
-const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }: ComposeModalProps) => {
+type PickerRow = { id: string; title: string; cover?: string | null; kind: 'SONG' | 'PLAYLIST' | 'ALBUM' };
+
+const ComposeModal = ({ visible, userId, displayName, avatarUrl, onClose, onPost, posting }: ComposeModalProps) => {
   const themeColors = useThemeColors();
+  const { t } = useTranslation();
   const composeStyles = useMemo(() => createComposeStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const [visibility, setVis] = useState<'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY'>('PUBLIC');
+  const [attachment, setAttachment] = useState<ComposeAttachment | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerKind, setPickerKind] = useState<'SONG' | 'PLAYLIST' | 'ALBUM' | null>(null);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickerRows, setPickerRows] = useState<PickerRow[]>([]);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (visible) {
-      const t = setTimeout(() => inputRef.current?.focus(), 150);
-      return () => clearTimeout(t);
-    } else {
-      setTitle(''); setCaption(''); setVis('PUBLIC');
+      const tmo = setTimeout(() => inputRef.current?.focus(), 150);
+      return () => clearTimeout(tmo);
     }
+    setTitle('');
+    setCaption('');
+    setVis('PUBLIC');
+    setAttachment(null);
+    setPickerOpen(false);
+    setPickerKind(null);
+    setPickerRows([]);
   }, [visible]);
 
-  const canPost = title.trim().length > 0;
+  const effectiveTitle = (title.trim() || attachment?.title || '').trim();
+  const canPost = effectiveTitle.length > 0;
   const shownName = displayName || userId?.slice(0, 8) + '...';
+
+  const openAttachmentPicker = async (kind: 'SONG' | 'PLAYLIST' | 'ALBUM') => {
+    if (userId === 'guest') {
+      Alert.alert(t('common.error', 'Error'), t('screens.discover.composeLoginRequired', 'Sign in to attach music.'));
+      return;
+    }
+    setPickerKind(kind);
+    setPickerOpen(true);
+    setPickerLoading(true);
+    setPickerRows([]);
+    try {
+      if (kind === 'SONG') {
+        const r = await getMySongs({ page: 1, size: 80, noCache: true });
+        const rows = (r.content ?? []).map((s: Song) => ({
+          id: s.id,
+          title: s.title,
+          cover: s.thumbnailUrl,
+          kind: 'SONG' as const,
+        }));
+        setPickerRows(rows);
+        if (!rows.length) {
+          Alert.alert('', t('screens.discover.composeNoSongs', 'You have no uploaded songs yet.'));
+          setPickerOpen(false);
+        }
+      } else if (kind === 'PLAYLIST') {
+        const r = await getMyPlaylists({ page: 1, size: 80 });
+        const rows = (r.content ?? []).map((pl) => ({
+          id: pl.id,
+          title: pl.name,
+          cover: pl.coverUrl,
+          kind: 'PLAYLIST' as const,
+        }));
+        setPickerRows(rows);
+        if (!rows.length) {
+          Alert.alert('', t('screens.discover.composeNoPlaylists', 'You have no playlists yet.'));
+          setPickerOpen(false);
+        }
+      } else {
+        const r = await getMyAlbums({ page: 1, size: 80 });
+        const rows = (r.content ?? []).map((al) => ({
+          id: al.id,
+          title: al.title,
+          cover: al.coverUrl,
+          kind: 'ALBUM' as const,
+        }));
+        setPickerRows(rows);
+        if (!rows.length) {
+          Alert.alert('', t('screens.discover.composeNoAlbums', 'You have no albums yet.'));
+          setPickerOpen(false);
+        }
+      }
+    } catch {
+      Alert.alert(t('common.error', 'Error'), t('screens.discover.composeLoadAttachFailed', 'Could not load your library.'));
+      setPickerOpen(false);
+    } finally {
+      setPickerLoading(false);
+    }
+  };
+
+  const pickRow = (row: PickerRow) => {
+    setAttachment({
+      contentType: row.kind,
+      contentId: row.id,
+      title: row.title,
+      coverImageUrl: row.cover ?? null,
+    });
+    if (!title.trim()) setTitle(row.title);
+    setPickerOpen(false);
+    setPickerKind(null);
+  };
+
+  const toolbarActions: { emoji: string; kind: 'SONG' | 'PLAYLIST' | 'ALBUM'; label: string; hint: string }[] = [
+    { emoji: '🎧', kind: 'SONG', label: t('screens.discover.composeAttachSongs', 'My songs'), hint: t('screens.discover.composeAttachSongsHint', 'Attach one of your tracks') },
+    { emoji: '🎸', kind: 'PLAYLIST', label: t('screens.discover.composeAttachPlaylists', 'Playlists'), hint: t('screens.discover.composeAttachPlaylistsHint', 'Attach a playlist you own') },
+    { emoji: '💿', kind: 'ALBUM', label: t('screens.discover.composeAttachAlbums', 'Albums'), hint: t('screens.discover.composeAttachAlbumsHint', 'Attach an album you own') },
+  ];
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -707,7 +812,7 @@ const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }
             <Text style={composeStyles.headerTitle}>Tạo bài viết</Text>
             <Pressable
               style={[composeStyles.postBtn, !canPost && composeStyles.postBtnDisabled]}
-              onPress={() => canPost && !posting && onPost(title.trim(), caption.trim(), visibility)}
+              onPress={() => canPost && !posting && onPost(effectiveTitle, caption.trim(), visibility, attachment)}
               disabled={!canPost || posting}
             >
               {posting
@@ -719,7 +824,7 @@ const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }
           <View style={composeStyles.divider} />
 
           <View style={composeStyles.userRow}>
-            <Avatar id={userId} displayName={displayName ?? userId} size={44} />
+            <Avatar id={userId} displayName={displayName ?? userId} avatarUrl={avatarUrl ?? undefined} size={44} />
             <View style={{ flex: 1 }}>
               <Text style={composeStyles.userName}>{shownName}</Text>
               <View style={composeStyles.visBadge}>
@@ -734,6 +839,19 @@ const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }
           </View>
 
           <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} keyboardShouldPersistTaps="handled">
+            {attachment ? (
+              <View style={composeStyles.attachChipRow}>
+                <Text style={composeStyles.attachChipIcon}>
+                  {attachment.contentType === 'SONG' ? '🎧' : attachment.contentType === 'PLAYLIST' ? '🎸' : '💿'}
+                </Text>
+                <Text style={composeStyles.attachChipText} numberOfLines={1}>
+                  {attachment.title}
+                </Text>
+                <Pressable onPress={() => setAttachment(null)} hitSlop={8}>
+                  <Text style={composeStyles.attachChipClear}>✕</Text>
+                </Pressable>
+              </View>
+            ) : null}
             <TextInput
               ref={inputRef}
               style={composeStyles.titleInput}
@@ -769,17 +887,70 @@ const ComposeModal = ({ visible, userId, displayName, onClose, onPost, posting }
           </ScrollView>
 
           <View style={[composeStyles.toolbar, { paddingBottom: insets.bottom + 8 }]}>
-            <Text style={composeStyles.toolbarLabel}>Thêm vào bài viết</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {['🎵', '🎧', '🎸', '💿'].map(e => (
-                <Pressable key={e} style={composeStyles.toolbarIcon}>
-                  <Text style={{ fontSize: 20 }}>{e}</Text>
+            <Text style={composeStyles.toolbarLabel}>{t('screens.discover.composeToolbarTitle', 'Attach to post')}</Text>
+            <Text style={composeStyles.toolbarHint}>{t('screens.discover.composeToolbarSubtitle', 'Share a song, playlist, or album from your library')}</Text>
+            <View style={composeStyles.toolbarRow}>
+              {toolbarActions.map((a) => (
+                <Pressable
+                  key={a.kind}
+                  style={composeStyles.toolbarBtnCol}
+                  onPress={() => void openAttachmentPicker(a.kind)}
+                  accessibilityLabel={`${a.label}. ${a.hint}`}
+                >
+                  <View style={composeStyles.toolbarIcon}>
+                    <Text style={composeStyles.toolbarBtnEmoji}>{a.emoji}</Text>
+                  </View>
+                  <Text style={composeStyles.toolbarBtnLabel} numberOfLines={2}>
+                    {a.label}
+                  </Text>
                 </Pressable>
               ))}
             </View>
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
+        <View style={composeStyles.pickerBackdrop}>
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setPickerOpen(false)} accessibilityRole="button" />
+          <View style={[composeStyles.pickerCard, { paddingBottom: insets.bottom + 16 }]}>
+            <Text style={composeStyles.pickerTitle}>
+              {pickerKind === 'SONG'
+                ? t('screens.discover.composePickerSongs', 'Your songs')
+                : pickerKind === 'PLAYLIST'
+                  ? t('screens.discover.composePickerPlaylists', 'Your playlists')
+                  : t('screens.discover.composePickerAlbums', 'Your albums')}
+            </Text>
+            {pickerLoading ? (
+              <ActivityIndicator style={{ marginVertical: 24 }} color={themeColors.accent} />
+            ) : (
+              <FlatList
+                data={pickerRows}
+                keyExtractor={(item) => `${item.kind}-${item.id}`}
+                style={composeStyles.pickerList}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <Pressable style={composeStyles.pickerRow} onPress={() => pickRow(item)}>
+                    {item.cover ? (
+                      <Image source={{ uri: item.cover }} style={composeStyles.pickerThumb} />
+                    ) : (
+                      <View style={[composeStyles.pickerThumb, composeStyles.pickerThumbPlaceholder]}>
+                        <Text style={{ fontSize: 18 }}>{item.kind === 'SONG' ? '🎵' : item.kind === 'PLAYLIST' ? '🎸' : '💿'}</Text>
+                      </View>
+                    )}
+                    <Text style={composeStyles.pickerRowTitle} numberOfLines={2}>
+                      {item.title}
+                    </Text>
+                  </Pressable>
+                )}
+              />
+            )}
+            <Pressable style={composeStyles.pickerCloseBtn} onPress={() => setPickerOpen(false)}>
+              <Text style={composeStyles.pickerCloseText}>{t('common.cancel', 'Cancel')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 };
@@ -913,15 +1084,21 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
     const missing = comments.filter(c => c.userId && !authorCache[c.userId] && c.userId !== currentUserId);
     if (!missing.length) return;
     const ids = [...new Set(missing.map(c => c.userId))];
-    Promise.allSettled(ids.map(async id => {
-      const a = await getArtistByUserId(id);
-      return { id, name: a?.stageName || id.slice(0, 8) };
-    })).then(results => {
+    Promise.allSettled(
+      ids.map(async (id) => {
+        const a = await getArtistByUserId(id);
+        if (a?.stageName) return { id, name: a.stageName };
+        const pub = await getPublicUserProfile(id);
+        return { id, name: pub?.fullName?.trim() || id.slice(0, 8) };
+      }),
+    ).then((results) => {
       const updates: Record<string, string> = {};
-      results.forEach(r => { if (r.status === 'fulfilled' && r.value) updates[r.value.id] = r.value.name; });
-      setAuthorCache(prev => ({ ...prev, ...updates }));
+      results.forEach((r) => {
+        if (r.status === 'fulfilled' && r.value) updates[r.value.id] = r.value.name;
+      });
+      setAuthorCache((prev) => ({ ...prev, ...updates }));
     });
-  }, [comments]);
+  }, [comments, currentUserId]);
 
   const getDisplayName = (userId: string) => {
     if (userId === currentUserId) return myDisplayName || 'Bạn';
@@ -1308,7 +1485,14 @@ export const DiscoverScreen = () => {
 
   const { authSession } = useAuth();
   const currentUserId = authSession?.profile?.id ?? null;
-  const myDisplayName = authSession?.profile?.fullName ?? authSession?.profile?.email ?? null;
+  const myDisplayName = useMemo(() => {
+    const p = authSession?.profile;
+    if (!p) return null;
+    const n = p.fullName?.trim();
+    if (n) return n;
+    const local = p.email?.split('@')[0]?.trim();
+    return local || null;
+  }, [authSession?.profile]);
   const myAvatarUrl = authSession?.profile?.avatarUrl;
   const [canManageAlbums, setCanManageAlbums] = useState(false);
 
@@ -1369,23 +1553,35 @@ export const DiscoverScreen = () => {
     const ids = [...new Set(toFetch.map(p => p.ownerId))];
     if (!ids.length) return;
 
-    const results = await Promise.allSettled(ids.map(id => getArtistByUserId(id)));
+    const artistResults = await Promise.allSettled(ids.map(id => getArtistByUserId(id)));
     const updates: Record<string, OwnerInfo> = {};
-    ids.forEach((id, i) => {
-      const res = results[i];
-      if (res.status === 'fulfilled' && res.value) {
-        updates[id] = { displayName: res.value.stageName || id, artistId: res.value.id, avatarUrl: res.value.avatarUrl };
+
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      const ar = artistResults[i];
+      if (ar.status === 'fulfilled' && ar.value) {
+        const v = ar.value;
+        updates[id] = { displayName: v.stageName || id, artistId: v.id, avatarUrl: v.avatarUrl };
+        continue;
+      }
+      const sample = newPosts.find(p => p.ownerId === id);
+      const embedded = sample?.ownerDisplayName?.trim();
+      const embeddedAvatar = sample?.ownerAvatarUrl ?? undefined;
+      if (embedded) {
+        updates[id] = { displayName: embedded, artistId: null, avatarUrl: embeddedAvatar };
+        continue;
+      }
+      const pub = await getPublicUserProfile(id);
+      if (pub?.fullName?.trim()) {
+        updates[id] = { displayName: pub.fullName.trim(), artistId: null, avatarUrl: pub.avatarUrl ?? undefined };
       } else {
-        // If the post was created by a normal USER, backend can embed display name/email for nicer rendering.
-        const embedded = toFetch.find(p => p.ownerId === id && p.ownerType === 'USER')?.ownerDisplayName;
-        const embeddedAvatar = toFetch.find(p => p.ownerId === id && p.ownerType === 'USER')?.ownerAvatarUrl;
         updates[id] = {
-          displayName: embedded || (id === currentUserId ? myDisplayName ?? `User ${id.slice(0, 6)}` : `User ${id.slice(0, 6)}`),
+          displayName: id === currentUserId ? (myDisplayName ?? `User ${id.slice(0, 6)}`) : `User ${id.slice(0, 6)}`,
           artistId: null,
-          avatarUrl: embeddedAvatar ?? undefined,
         };
       }
-    });
+    }
+
     ownerCacheRef.current = { ...ownerCacheRef.current, ...updates };
     setOwnerCache(p => ({ ...p, ...updates }));
   }, [currentUserId, myDisplayName]);
@@ -1650,7 +1846,12 @@ export const DiscoverScreen = () => {
   }, [posts]);
 
   // Actions
-  const handleCreatePost = async (title: string, caption: string, visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY') => {
+  const handleCreatePost = async (
+    title: string,
+    caption: string,
+    visibility: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS_ONLY',
+    attachment: ComposeAttachment | null,
+  ) => {
     setPosting(true);
     try {
       await createFeedPost({
@@ -1659,6 +1860,13 @@ export const DiscoverScreen = () => {
         caption: caption || undefined,
         ownerDisplayName: myDisplayName ?? undefined,
         ownerAvatarUrl: myAvatarUrl ?? null,
+        ...(attachment
+          ? {
+              contentType: attachment.contentType,
+              contentId: attachment.contentId,
+              coverImageUrl: attachment.coverImageUrl ?? undefined,
+            }
+          : {}),
       });
       setComposeOpen(false);
       await loadFeed('silent');
@@ -1923,6 +2131,7 @@ export const DiscoverScreen = () => {
         visible={composeOpen}
         userId={currentUserId ?? 'guest'}
         displayName={myDisplayName}
+        avatarUrl={myAvatarUrl}
         onClose={() => setComposeOpen(false)}
         onPost={handleCreatePost}
         posting={posting}
@@ -2173,8 +2382,45 @@ const createComposeStyles = (C: ColorScheme) => StyleSheet.create({
   visChipText: { color: C.muted, fontSize: 12, fontWeight: '600' },
   visChipTextActive: { color: C.accent },
   toolbar: { borderTopWidth: 1, borderTopColor: C.divider, paddingHorizontal: 16, paddingTop: 12 },
-  toolbarLabel: { color: C.muted, fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 10 },
-  toolbarIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderSubtle, alignItems: 'center', justifyContent: 'center' },
+  toolbarLabel: { color: C.muted, fontSize: 12, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 },
+  toolbarHint: { color: C.glass45, fontSize: 11, lineHeight: 15, marginBottom: 12 },
+  toolbarRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+  toolbarBtnCol: { flex: 1, alignItems: 'center', gap: 6 },
+  toolbarIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderSubtle, alignItems: 'center', justifyContent: 'center' },
+  toolbarBtnEmoji: { fontSize: 22 },
+  toolbarBtnLabel: { color: C.textSecondary, fontSize: 10, fontWeight: '600', textAlign: 'center' },
+  attachChipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: C.accentFill20,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: C.accentBorder25,
+  },
+  attachChipIcon: { fontSize: 16 },
+  attachChipText: { flex: 1, color: C.text, fontSize: 14, fontWeight: '600' },
+  attachChipClear: { color: C.muted, fontSize: 16, fontWeight: '700', paddingHorizontal: 4 },
+  pickerBackdrop: { flex: 1, backgroundColor: C.scrim, justifyContent: 'flex-end' },
+  pickerCard: {
+    backgroundColor: C.surface,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    maxHeight: '72%',
+  },
+  pickerTitle: { color: C.text, fontSize: 17, fontWeight: '700', marginBottom: 8 },
+  pickerList: { maxHeight: 360 },
+  pickerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.divider },
+  pickerThumb: { width: 48, height: 48, borderRadius: 8, backgroundColor: C.surfaceLow },
+  pickerThumbPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  pickerRowTitle: { flex: 1, color: C.text, fontSize: 15, fontWeight: '600' },
+  pickerCloseBtn: { marginTop: 12, paddingVertical: 14, alignItems: 'center' },
+  pickerCloseText: { color: C.accent, fontSize: 16, fontWeight: '600' },
 });
 
 // ─── Comment styles ────────────────────────────────────────────────────────────
