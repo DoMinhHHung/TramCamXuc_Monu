@@ -5,6 +5,7 @@ import iuh.fit.se.identityservice.dto.request.ChangePasswordRequest;
 import iuh.fit.se.identityservice.dto.request.ProfileUpdateRequest;
 import iuh.fit.se.identityservice.dto.request.UpdateFavoritesRequest;
 import iuh.fit.se.identityservice.dto.response.FavoritesResponse;
+import iuh.fit.se.identityservice.dto.response.PublicUserProfileResponse;
 import iuh.fit.se.identityservice.dto.response.UserResponse;
 import iuh.fit.se.identityservice.service.UserService;
 import jakarta.validation.Valid;
@@ -23,6 +24,16 @@ import org.springframework.web.multipart.MultipartFile;
 public class UserController {
 
     private final UserService userService;
+
+    /**
+     * Public display name + avatar for feed / social (no auth).
+     */
+    @GetMapping("/public/{userId}")
+    public ApiResponse<PublicUserProfileResponse> getPublicProfile(@PathVariable String userId) {
+        return ApiResponse.<PublicUserProfileResponse>builder()
+                .result(userService.getPublicProfile(userId))
+                .build();
+    }
 
     @GetMapping("/my-profile")
     public ApiResponse<UserResponse> getMyProfile() {

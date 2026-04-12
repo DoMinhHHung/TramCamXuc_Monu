@@ -1,10 +1,3 @@
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * PremiumBadge – Visual indicator for premium/luxury content
- * Displays with luxurious styling and glow effects
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
 import React from 'react';
 import {
   StyleSheet,

@@ -19,10 +19,10 @@ import {
 import { useTheme } from '@/lib/theme';
 
 const NAV = [
-    { href: '/dashboard',           label: 'Overview',     icon: SquaresFour, exact: true  },
+    { href: '/dashboard',           label: 'Tổng quan',     icon: SquaresFour, exact: true  },
     { href: '/dashboard/users',     label: 'Người dùng',   icon: Users,       exact: false },
-    { href: '/dashboard/music',     label: 'Music',        icon: MusicNote,   exact: false },
-    { href: '/dashboard/payments',  label: 'Payments',     icon: CreditCard,  exact: false },
+    { href: '/dashboard/music',     label: 'Nhạc & Album',        icon: MusicNote,   exact: false },
+    { href: '/dashboard/payments',  label: 'Gói cước',     icon: CreditCard,  exact: false },
     { href: '/dashboard/ads',       label: 'Quảng cáo',   icon: SpeakerHigh, exact: false },
     { href: '/dashboard/reports',   label: 'Báo cáo',     icon: Warning,     exact: false },
     { href: '/dashboard/analytics', label: 'Thống kê',    icon: ChartBar,    exact: false },
@@ -30,10 +30,10 @@ const NAV = [
 
 // Map segment → tên đẹp hơn cho breadcrumb
 const SEGMENT_LABELS: Record<string, string> = {
-    dashboard:  'Dashboard',
+    dashboard:  'Trang chủ',
     users:      'Người dùng',
-    music:      'Music',
-    payments:   'Payments',
+    music:      'Nhạc & Album',
+    payments:   'Gói cước',
     ads:        'Quảng cáo',
     reports:    'Báo cáo',
     analytics:  'Thống kê',

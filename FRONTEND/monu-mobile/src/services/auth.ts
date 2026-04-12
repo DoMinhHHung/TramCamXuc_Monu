@@ -117,3 +117,19 @@ export const forgotPassword = async (email: string): Promise<void> => {
 export const resetPassword = async (data: PasswordResetRequest): Promise<void> => {
   await apiClient.post('/auth/reset-password', data);
 };
+
+/** Public display name + avatar (no sensitive fields). Used for feed / comments. */
+export interface PublicUserProfile {
+  id: string;
+  fullName: string;
+  avatarUrl?: string;
+}
+
+export const getPublicUserProfile = async (userId: string): Promise<PublicUserProfile | null> => {
+  try {
+    const response = await apiClient.get<PublicUserProfile>(`/users/public/${userId}`);
+    return response.data ?? null;
+  } catch {
+    return null;
+  }
+};

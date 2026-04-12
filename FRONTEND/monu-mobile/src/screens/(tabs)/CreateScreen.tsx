@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -16,9 +17,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import Slider from '@react-native-community/slider';
-import { useFocusEffect } from '@react-navigation/native';
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useLayoutConstants } from '../../config/layout';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +35,8 @@ import {
   rejectAiMusicJob,
 } from '../../services/aiMusic';
 import { getMySubscription } from '../../services/payment';
+import type { Song } from '../../services/music';
+import { usePlayer } from '../../context/PlayerContext';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -102,9 +103,10 @@ const debugCreateUpload = (event: string, payload?: Record<string, unknown>) => 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export const CreateScreen = () => {
+  const navigation = useNavigation<any>();
   const insets     = useSafeAreaInsets();
   const layout = useLayoutConstants();
-  const { authSession } = useAuth();
+  const { authSession, refreshSession, refreshProfile } = useAuth();
   const { job, startUpload } = useUpload();
   const { t } = useTranslation();
   const themeColors = useThemeColors();
@@ -129,7 +131,10 @@ export const CreateScreen = () => {
 
   // ── Artist register form ───────────────────────────────────────────────────
   const [stageName, setStageName]         = useState('');
+  const [registerBio, setRegisterBio]     = useState('');
+  const [registerTermsAccepted, setRegisterTermsAccepted] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
+  const canSubmitArtistRegister = stageName.trim().length > 0 && registerTermsAccepted;
 
   // ── AI music (ElevenLabs + Google lyrics) ─────────────────────────────────
   const [aiTitle, setAiTitle]             = useState('');
@@ -408,14 +413,31 @@ export const CreateScreen = () => {
       Alert.alert(t('screens.create.missingInfoTitle', 'Missing information'), t('screens.create.missingStageName', 'Enter your stage name.'));
       return;
     }
+    if (!registerTermsAccepted) {
+      Alert.alert(
+        t('screens.registerArtist.invalidInfoTitle', 'Invalid information'),
+        t('screens.registerArtist.validation.terms', 'Please accept the Artist Terms.'),
+      );
+      return;
+    }
     setRegisterLoading(true);
     try {
       await apiClient.post('/artists/register', {
         stageName: stageName.trim(),
-        bio: 'Artist from Monu',
+        bio: registerBio.trim() || t('screens.registerArtist.defaultBio', 'Artist from Monu'),
       });
+      try {
+        await refreshSession();
+      } catch {
+      }
+      try {
+        await refreshProfile();
+      } catch {
+      }
       Alert.alert(t('screens.create.artistRegisterSentTitle', 'Registration submitted'), t('screens.create.artistRegisterSentMessage', 'Your request is under review. Refresh to check status.'));
       setStageName('');
+      setRegisterBio('');
+      setRegisterTermsAccepted(false);
       await loadPageData();
     } catch (err: any) {
       Alert.alert(t('common.error'), err?.message ?? t('screens.create.artistRegisterFailed', 'Cannot register as artist.'));
@@ -740,18 +762,62 @@ export const CreateScreen = () => {
 
                   {hasActiveSub ? (
                       <>
+                        <Text style={[styles.fieldLabel, styles.registerArtistFieldLabel]}>
+                          {t('screens.registerArtist.stageNameLabel', 'Stage name *')}
+                        </Text>
                         <TextInput
                             style={styles.input}
                             value={stageName}
                             onChangeText={setStageName}
-                            placeholder={t('screens.create.stageNamePlaceholder', 'Your stage name')}
+                            placeholder={t('screens.registerArtist.stageNamePlaceholder', 'Your stage name')}
                             placeholderTextColor={themeColors.glass35}
+                            maxLength={50}
+                            autoCapitalize="words"
                         />
+                        <Text style={styles.registerCharCount}>{stageName.length}/50</Text>
+
+                        <Text style={styles.fieldLabel}>{t('screens.registerArtist.bioLabel', 'Bio')}</Text>
+                        <TextInput
+                            style={[styles.input, styles.registerTextArea]}
+                            value={registerBio}
+                            onChangeText={setRegisterBio}
+                            placeholder={t('screens.registerArtist.bioPlaceholder', 'Tell us about you and your music journey...')}
+                            placeholderTextColor={themeColors.glass35}
+                            multiline
+                            numberOfLines={4}
+                            maxLength={500}
+                            textAlignVertical="top"
+                        />
+                        <Text style={styles.registerCharCount}>{registerBio.length}/500</Text>
+
+                        <View style={styles.registerTermsRow}>
+                          <Switch
+                            value={registerTermsAccepted}
+                            onValueChange={setRegisterTermsAccepted}
+                            trackColor={{ false: themeColors.glass15, true: themeColors.accentDim }}
+                            thumbColor={registerTermsAccepted ? themeColors.accent : themeColors.glass40}
+                          />
+                          <View style={styles.registerTermsTextWrap}>
+                            <Text style={styles.registerTermsLabel}>
+                              {t('screens.registerArtist.acceptPrefix', 'I agree to')}{' '}
+                              <Text
+                                style={styles.registerTermsLink}
+                                onPress={() => navigation.navigate('ArtistTerms')}
+                              >
+                                {t('screens.registerArtist.artistTerms', 'Artist Terms')}
+                              </Text>
+                              {' '}{t('screens.registerArtist.acceptSuffix', 'of Monu')}
+                            </Text>
+                          </View>
+                        </View>
+
                         <Pressable
-                            style={[styles.primaryBtn,
-                              registerLoading && styles.disabledBtn]}
+                            style={[
+                              styles.primaryBtn,
+                              (!canSubmitArtistRegister || registerLoading) && styles.disabledBtn,
+                            ]}
                             onPress={handleRegisterArtist}
-                            disabled={registerLoading}
+                            disabled={!canSubmitArtistRegister || registerLoading}
                         >
                           {registerLoading
                               ? <ActivityIndicator color={themeColors.white} />
@@ -1189,7 +1255,13 @@ export const CreateScreen = () => {
                         {t('screens.create.aiMusicStatusPrefix', 'Status')}: {formatAiJobStatus(t, aiJobStatus)}
                       </Text>
                       {aiError ? <Text style={[styles.cardDesc, { color: themeColors.error }]}>{aiError}</Text> : null}
-                      <AiMusicPreviewControls previewUrl={aiPreviewUrl} accent={themeColors.accent} />
+                      <AiMusicPreviewControls
+                        previewUrl={aiPreviewUrl}
+                        previewTitle={aiTitle.trim() || t('screens.create.aiMusicPreviewUntitled', 'AI preview')}
+                        previewTrackId={aiJobId ?? ''}
+                        artistStageName={artistProfile?.stageName ?? ''}
+                        accent={themeColors.accent}
+                      />
                       {aiJobStatus === 'READY' ? (
                         <View style={{ gap: 8, marginTop: 4 }}>
                           <Text style={[styles.cardDesc, { fontSize: 12 }]}>
@@ -1227,33 +1299,60 @@ export const CreateScreen = () => {
   );
 };
 
-type PreviewProps = { previewUrl: string | null; accent: string };
+type PreviewProps = {
+  previewUrl: string | null;
+  previewTitle: string;
+  previewTrackId: string;
+  artistStageName: string;
+  accent: string;
+};
 
-const AiMusicPreviewControls = ({ previewUrl, accent }: PreviewProps) => {
+const AiMusicPreviewControls = ({
+  previewUrl,
+  previewTitle,
+  previewTrackId,
+  artistStageName,
+  accent,
+}: PreviewProps) => {
   const { t } = useTranslation();
-  const player = useAudioPlayer(null);
-  const st = useAudioPlayerStatus(player);
+  const { playSong, currentSong, isPlaying, togglePlay } = usePlayer();
 
-  useEffect(() => {
-    if (previewUrl) {
-      player.replace({ uri: previewUrl });
-    } else {
-      try {
-        player.pause();
-      } catch { /* noop */ }
-    }
-  }, [previewUrl, player]);
+  const previewSong = useMemo((): Song | null => {
+    if (!previewUrl || !previewTrackId) return null;
+    return {
+      id: previewTrackId,
+      title: previewTitle,
+      primaryArtist: {
+        artistId: '',
+        stageName: artistStageName || t('screens.create.aiPreviewArtistYou', 'You'),
+      },
+      genres: [],
+      durationSeconds: 0,
+      playCount: 0,
+      status: 'DRAFT',
+      transcodeStatus: 'COMPLETED',
+      streamUrl: previewUrl,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      sourceType: 'LOCAL',
+    };
+  }, [previewUrl, previewTrackId, previewTitle, artistStageName, t]);
 
-  if (!previewUrl) return null;
+  if (!previewSong) return null;
+
+  const isThisPreview = currentSong?.id === previewSong.id;
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
       <Pressable
-        onPress={() => (st.playing ? player.pause() : player.play())}
+        onPress={() => {
+          if (isThisPreview) togglePlay();
+          else void playSong(previewSong, [previewSong]);
+        }}
         style={{ paddingVertical: 10, paddingHorizontal: 16, borderRadius: 10, backgroundColor: `${accent}33` }}
       >
         <Text style={{ color: accent, fontWeight: '700' }}>
-          {st.playing
+          {isThisPreview && isPlaying
             ? t('screens.create.aiMusicPreviewPause', 'Pause')
             : t('screens.create.aiMusicPreviewPlay', 'Play preview')}
         </Text>
@@ -1436,6 +1535,37 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     paddingVertical: 12,
     color: colors.white,
     fontSize: 15,
+  },
+  registerArtistFieldLabel: {
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  registerTextArea: {
+    minHeight: 100,
+    paddingTop: 12,
+  },
+  registerCharCount: {
+    color: colors.glass25,
+    fontSize: 11,
+    textAlign: 'right',
+    marginTop: 4,
+  },
+  registerTermsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 16,
+    gap: 12,
+  },
+  registerTermsTextWrap: { flex: 1 },
+  registerTermsLabel: {
+    color: colors.glass70,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  registerTermsLink: {
+    color: colors.accent,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 
   // ── File picker ──────────────────────────────────────────────────────────

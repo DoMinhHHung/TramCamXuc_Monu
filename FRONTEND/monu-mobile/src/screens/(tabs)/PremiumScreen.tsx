@@ -137,68 +137,78 @@ type FeatureItem = {
     enabled: boolean;
 };
 
-const FEATURE_META: Record<string, { icon: string; label: string; desc: string; color: string }> = {
-    quality: {
-        icon: 'waveform',
-        label: 'Chất lượng âm thanh',
-        desc: 'Bitrate tối đa theo gói',
-        color: '#A78BFA',
-    },
-    no_ads: {
-        icon: 'music-off',
-        label: 'Không quảng cáo',
-        desc: 'Nghe nhạc liên tục, không gián đoạn',
-        color: '#FF6B6B',
-    },
-    offline: {
-        icon: 'download-circle',
-        label: 'Nghe nhạc không cần mạng',
-        desc: 'Nghe mọi lúc, không cần internet',
-        color: '#4ECDC4',
-    },
-    download: {
-        icon: 'download',
-        label: 'Tải bài hát',
-        desc: 'Lưu bài hát về thiết bị',
-        color: '#60A5FA',
-    },
-    playlist_limit: {
-        icon: 'playlist-music',
-        label: 'Giới hạn danh sách phát',
-        desc: 'Số playlist có thể tạo',
-        color: '#60A5FA',
-    },
-    can_become_artist: {
-        icon: 'account-music',
-        label: 'Đăng ký nghệ sĩ',
-        desc: 'Mở quyền nghệ sĩ',
-        color: '#34D399',
-    },
-    create_album: {
-        icon: 'album',
-        label: 'Tạo album',
-        desc: 'Tạo và quản lý album',
-        color: '#34D399',
-    },
-    recommendation: {
-        icon: 'robot-love',
-        label: 'Gợi ý nhạc',
-        desc: 'Mức độ cá nhân hoá đề xuất',
-        color: '#F59E0B',
-    },
+type TranslateFn = (key: string, fallback?: string) => string;
+
+/** Order of plan feature rows; keys must exist in API `plan.features` to appear. */
+const FEATURE_ORDER: string[] = [
+    'quality',
+    'no_ads',
+    'offline',
+    'download',
+    'playlist_limit',
+    'recommendation',
+    'ai_music_enabled',
+    'ai_music_generations_per_month',
+    'ai_music_max_duration_seconds',
+    'ai_music_max_minutes_per_month',
+    'can_become_artist',
+    'create_album',
+];
+
+const FEATURE_STYLE: Record<string, { icon: string; color: string }> = {
+    quality: { icon: 'waveform', color: '#A78BFA' },
+    no_ads: { icon: 'music-off', color: '#FF6B6B' },
+    offline: { icon: 'download-circle', color: '#4ECDC4' },
+    download: { icon: 'download', color: '#60A5FA' },
+    playlist_limit: { icon: 'playlist-music', color: '#60A5FA' },
+    can_become_artist: { icon: 'account-music', color: '#34D399' },
+    create_album: { icon: 'album', color: '#34D399' },
+    recommendation: { icon: 'robot-love', color: '#F59E0B' },
+    ai_music_enabled: { icon: 'creation', color: '#E879F9' },
+    ai_music_generations_per_month: { icon: 'counter', color: '#C084FC' },
+    ai_music_max_duration_seconds: { icon: 'timer-music', color: '#818CF8' },
+    ai_music_max_minutes_per_month: { icon: 'clock-time-four', color: '#67E8F9' },
 };
 
-const featureDisplay = (key: string, value: any): { value: string; enabled: boolean } => {
-    if (typeof value === 'boolean') return { value: value ? 'Có' : 'Không', enabled: value };
+const featureLabelKey = (key: string) => `premium.features.${key}.label`;
+const featureDescKey = (key: string) => `premium.features.${key}.desc`;
+
+const formatFeatureValue = (key: string, value: unknown, t: TranslateFn): { value: string; enabled: boolean } => {
+    if (typeof value === 'boolean') {
+        return { value: value ? t('premium.featureValue.yes', 'Yes') : t('premium.featureValue.no', 'No'), enabled: value };
+    }
     if (key === 'playlist_limit' && typeof value === 'number') {
-        return { value: value < 0 ? 'Không giới hạn' : `${value}`, enabled: true };
+        return {
+            value: value < 0 ? t('premium.featureValue.unlimitedPlaylists', 'Unlimited') : `${value}`,
+            enabled: true,
+        };
     }
     if (key === 'recommendation' && typeof value === 'string') {
         const v = value.toLowerCase();
-        if (v === 'basic') return { value: 'Cơ bản', enabled: true };
-        if (v === 'advanced') return { value: 'Nâng cao', enabled: true };
+        if (v === 'basic') return { value: t('premium.featureValue.recommendationBasic', 'Basic'), enabled: true };
+        if (v === 'advanced' || v === 'advance') {
+            return { value: t('premium.featureValue.recommendationAdvanced', 'Advanced'), enabled: true };
+        }
     }
-    if (key === 'quality' && typeof value === 'string') return { value, enabled: true };
+    if (key === 'quality' && typeof value === 'string') return { value: value, enabled: true };
+    if (key === 'ai_music_generations_per_month' && typeof value === 'number') {
+        return {
+            value: `${value} ${t('premium.featureValue.generationsPerMonth', 'generations / month')}`,
+            enabled: value > 0,
+        };
+    }
+    if (key === 'ai_music_max_duration_seconds' && typeof value === 'number') {
+        return {
+            value: t('premium.featureValue.secondsMax', 'Up to {n}s per track').replace('{n}', String(value)),
+            enabled: true,
+        };
+    }
+    if (key === 'ai_music_max_minutes_per_month' && typeof value === 'number') {
+        return {
+            value: t('premium.featureValue.minutesMonthly', 'Up to {n} min / month').replace('{n}', String(value)),
+            enabled: true,
+        };
+    }
     return { value: String(value), enabled: true };
 };
 
@@ -267,9 +277,11 @@ const PlanCard = ({
     themeColors: ColorScheme;
 }) => {
     const scaleAnim = useRef(new Animated.Value(1)).current;
+    const { language } = useTranslation();
     const priceNumber = typeof plan.price === 'number' ? plan.price : Number(plan.price);
     const safePrice = Number.isFinite(priceNumber) ? priceNumber : 0;
     const isFree = safePrice === 0 || plan.subsName.toLowerCase().includes('free');
+    const priceLocale = language === 'vi' ? 'vi-VN' : 'en-US';
 
     const handlePress = () => {
         Animated.sequence([
@@ -279,7 +291,7 @@ const PlanCard = ({
         onSelect();
     };
 
-    const formatPrice = (p: number) => new Intl.NumberFormat('vi-VN').format(p);
+    const formatPrice = (p: number) => new Intl.NumberFormat(priceLocale).format(p);
 
     return (
         <Pressable onPress={handlePress} style={{ width: cardWidth }}>
@@ -341,38 +353,41 @@ const PlanCardContent = ({
     priceNumber: number;
     formatPrice: (p: number) => string;
     styles: PremiumStyles;
-}) => (
-    <>
-        {isCurrent && (
-            <View style={styles.currentBadge}>
-                <Text style={styles.currentBadgeText}>HIỆN TẠI</Text>
-            </View>
-        )}
-        {isSelected && !isFree && !isCurrent && (
-            <View style={styles.popularBadge}>
-                <Text style={styles.popularBadgeText}>✦ PHỔ BIẾN</Text>
-            </View>
-        )}
+}) => {
+    const { t } = useTranslation();
+    return (
+        <>
+            {isCurrent && (
+                <View style={styles.currentBadge}>
+                    <Text style={styles.currentBadgeText}>{t('premium.badgeCurrent', 'CURRENT')}</Text>
+                </View>
+            )}
+            {isSelected && !isFree && !isCurrent && (
+                <View style={styles.popularBadge}>
+                    <Text style={styles.popularBadgeText}>{t('premium.badgePopular', '✦ POPULAR')}</Text>
+                </View>
+            )}
 
-        <Text style={[styles.planName, isSelected && !isFree && styles.planNameSelected]}>
-            {plan.subsName}
-        </Text>
+            <Text style={[styles.planName, isSelected && !isFree && styles.planNameSelected]}>
+                {plan.subsName}
+            </Text>
 
-        {isFree ? (
-            <Text style={styles.planFreeLabel}>Miễn phí</Text>
-        ) : (
-            <>
-                <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>
-                    {formatPrice(priceNumber)}
-                    <Text style={styles.planPriceCurrency}>đ</Text>
-                </Text>
-                <Text style={[styles.planDuration, isSelected && styles.planDurationSelected]}>
-                    {plan.durationDays} ngày
-                </Text>
-            </>
-        )}
-    </>
-);
+            {isFree ? (
+                <Text style={styles.planFreeLabel}>{t('premium.planFree', 'Free')}</Text>
+            ) : (
+                <>
+                    <Text style={[styles.planPrice, isSelected && styles.planPriceSelected]}>
+                        {formatPrice(priceNumber)}
+                        <Text style={styles.planPriceCurrency}>{t('premium.currencyDong', 'đ')}</Text>
+                    </Text>
+                    <Text style={[styles.planDuration, isSelected && styles.planDurationSelected]}>
+                        {t('premium.planDurationDays', '{n} days').replace('{n}', String(plan.durationDays))}
+                    </Text>
+                </>
+            )}
+        </>
+    );
+};
 
 // ─── Feature row ──────────────────────────────────────────────────────────────
 
@@ -503,7 +518,8 @@ const FeatureRow = ({
 export const PremiumScreen = () => {
     const insets = useSafeAreaInsets();
     const { authSession } = useAuth();
-    const { t } = useTranslation();
+    const { t, language } = useTranslation();
+    const priceLocale = language === 'vi' ? 'vi-VN' : 'en-US';
     const themeColors = useThemeColors();
     const styles = useMemo(() => createPremiumStyles(themeColors), [themeColors]);
     const planCardWidth = useMemo(() => {
@@ -537,23 +553,21 @@ export const PremiumScreen = () => {
     const lastPurchaseAtRef = useRef(0);
     const mappedFeatures = useMemo<FeatureItem[]>(() => {
         const raw = selectedPlan?.features ?? {};
-        const keys = Object.keys(FEATURE_META);
-        return keys
-            .filter((key) => raw[key] !== undefined)
+        return FEATURE_ORDER.filter((key) => raw[key] !== undefined && FEATURE_STYLE[key])
             .map((key) => {
-                const meta = FEATURE_META[key];
-                const { value, enabled } = featureDisplay(key, raw[key]);
+                const style = FEATURE_STYLE[key];
+                const { value, enabled } = formatFeatureValue(key, raw[key], t);
                 return {
                     key,
-                    icon: meta.icon,
-                    label: meta.label,
-                    desc: meta.desc,
-                    color: meta.color,
+                    icon: style.icon,
+                    label: t(featureLabelKey(key), key),
+                    desc: t(featureDescKey(key), ''),
+                    color: style.color,
                     displayValue: value,
                     enabled,
                 };
             });
-    }, [selectedPlan]);
+    }, [selectedPlan, t]);
 
     const selectedPrice = useMemo(() => {
         if (!selectedPlan) return 0;
@@ -565,8 +579,9 @@ export const PremiumScreen = () => {
         const planName = plans.find((p) => p.id === pendingPaymentMeta?.planId)?.subsName
             ?? selectedPlan?.subsName
             ?? null;
-        return planName ? `Get plans ${planName}` : 'Get plans Premium';
-    }, [plans, pendingPaymentMeta?.planId, selectedPlan?.subsName]);
+        const prefix = t('premium.transferPlanPrefix', 'Get plans');
+        return planName ? `${prefix} ${planName}` : `${prefix} Premium`;
+    }, [plans, pendingPaymentMeta?.planId, selectedPlan?.subsName, t]);
 
     // Animations
     const crownScale = useRef(new Animated.Value(0.8)).current;
@@ -721,7 +736,7 @@ export const PremiumScreen = () => {
     });
 
     const openCheckoutInBrowser = useCallback(async (checkoutUrl: string) => {
-        if (!checkoutUrl) throw new Error('Thiếu đường dẫn thanh toán');
+        if (!checkoutUrl) throw new Error(t('premium.checkoutUrlMissing', 'Missing checkout URL'));
         setOpeningBrowser(true);
         try {
             try {
@@ -732,29 +747,35 @@ export const PremiumScreen = () => {
         } finally {
             setOpeningBrowser(false);
         }
-    }, []);
+    }, [t]);
 
     const handlePurchase = async () => {
         if (!authSession) {
-            Alert.alert('Đăng nhập', 'Vui lòng đăng nhập để mua Premium.');
+            Alert.alert(t('premium.alert.signInTitle', 'Sign in'), t('screens.premium.loginToPurchase', ''));
             return;
         }
         if (!selectedPlan || selectedPrice === 0) {
-            Alert.alert('Chọn gói', 'Vui lòng chọn gói Premium trả phí.');
+            Alert.alert(
+                t('premium.alert.selectPlanTitle', 'Select a plan'),
+                t('screens.premium.selectPaidPlan', ''),
+            );
             return;
         }
         const now = Date.now();
         if (now - lastPurchaseAtRef.current < PURCHASE_COOLDOWN_MS) {
             const remain = Math.ceil((PURCHASE_COOLDOWN_MS - (now - lastPurchaseAtRef.current)) / 1000);
-            Alert.alert('Thao tác quá nhanh', `Vui lòng đợi ${remain}s trước khi tạo đơn mới.`);
+            Alert.alert(
+                t('premium.alert.cooldownTitle', 'Please wait'),
+                t('premium.alert.cooldownMessage', 'Please wait {n}s before creating another order.').replace('{n}', String(remain)),
+            );
             return;
         }
         if (inAppPayment && pendingPaymentMeta) {
             const isPendingStillValid = now - pendingPaymentMeta.createdAt <= PENDING_PAYMENT_TTL_MS;
             if (isPendingStillValid) {
                 Alert.alert(
-                    'Đang có đơn chờ thanh toán',
-                    'Bạn đã có đơn thanh toán trong app. Hãy dùng QR/chuyển khoản hiện tại hoặc fallback browser, không tạo đơn mới liên tục.',
+                    t('premium.alert.pendingOrderTitle', 'Pending payment'),
+                    t('premium.alert.pendingOrderMessage', ''),
                 );
                 return;
             }
@@ -766,46 +787,43 @@ export const PremiumScreen = () => {
             const hasInAppData = Boolean(res.qrCode || res.referenceCode);
             if (hasInAppData) {
                 await savePendingPayment(res, selectedPlan.id);
-                Alert.alert(
-                    'Thanh toán trong app',
-                    'Đã tạo mã QR và thông tin chuyển khoản. Nếu không thanh toán được, bạn có thể dùng trình duyệt để thanh toán.',
-                );
+                Alert.alert(t('premium.inAppTitle', 'In-app payment'), t('premium.alert.inAppCreatedMessage', ''));
             } else {
                 await clearPendingPayment();
                 await openCheckoutInBrowser(res.checkoutUrl);
                 Alert.alert(
-                    'Fallback trình duyệt',
-                    'Không có dữ liệu thanh toán nội bộ nên đã chuyển sang browser checkout.',
-                    [{ text: 'OK', onPress: () => void refreshSubscription() }],
+                    t('premium.alert.browserFallbackTitle', 'Browser checkout'),
+                    t('premium.alert.browserFallbackMessage', ''),
+                    [{ text: t('common.done', 'OK'), onPress: () => void refreshSubscription() }],
                 );
             }
         } catch (e: any) {
-            Alert.alert('Lỗi', e.message || 'Không thể khởi tạo thanh toán');
+            Alert.alert(t('common.error', 'Error'), e.message || t('premium.alert.purchaseFailed', 'Could not start payment'));
         } finally { setPurchasing(false); }
     };
 
     const handleCancelSubscription = useCallback(() => {
         if (!authSession) {
-            Alert.alert('Đăng nhập', 'Vui lòng đăng nhập để thực hiện thao tác này.');
+            Alert.alert(t('premium.alert.signInTitle', 'Sign in'), t('premium.alert.signInToManage', ''));
             return;
         }
 
         Alert.alert(
-            'Hủy gói cước',
-            'Bạn có chắc muốn hủy gói Premium hiện tại không?',
+            t('premium.alert.cancelSubTitle', 'Cancel subscription'),
+            t('premium.alert.cancelSubMessage', ''),
             [
-                { text: 'Không', style: 'cancel' },
+                { text: t('common.cancel', 'Cancel'), style: 'cancel' },
                 {
-                    text: 'Hủy gói',
+                    text: t('premium.alert.cancelSubConfirm', 'Cancel plan'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
                             setCanceling(true);
                             await cancelMySubscription();
-                            Alert.alert('Thành công', 'Gói cước đã được hủy.');
+                            Alert.alert(t('common.success', 'Success'), t('premium.alert.cancelSubSuccess', ''));
                             await refreshSubscription();
                         } catch (e: any) {
-                            Alert.alert('Lỗi', e?.message || 'Không thể hủy gói cước lúc này.');
+                            Alert.alert(t('common.error', 'Error'), e?.message || t('premium.alert.cancelSubFailed', ''));
                         } finally {
                             setCanceling(false);
                         }
@@ -813,21 +831,21 @@ export const PremiumScreen = () => {
                 },
             ],
         );
-    }, [authSession, refreshSubscription]);
+    }, [authSession, refreshSubscription, t]);
 
     const handleCancelInAppPayment = useCallback(() => {
         if (!inAppPayment?.orderCode) {
-            Alert.alert('Không tìm thấy đơn', 'Không có mã đơn để hủy.');
+            Alert.alert(t('premium.alert.orderMissingTitle', 'No order'), t('premium.alert.orderMissingMessage', ''));
             return;
         }
 
         Alert.alert(
-            'Hủy đơn thanh toán',
-            'Bạn có muốn hủy đơn thanh toán đang chờ này không?',
+            t('premium.alert.cancelPaymentTitle', 'Cancel payment order'),
+            t('premium.alert.cancelPaymentMessage', ''),
             [
-                { text: 'Không', style: 'cancel' },
+                { text: t('common.cancel', 'Cancel'), style: 'cancel' },
                 {
-                    text: 'Hủy đơn',
+                    text: t('premium.alert.cancelPaymentConfirm', 'Cancel order'),
                     style: 'destructive',
                     onPress: async () => {
                         try {
@@ -836,7 +854,7 @@ export const PremiumScreen = () => {
                                 cancellationReason: 'User cancelled in-app pending payment',
                             });
                             await clearPendingPayment();
-                            Alert.alert('Đã hủy', 'Đơn thanh toán đã được hủy thành công.');
+                            Alert.alert(t('premium.alert.paymentCancelledTitle', 'Cancelled'), t('premium.alert.paymentCancelledMessage', ''));
                             await refreshSubscription();
                         } catch (e: any) {
                             const msg = String(e?.message || '');
@@ -844,9 +862,9 @@ export const PremiumScreen = () => {
                             if (staleOrder) {
                                 await clearPendingPayment();
                                 await refreshSubscription();
-                                Alert.alert('Đơn đã thay đổi', 'Đơn thanh toán này không còn ở trạng thái chờ hủy. App đã làm mới dữ liệu.');
+                                Alert.alert(t('premium.alert.orderStaleTitle', 'Order changed'), t('premium.alert.orderStaleMessage', ''));
                             } else {
-                                Alert.alert('Lỗi', msg || 'Không thể hủy đơn thanh toán lúc này.');
+                                Alert.alert(t('common.error', 'Error'), msg || t('premium.alert.cancelPaymentFailed', ''));
                             }
                         } finally {
                             setCancelingInAppOrder(false);
@@ -855,7 +873,7 @@ export const PremiumScreen = () => {
                 },
             ],
         );
-    }, [inAppPayment?.orderCode, clearPendingPayment, refreshSubscription]);
+    }, [inAppPayment?.orderCode, clearPendingPayment, refreshSubscription, t]);
 
     useEffect(() => {
         if (!inAppPayment?.orderCode || !pendingPaymentMeta?.createdAt) return;
@@ -930,7 +948,7 @@ export const PremiumScreen = () => {
                 <StatusBar style={getStatusBarStyle(themeColors.bg)} />
                 <View style={{ paddingTop: insets.top + 20 }}>
                     <RetryState
-                        title="Không tải được Premium"
+                        title={t('premium.loadErrorTitle', 'Could not load Premium')}
                         description={loadErrorMessage}
                         onRetry={() => void refreshSubscription()}
                         icon="👑"
@@ -971,35 +989,41 @@ export const PremiumScreen = () => {
                     {/* Glow blob */}
                     <Animated.View style={[styles.glowBlob, { opacity: glowOpacity }]} />
 
-                    {/* Crown */}
+                    {/* Brand mark */}
                     <Animated.View style={[styles.crownWrap, { transform: [{ scale: crownScale }] }]}>
                         <LinearGradient
                             colors={['#F59E0B', '#FBBF24', '#F59E0B']}
                             style={styles.crownGradient}
                         >
-                            <Text style={styles.crownEmoji}>👑</Text>
+                            <Image
+                                source={require('../../../assets/logo.png')}
+                                style={styles.crownLogoImage}
+                                resizeMode="contain"
+                                accessibilityLabel={t('common.appName', 'Monu')}
+                            />
                         </LinearGradient>
                     </Animated.View>
 
-                    <Text style={styles.heroTitle}>Monu Premium</Text>
-                    <Text style={styles.heroSubtitle}>Trải nghiệm âm nhạc không giới hạn</Text>
+                    <Text style={styles.heroTitle}>{t('premium.heroTitle', 'Monu Plus')}</Text>
+                    <Text style={styles.heroSubtitle}>{t('premium.heroSubtitle', '')}</Text>
 
-                    {/* Active badge OR price teaser */}
                     {isActive ? (
                         <View style={styles.activeBadge}>
                             <View style={styles.activeDot} />
                             <Text style={styles.activeBadgeText}>
-                                Đang kích hoạt · còn {remainDays} ngày
+                                {t('premium.activeLine', 'Active · {days} days left').replace('{days}', String(remainDays))}
                             </Text>
                         </View>
                     ) : selectedPlan && selectedPrice > 0 ? (
                         <View style={styles.priceTease}>
-                            <Text style={styles.priceTeaseLabel}>CHỈ TỪ</Text>
+                            <Text style={styles.priceTeaseLabel}>{t('premium.startingFrom', 'STARTING FROM')}</Text>
                             <Text style={styles.priceTeaseValue}>
-                                {new Intl.NumberFormat('vi-VN').format(selectedPrice)}
-                                <Text style={styles.priceTeaseCurrency}>đ</Text>
+                                {new Intl.NumberFormat(priceLocale).format(selectedPrice)}
+                                <Text style={styles.priceTeaseCurrency}>{t('premium.currencyDong', 'đ')}</Text>
                             </Text>
-                            <Text style={styles.priceTeaseDuration}>/{selectedPlan.durationDays} ngày</Text>
+                            <Text style={styles.priceTeaseDuration}>
+                                {t('premium.pricePerDuration', '/ {n} days').replace('{n}', String(selectedPlan.durationDays))}
+                            </Text>
                         </View>
                     ) : null}
                 </View>
@@ -1008,14 +1032,14 @@ export const PremiumScreen = () => {
                     {backgroundRefreshing && (
                         <View style={styles.streamingBar}>
                             <ActivityIndicator size="small" color={themeColors.accent} />
-                            <Text style={styles.streamingText}>Đang cập nhật gói Premium mới nhất...</Text>
+                            <Text style={styles.streamingText}>{t('premium.streamingRefresh', '')}</Text>
                         </View>
                     )}
 
                     {/* ── Plan selector ── */}
                     {plans.length > 0 && (
                         <View style={styles.section}>
-                            <Text style={styles.sectionHeading}>Chọn gói phù hợp</Text>
+                            <Text style={styles.sectionHeading}>{t('premium.choosePlan', 'Choose your plan')}</Text>
                             <ScrollView
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
@@ -1065,8 +1089,11 @@ export const PremiumScreen = () => {
                                             <Text style={styles.ctaIcon}>💳</Text>
                                             <Text style={styles.ctaText}>
                                                 {selectedPlan && selectedPrice > 0
-                                                    ? `Thanh toán · ${new Intl.NumberFormat('vi-VN').format(selectedPrice)}đ`
-                                                    : 'Chọn gói Premium'}
+                                                    ? t('premium.ctaPay', 'Pay · {price}đ').replace(
+                                                        '{price}',
+                                                        new Intl.NumberFormat(priceLocale).format(selectedPrice),
+                                                    )
+                                                    : t('premium.ctaPickPlan', 'Choose a Premium plan')}
                                             </Text>
                                         </>
                                     )}
@@ -1088,7 +1115,7 @@ export const PremiumScreen = () => {
                             {canceling ? (
                                 <ActivityIndicator color={themeColors.error} />
                             ) : (
-                                <Text style={styles.cancelBtnText}>Hủy gói cước</Text>
+                                <Text style={styles.cancelBtnText}>{t('premium.cancelSubscription', 'Cancel subscription')}</Text>
                             )}
                         </Pressable>
                     )}
@@ -1124,7 +1151,9 @@ export const PremiumScreen = () => {
                             <Text style={styles.inAppPayCode}>{transferDescription}</Text>
 
                             <Text style={styles.inAppPayHint}>{t('premium.referenceCode', 'Mã tham chiếu')}</Text>
-                            <Text style={styles.inAppPayMeta}>{inAppPayment.referenceCode || 'Đang cập nhật'}</Text>
+                            <Text style={styles.inAppPayMeta}>
+                                {inAppPayment.referenceCode || t('premium.referencePending', 'Updating...')}
+                            </Text>
 
                             <Text style={styles.inAppPayMeta}>{t('premium.orderCodePrefix', 'Mã đơn hàng:')} {inAppPayment.orderCode}</Text>
                             <Text style={styles.inAppPayMeta}>{t('premium.autoActivateHint', 'Sau khi chuyển khoản thành công, hệ thống sẽ tự kích hoạt Premium.')}</Text>
@@ -1135,13 +1164,13 @@ export const PremiumScreen = () => {
                                     try {
                                         await openCheckoutInBrowser(inAppPayment.checkoutUrl);
                                     } catch (e: any) {
-                                        Alert.alert('Lỗi', e?.message || 'Không thể mở browser checkout');
+                                        Alert.alert(t('common.error', 'Error'), e?.message || t('premium.alert.openCheckoutFailed', ''));
                                     }
                                 }}
                                 style={({ pressed }) => [styles.fallbackBtn, pressed && { opacity: 0.9 }]}
                             >
                                 <Text style={styles.fallbackBtnText}>
-                                    {openingBrowser ? 'Đang mở browser...' : t('premium.openBrowser', 'Open Browser')}
+                                    {openingBrowser ? t('premium.openingBrowser', 'Opening browser...') : t('premium.openBrowser', 'Open Browser')}
                                 </Text>
                             </Pressable>
 
@@ -1166,7 +1195,7 @@ export const PremiumScreen = () => {
                     {/* ── Divider ── */}
                     <View style={styles.dividerRow}>
                         <View style={styles.dividerLine} />
-                        <Text style={styles.dividerLabel}>Tính năng Premium</Text>
+                        <Text style={styles.dividerLabel}>{t('premium.featuresHeading', 'Monu Plus features')}</Text>
                         <View style={styles.dividerLine} />
                     </View>
 
@@ -1195,7 +1224,7 @@ export const PremiumScreen = () => {
                     >
                         <Text style={styles.guaranteeEmoji}>🛡️</Text>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.guaranteeTitle}>Thanh toán an toàn qua PayOS</Text>
+                            <Text style={styles.guaranteeTitle}>{t('premium.guaranteePayos', 'Secure payment via PayOS')}</Text>
                         </View>
                     </LinearGradient>
 
@@ -1239,13 +1268,18 @@ const createPremiumStyles = (colors: ColorScheme) => StyleSheet.create({
         elevation: 12,
     },
     crownGradient: {
-        width: 90,
-        height: 90,
-        borderRadius: 45,
+        width: 132,
+        height: 58,
+        borderRadius: 29,
         alignItems: 'center',
         justifyContent: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 8,
     },
-    crownEmoji: { fontSize: 44 },
+    crownLogoImage: {
+        width: 118,
+        height: 42,
+    },
     heroTitle: {
         color: colors.white,
         fontSize: 32,

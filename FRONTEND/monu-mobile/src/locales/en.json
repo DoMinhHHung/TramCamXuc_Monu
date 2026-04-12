@@ -354,7 +354,11 @@
       "reviewStep4": "A Premium plan is required to activate Artist features",
       "successTitle": "🎉 Registration successful!",
       "successMessage": "Your artist profile is registered successfully.",
-      "registerFailed": "Could not register. Please try again."
+      "registerFailed": "Could not register. Please try again.",
+      "invalidInfoTitle": "Invalid information",
+      "validation": {
+        "terms": "Please accept the Artist Terms."
+      }
     },
     "authOptions": {
       "oauthFailed": "OAuth authentication failed",
@@ -363,7 +367,8 @@
       "socialLoginFailed": "Social login failed",
       "registerTitle": "Create your Monu account",
       "registerSubtitle": "Start your music journey your way",
-      "continueWithEmail": "Continue with Email",
+      "continueWithEmail_Register": "Register with Email",
+      "continueWithEmail_Login": "Login with Email",
       "loginSubtitle": "Continue with your preferred sign-in method"
     },
     "create": {
@@ -426,7 +431,7 @@
       "chooseLyricFile": "Add lyric file",
       "lyricAllowedFormatsHint": "Only supported",
       "aiMusicTitle": "Create music with AI",
-      "aiMusicDesc": "Write lyrics or import a file, pick style and length. Preview on device, then accept to publish like a normal upload.",
+      "aiMusicDesc": "Write lyrics or import a file, pick style and length.",
       "aiMusicAttribution": "AI music is powered by Sonauto (ElevenLabs as backup). Sonauto requires attribution for user-facing API use.",
       "aiMusicLyricsLabel": "Lyrics",
       "aiMusicLyricsPlaceholder": "Paste lyrics or import a file…",
@@ -623,7 +628,23 @@
       "composerPlaceholder": "What are you thinking about music today?",
       "noPosts": "No posts yet",
       "beFirstToShare": "Be the first to share!",
-      "createPost": "Create post"
+      "createPost": "Create post",
+      "composeToolbarTitle": "Attach to post",
+      "composeToolbarSubtitle": "Share a song, playlist, or album from your library",
+      "composeAttachSongs": "My songs",
+      "composeAttachSongsHint": "Attach one of your uploaded tracks",
+      "composeAttachPlaylists": "Playlists",
+      "composeAttachPlaylistsHint": "Attach a playlist you own",
+      "composeAttachAlbums": "Albums",
+      "composeAttachAlbumsHint": "Attach an album you own",
+      "composePickerSongs": "Your songs",
+      "composePickerPlaylists": "Your playlists",
+      "composePickerAlbums": "Your albums",
+      "composeLoginRequired": "Sign in to attach music.",
+      "composeNoSongs": "You have no uploaded songs yet.",
+      "composeNoPlaylists": "You have no playlists yet.",
+      "composeNoAlbums": "You have no albums yet.",
+      "composeLoadAttachFailed": "Could not load your library."
     },
     "playlist": {
       "createNew": "Create New Playlist",
@@ -707,9 +728,120 @@
     "qrUnavailable": "QR image is unavailable. You can still pay using transfer content or open browser fallback.",
     "cancelOrder": "Cancel this payment order",
     "openBrowser": "Open Browser",
+    "openingBrowser": "Opening browser...",
     "expiredTitle": "Order expired",
     "expiredMessage": "The payment order was auto-cancelled after 10 minutes without payment.",
-    "autoCancelError": "Unable to auto-cancel this expired payment order."
+    "autoCancelError": "Unable to auto-cancel this expired payment order.",
+    "heroTitle": "Monu Plus",
+    "heroSubtitle": "Elevate every moment of feeling",
+    "startingFrom": "STARTING FROM",
+    "activeLine": "Active · {days} days left",
+    "currencyDong": "đ",
+    "pricePerDuration": "/ {n} days",
+    "streamingRefresh": "Fetching the latest Premium plans...",
+    "choosePlan": "Choose your plan",
+    "ctaPay": "Pay · {price}đ",
+    "ctaPickPlan": "Choose a Premium plan",
+    "cancelSubscription": "Cancel subscription",
+    "featuresHeading": "Monu Plus features",
+    "guaranteePayos": "Secure payment via PayOS",
+    "transferPlanPrefix": "Get plans",
+    "referencePending": "Updating...",
+    "loadErrorTitle": "Could not load Premium",
+    "checkoutUrlMissing": "Missing checkout URL",
+    "badgeCurrent": "CURRENT",
+    "badgePopular": "✦ POPULAR",
+    "planFree": "Free",
+    "planDurationDays": "{n} days",
+    "featureValue": {
+      "yes": "Yes",
+      "no": "No",
+      "unlimitedPlaylists": "Unlimited",
+      "recommendationBasic": "Basic",
+      "recommendationAdvanced": "Advanced",
+      "generationsPerMonth": "generations / month",
+      "secondsMax": "Up to {n}s per track",
+      "minutesMonthly": "Up to {n} min / month"
+    },
+    "features": {
+      "quality": {
+        "label": "Audio quality",
+        "desc": "Maximum bitrate for your plan"
+      },
+      "no_ads": {
+        "label": "No ads",
+        "desc": "Listen without interruptions"
+      },
+      "offline": {
+        "label": "Offline listening",
+        "desc": "Enjoy music without internet"
+      },
+      "download": {
+        "label": "Downloads",
+        "desc": "Save songs to your device"
+      },
+      "playlist_limit": {
+        "label": "Playlist limit",
+        "desc": "How many playlists you can create"
+      },
+      "recommendation": {
+        "label": "Music recommendations",
+        "desc": "Personalization level for suggestions"
+      },
+      "ai_music_enabled": {
+        "label": "AI music creation",
+        "desc": "Generate tracks with AI (artist account required for quota)"
+      },
+      "ai_music_generations_per_month": {
+        "label": "AI generations / month",
+        "desc": "Monthly cap on AI music generations"
+      },
+      "ai_music_max_duration_seconds": {
+        "label": "Max length per AI track",
+        "desc": "Maximum duration of each generated track"
+      },
+      "ai_music_max_minutes_per_month": {
+        "label": "AI audio quota / month",
+        "desc": "Total minutes of AI-generated audio per month"
+      },
+      "can_become_artist": {
+        "label": "Artist enrollment",
+        "desc": "Unlock artist capabilities"
+      },
+      "create_album": {
+        "label": "Create albums",
+        "desc": "Create and manage albums"
+      }
+    },
+    "alert": {
+      "signInTitle": "Sign in",
+      "selectPlanTitle": "Select a plan",
+      "signInToManage": "Please sign in to continue.",
+      "cooldownTitle": "Please wait",
+      "cooldownMessage": "Please wait {n}s before creating another order.",
+      "pendingOrderTitle": "Pending payment",
+      "pendingOrderMessage": "You already have an in-app payment order. Use the current QR or transfer details or browser checkout; do not create orders repeatedly.",
+      "inAppCreatedMessage": "QR and transfer details are ready. If you cannot pay in-app, you can use the browser checkout option.",
+      "browserFallbackTitle": "Browser checkout",
+      "browserFallbackMessage": "No in-app payment payload was returned; opened browser checkout instead.",
+      "purchaseFailed": "Could not start payment",
+      "cancelSubTitle": "Cancel subscription",
+      "cancelSubMessage": "Are you sure you want to cancel your current Premium plan?",
+      "cancelSubConfirm": "Cancel plan",
+      "cancelSubSuccess": "Your subscription has been cancelled.",
+      "cancelSubFailed": "Could not cancel subscription right now.",
+      "orderMissingTitle": "No order",
+      "orderMissingMessage": "There is no order code to cancel.",
+      "cancelPaymentTitle": "Cancel payment order",
+      "cancelPaymentMessage": "Cancel this pending payment order?",
+      "cancelPaymentConfirm": "Cancel order",
+      "paymentCancelledTitle": "Cancelled",
+      "paymentCancelledMessage": "The payment order was cancelled successfully.",
+      "orderStaleTitle": "Order changed",
+      "orderStaleMessage": "This order is no longer pending cancellation. The app refreshed your data.",
+      "cancelPaymentFailed": "Could not cancel the payment order right now.",
+      "openCheckoutFailed": "Could not open browser checkout"
+    }
   },
   "errors": {
     "networkError": "Network error. Please check your connection.",

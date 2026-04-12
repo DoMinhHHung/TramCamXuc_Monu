@@ -94,7 +94,7 @@ export const LoginOptionsScreen = () => {
                 end={{ x: 1, y: 0 }}
                 style={styles.emailBtnGradient}
             >
-              <Text style={styles.emailText}>{t('screens.authOptions.continueWithEmail', 'Continue with Email')}</Text>
+              <Text style={styles.emailText}>{t('screens.authOptions.continueWithEmail_Login', 'Login with Email')}</Text>
             </LinearGradient>
           </Pressable>
 

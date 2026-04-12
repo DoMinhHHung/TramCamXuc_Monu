@@ -12,6 +12,8 @@ public class FeedPostResponse {
     private String               id;
     private UUID                 ownerId;
     private String               ownerType;
+    private String               ownerDisplayName;
+    private String               ownerAvatarUrl;
     private FeedPost.ContentType contentType;
     private UUID contentId;
     private String               title;

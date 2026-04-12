@@ -184,6 +184,8 @@ const resolveGetCacheTtlMs = (config: InternalAxiosRequestConfig): number => {
 
   if (path === '/subscriptions/plans') return SIX_HOURS_MS;
 
+  if (/^\/users\/public\/[^/]+$/i.test(path)) return 120_000;
+
   if (
       path === '/subscriptions/my' ||
       path === '/subscriptions/my/history'

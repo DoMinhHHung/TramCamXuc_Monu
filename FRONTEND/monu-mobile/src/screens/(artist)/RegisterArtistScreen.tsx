@@ -172,20 +172,6 @@ export const RegisterArtistScreen = () => {
                             )}
                         </LinearGradient>
                     </Pressable>
-
-                    {/* Info card */}
-                    <View style={styles.infoCard}>
-                        <Text style={styles.infoTitle}>{t('screens.registerArtist.reviewProcessTitle', '📋 Review process')}</Text>
-                        {[
-                            t('screens.registerArtist.reviewStep3', 'You can upload songs and create albums'),
-                            t('screens.registerArtist.reviewStep4', 'A Premium plan is required to activate Artist features'),
-                        ].map((item, i) => (
-                            <View key={i} style={styles.infoRow}>
-                                <Text style={styles.infoDot}>•</Text>
-                                <Text style={styles.infoText}>{item}</Text>
-                            </View>
-                        ))}
-                    </View>
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>

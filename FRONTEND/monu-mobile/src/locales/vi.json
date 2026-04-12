@@ -373,7 +373,11 @@
       "reviewStep4": "Cần có gói Premium để kích hoạt tính năng Artist",
       "successTitle": "🎉 Đăng ký thành công!",
       "successMessage": "Hồ sơ nghệ sĩ của bạn đã được đăng ký thành công.",
-      "registerFailed": "Không thể đăng ký. Vui lòng thử lại."
+      "registerFailed": "Không thể đăng ký. Vui lòng thử lại.",
+      "invalidInfoTitle": "Thông tin không hợp lệ",
+      "validation": {
+        "terms": "Vui lòng đồng ý với Điều khoản dành cho Nghệ sĩ."
+      }
     },
     "authOptions": {
       "oauthFailed": "Xác thực OAuth không thành công",
@@ -382,7 +386,8 @@
       "socialLoginFailed": "Đăng nhập bằng mạng xã hội thất bại",
       "registerTitle": "Tạo tài khoản Monu",
       "registerSubtitle": "Bắt đầu trải nghiệm âm nhạc theo cách của riêng bạn",
-      "continueWithEmail": "Tiếp tục bằng Email",
+      "continueWithEmail_Register": "Đăng ký bằng Email",
+      "continueWithEmail_Login": "Đăng nhập bằng Email",
       "loginSubtitle": "Tiếp tục với phương thức đăng nhập bạn muốn"
     },
     "create": {
@@ -417,12 +422,12 @@
       "uploadDoneTitle": "✓ Upload hoàn tất",
       "uploadFailedTitle": "✕ Upload thất bại",
       "uploadingTitle": "↑ Đang upload...",
-      "becomeArtist": "Trở thành Artist",
+      "becomeArtist": "Trở thành Nghệ sĩ",
       "needPlanPrefix": "Bạn cần gói cước có tính năng",
-      "artistRegisterFeature": "đăng ký artist",
+      "artistRegisterFeature": "đăng ký nghệ sĩ",
       "needPlanSuffix": "để upload nhạc.",
       "stageNamePlaceholder": "Nghệ danh của bạn",
-      "registerArtistButton": "Đăng ký Artist",
+      "registerArtistButton": "Đăng ký Nghệ sĩ",
       "upgradePremiumPrefix": "Nâng cấp lên gói",
       "upgradePremiumSuffix": "để mở khoá tính năng này.",
       "renewSubscription": "Gia hạn gói cước",
@@ -445,7 +450,7 @@
       "chooseLyricFile": "Thêm tệp lời bài hát",
       "lyricAllowedFormatsHint": "Chỉ hỗ trợ",
       "aiMusicTitle": "Tạo nhạc với AI",
-      "aiMusicDesc": "Viết lời hoặc chọn tệp, chọn phong cách và độ dài. Nghe thử trên máy, đồng ý sẽ được chuyển sang trạng thái công khai, còn không đồng ý sẽ chuyển sang trạng thái riêng tư.",
+      "aiMusicDesc": "Viết lời hoặc chọn tệp, chọn phong cách và độ dài.",
       "aiMusicAttribution": "Nhạc AI dùng Sonauto.",
       "aiMusicLyricsLabel": "Lời bài hát",
       "aiMusicLyricsPlaceholder": "Dán lời hoặc nhập tệp…",
@@ -455,11 +460,11 @@
       "aiMusicStylePlaceholder": "Ví dụ: ballad Việt acoustic, nhịp chậm",
       "aiMusicDurationLabel": "Độ dài mục tiêu",
       "aiMusicDurationMax": "tối đa",
-      "aiMusicSubmit": "Sinh nhạc với AI",
-      "aiMusicJobRunning": "Đang sinh nhạc…",
+      "aiMusicSubmit": "Tạo nhạc với AI",
+      "aiMusicJobRunning": "Đang tạo nhạc…",
       "aiMusicStatusPrefix": "Trạng thái",
       "aiJobStatus_PENDING": "Đang xếp hàng",
-      "aiJobStatus_PROCESSING": "Đang sinh nhạc…",
+      "aiJobStatus_PROCESSING": "Đang tạo nhạc…",
       "aiJobStatus_READY": "Xong — nghe bên dưới hoặc trong Thư viện",
       "aiJobStatus_FAILED": "Thất bại",
       "aiMusicAccept": "Đăng công khai",
@@ -472,7 +477,7 @@
       "aiMusicNeedLyrics": "Nhập hoặc nhập file lời trước.",
       "aiMusicReadLyricFailed": "Không đọc được file lời.",
       "aiMusicImproveFailed": "Không cải thiện được lời lúc này.",
-      "aiMusicSubmitFailed": "Không tạo được job sinh nhạc.",
+      "aiMusicSubmitFailed": "Không tạo được job tạo nhạc.",
       "aiMusicPollError": "Không cập nhật được trạng thái job.",
       "aiMusicAcceptedTitle": "Đã lưu",
       "aiMusicAcceptedMessage": "Bài hát đang được xử lý. Kiểm tra \"Bài của tôi\" sau vài phút.",
@@ -642,7 +647,23 @@
       "composerPlaceholder": "Bạn đang nghĩ gì về âm nhạc?",
       "noPosts": "Chưa có bài đăng nào",
       "beFirstToShare": "Hãy là người đầu tiên chia sẻ!",
-      "createPost": "Tạo bài viết"
+      "createPost": "Tạo bài viết",
+      "composeToolbarTitle": "Đính kèm vào bài viết",
+      "composeToolbarSubtitle": "Chia sẻ bài hát, playlist hoặc album từ thư viện của bạn",
+      "composeAttachSongs": "Bài hát của tôi",
+      "composeAttachSongsHint": "Đính kèm một bài bạn đã tải lên",
+      "composeAttachPlaylists": "Playlist",
+      "composeAttachPlaylistsHint": "Đính kèm playlist bạn sở hữu",
+      "composeAttachAlbums": "Album",
+      "composeAttachAlbumsHint": "Đính kèm album bạn sở hữu",
+      "composePickerSongs": "Bài hát của bạn",
+      "composePickerPlaylists": "Playlist của bạn",
+      "composePickerAlbums": "Album của bạn",
+      "composeLoginRequired": "Đăng nhập để đính kèm nhạc.",
+      "composeNoSongs": "Bạn chưa có bài hát tải lên.",
+      "composeNoPlaylists": "Bạn chưa có playlist nào.",
+      "composeNoAlbums": "Bạn chưa có album nào.",
+      "composeLoadAttachFailed": "Không tải được thư viện của bạn."
     }
   },
   "actions": {
@@ -706,13 +727,124 @@
     "transferContent": "Nội dung chuyển khoản",
     "referenceCode": "Mã tham chiếu",
     "orderCodePrefix": "Mã đơn hàng:",
-    "autoActivateHint": "Sau khi chuyển khoản thành công, hệ thống sẽ tự kích hoạt Premium.",
+    "autoActivateHint": "Sau khi chuyển khoản thành công, hệ thống sẽ tự kích hoạt Monu Plus.",
     "qrUnavailable": "Chưa tải được ảnh QR. Bạn vẫn có thể thanh toán bằng nội dung chuyển khoản hoặc dùng fallback trình duyệt.",
     "cancelOrder": "Hủy đơn thanh toán này",
     "openBrowser": "Mở trình duyệt",
+    "openingBrowser": "Đang mở trình duyệt...",
     "expiredTitle": "Đơn hết hạn",
     "expiredMessage": "Đơn thanh toán đã tự hủy do quá 10 phút chưa thanh toán.",
-    "autoCancelError": "Không thể tự hủy đơn thanh toán hết hạn."
+    "autoCancelError": "Không thể tự hủy đơn thanh toán hết hạn.",
+    "heroTitle": "Monu Plus",
+    "heroSubtitle": "Nâng tầm từng khoảnh khắc cảm xúc",
+    "startingFrom": "CHỈ TỪ",
+    "activeLine": "Đang kích hoạt · còn {days} ngày",
+    "currencyDong": "đ",
+    "pricePerDuration": "/ {n} ngày",
+    "streamingRefresh": "Đang cập nhật gói Premium mới nhất...",
+    "choosePlan": "Chọn gói phù hợp",
+    "ctaPay": "Thanh toán · {price}đ",
+    "ctaPickPlan": "Chọn gói Premium",
+    "cancelSubscription": "Hủy gói cước",
+    "featuresHeading": "Tính năng Monu Plus",
+    "guaranteePayos": "Thanh toán an toàn qua PayOS",
+    "transferPlanPrefix": "Thanh toán gói",
+    "referencePending": "Đang cập nhật",
+    "loadErrorTitle": "Không tải được Premium",
+    "checkoutUrlMissing": "Thiếu đường dẫn thanh toán",
+    "badgeCurrent": "HIỆN TẠI",
+    "badgePopular": "✦ PHỔ BIẾN",
+    "planFree": "Miễn phí",
+    "planDurationDays": "{n} ngày",
+    "featureValue": {
+      "yes": "Có",
+      "no": "Không",
+      "unlimitedPlaylists": "Không giới hạn",
+      "recommendationBasic": "Cơ bản",
+      "recommendationAdvanced": "Nâng cao",
+      "generationsPerMonth": "lượt tạo / tháng",
+      "secondsMax": "Tối đa {n}s mỗi bài",
+      "minutesMonthly": "Tối đa {n} phút / tháng"
+    },
+    "features": {
+      "quality": {
+        "label": "Chất lượng âm thanh",
+        "desc": "Bitrate tối đa theo gói"
+      },
+      "no_ads": {
+        "label": "Không quảng cáo",
+        "desc": "Nghe nhạc liên tục, không gián đoạn"
+      },
+      "offline": {
+        "label": "Nghe offline",
+        "desc": "Nghe mọi lúc, không cần internet"
+      },
+      "download": {
+        "label": "Tải bài hát",
+        "desc": "Lưu bài hát về thiết bị"
+      },
+      "playlist_limit": {
+        "label": "Giới hạn playlist",
+        "desc": "Số playlist có thể tạo"
+      },
+      "recommendation": {
+        "label": "Gợi ý nhạc",
+        "desc": "Mức độ cá nhân hóa đề xuất"
+      },
+      "ai_music_enabled": {
+        "label": "Tạo nhạc bằng AI",
+        "desc": "Sinh bài bằng AI (hạn mức cần tài khoản nghệ sĩ đã xác thực)"
+      },
+      "ai_music_generations_per_month": {
+        "label": "Lượt tạo nhạc AI / tháng",
+        "desc": "Giới hạn số lần tạo nhạc AI mỗi tháng"
+      },
+      "ai_music_max_duration_seconds": {
+        "label": "Độ dài tối đa mỗi bài AI",
+        "desc": "Thời lượng tối đa của mỗi bản tạo bằng AI"
+      },
+      "ai_music_max_minutes_per_month": {
+        "label": "Hạn mức phút nhạc AI / tháng",
+        "desc": "Tổng số phút audio AI được tạo mỗi tháng"
+      },
+      "can_become_artist": {
+        "label": "Đăng ký nghệ sĩ",
+        "desc": "Mở quyền nghệ sĩ"
+      },
+      "create_album": {
+        "label": "Tạo album",
+        "desc": "Tạo và quản lý album"
+      }
+    },
+    "alert": {
+      "signInTitle": "Đăng nhập",
+      "selectPlanTitle": "Chọn gói",
+      "signInToManage": "Vui lòng đăng nhập để thực hiện thao tác này.",
+      "cooldownTitle": "Thao tác quá nhanh",
+      "cooldownMessage": "Vui lòng đợi {n}s trước khi tạo đơn mới.",
+      "pendingOrderTitle": "Đang có đơn chờ thanh toán",
+      "pendingOrderMessage": "Bạn đã có đơn thanh toán trong app. Hãy dùng QR/chuyển khoản hiện tại hoặc thanh toán trên trình duyệt; không tạo đơn mới liên tục.",
+      "inAppCreatedMessage": "Đã tạo mã QR và thông tin chuyển khoản. Nếu không thanh toán được trong app, bạn có thể dùng trình duyệt.",
+      "browserFallbackTitle": "Thanh toán trình duyệt",
+      "browserFallbackMessage": "Không có dữ liệu thanh toán trong app nên đã chuyển sang thanh toán trên trình duyệt.",
+      "purchaseFailed": "Không thể khởi tạo thanh toán",
+      "cancelSubTitle": "Hủy gói cước",
+      "cancelSubMessage": "Bạn có chắc muốn hủy gói Premium hiện tại không?",
+      "cancelSubConfirm": "Hủy gói",
+      "cancelSubSuccess": "Gói cước đã được hủy.",
+      "cancelSubFailed": "Không thể hủy gói cước lúc này.",
+      "orderMissingTitle": "Không tìm thấy đơn",
+      "orderMissingMessage": "Không có mã đơn để hủy.",
+      "cancelPaymentTitle": "Hủy đơn thanh toán",
+      "cancelPaymentMessage": "Bạn có muốn hủy đơn thanh toán đang chờ này không?",
+      "cancelPaymentConfirm": "Hủy đơn",
+      "paymentCancelledTitle": "Đã hủy",
+      "paymentCancelledMessage": "Đơn thanh toán đã được hủy thành công.",
+      "orderStaleTitle": "Đơn đã thay đổi",
+      "orderStaleMessage": "Đơn thanh toán này không còn ở trạng thái chờ hủy. App đã làm mới dữ liệu.",
+      "cancelPaymentFailed": "Không thể hủy đơn thanh toán lúc này.",
+      "openCheckoutFailed": "Không thể mở thanh toán trên trình duyệt"
+    }
   },
   "errors": {
     "networkError": "Lỗi mạng. Vui lòng kiểm tra kết nối của bạn.",
@@ -725,7 +857,7 @@
   },
   "onboarding": {
     "selectGenres": "Chọn thể loại",
-    "selectGenresTitle": "Chào mừng đến PhazelSound!",
+    "selectGenresTitle": "Chào mừng đến Monu!",
     "selectGenresSubtitle": "Chọn thể loại nhạc bạn yêu thích",
     "selectArtists": "Chọn nghệ sĩ",
     "selectArtistsTitle": "Nghệ sĩ bạn yêu thích",

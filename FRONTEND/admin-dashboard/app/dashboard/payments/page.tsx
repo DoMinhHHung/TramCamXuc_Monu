@@ -248,7 +248,7 @@ function FeaturesEditor({ value, onChange }: FeaturesEditorProps) {
 
             <div className="border-t border-zinc-200 dark:border-white/[0.08] px-4 pt-3 pb-1">
                 <p className="text-[10px] font-semibold tracking-widest text-zinc-400 dark:text-zinc-600 mb-2">
-                    SINH NHẠC AI (SONAUTO / ELEVENLABS / GOOGLE LỜI)
+                    TẠO NHẠC AI (SONAUTO / ELEVENLABS / GOOGLE LỜI)
                 </p>
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-600 mb-2 leading-relaxed">
                     Bật cùng <span className="font-medium text-zinc-700 dark:text-zinc-400">Có thể làm Artist</span>. Quota áp theo tháng (Asia/Ho_Chi_Minh).

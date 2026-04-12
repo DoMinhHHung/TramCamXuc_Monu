@@ -117,6 +117,7 @@ const PlayerContext = createContext<PlayerContextValue | null>(null);
 
 export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const { authSession } = useAuth();
+    const prevProfileUserIdRef = useRef<string | undefined>(undefined);
     const [currentSong, setCurrentSong] = useState<Song | null>(null);
     const [queue, setQueue] = useState<Song[]>([]);
     const [queueIndex, setQueueIndex] = useState(0);
@@ -584,6 +585,16 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         setIsPlayingAd(false);
         resetAdSession();
     }, [player, resetListenTracking, resetAdSession]);
+
+    useEffect(() => {
+        const next = authSession?.profile?.id;
+        const prev = prevProfileUserIdRef.current;
+        prevProfileUserIdRef.current = next;
+        if (prev === undefined) return;
+        if (typeof prev === 'string' && prev.length > 0 && prev !== next) {
+            stopPlayer();
+        }
+    }, [authSession?.profile?.id, stopPlayer]);
 
     const playNext = useCallback(() => {
         if (!queueRef.current.length || isPlayingAd) return;
