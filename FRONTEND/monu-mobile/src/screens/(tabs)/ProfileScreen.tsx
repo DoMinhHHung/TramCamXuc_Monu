@@ -169,7 +169,7 @@ export const ProfileScreen = () => {
                 >
                     <View style={styles.topBar}>
                         <BackButton onPress={() => navigation.goBack()} />
-                        <Text style={styles.topBarTitle}>{t('screens.profile.title', 'Profile')}</Text>
+                        <Text style={styles.topBarTitle}>{t('navigation.headerProfile', 'MONU · Cá nhân')}</Text>
                         <Pressable onPress={() => setMenuOpen(p => !p)} style={styles.gearBtn}>
                             <Text style={styles.gearIcon}><Feather name="settings" color={themeColors.white} size={24} /></Text>
                         </Pressable>
@@ -426,7 +426,14 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
         alignItems: 'center',
         marginBottom: 24,
     },
-    topBarTitle: { color: c.text, fontSize: 20, fontWeight: '700' },
+    topBarTitle: {
+        color: c.accent,
+        fontSize: 22,
+        fontWeight: '900',
+        fontStyle: 'italic',
+        letterSpacing: 2,
+        textTransform: 'uppercase',
+    },
     gearBtn:     { padding: 8 },
     gearIcon:    { fontSize: 22 },
 

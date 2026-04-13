@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -2047,7 +2047,7 @@ export const DiscoverScreen = () => {
           style={[styles.header, { paddingTop: insets.top + 16 }]}
         >
           <View style={styles.headerRow}>
-            <Text style={styles.headerTitle}>{t('screens.discover.title', 'Khám phá')}</Text>
+            <Text style={styles.headerTitle}>{t('navigation.headerDiscover', 'MONU · Khám phá')}</Text>
             <View style={styles.liveBadge}>
               <Text style={styles.liveBadgeText}>LIVE</Text>
             </View>
@@ -2216,7 +2216,14 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   avatarText: { color: C.white, fontWeight: '700' },
   header: { paddingHorizontal: 20, paddingBottom: 20 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerTitle: { color: C.text, fontSize: 26, fontWeight: '800' },
+  headerTitle: {
+    color: C.accent,
+    fontSize: 22,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
   liveBadge: { backgroundColor: C.error, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   liveBadgeText: { color: C.white, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   headerSub: { color: C.muted, fontSize: 13, marginTop: 4 },

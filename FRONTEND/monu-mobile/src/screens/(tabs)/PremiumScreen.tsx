@@ -1009,7 +1009,7 @@ export const PremiumScreen = () => {
                         </LinearGradient>
                     </Animated.View>
 
-                    <Text style={styles.heroTitle}>{t('premium.heroTitle', 'Monu Plus')}</Text>
+                    <Text style={styles.heroTitle}>{t('navigation.headerPremium', 'MONU · Plus')}</Text>
                     <Text style={styles.heroSubtitle}>{t('premium.heroSubtitle', '')}</Text>
 
                     {isActive ? (
@@ -1286,11 +1286,13 @@ const createPremiumStyles = (colors: ColorScheme) => StyleSheet.create({
         height: 42,
     },
     heroTitle: {
-        color: colors.white,
-        fontSize: 32,
-        fontWeight: '800',
-        letterSpacing: 0.5,
+        color: colors.accent,
+        fontSize: 22,
+        fontWeight: '900',
+        fontStyle: 'italic',
+        letterSpacing: 2,
         marginBottom: 8,
+        textTransform: 'uppercase',
     },
     heroSubtitle: {
         color: colors.glass50,

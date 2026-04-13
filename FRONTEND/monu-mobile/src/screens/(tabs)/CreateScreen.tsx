@@ -702,7 +702,7 @@ export const CreateScreen = () => {
             <AnimatedDecorIcon intensity="medium">
               <Text style={styles.heroEmoji}>🎼</Text>
             </AnimatedDecorIcon>
-            <Text style={styles.heroTitle}>{t('screens.create.creatorStudio', 'Creator Studio')}</Text>
+            <Text style={styles.heroTitle}>{t('navigation.headerCreate')}</Text>
             <Text style={styles.heroSub}>
               {canUpload
                   ? `${t('screens.create.greetingPrefix', 'Hello')}, ${artistProfile?.stageName} 👋`
@@ -1397,10 +1397,13 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   heroEmoji: { fontSize: 52, marginBottom: 12 },
   heroTitle: {
-    color: colors.white,
-    fontSize: 28,
-    fontWeight: '800',
+    color: colors.accent,
+    fontSize: 22,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    letterSpacing: 2,
     marginBottom: 6,
+    textTransform: 'uppercase',
   },
   heroSub: {
     color: colors.glass50,

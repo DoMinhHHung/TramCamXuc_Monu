@@ -9,6 +9,7 @@ import { useThemeColors, ColorScheme } from '../config/colors';
 import { Fold } from 'react-native-animated-spinkit';
 import { AppIcon } from '../config/appIcons';
 import { RADIUS, SHADOW } from '../config/design';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MINI_HEIGHT     = 64;

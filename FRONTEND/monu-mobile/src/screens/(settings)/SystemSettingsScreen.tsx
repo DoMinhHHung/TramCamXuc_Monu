@@ -33,13 +33,17 @@ export const SystemSettingsScreen = () => {
     const insets = useSafeAreaInsets();
     const { theme, setTheme, followSystem } = useTheme();
     const { language, setLanguage, t } = useTranslation();
-    const themeColors = useThemeColors();
+    const { colors: themeColors } = useTheme();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
     const deviceColorScheme = useColorScheme();
 
     const THEME_OPTIONS: { id: ThemeName; label: string; emoji: string }[] = useMemo(() => [
-        { id: 'dark', label: t('themes.dark'), emoji: '🌙' },
-        { id: 'classic', label: t('themes.classic'), emoji: '✨' },
+        { id: 'dark', label: t('screens.settings.themes.dark') || 'Dark Mode', emoji: '🌙' },
+        { id: 'classic', label: t('screens.settings.themes.classic') || 'Classic', emoji: '✨' },
+        { id: 'neonCurator', label: t('screens.settings.themes.neonCurator') || 'Neon Curator', emoji: '👾' },
+        { id: 'neonGen', label: t('screens.settings.themes.neonGen') || 'Neon Gen Z', emoji: '🔥' },
+        { id: 'sunset', label: t('screens.settings.themes.sunset') || 'Sunset', emoji: '🌇' },
+        { id: 'ocean', label: t('screens.settings.themes.ocean') || 'Ocean', emoji: '🌊' },
     ], [t]);
 
     const resolveTheme = (themeId: ThemeName) => THEMES[themeId] ?? THEMES.dark;
@@ -205,7 +209,7 @@ export const SystemSettingsScreen = () => {
     );
 };
 
-const createStyles = (colors: ColorScheme) => StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
     header: {
         flexDirection: 'row',

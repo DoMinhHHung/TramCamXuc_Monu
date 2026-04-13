@@ -26,8 +26,8 @@ interface LocalizationContextType {
   language: SupportedLanguage;
   /** Change app language and persist preference */
   setLanguage: (lang: SupportedLanguage) => Promise<void>;
-  /** Get translated string by key with optional fallback */
-  t: (key: string, fallback?: string) => string;
+  /** Get translated string by key with optional params or fallback */
+  t: (key: string, paramsOrFallback?: Record<string, string | number> | string, fallback?: string) => string;
   /** All available languages for user selection */
   availableLanguages: SupportedLanguage[];
   /** Get language display name (e.g., "English", "Tiếng Việt") */
@@ -105,16 +105,32 @@ export const LocalizationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   }, []);
 
-  const t = useCallback((key: string, fallback?: string): string => {
+  const t = useCallback((key: string, paramsOrFallback?: Record<string, string | number> | string, fallbackArg?: string): string => {
     const currentTranslations = translations[language];
-    const translated = getTranslation(currentTranslations, key);
+    const rawTranslated = getTranslation(currentTranslations, key);
     
-    // Return translated string, fallback, or original key as last resort
-    if (translated !== key) {
-      return translated;
+    // Support (key, fallback) and (key, params, fallback) signatures
+    let params: Record<string, string | number> | undefined;
+    let fallback = fallbackArg;
+
+    if (typeof paramsOrFallback === 'string') {
+      fallback = paramsOrFallback;
+    } else {
+      params = paramsOrFallback;
+    }
+
+    const translated = rawTranslated !== key ? rawTranslated : (fallback || key);
+
+    // Apply interpolation if params are provided
+    if (params && Object.keys(params).length > 0) {
+      let finalString = translated;
+      Object.entries(params).forEach(([paramKey, paramValue]) => {
+        finalString = finalString.replace(`{{${paramKey}}}`, String(paramValue));
+      });
+      return finalString;
     }
     
-    return fallback || key;
+    return translated;
   }, [language]);
 
   const getLanguageName = (lang: SupportedLanguage): string => {

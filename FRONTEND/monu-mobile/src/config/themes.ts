@@ -342,9 +342,65 @@ export const neonGenTheme: ThemeColors = {
 };
 
 /**
+ * Neon Curator theme – The latest aesthetic from HomeScreen
+ * Deep purple background with vibrant lavender accents and neon glass effects
+ */
+export const neonCuratorTheme: ThemeColors = {
+  // Primary app colors
+  bg: '#0D0D14',
+  surface: '#1E1A38',
+  surfaceLow: '#16132A',
+  surfaceMid: '#2A2A3A',
+  surfaceDim: '#333333',
+
+  // Text colors
+  text: '#FFFFFF',
+  textSecondary: '#DA70FF',
+  muted: '#8B5FA8',
+
+  // Accent/brand colors
+  accent: '#C084FC',
+  accentFill20: 'rgba(109,40,217,0.20)',
+  accentFill35: 'rgba(109,40,217,0.35)',
+  accentBorder25: 'rgba(139,92,246,0.25)',
+  accentBorder35: 'rgba(139,92,246,0.35)',
+
+  // Borders and dividers
+  border: '#3B3B50',
+  divider: '#2D2D40',
+
+  // Status colors
+  success: '#10B981',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  info: '#3B82F6',
+
+  // Gradients
+  gradViolet: '#1a0533',
+  gradPurple: '#2D1B69',
+  gradIndigo: '#1a0f3d',
+  gradNavy: '#0f1a3d',
+  gradDark: '#0D0D14',
+
+  // Card gradients
+  cardHealingFrom: '#2D0C5C',
+  cardTrendingFrom: '#1a1040',
+  cardTrendingTo: '#2D1B69',
+  cardAcousticFrom: '#1C1636',
+  cardAcousticTo: '#2D1B69',
+  cardLofiFrom: '#1a1040',
+  cardLofiTo: '#2D1B69',
+
+  // Legacy
+  white: '#FFFFFF',
+  accentTint8: 'rgba(192, 132, 252, 0.08)',
+  accentLowTint: 'rgba(192, 132, 252, 0.12)',
+};
+
+/**
  * Theme variants exported for selection
  */
-export type ThemeName = 'dark' | 'classic' | 'sunset' | 'ocean' | 'neonGen';
+export type ThemeName = 'dark' | 'classic' | 'sunset' | 'ocean' | 'neonGen' | 'neonCurator';
 
 export const THEMES: Record<ThemeName, ThemeColors> = {
   dark: darkTheme,
@@ -352,6 +408,7 @@ export const THEMES: Record<ThemeName, ThemeColors> = {
   sunset: sunsetTheme,
   ocean: oceanTheme,
   neonGen: neonGenTheme,
+  neonCurator: neonCuratorTheme,
 };
 
 /**
@@ -364,6 +421,7 @@ export const getThemeName = (theme: ThemeName): string => {
     sunset: 'Sunset',
     ocean: 'Ocean',
     neonGen: 'Neon Gen Z',
+    neonCurator: 'Neon Curator',
   };
   return names[theme];
 };

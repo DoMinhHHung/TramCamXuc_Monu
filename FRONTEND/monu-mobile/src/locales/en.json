@@ -41,7 +41,11 @@
     "discover": "Discover",
     "create": "Create",
     "library": "Library",
-    "premium": "Premium"
+    "premium": "Premium",
+    "headerHome": "MONU · Home",
+    "headerDiscover": "MONU · Discover",
+    "headerLibrary": "MONU · Library",
+    "headerCreate": "MONU · Studio"
   },
   "screens": {
     "home": {
@@ -63,7 +67,16 @@
       "expandedSections": "Music by Genre",
       "loadingExpandedSections": "Loading more music sections...",
       "showMore": "See more",
-      "showLess": "Collapse"
+      "showLess": "Collapse",
+      "streakLabel": "LISTENING STREAK",
+      "streakValue": "{{days}} Days",
+      "streakSub": "You're on a roll! Keep up the great vibes.",
+      "streakDetail": "DETAILS",
+      "dailyMix": "DAILY MIX",
+      "topHits": "Top Hits 2024",
+      "yourMusicGu": "Your personal taste",
+      "discoveryNew": "New Discovery",
+      "discoverySub": "30 new tracks every Monday"
     },
     "discover": {
       "title": "Discover",
@@ -175,6 +188,14 @@
       "currentSettings": "Current Settings",
       "theme": "Theme",
       "language": "Language",
+      "themes": {
+        "dark": "Dark Mode",
+        "classic": "Classic",
+        "neonCurator": "Neon Curator",
+        "neonGen": "Neon Gen Z",
+        "sunset": "Sunset",
+        "ocean": "Ocean"
+      },
       "languages": {
         "vi": "Tiếng Việt",
         "en": "English"
@@ -653,7 +674,7 @@
       "liveBadge": "LIVE",
       "communityLabel": "Music community",
       "posts": "posts",
-      "composerPlaceholder": "What are you thinking about music today?",
+      "composerPlaceholder": "Share your paradise, mood today's ....",
       "noPosts": "No posts yet",
       "beFirstToShare": "Be the first to share!",
       "createPost": "Create post",

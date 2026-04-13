@@ -5,7 +5,8 @@ import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { ColorScheme, useThemeColors } from '../config/colors';
+import { ThemeColors } from '../config/themes';
+import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { BackButton } from '../components/BackButton';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -18,7 +19,7 @@ export const SettingsScreen = () => {
     const navigation = useNavigation<SettingsNav>();
     const insets = useSafeAreaInsets();
     const { t } = useTranslation();
-    const themeColors = useThemeColors();
+    const { colors: themeColors } = useTheme();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
     const hubs: {
@@ -80,7 +81,7 @@ export const SettingsScreen = () => {
     );
 };
 
-const createStyles = (colors: ColorScheme) => StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
     header: {
         flexDirection: 'row',

@@ -44,7 +44,11 @@
     "discover": "Khám phá",
     "create": "Tạo",
     "library": "Thư viện",
-    "premium": "Premium"
+    "premium": "Premium",
+    "headerHome": "MONU · Trang chủ",
+    "headerDiscover": "MONU · Khám phá",
+    "headerLibrary": "MONU · Thư viện",
+    "headerCreate": "MONU · Sáng tạo"
   },
   "screens": {
     "home": {
@@ -66,7 +70,16 @@
       "expandedSections": "Nhạc theo thể loại",
       "loadingExpandedSections": "Đang tải mục nhạc mở rộng...",
       "showMore": "Xem thêm",
-      "showLess": "Thu gọn"
+      "showLess": "Thu gọn",
+      "streakLabel": "CHUỖI NGHE NHẠC",
+      "streakValue": "{{days}} Ngày",
+      "streakSub": "Bạn đang có phong độ tuyệt vời! Tiếp tục nghe nhạc nhé.",
+      "streakDetail": "CHI TIẾT",
+      "dailyMix": "DAILY MIX",
+      "topHits": "Top Hits 2024",
+      "yourMusicGu": "Gu nhạc của riêng bạn",
+      "discoveryNew": "Khám phá mới",
+      "discoverySub": "30 bài hát mới mỗi thứ Hai"
     },
     "discover": {
       "title": "Khám phá",
@@ -194,6 +207,14 @@
       "currentSettings": "Cài đặt hiện tại",
       "theme": "Chủ đề",
       "language": "Ngôn ngữ",
+      "themes": {
+        "dark": "Chế độ tối",
+        "classic": "Cổ điển",
+        "neonCurator": "Neon Curator",
+        "neonGen": "Neon Gen Z",
+        "sunset": "Hoàng hôn",
+        "ocean": "Đại dương"
+      },
       "languages": {
         "vi": "Tiếng Việt",
         "en": "English"
@@ -672,7 +693,7 @@
       "liveBadge": "LIVE",
       "communityLabel": "Cộng đồng âm nhạc",
       "posts": "Bài đăng",
-      "composerPlaceholder": "Bạn đang nghĩ gì về âm nhạc?",
+      "composerPlaceholder": "Chia sẻ giai điệu, tâm trạng của bạn hôm nay...",
       "noPosts": "Chưa có bài đăng nào",
       "beFirstToShare": "Hãy là người đầu tiên chia sẻ!",
       "createPost": "Tạo bài viết",

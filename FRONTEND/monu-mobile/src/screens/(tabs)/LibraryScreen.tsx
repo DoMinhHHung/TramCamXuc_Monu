@@ -1959,7 +1959,7 @@ export const LibraryScreen = () => {
           colors={[themeColors.gradSlate, themeColors.bg]}
           style={[styles.header, { paddingTop: insets.top + 18 }]}
         >
-          <Text style={styles.headerTitle}>{t('screens.library.title', 'Library')}</Text>
+          <Text style={styles.headerTitle}>{t('navigation.headerLibrary', 'MONU · Thư viện')}</Text>
           <Text style={styles.headerSub}>
             {playlists.length} {t('screens.library.tabPlaylists', 'playlists')} · {songs.length} {t('screens.library.tabSongs', 'songs')} · {albums.length} {t('screens.library.tabAlbums', 'albums')}
           </Text>
@@ -2122,7 +2122,14 @@ const getMainLibraryStyles = (c: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg },
 
   header: { paddingHorizontal: 20, paddingBottom: 20 },
-  headerTitle: { color: c.white, fontSize: 28, fontWeight: '800' },
+  headerTitle: {
+    color: c.accent,
+    fontSize: 22,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
   headerSub: { color: c.glass40, fontSize: 13, marginTop: 4 },
 
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
