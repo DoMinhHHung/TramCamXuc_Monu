@@ -133,6 +133,7 @@ const linking: LinkingOptions<any> = {
 
 const MainTabNavigator = () => {
     const insets = useSafeAreaInsets();
+    const { colors } = useTheme();
     const TAB_BAR_BASE = 58;
     const tabBarHeight = TAB_BAR_BASE + insets.bottom;
 
@@ -145,21 +146,29 @@ const MainTabNavigator = () => {
                     headerShown: false,
                     tabBarLabel: meta.label,
                     tabBarStyle: {
-                        backgroundColor: COLORS.surface,
-                        borderTopColor:  COLORS.border,
+                        position: 'absolute',
+                        left: 10,
+                        right: 10,
+                        bottom: 0,
+                        backgroundColor: colors.surface,
+                        borderTopColor:  colors.border,
+                        borderTopWidth: 1,
+                        borderWidth: 1,
+                        borderColor: colors.border,
                         height: tabBarHeight,
                         paddingBottom: Math.max(8, insets.bottom),
                         paddingTop: 8,
+                        borderRadius: 20,
                     },
-                    tabBarActiveTintColor:   COLORS.text,
-                    tabBarInactiveTintColor: COLORS.muted,
+                    tabBarActiveTintColor:   colors.text,
+                    tabBarInactiveTintColor: colors.muted,
                     tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
                         <View style={[styles.tabIconWrap, isCreate && styles.createIconWrap]}>
                             <AnimatedDecorIcon active={focused} intensity="medium">
                                 <AppIcon
                                   name={meta.icon}
                                   size={isCreate ? 20 : 18}
-                                  color={isCreate ? COLORS.white : color}
+                                  color={isCreate ? colors.white : color}
                                 />
                             </AnimatedDecorIcon>
                         </View>

@@ -13,7 +13,6 @@ import {
   ViewStyle,
   PressableProps,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../context/ThemeContext';
 import themeUtils from '../config/themeUtils';
 
@@ -41,11 +40,11 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 
   const variantStyles = {
     default: {
-      backgroundColor: `rgba(255, 255, 255, ${intensityMap[intensity]})`,
+      backgroundColor: colors.surface,
       borderColor: colors.accentBorder25,
     },
     luxury: {
-      backgroundColor: `rgba(255, 255, 255, ${intensityMap[intensity] * 1.5})`,
+      backgroundColor: colors.surfaceMid,
       borderColor: colors.accent,
     },
     accent: {
@@ -64,13 +63,13 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     container: {
       backgroundColor: currentVariant.backgroundColor,
       borderColor: currentVariant.borderColor,
-      borderWidth: 0.5,
+      borderWidth: 1,
       borderRadius: themeUtils.borderRadius.lg,
       padding: themeUtils.spacing.md,
       ...themeUtils.shadowPresets.md,
     },
     glassOverlay: {
-      backgroundColor: `rgba(255, 255, 255, 0.02)`,
+      backgroundColor: colors.accentFill20,
       position: 'absolute',
       top: 0,
       left: 0,

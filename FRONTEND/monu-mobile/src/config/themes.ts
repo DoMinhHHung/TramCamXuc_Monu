@@ -67,27 +67,27 @@ export interface ThemeColors {
  */
 export const darkTheme: ThemeColors = {
   // Primary app colors
-  bg: '#0D0D14',
-  surface: '#1E1A38',
-  surfaceLow: '#16132A',
-  surfaceMid: '#2A2A3A',
-  surfaceDim: '#333333',
+  bg: '#090909',
+  surface: '#151515',
+  surfaceLow: '#101010',
+  surfaceMid: '#1D1D1D',
+  surfaceDim: '#252525',
 
   // Text colors
   text: '#FFFFFF',
-  textSecondary: '#B8B8C8',
-  muted: '#7B7B8F',
+  textSecondary: '#B5B5B5',
+  muted: '#7F7F7F',
 
   // Accent/brand colors – purple as primary identity
-  accent: '#A78BFA',
-  accentFill20: 'rgba(167, 139, 250, 0.20)',
-  accentFill35: 'rgba(167, 139, 250, 0.35)',
-  accentBorder25: 'rgba(167, 139, 250, 0.25)',
-  accentBorder35: 'rgba(167, 139, 250, 0.35)',
+  accent: '#1ED760',
+  accentFill20: 'rgba(30, 215, 96, 0.20)',
+  accentFill35: 'rgba(30, 215, 96, 0.35)',
+  accentBorder25: 'rgba(30, 215, 96, 0.25)',
+  accentBorder35: 'rgba(30, 215, 96, 0.35)',
 
   // Borders and dividers
-  border: '#3B3B50',
-  divider: '#2D2D40',
+  border: '#2A2A2A',
+  divider: '#1B1B1B',
 
   // Status colors
   success: '#10B981',
@@ -96,25 +96,25 @@ export const darkTheme: ThemeColors = {
   info: '#3B82F6',
 
   // Gradients
-  gradViolet: '#1a0533',
-  gradPurple: '#2D1B69',
-  gradIndigo: '#1a0f3d',
-  gradNavy: '#0f1a3d',
-  gradDark: '#0D0D14',
+  gradViolet: '#1A0B04',
+  gradPurple: '#1D1D1D',
+  gradIndigo: '#121212',
+  gradNavy: '#0B0B0B',
+  gradDark: '#090909',
 
   // Card gradients
-  cardHealingFrom: '#2D0C5C',
-  cardTrendingFrom: '#5C2C0C',
-  cardTrendingTo: '#8B2C0C',
-  cardAcousticFrom: '#1C3C0F',
-  cardAcousticTo: '#2C5C1C',
-  cardLofiFrom: '#0C2C5C',
-  cardLofiTo: '#0C4C8B',
+  cardHealingFrom: '#1A1A1A',
+  cardTrendingFrom: '#1F0A00',
+  cardTrendingTo: '#FF6B1A',
+  cardAcousticFrom: '#0B1A12',
+  cardAcousticTo: '#17623A',
+  cardLofiFrom: '#111111',
+  cardLofiTo: '#28323C',
 
   // Legacy
   white: '#FFFFFF',
-  accentTint8: 'rgba(167, 139, 250, 0.08)',
-  accentLowTint: 'rgba(167, 139, 250, 0.12)',
+  accentTint8: 'rgba(30, 215, 96, 0.08)',
+  accentLowTint: 'rgba(30, 215, 96, 0.12)',
 };
 
 /**
@@ -135,11 +135,11 @@ export const classicTheme: ThemeColors = {
   muted: '#757575',
 
   // Accent/brand colors – golden/orange for classic feel
-  accent: '#FFA500',
-  accentFill20: 'rgba(255, 165, 0, 0.20)',
-  accentFill35: 'rgba(255, 165, 0, 0.35)',
-  accentBorder25: 'rgba(255, 165, 0, 0.25)',
-  accentBorder35: 'rgba(255, 165, 0, 0.35)',
+  accent: '#FF6B1A',
+  accentFill20: 'rgba(255, 107, 26, 0.20)',
+  accentFill35: 'rgba(255, 107, 26, 0.35)',
+  accentBorder25: 'rgba(255, 107, 26, 0.25)',
+  accentBorder35: 'rgba(255, 107, 26, 0.35)',
 
   // Borders and dividers
   border: '#303030',
@@ -169,8 +169,8 @@ export const classicTheme: ThemeColors = {
 
   // Legacy
   white: '#FFFFFF',
-  accentTint8: 'rgba(255, 165, 0, 0.08)',
-  accentLowTint: 'rgba(255, 165, 0, 0.12)',
+  accentTint8: 'rgba(255, 107, 26, 0.08)',
+  accentLowTint: 'rgba(255, 107, 26, 0.12)',
 };
 
 /**

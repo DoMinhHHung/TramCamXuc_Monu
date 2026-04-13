@@ -11,58 +11,58 @@ export const COLORS = {
 
   // ── Backgrounds ────────────────────────────────────────────────────────────
   /** Nền chính của app */
-  bg:         '#0D0D14',
+  bg:         '#090909',
   /** Surface card nổi (modal, list card) */
-  surface:    '#1E1A38',
+  surface:    '#151515',
   /** Surface thấp hơn (gradient end của card) */
-  surfaceLow: '#16132A',
+  surfaceLow: '#101010',
   /** Surface disabled / flat */
-  surfaceMid: '#2A2A3A',
+  surfaceMid: '#1D1D1D',
   /** Surface tối nhất (inactive) */
   surfaceDim: '#333333',
 
   // ── Gradient stops ─────────────────────────────────────────────────────────
   /** WelcomeScreen hero top */
-  gradViolet: '#1a0533',
+  gradViolet: '#1A0B04',
   /** HomeScreen / ProfileScreen hero */
-  gradPurple: '#2D1B69',
+  gradPurple: '#1D1D1D',
   /** Auth screens (Login, ForgotPassword, VerifyOtp, ResetPassword) */
-  gradIndigo: '#1a0f3d',
+  gradIndigo: '#121212',
   /** Register, SelectGenres, CreateScreen */
-  gradNavy:   '#0f1a3d',
+  gradNavy:   '#0B0B0B',
   /** Library, Search, EditFavorites header */
-  gradSlate:  '#16102E',
+  gradSlate:  '#111111',
 
   // ── Accent ─────────────────────────────────────────────────────────────────
   /** Primary accent – lavender (buttons, links, active state) */
-  accent:     '#C084FC',
+  accent:     '#1ED760',
   /** Gradient end cho accent button */
-  accentAlt:  '#8B5CF6',
+  accentAlt:  '#22E065',
   /** Button fill sâu hơn */
-  accentDim:  '#7C3AED',
+  accentDim:  '#0FA44A',
   /** Sâu nhất – shadow / glow */
-  accentDeep: '#6D28D9',
+  accentDeep: '#0B7A37',
 
   // ── Accent transparent layers ──────────────────────────────────────────────
   /** Email badge, cellFilled background */
-  accentFill20:   'rgba(109,40,217,0.20)',
+  accentFill20:   'rgba(30,215,96,0.20)',
   /** Count badge, section badge background */
-  accentFill25:   'rgba(109,40,217,0.25)',
+  accentFill25:   'rgba(30,215,96,0.25)',
   /** Featured banner gradient start */
-  accentFill90:   'rgba(109,40,217,0.90)',
+  accentFill90:   'rgba(30,215,96,0.90)',
   /** Featured banner gradient end */
-  accentFill95:   'rgba(76,29,149,0.95)',
+  accentFill95:   'rgba(13,122,55,0.95)',
   /** Ring trang trí (WelcomeScreen outer) */
-  accentBorder12: 'rgba(139,92,246,0.12)',
+  accentBorder12: 'rgba(30,215,96,0.12)',
   /** Genre chip border */
-  accentBorder25: 'rgba(139,92,246,0.25)',
+  accentBorder25: 'rgba(30,215,96,0.25)',
   /** Badge border, count badge border */
-  accentBorder30: 'rgba(139,92,246,0.30)',
-  accentBorder35: 'rgba(139,92,246,0.35)',
+  accentBorder30: 'rgba(30,215,96,0.30)',
+  accentBorder35: 'rgba(30,215,96,0.35)',
   /** Logo ring, icon wrap border */
-  accentBorder40: 'rgba(139,92,246,0.40)',
+  accentBorder40: 'rgba(30,215,96,0.40)',
   /** Logo ring WelcomeScreen, active OTP cell */
-  accentBorder50: 'rgba(139,92,246,0.50)',
+  accentBorder50: 'rgba(30,215,96,0.50)',
 
   // ── White glass layers ─────────────────────────────────────────────────────
   glass03: 'rgba(255,255,255,0.03)',
@@ -89,15 +89,15 @@ export const COLORS = {
   glass90: 'rgba(255,255,255,0.90)',
 
   // ── Borders ────────────────────────────────────────────────────────────────
-  border:       '#2A2640',
+  border:       '#2A2A2A',
   borderSubtle: 'rgba(255,255,255,0.06)',
   borderLight:  'rgba(255,255,255,0.10)',
 
   // ── Text ──────────────────────────────────────────────────────────────────
   white: '#FFFFFF',
-  text:  '#F3F0FF',
-  textSecondary: '#B9B3D1',
-  muted: '#7B7591',
+  text:  '#F7F7F7',
+  textSecondary: '#B5B5B5',
+  muted: '#808080',
 
   // ── Semantic ──────────────────────────────────────────────────────────────
   error:         '#EF4444',
@@ -115,14 +115,14 @@ export const COLORS = {
   scrim: 'rgba(0,0,0,0.70)',
 
   // ── HomeScreen quick-action card gradients ────────────────────────────────
-  cardHealingFrom:  '#1a1040',
-  cardHealingTo:    '#2D1B69',
-  cardTrendingFrom: '#1a0a0a',
-  cardTrendingTo:   '#6B1A1A',
-  cardAcousticFrom: '#0a1a0a',
-  cardAcousticTo:   '#1A4A1A',
-  cardLofiFrom:     '#0a0a1a',
-  cardLofiTo:       '#1A2A5A',
+  cardHealingFrom:  '#1A1A1A',
+  cardHealingTo:    '#0F3F23',
+  cardTrendingFrom: '#1F0A00',
+  cardTrendingTo:   '#FF6B1A',
+  cardAcousticFrom: '#0B1A12',
+  cardAcousticTo:   '#17623A',
+  cardLofiFrom:     '#111111',
+  cardLofiTo:       '#28323C',
 
   // ── SearchScreen category card gradients ─────────────────────────────────
   catPopFrom:     '#1a0a2e',

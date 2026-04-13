@@ -60,7 +60,7 @@ export const LuxuryButton: React.FC<LuxuryButtonProps> = ({
 
   const variantConfig = {
     primary: {
-      backgroundGradient: [colors.accent, colors.accentBorder35] as const,
+      backgroundGradient: [colors.accent, colors.accentFill35] as const,
       textColor: colors.text,
       borderColor: colors.accent,
       shadow: themeUtils.shadowPresets.md,
@@ -72,7 +72,7 @@ export const LuxuryButton: React.FC<LuxuryButtonProps> = ({
       shadow: themeUtils.shadowPresets.sm,
     },
     ghost: {
-      backgroundGradient: [colors.surface, colors.surfaceLow] as const,
+      backgroundGradient: [colors.surfaceLow, colors.surfaceLow] as const,
       textColor: colors.textSecondary,
       borderColor: colors.border,
       shadow: { shadowOpacity: 0 },

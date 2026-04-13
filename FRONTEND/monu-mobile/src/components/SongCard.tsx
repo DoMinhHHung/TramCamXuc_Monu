@@ -30,7 +30,7 @@ export const SongCard = ({
   return (
     <View style={[styles.listCard, isActive && styles.listCardActive]}>
       <LinearGradient
-        colors={isActive ? [colors.accentFill20, colors.accentFill20] : [colors.surface, colors.surfaceLow]}
+        colors={isActive ? [colors.accentFill20, colors.surfaceLow] : [colors.surface, colors.surfaceLow]}
         style={styles.listCardGradient}
       >
         <Pressable
@@ -92,16 +92,16 @@ export const SongCard = ({
 };
 
 const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
-  listCard:            { marginBottom: 10, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
+  listCard:            { marginBottom: 10, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
   listCardActive:      { borderColor: colors.accentBorder35 },
   listCardGradient:    { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
   mainArea:            { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  listIconWrap:        { width: 50, height: 50, borderRadius: 14, backgroundColor: colors.accentBorder25, alignItems: 'center', justifyContent: 'center', marginRight: 14, overflow: 'hidden' },
+  listIconWrap:        { width: 50, height: 50, borderRadius: 10, backgroundColor: colors.surfaceMid, alignItems: 'center', justifyContent: 'center', marginRight: 14, overflow: 'hidden' },
   listIconWrapActive:  { borderWidth: 1.5, borderColor: colors.accent },
   thumbPlaceholder:    { width: 50, height: 50, alignItems: 'center', justifyContent: 'center' },
   songThumbnail:       { width: 50, height: 50, borderRadius: 14 },
   listInfo:            { flex: 1 },
-  listTitle:           { color: colors.text, fontWeight: '700', fontSize: 15, letterSpacing: -0.2 },
+  listTitle:           { color: colors.text, fontWeight: '800', fontSize: 15, letterSpacing: -0.2 },
   listTitleActive:     { color: colors.accent },
   listSubtitle:        { color: colors.textSecondary, fontSize: 12, marginTop: 3 },
   rightMeta:           { alignItems: 'flex-end', gap: 6 },
