@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Pressable,
-  ScrollView, StyleSheet, Text, View,
+  ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,8 +16,30 @@ import { ONBOARDING_EMOJIS } from '../../config/emojis';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { getPopularArtists, updateMyFavorites } from '../../services/favorites';
+import { apiClient } from '../../services/api';
+import { searchArtists, type Artist as ApiArtist } from '../../services/music';
+import { updateMyFavorites } from '../../services/favorites';
 import { Artist } from '../../types/favorites';
+import { MaterialIcons } from '@expo/vector-icons';
+
+type MeArtist = { id: string; stageName: string; avatarUrl?: string; status?: string };
+
+const PAGE_SIZE = 50;
+const MAX_CATALOG_PAGES = 8;
+
+const mapApiArtistToFavorite = (a: ApiArtist): Artist | null => {
+  const id = (a as { id?: string }).id ?? a.artistId;
+  if (!id) return null;
+  return {
+    id,
+    stageName: a.stageName,
+    avatarUrl: a.avatarUrl,
+    status: 'ACTIVE',
+  };
+};
+
+const sortByStageName = (list: Artist[]) =>
+  [...list].sort((x, y) => x.stageName.localeCompare(y.stageName, undefined, { sensitivity: 'base' }));
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SelectArtists'>;
 
@@ -35,19 +57,98 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [artists, setArtists] = useState<Artist[]>([]);
+  const [catalogArtists, setCatalogArtists] = useState<Artist[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<Artist[] | null>(null);
   const [selectedArtists, setSelectedArtists] = useState<string[]>([]);
+  const myArtistRef = useRef<Artist | null>(null);
+  const searchReq = useRef(0);
 
-  useEffect(() => { void loadArtists(); }, []);
-
-  const loadArtists = async () => {
+  const loadArtists = useCallback(async () => {
     try {
       setLoading(true);
-      setArtists(await getPopularArtists(20));
+      const merged = new Map<string, Artist>();
+      let page = 0;
+      let last = false;
+
+      while (!last && page < MAX_CATALOG_PAGES) {
+        const res = await searchArtists({ page, size: PAGE_SIZE });
+        for (const raw of res.content ?? []) {
+          const m = mapApiArtistToFavorite(raw);
+          if (m) merged.set(m.id, m);
+        }
+        last = Boolean(res.last);
+        page += 1;
+      }
+
+      try {
+        const res = await apiClient.get<MeArtist>('/artists/me');
+        const me = res.data;
+        if (me?.id?.length) {
+          const mine: Artist = {
+            id: me.id,
+            stageName: me.stageName,
+            avatarUrl: me.avatarUrl,
+            status: 'ACTIVE',
+          };
+          myArtistRef.current = mine;
+          merged.set(me.id, mine);
+        }
+      } catch {
+        myArtistRef.current = null;
+      }
+
+      setCatalogArtists(sortByStageName(Array.from(merged.values())));
+      setSearchResults(null);
     } catch (error: any) {
       Alert.alert(t('common.error'), error?.message || t('errors.loadingFailed'));
-    } finally { setLoading(false); }
-  };
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    void loadArtists();
+  }, [loadArtists]);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setSearchResults(null);
+      setSearchLoading(false);
+      return;
+    }
+
+    setSearchResults(null);
+    setSearchLoading(true);
+    const req = ++searchReq.current;
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await searchArtists({ keyword: q, size: 50 });
+          if (searchReq.current !== req) return;
+          const fromApi = (res.content ?? [])
+            .map(mapApiArtistToFavorite)
+            .filter((x): x is Artist => Boolean(x));
+          const byId = new Map(fromApi.map((a) => [a.id, a]));
+          const mine = myArtistRef.current;
+          if (mine && mine.stageName.toLowerCase().includes(q.toLowerCase()) && !byId.has(mine.id)) {
+            byId.set(mine.id, mine);
+          }
+          setSearchResults(sortByStageName([...byId.values()]));
+        } catch {
+          if (searchReq.current === req) setSearchResults([]);
+        } finally {
+          if (searchReq.current === req) setSearchLoading(false);
+        }
+      })();
+    }, 320);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const displayArtists = searchQuery.trim() ? (searchResults ?? []) : catalogArtists;
 
   const toggleArtist = (id: string) => {
     if (selectedArtists.includes(id)) { setSelectedArtists(selectedArtists.filter(a => a !== id)); return; }
@@ -108,8 +209,38 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
               </View>
             </View>
 
+            <View style={styles.searchBar}>
+              <MaterialIcons name="search" color={themeColors.muted} size={22} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder={t('screens.home.searchPlaceholder')}
+                placeholderTextColor={themeColors.glass35}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 ? (
+                <Pressable onPress={() => setSearchQuery('')} hitSlop={10}>
+                  <MaterialIcons name="close" color={themeColors.muted} size={22} />
+                </Pressable>
+              ) : null}
+            </View>
+
+            {searchLoading ? (
+              <View style={styles.searchLoadingRow}>
+                <ActivityIndicator size="small" color={themeColors.accent} />
+                <Text style={styles.searchLoadingText}>{t('screens.search.searching', 'Đang tìm…')}</Text>
+              </View>
+            ) : null}
+
+            {!searchLoading && searchQuery.trim() && displayArtists.length === 0 ? (
+              <Text style={styles.emptySearch}>{t('screens.search.noArtists', 'Không tìm thấy nghệ sĩ')}</Text>
+            ) : null}
+
             <View style={styles.artistGrid}>
-              {artists.map(artist => (
+              {displayArtists.map(artist => (
                   <ArtistCard
                       key={artist.id}
                       id={artist.id}
@@ -185,6 +316,33 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
     borderColor: colors.accentBorder30,
   },
   countBadgeText: { color: colors.accent, fontWeight: '700', fontSize: 13 },
+
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.glass12,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.white,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  searchLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  searchLoadingText: { color: colors.glass45, fontSize: 13 },
+  emptySearch: { color: colors.glass45, fontSize: 14, marginBottom: 12, textAlign: 'center' },
 
   artistGrid: {
     flexDirection: 'row',

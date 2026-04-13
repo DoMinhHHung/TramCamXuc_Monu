@@ -43,7 +43,6 @@ const DEFAULT_GET_CACHE_TTL_MS = 15000;
 const DISABLE_CACHE_TTL_MS = 0;
 const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
 
-// ─── Adaptive timeout theo loại mạng (một subscription module-scope) ───────────
 let currentNetworkTier: 'fast' | 'slow' | 'offline' = 'fast';
 
 const applyNetInfoState = (state: NetInfoState) => {

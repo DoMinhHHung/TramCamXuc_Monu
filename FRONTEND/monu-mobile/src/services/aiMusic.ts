@@ -10,7 +10,6 @@ export interface AiMusicJob {
   draftSongId?: string | null;
 }
 
-/** apiClient đã unwrap `ApiResponse.result` trong response interceptor — dùng `res.data` trực tiếp. */
 
 export interface CreateAiMusicJobPayload {
   title: string;

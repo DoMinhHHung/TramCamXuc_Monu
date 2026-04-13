@@ -182,7 +182,34 @@
       "followSystem": "Follow System Settings",
       "followSystemDesc": "Currently using system appearance",
       "version": "Version",
-      "appName": "App"
+      "appName": "App",
+      "systemSettingsTitle": "System settings",
+      "hubPersonalSub": "Favorites, history, posts, following…",
+      "hubSystemSub": "Theme, language, app info",
+      "hubAccountSub": "Edit profile, avatar, delete account",
+      "personalSection": "Personal",
+      "personalMenuTitle": "Personal",
+      "personalMenuSub": "Favorites, history, posts, insights…",
+      "personal": {
+        "favoriteArtists": "Favorite artists",
+        "favoriteArtistsSub": "Edit in favorites",
+        "favoriteGenres": "Favorite genres",
+        "favoriteGenresSub": "Edit in favorites",
+        "myPosts": "Manage posts",
+        "myPostsSub": "My posts"
+      },
+      "account": {
+        "title": "Account settings",
+        "editSub": "Display name",
+        "updateAvatar": "Update avatar",
+        "avatarSub": "Profile photo",
+        "choosePhoto": "Choose photo",
+        "avatarHint": "Pick a new image from your library. It will be cropped square."
+      },
+      "deleteAccount": {
+        "lead": "This cannot be undone",
+        "body": "Your account, personal data, and related content will be permanently removed according to app policy."
+      }
     },
     "history": {
       "title": "Listening history",
@@ -512,6 +539,7 @@
       "permissionDeniedTitle": "Permission denied",
       "permissionDeniedMessage": "Please grant permission to select image.",
       "updateAvatarFailed": "Cannot update avatar.",
+      "avatarUpdated": "Profile photo updated.",
       "updateProfileFailed": "Cannot update profile.",
       "deleteAccountFailed": "Cannot delete account.",
       "deleteDownloadedTitle": "Delete downloaded song",

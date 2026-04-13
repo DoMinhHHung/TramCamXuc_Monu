@@ -1,9 +1,3 @@
-// src/services/download.ts
-//
-// FIX: Import from 'expo-file-system/legacy' to suppress the deprecation warning
-// introduced in Expo SDK 54.  The legacy module is API-identical to the old
-// default import, so no other changes are required.
-
 import * as FS from 'expo-file-system/legacy';
 import { apiClient } from './api';
 import { Song } from './music';

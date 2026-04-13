@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -58,7 +59,7 @@ import { openInSpotify, soundCloudTrackToSong } from '../services/externalMusic'
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const TOP_ARTIST_CARD_STEP = 292;
-const HEADER_COLLAPSE_DISTANCE = 110;
+const HEADER_COLLAPSE_DISTANCE = 118;
 
 const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
   const hex = backgroundColor.replace('#', '');
@@ -98,10 +99,20 @@ export const HomeScreen = () => {
   const { authSession } = useAuth();
   const { playSong, currentSong, isPlaying } = usePlayer();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const { startDownload, isDownloaded, getJobStatus } = useDownload();
   const { t } = useTranslation();
   const themeColors = useThemeColors();
-  const headerSpacer = useMemo(() => insets.top + 16 + HEADER_COLLAPSE_DISTANCE, [insets.top]);
+  const headerPadTop = insets.top + (windowWidth < 360 ? 8 : 12);
+  const headerPadH = windowWidth < 360 ? 14 : 20;
+  const greetingFontSize = windowWidth < 340 ? 16 : windowWidth < 400 ? 19 : 22;
+  const greetingSubFontSize = windowWidth < 340 ? 11 : 13;
+  const avatarSize = windowWidth < 360 ? 34 : 38;
+  /** Reserve space under sticky header so content does not sit underneath */
+  const headerSpacer = useMemo(
+    () => headerPadTop + 124,
+    [headerPadTop],
+  );
 
   const rec = useRecommendations();
 
@@ -377,9 +388,14 @@ export const HomeScreen = () => {
     || authSession?.profile?.email?.split('@')[0]
     || 'bạn';
 
+  const greetingNameMax = windowWidth < 360 ? 20 : windowWidth < 400 ? 26 : 34;
+
   const getContextualGreeting = () => {
     const h = new Date().getHours();
-    const name = displayName.trim().replace(/\s+/g, ' ') || displayName;
+    let name = displayName.trim().replace(/\s+/g, ' ') || displayName;
+    if (name.length > greetingNameMax) {
+      name = `${name.slice(0, Math.max(10, greetingNameMax - 1))}…`;
+    }
 
     const slots: Array<{
       from: number;
@@ -451,7 +467,10 @@ export const HomeScreen = () => {
       <Animated.View
         style={[
           styles.stickyHeader,
-          { paddingTop: insets.top + 16 },
+          {
+            paddingTop: headerPadTop,
+            paddingHorizontal: headerPadH,
+          },
           {
             transform: [
               {
@@ -467,18 +486,36 @@ export const HomeScreen = () => {
       >
         <Pressable
           style={styles.headerTop}
-          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+          hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
           onPressIn={handleOpenProfile}
         >
-          <View>
-            <Text style={styles.name}>{homeGreeting.greeting}</Text>
-            <Text style={styles.greetingSuggest}>
+          <View style={styles.headerTextCol}>
+            <Text
+              style={[styles.name, { fontSize: greetingFontSize }]}
+              numberOfLines={2}
+              maxFontSizeMultiplier={1.35}
+            >
+              {homeGreeting.greeting}
+            </Text>
+            <Text
+              style={[styles.greetingSuggest, { fontSize: greetingSubFontSize }]}
+              numberOfLines={2}
+              maxFontSizeMultiplier={1.35}
+            >
               {homeGreeting.emoji} {homeGreeting.suggest}
             </Text>
           </View>
-          <View style={styles.avatarCircle}>
+          <View style={[
+            styles.avatarCircle,
+            {
+              width: avatarSize,
+              height: avatarSize,
+              borderRadius: avatarSize / 2,
+            },
+          ]}
+          >
             <AnimatedDecorIcon intensity="medium">
-              <Fontisto name="person" color={themeColors.accent} size={22} />
+              <Fontisto name="person" color={themeColors.accent} size={windowWidth < 360 ? 19 : 22} />
             </AnimatedDecorIcon>
           </View>
         </Pressable>
@@ -986,8 +1023,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     right: 0,
     zIndex: 100,
     backgroundColor: colors.bg,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.glass08,
   },
@@ -995,7 +1031,13 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 12,
+    gap: 10,
+  },
+  headerTextCol: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 4,
   },
   greeting: { color: colors.textSecondary, fontSize: 13 },
   name: { color: colors.text, fontSize: 22, fontWeight: '700' },
