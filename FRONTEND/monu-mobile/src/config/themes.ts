@@ -67,11 +67,11 @@ export interface ThemeColors {
  */
 export const darkTheme: ThemeColors = {
   // Primary app colors
-  bg: '#0D0D14',
-  surface: '#1E1A38',
-  surfaceLow: '#16132A',
-  surfaceMid: '#2A2A3A',
-  surfaceDim: '#333333',
+  bg: '#05050A',
+  surface: '#130F24',
+  surfaceLow: '#0C0A18',
+  surfaceMid: '#1C1636',
+  surfaceDim: '#29204A',
 
   // Text colors
   text: '#FFFFFF',
@@ -291,11 +291,11 @@ export const oceanTheme: ThemeColors = {
  */
 export const neonGenTheme: ThemeColors = {
   // Primary app colors
-  bg: '#0A0014',
-  surface: '#1A0F33',
-  surfaceLow: '#140828',
-  surfaceMid: '#2A1F47',
-  surfaceDim: '#3A2F57',
+  bg: '#030008',
+  surface: '#140828',
+  surfaceLow: '#0A0314',
+  surfaceMid: '#1F0B40',
+  surfaceDim: '#2D125C',
 
   // Text colors
   text: '#FFFFFF',

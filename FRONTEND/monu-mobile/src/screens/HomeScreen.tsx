@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AntDesign, FontAwesome, Fontisto, MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { ColorScheme, useThemeColors } from '../config/colors';
 import { MOOD_EMOJIS, MUSIC_EMOJIS } from '../config/emojis';
@@ -461,7 +462,12 @@ export const HomeScreen = () => {
 
 
   return (
-    <View style={styles.root}>
+    <LinearGradient
+      colors={[themeColors.surfaceMid, themeColors.bg]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.root}
+    >
       <StatusBar style={getStatusBarStyle(themeColors.bg)} />
 
       <Animated.View
@@ -1010,7 +1016,7 @@ export const HomeScreen = () => {
           </View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 };
 

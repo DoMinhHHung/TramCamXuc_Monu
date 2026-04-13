@@ -11,6 +11,7 @@ interface SocialButtonProps {
   label?: string;
   onPress: () => void;
   disabled?: boolean;
+  styleOverrides?: any;
 }
 
 const providerConfig: Record<SocialProvider, { defaultLabel: string; icon: string }> = {
@@ -24,7 +25,7 @@ const providerConfig: Record<SocialProvider, { defaultLabel: string; icon: strin
   },
 };
 
-export const SocialButton = ({ provider, variant, label, onPress, disabled = false }: SocialButtonProps) => {
+export const SocialButton = ({ provider, variant, label, onPress, disabled = false, styleOverrides }: SocialButtonProps) => {
   const colors = useThemeColors();
   const resolvedProvider: SocialProvider = provider ?? variant ?? 'google';
   const config = providerConfig[resolvedProvider];
@@ -72,7 +73,7 @@ export const SocialButton = ({ provider, variant, label, onPress, disabled = fal
 
   return (
     <Pressable
-      style={({ pressed }) => [dynamicStyles.button, pressed && dynamicStyles.pressed, disabled && dynamicStyles.disabled]}
+      style={({ pressed }) => [dynamicStyles.button, styleOverrides, pressed && dynamicStyles.pressed, disabled && dynamicStyles.disabled]}
       onPress={onPress}
       disabled={disabled}
     >

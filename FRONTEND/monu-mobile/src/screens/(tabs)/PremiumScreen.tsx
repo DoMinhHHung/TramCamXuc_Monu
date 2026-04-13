@@ -959,7 +959,12 @@ export const PremiumScreen = () => {
     }
 
     return (
-        <View style={styles.root}>
+        <LinearGradient
+            colors={[themeColors.premiumCardFrom || themeColors.surfaceMid, themeColors.bg]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.root}
+        >
             <StatusBar style={getStatusBarStyle(themeColors.bg)} />
             <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -1230,7 +1235,7 @@ export const PremiumScreen = () => {
 
                 </View>
             </ScrollView>
-        </View>
+        </LinearGradient>
     );
 };
 

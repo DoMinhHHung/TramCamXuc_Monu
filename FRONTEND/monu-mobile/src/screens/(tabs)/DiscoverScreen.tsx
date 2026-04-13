@@ -2026,7 +2026,12 @@ export const DiscoverScreen = () => {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <View style={styles.root}>
+    <LinearGradient
+      colors={[themeColors.surfaceMid, themeColors.bg]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.root}
+    >
       <StatusBar style="light" />
 
       <ScrollView
@@ -2197,7 +2202,7 @@ export const DiscoverScreen = () => {
         canManageAlbums={canManageAlbums}
         onClose={() => setOpenedContent(null)}
       />
-    </View>
+    </LinearGradient>
   );
 };
 
