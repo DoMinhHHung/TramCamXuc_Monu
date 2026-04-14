@@ -1,9 +1,3 @@
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * GlassCard – Reusable glassmorphic card component
- * Provides frosted glass appearance with backdrop blur and depth
- * ─────────────────────────────────────────────────────────────────────────────
- */
 
 import React from 'react';
 import {

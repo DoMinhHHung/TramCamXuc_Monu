@@ -395,15 +395,16 @@ public class AlbumServiceImpl implements AlbumService {
         List<AlbumSong> nodes = albumSongRepository.findAllByAlbumId(albumId);
         Set<UUID> songIds = nodes.stream().map(AlbumSong::getSongId).collect(Collectors.toSet());
         List<Song> songs = songRepository.findAllById(songIds);
-        boolean allReady = songs.stream().allMatch(s ->
-                s.getStatus() == SongStatus.PUBLIC
-                        && s.getTranscodeStatus() == TranscodeStatus.COMPLETED);
+        boolean allReady = songs.size() == songIds.size() && songs.stream().allMatch(s ->
+        s.getStatus() == SongStatus.PUBLIC
+        && s.getTranscodeStatus() == TranscodeStatus.COMPLETED
+        && s.getDeletedAt() == null);
         if (!allReady) {
             throw new AppException(ErrorCode.ALBUM_HAS_UNREADY_SONGS);
         }
 
         album.setStatus(AlbumStatus.PUBLIC);
-        album.setScheduledPublishAt(null); // huỷ lịch nếu có
+        album.setScheduledPublishAt(null);
         albumRepository.save(album);
         log.info("Album {} published by artist {}", albumId, artist.getId());
 
