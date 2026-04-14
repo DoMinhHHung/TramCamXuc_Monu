@@ -217,17 +217,10 @@ export const AdPlayerModal = ({ ad, songId, onFinished }: AdPlayerModalProps) =>
 
                 {/* Content */}
                 <View style={styles.content}>
-                    {/* Âm thanh đang phát indicator */}
-                    <View style={styles.audioRow}>
-                        <View style={styles.waveWrap}>
-                            {[1, 2, 3, 4].map((i) => (
-                                <View
-                                    key={i}
-                                    style={[styles.wavebar, { height: 6 + i * 5 }]}
-                                />
-                            ))}
-                        </View>
-                        <Text style={styles.audioLabel}>Đang phát quảng cáo âm thanh</Text>
+                    {/* Ad status (no waveform) */}
+                    <View style={styles.adStatusRow}>
+                        <View style={styles.pulseDot} />
+                        <Text style={styles.adStatusText}>Đang phát quảng cáo</Text>
                     </View>
 
                     {/* Advertiser name */}
@@ -354,25 +347,20 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingBottom: 18,
     },
-    audioRow: {
+    adStatusRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-        marginBottom: 14,
+        marginBottom: 12,
     },
-    waveWrap: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        gap: 3,
-        height: 24,
+    pulseDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: COLORS.warningMid,
+        opacity: 0.9,
     },
-    wavebar: {
-        width: 3,
-        borderRadius: 2,
-        backgroundColor: COLORS.accent,
-        opacity: 0.7,
-    },
-    audioLabel: {
+    adStatusText: {
         color: COLORS.glass50,
         fontSize: 12,
         fontStyle: 'italic',

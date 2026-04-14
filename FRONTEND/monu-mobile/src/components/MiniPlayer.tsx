@@ -9,6 +9,7 @@ import { useThemeColors, ColorScheme } from '../config/colors';
 import { Fold } from 'react-native-animated-spinkit';
 import { AppIcon } from '../config/appIcons';
 import { RADIUS, SHADOW } from '../config/design';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MINI_HEIGHT     = 64;
@@ -104,6 +105,12 @@ export const MiniPlayer = () => {
                     backgroundColor: progressColor,
                 }]} />
             </View>
+            <LinearGradient
+                colors={[themeColors.surfaceMid, themeColors.surface]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+            />
 
             <Pressable style={styles.content} onPress={() => setFullScreen(true)} accessible={false}>
                 {/* Thumbnail */}
@@ -177,12 +184,12 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     container: {
         position: 'absolute', left: 8, right: 8,
         height: MINI_HEIGHT,
-        backgroundColor: colors.surface,
-        borderRadius: RADIUS.lg,
+        backgroundColor: 'transparent',
+        borderRadius: RADIUS.md,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: colors.borderSubtle,
-        ...SHADOW.md,
+        borderColor: colors.borderSubtle || colors.divider,
+        ...SHADOW.lg,
     },
     progressTrack:        { height: 2, backgroundColor: colors.glass08 },
     progressFill:         { height: 2 },

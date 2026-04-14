@@ -9,15 +9,19 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, DrawerActions } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { AntDesign, FontAwesome, Fontisto, MaterialIcons } from '@expo/vector-icons';
+import { AntDesign, FontAwesome, Fontisto, MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-import { ColorScheme, useThemeColors } from '../config/colors';
+import { ThemeName, ThemeColors, THEMES } from '../config/themes';
+import { useTheme } from '../context/ThemeContext';
 import { MOOD_EMOJIS, MUSIC_EMOJIS } from '../config/emojis';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
@@ -58,7 +62,7 @@ import { openInSpotify, soundCloudTrackToSong } from '../services/externalMusic'
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const TOP_ARTIST_CARD_STEP = 292;
-const HEADER_COLLAPSE_DISTANCE = 110;
+const HEADER_COLLAPSE_DISTANCE = 118;
 
 const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
   const hex = backgroundColor.replace('#', '');
@@ -98,10 +102,20 @@ export const HomeScreen = () => {
   const { authSession } = useAuth();
   const { playSong, currentSong, isPlaying } = usePlayer();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const { startDownload, isDownloaded, getJobStatus } = useDownload();
   const { t } = useTranslation();
-  const themeColors = useThemeColors();
-  const headerSpacer = useMemo(() => insets.top + 16 + HEADER_COLLAPSE_DISTANCE, [insets.top]);
+  const { colors: themeColors, theme: currentThemeName } = useTheme();
+  const headerPadTop = insets.top + (windowWidth < 360 ? 8 : 12);
+  const headerPadH = windowWidth < 360 ? 14 : 20;
+  const greetingFontSize = windowWidth < 340 ? 16 : windowWidth < 400 ? 19 : 22;
+  const greetingSubFontSize = windowWidth < 340 ? 11 : 13;
+  const avatarSize = windowWidth < 360 ? 34 : 38;
+  /** Reserve space under sticky header so content does not sit underneath */
+  const headerSpacer = useMemo(
+    () => headerPadTop + 124,
+    [headerPadTop],
+  );
 
   const rec = useRecommendations();
 
@@ -377,9 +391,14 @@ export const HomeScreen = () => {
     || authSession?.profile?.email?.split('@')[0]
     || 'bạn';
 
+  const greetingNameMax = windowWidth < 360 ? 20 : windowWidth < 400 ? 26 : 34;
+
   const getContextualGreeting = () => {
     const h = new Date().getHours();
-    const name = displayName.trim().replace(/\s+/g, ' ') || displayName;
+    let name = displayName.trim().replace(/\s+/g, ' ') || displayName;
+    if (name.length > greetingNameMax) {
+      name = `${name.slice(0, Math.max(10, greetingNameMax - 1))}…`;
+    }
 
     const slots: Array<{
       from: number;
@@ -445,60 +464,54 @@ export const HomeScreen = () => {
 
 
   return (
-    <View style={styles.root}>
-      <StatusBar style={getStatusBarStyle(themeColors.bg)} />
+    <LinearGradient
+      colors={[themeColors.gradViolet || '#1a0533', themeColors.bg]}
+      style={styles.root}
+    >
+      <StatusBar style="light" />
 
+      {/* ── MODERN STICKY HEADER ────────────────────────────────────────── */}
       <Animated.View
         style={[
           styles.stickyHeader,
-          { paddingTop: insets.top + 16 },
           {
+            paddingTop: insets.top + 8,
             transform: [
               {
                 translateY: scrollY.interpolate({
-                  inputRange: [0, HEADER_COLLAPSE_DISTANCE],
-                  outputRange: [0, -HEADER_COLLAPSE_DISTANCE],
+                  inputRange: [0, 80],
+                  outputRange: [0, -10],
                   extrapolate: 'clamp',
                 }),
               },
             ],
+            backgroundColor: scrollY.interpolate({
+              inputRange: [0, 100],
+              outputRange: ['rgba(13,13,20,0)', 'rgba(2,6,23,0.8)'],
+              extrapolate: 'clamp',
+            }),
           },
         ]}
       >
-        <Pressable
-          style={styles.headerTop}
-          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-          onPressIn={handleOpenProfile}
-        >
-          <View>
-            <Text style={styles.name}>{homeGreeting.greeting}</Text>
-            <Text style={styles.greetingSuggest}>
-              {homeGreeting.emoji} {homeGreeting.suggest}
-            </Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <TouchableOpacity onPress={handleOpenProfile}>
+              <MaterialIcons name="person" size={26} color={themeColors.accent} />
+            </TouchableOpacity>
+            <Text style={styles.logoText}>{t('navigation.headerHome')}</Text>
           </View>
-          <View style={styles.avatarCircle}>
-            <AnimatedDecorIcon intensity="medium">
-              <Fontisto name="person" color={themeColors.accent} size={22} />
-            </AnimatedDecorIcon>
-          </View>
-        </Pressable>
-
-        <Pressable
-          onPressIn={handleOpenSearch}
-          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-          style={styles.searchBar}
-        >
-          <MaterialIcons name="search" color={themeColors.muted} size={20} />
-          <Text style={styles.searchPlaceholder}>{t('screens.home.searchPlaceholder')}</Text>
-        </Pressable>
+          <TouchableOpacity style={styles.headerSearchBtn} onPress={handleOpenSearch}>
+            <Ionicons name="search" size={24} color={themeColors.accent} />
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingTop: headerSpacer, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingTop: insets.top + 70, paddingBottom: 120 }}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true },
+          { useNativeDriver: false },
         )}
         scrollEventThrottle={16}
         refreshControl={(
@@ -509,101 +522,98 @@ export const HomeScreen = () => {
           />
         )}
       >
-        {authSession && homeStats && (
-          <StreakBanner
-            streakDays={homeStats.currentStreakDays ?? 0}
-            totalMinutesToday={homeStats.listeningMinutesToday ?? 0}
-            onPress={handleOpenInsights}
-          />
-        )}
+        {/* ── PERSONALIZED GREETING ─────────────────────────────────────── */}
+        <View style={styles.heroSection}>
+          <Text style={styles.greetingText}>{homeGreeting.greeting}</Text>
+        </View>
 
-        <ContinueListeningSection />
+        {/* ── 1. STREAK BANNER ─────────────────────────────────────────── */}
+        <View style={styles.sectionContainer}>
+          <LinearGradient
+            colors={[themeColors.cardTrendingFrom || '#1a1040', themeColors.cardTrendingTo || '#2D1B69']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.streakCard}
+          >
+            <View style={styles.streakContent}>
+              <View style={styles.streakLabelRow}>
+                <MaterialCommunityIcons name="fire" size={18} color={themeColors.accent} />
+                <Text style={styles.streakLabel}>{t('screens.home.streakLabel')}</Text>
+              </View>
+              <Text style={styles.streakValue}>{t('screens.home.streakValue', { days: homeStats?.currentStreakDays ?? 0 })}</Text>
+              <Text style={styles.streakSub}>{t('screens.home.streakSub')}</Text>
+            </View>
+            <TouchableOpacity style={styles.streakBtn} onPress={handleOpenInsights}>
+              <Text style={styles.streakBtnText}>{t('screens.home.streakDetail')}</Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>      
 
-        {/* Dynamic Home Sections — không chặn cả màn hình; chỉ nhẹ khi đang tải stats */}
-        {authSession && !homeStats && phase3Loading && (
-          <StatsStripSkeleton />
-        )}
+        {/* ── 3. DÀNH CHO BẠN (GRID/FEATURED) ──────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{t('screens.home.recommendForYou')}</Text>
+        </View>
+        <View style={styles.featuredGrid}>
+          <TouchableOpacity 
+            style={styles.featuredMainCard}
+            onPress={() => {
+              const topSongs = legacyTrendingSongs.slice(0, 10);
+              if (topSongs.length > 0) playSong(topSongs[0], topSongs);
+            }}
+          >
+            <Image 
+              source={{ uri: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=800' }} 
+              style={StyleSheet.absoluteFill} 
+            />
+            <LinearGradient colors={['transparent', 'rgba(22,19,42,0.9)']} style={styles.cardOverlay}>
+              <View style={styles.badge}><Text style={styles.badgeText}>{t('screens.home.dailyMix')}</Text></View>
+              <Text style={styles.cardMainTitle}>{t('screens.home.topHits')}</Text>
+              <Text style={styles.cardSub}>{t('screens.home.yourMusicGu')}</Text>
+              
+              <View style={styles.playBadge}>
+                <Ionicons name="play" size={16} color="#1a0533" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.discoveryCard}
+            onPress={handleOpenSearch}
+          >
+             <MaterialCommunityIcons name="auto-fix" size={32} color={themeColors.accent} />
+             <Text style={styles.discoveryTitle}>{t('screens.home.discoveryNew')}</Text>
+             <Text style={styles.discoverySub}>{t('screens.home.discoverySub')}</Text>
+          </TouchableOpacity>
+        </View>
 
-        {homeStats ? (
-          <>
-            {/* Albums from Followed Artists */}
-            {homeStats.followedArtistAlbums.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>💿 {t('homeScreen.followedArtistsAlbums')}</Text>
-                <View style={{ paddingHorizontal: 20 }}>
-                  {homeStats.followedArtistAlbums.map((album) => (
-                    <AlbumCard
-                      key={album.id}
-                      album={album}
-                      onPress={() => {
-                        navigation.navigate('AlbumDetail', {
-                          albumId: album.id,
-                        });
-                      }}
-                    />
-                  ))}
+        {/* ── 4. NGHỆ SĨ YÊU THÍCH (CIRCLES) ───────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{t('homeScreen.topArtists')}</Text>
+        </View>
+        {homeStats?.topArtists && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistList}>
+            {homeStats.topArtists.map((artist, idx) => (
+              <TouchableOpacity 
+                key={idx} 
+                style={styles.artistCircleCard}
+                onPress={() => navigation.navigate('ArtistProfile', { artistId: artist.id })}
+              >
+                <View style={styles.artistImageWrap}>
+                   {artist.avatarUrl || (artist as any).imageUrl ? (
+                     <Image source={{ uri: artist.avatarUrl || (artist as any).imageUrl }} style={styles.artistImage} />
+                   ) : (
+                     <View style={styles.avatarPlaceholder}>
+                        <Text style={styles.avatarEmoji}>🎤</Text>
+                     </View>
+                   )}
                 </View>
-              </View>
-            )}
-
-            {/* Top Artists */}
-            {homeStats.topArtists.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>🎤 {t('homeScreen.topArtists')}</Text>
-                <ScrollView
-                  ref={topArtistsScrollRef}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.artistHorizontalList}
-                  onTouchStart={() => {
-                    topArtistsPausedRef.current = true;
-                  }}
-                  onTouchEnd={() => {
-                    topArtistsPausedRef.current = false;
-                  }}
-                  onScrollEndDrag={() => {
-                    topArtistsPausedRef.current = false;
-                  }}
-                  onMomentumScrollEnd={() => {
-                    topArtistsPausedRef.current = false;
-                  }}
-                  onScroll={(e) => {
-                    const x = e.nativeEvent.contentOffset.x;
-                    topArtistIndexRef.current = Math.max(0, Math.round(x / TOP_ARTIST_CARD_STEP));
-                  }}
-                  scrollEventThrottle={16}
-                >
-                  {homeStats.topArtists.map((artist) => (
-                    <ArtistCardEnhanced
-                      key={artist.id}
-                      artist={artist}
-                      style={styles.artistHorizontalCard}
-                      onPress={() => {
-                        navigation.navigate('ArtistProfile', {
-                          artistId: artist.id,
-                        });
-                      }}
-                      onFollowPress={(artistId, isFollowing) => {
-                        // TODO: Call follow/unfollow API
-                        console.log('Toggle follow for artist:', artistId, isFollowing);
-                      }}
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
-          </>
-        ) : null}
-
-        {rec.loading && !rec.globalTrending.length && !rec.basicHomeFeed
-          && (!rec.advancedRecEnabled || !rec.advanceHomeFeed) && (
-          <View>
-            <SectionSkeleton rows={2} />
-            <SectionSkeleton rows={2} />
-          </View>
+                <Text style={styles.artistName} numberOfLines={1}>{artist.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         )}
 
+        {/* ... existing recommendation blocks ... */}
         {authSession && (
           <RecommendationSection
             icon="✨"
@@ -634,7 +644,51 @@ export const HomeScreen = () => {
           />
         ) : null}
 
-
+        {/* ── PLATFORM CURATION ───────────────────────── */}
+        <View style={styles.platformRow}>
+           <View style={styles.platformCol}>
+              <View style={styles.platformHeader}>
+                <View style={[styles.platformIcon, { backgroundColor: '#ff5708' }]}>
+                  <Ionicons name="cloud" size={16} color="#fff" />
+                </View>
+                <Text style={styles.platformTitle}>SoundCloud</Text>
+              </View>
+              {externalSections.soundcloudTracks.slice(0, 3).map(track => (
+                <TouchableOpacity 
+                  key={track.id} 
+                  style={styles.platformItem}
+                  onPress={() => {
+                    const song = soundCloudTrackToSong(track) as any;
+                    playSong(song, externalSections.soundcloudTracks.map(t2 => soundCloudTrackToSong(t2) as any));
+                  }}
+                >
+                  <Image source={{ uri: track.thumbnailUrl }} style={styles.platformThumb} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.platformItemTitle} numberOfLines={1}>{track.title}</Text>
+                    <Text style={styles.platformItemSub} numberOfLines={1}>{track.artistUsername}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+           </View>
+           <View style={styles.platformCol}>
+              <View style={styles.platformHeader}>
+                <View style={[styles.platformIcon, { backgroundColor: '#1DB954' }]}>
+                  <Ionicons name="musical-notes" size={16} color="#fff" />
+                </View>
+                <Text style={styles.platformTitle}>Spotify</Text>
+              </View>
+              {externalSections.spotifyTracks.slice(0, 3).map(track => (
+                <TouchableOpacity key={track.id} style={styles.platformItem} onPress={() => openInSpotify(track)}>
+                  <Image source={{ uri: track.thumbnailUrl }} style={styles.platformThumb} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.platformItemTitle} numberOfLines={1}>{track.name}</Text>
+                    <Text style={styles.platformItemSub} numberOfLines={1}>{track.artistName}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+           </View>
+        </View>
+        
         <SongSection
           title={`✨ ${t('screens.home.newReleases')}`}
             songs={legacyNewestSongs}
@@ -645,161 +699,7 @@ export const HomeScreen = () => {
             formatDuration={formatDuration}
         />
 
-        <RecommendationSection
-          icon="🔥"
-          title={t('screens.home.trendingNow')}
-          songs={rec.globalTrending}
-          activeSongId={currentSong?.id}
-          loading={rec.loading && !rec.globalTrending.length}
-          // emptyText={emptyTrendingText}
-          onPress={(s) => playRec(s, rec.globalTrending)}
-          onLongPress={openRecActionSheet}
-          hideIfEmpty={false}
-        />
-
-        {authSession && (
-          <RecommendationSection
-            icon="👥"
-            title={t('screens.home.friendsAreListening')}
-            songs={rec.basicHomeFeed?.friendsAreListening ?? []}
-            activeSongId={currentSong?.id}
-            loading={rec.loading && !rec.basicHomeFeed}
-            onPress={(s) => playRec(s, rec.basicHomeFeed?.friendsAreListening ?? [])}
-            onLongPress={openRecActionSheet}
-            onFeedback={handleFeedback}
-          />
-        )}
-
-        {authSession && (
-          <RecommendationSection
-            icon="🎤"
-            title={t('screens.home.fromFollowedArtists')}
-            songs={rec.basicHomeFeed?.fromArtists ?? []}
-            activeSongId={currentSong?.id}
-            loading={rec.loading && !rec.basicHomeFeed}
-            onPress={(s) => playRec(s, rec.basicHomeFeed?.fromArtists ?? [])}
-            onLongPress={openRecActionSheet}
-          />
-        )}
-
-        <RecommendationSection
-          icon="🌐"
-          title={t('screens.home.socialRecommendations')}
-          subtitle={t('screens.home.socialRecommendationsSubtitle')}
-          songs={rec.socialRecs}
-          activeSongId={currentSong?.id}
-          loading={rec.loading && !rec.socialRecs.length}
-          onPress={(s) => playRec(s, rec.socialRecs)}
-          onLongPress={openRecActionSheet}
-          onFeedback={handleFeedback}
-          // emptyText={emptySocialText}
-        />
-
-        {phase3Loading
-          && !legacyTrendingSongs.length
-          && !legacyNewestSongs.length
-          && !genres.length && (
-          <View style={styles.loadingWrap}>
-            <Text style={styles.loadingText}>{t('screens.home.loadingExpandedSections')}</Text>
-            <SectionSkeleton rows={2} />
-          </View>
-        )}
-
-        <SongSection
-          title={`🔥 ${t('screens.home.trending')}`}
-          songs={legacyTrendingSongs}
-          currentSong={currentSong}
-          isPlaying={isPlaying}
-          onPressSong={(song) => handlePressSong(song, legacyTrendingSongs)}
-          onSongAction={openSongActionSheet}
-          formatDuration={formatDuration}
-        />
-
-        {/* ── SoundCloud Section ─────────────────────────────────────────── */}
-        {(externalSections.loading || externalSections.soundcloudTracks.length > 0) && (
-          <View style={styles.section}>
-            <View style={styles.externalSectionTitleRow}>
-              <FontAwesome name="soundcloud" size={18} color="#FF5500" />
-              <Text style={styles.sectionTitle}>{t('homeScreen.soundcloudSection')}</Text>
-            </View>
-            {externalSections.loading && externalSections.soundcloudTracks.length === 0 ? (
-              <SongCardSkeleton />
-            ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.externalHList}
-              >
-                {externalSections.soundcloudTracks.map((track) => (
-                  <Pressable
-                    key={track.id}
-                    style={styles.externalCard}
-                    onPress={() => {
-                      const song = soundCloudTrackToSong(track) as any;
-                      playSong(song, externalSections.soundcloudTracks.map(t2 => soundCloudTrackToSong(t2) as any));
-                    }}
-                  >
-                    {track.thumbnailUrl ? (
-                      <Image source={{ uri: track.thumbnailUrl }} style={styles.externalThumb} />
-                    ) : (
-                      <View style={[styles.externalThumb, styles.externalThumbFallback]}>
-                        <FontAwesome name="soundcloud" size={24} color="#FF5500" />
-                      </View>
-                    )}
-                    <Text style={styles.externalCardTitle} numberOfLines={2}>{track.title}</Text>
-                    <Text style={styles.externalCardSub} numberOfLines={1}>{track.artistUsername}</Text>
-                    <View style={styles.scBadge}>
-                      <Text style={styles.scBadgeText}>SoundCloud</Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        )}
-
-        {/* ── Spotify Section ────────────────────────────────────────────── */}
-        {(externalSections.loading || externalSections.spotifyTracks.length > 0) && (
-          <View style={styles.section}>
-            <View style={styles.externalSectionTitleRow}>
-              <FontAwesome name="spotify" size={18} color="#1DB954" />
-              <Text style={styles.sectionTitle}>{t('homeScreen.spotifySection')}</Text>
-            </View>
-            <Text style={[styles.sectionSubtitle]}>
-              🎵 Nhấn để mở trong Spotify app
-            </Text>
-            {externalSections.loading && externalSections.spotifyTracks.length === 0 ? (
-              <SongCardSkeleton />
-            ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.externalHList}
-              >
-                {externalSections.spotifyTracks.map((track) => (
-                  <Pressable
-                    key={track.id}
-                    style={styles.externalCard}
-                    onPress={() => openInSpotify(track)}
-                  >
-                    {track.thumbnailUrl ? (
-                      <Image source={{ uri: track.thumbnailUrl }} style={styles.externalThumb} />
-                    ) : (
-                      <View style={[styles.externalThumb, styles.externalThumbFallback]}>
-                        <FontAwesome name="spotify" size={24} color="#1DB954" />
-                      </View>
-                    )}
-                    <Text style={styles.externalCardTitle} numberOfLines={2}>{track.name}</Text>
-                    <Text style={styles.externalCardSub} numberOfLines={1}>{track.artistName}</Text>
-                    <View style={styles.spotifyBadge}>
-                      <Text style={styles.spotifyBadgeText}>{t('homeScreen.openInSpotify')}</Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        )}
+        {/* ... remaining legacy sections ... */}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🎶 {t('screens.home.expandedSections')}</Text>
@@ -973,150 +873,207 @@ export const HomeScreen = () => {
           </View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 };
 
-const getStyles = (colors: ColorScheme) => StyleSheet.create({
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   stickyHeader: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+    top: 0, left: 0, right: 0,
     zIndex: 100,
-    backgroundColor: colors.bg,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.glass08,
+    height: 118,
+    justifyContent: 'flex-end',
+    paddingBottom: 14,
   },
-  headerTop: {
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    paddingHorizontal: 22,
   },
-  greeting: { color: colors.textSecondary, fontSize: 13 },
-  name: { color: colors.text, fontSize: 22, fontWeight: '700' },
-  greetingSuggest: { color: colors.muted, fontSize: 13, marginTop: 4, fontWeight: '400' },
-  updatedLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
-  avatarCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surface,
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 15 },
+  logoText: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: colors.accent,
+    letterSpacing: 5,
+    fontStyle: 'italic',
+  },
+  headerSearchBtn: {
+    padding: 10,
+    borderRadius: 999,
+    backgroundColor: colors.glass08,
     borderWidth: 1,
     borderColor: colors.glass12,
+  },
+  heroSection: { paddingHorizontal: 24, marginTop: 24, marginBottom: 30 },
+  overline: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 3,
+    marginBottom: 4,
+  },
+  greetingText: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: colors.white,
+    letterSpacing: -0.8,
+    lineHeight: 42,
+  },
+  sectionContainer: { paddingHorizontal: 20, marginBottom: 30 },
+  streakCard: {
+    borderRadius: 28,
+    padding: 22,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.accentBorder25,
+    backgroundColor: 'rgba(26, 5, 51, 0.92)',
+    elevation: 12,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.28,
+    shadowRadius: 24,
+  },
+  streakContent: { flex: 1 },
+  streakLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  streakLabel: { color: colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  streakValue: { fontSize: 42, fontWeight: '900', color: colors.white, letterSpacing: -1 },
+  streakSub: { color: colors.textSecondary, fontSize: 13, marginTop: 4, maxWidth: '80%' },
+  streakBtn: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+    borderRadius: 999,
+  },
+  streakBtnText: { color: '#12051f', fontSize: 11, fontWeight: '900', letterSpacing: 0.4 },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    paddingHorizontal: 24,
+    marginBottom: 18,
+  },
+  sectionTitle: { fontSize: 23, fontWeight: '800', color: colors.white, letterSpacing: -0.4 },
+  seeAllText: { color: colors.accent, fontSize: 13, fontWeight: '700', letterSpacing: 1 },
+  featuredGrid: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 14,
+    height: 252,
+    marginBottom: 30,
+  },
+  featuredMainCard: {
+    flex: 2,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.glass08,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+  },
+  cardOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', padding: 18 },
+  badge: {
+    backgroundColor: colors.accent,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginBottom: 8,
+  },
+  badgeText: { color: '#14051f', fontSize: 9, fontWeight: '900', letterSpacing: 0.6 },
+  cardMainTitle: { fontSize: 26, fontWeight: '900', color: colors.white, lineHeight: 30 },
+  cardSub: { color: colors.textSecondary, fontSize: 12 },
+  playBadge: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  discoveryCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.glass12,
+    justifyContent: 'center',
+  },
+  discoveryTitle: { fontSize: 17, fontWeight: '800', color: colors.white, marginTop: 12, lineHeight: 20 },
+  discoverySub: { fontSize: 11, color: colors.textSecondary, marginTop: 4, lineHeight: 15 },
+  artistList: { paddingLeft: 20, paddingRight: 10, gap: 16 },
+  artistCircleCard: { alignItems: 'center', width: 96 },
+  artistImageWrap: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    padding: 2,
+    backgroundColor: 'rgba(192,132,252,0.1)',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+  },
+  artistImage: { width: '100%', height: '100%', borderRadius: 40 },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
+    backgroundColor: colors.surfaceMid,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  avatarEmoji: { fontSize: 24 },
+  artistName: { color: colors.text, fontSize: 12, fontWeight: '600', marginTop: 8 },
+  platformRow: { paddingHorizontal: 20, flexDirection: 'row', gap: 14, marginTop: 28, marginBottom: 24 },
+  platformCol: {
+    flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
+    borderRadius: 22,
+    padding: 14,
     borderWidth: 1,
-    borderColor: colors.glass12,
+    borderColor: colors.glass10,
   },
-  searchPlaceholder: { color: colors.muted, fontSize: 14, flex: 1 },
+  platformHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  platformIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  platformTitle: { color: colors.white, fontSize: 15, fontWeight: '800' },
+  platformItem: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  platformThumb: { width: 50, height: 50, borderRadius: 10, backgroundColor: colors.surfaceMid },
+  platformItemTitle: { color: colors.white, fontSize: 14, fontWeight: '700' },
+  platformItemSub: { color: colors.muted, fontSize: 11 },
   section: { paddingHorizontal: 20, marginTop: 22 },
   externalSectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '700', marginBottom: 4 },
   sectionSubtitle: { color: colors.muted, fontSize: 11, marginBottom: 10, paddingLeft: 1 },
-  // ── External sections (SC / Spotify horizontal cards) ─────────────────────
-  externalHList: { paddingHorizontal: 20, gap: 12, paddingBottom: 4 },
-  externalCard: {
-    width: 130,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  externalThumb: {
-    width: 110,
-    height: 110,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceMid,
-    marginBottom: 8,
-  },
-  externalThumbFallback: { alignItems: 'center', justifyContent: 'center' },
-  externalCardTitle: { color: colors.text, fontSize: 12, fontWeight: '700', lineHeight: 16 },
-  externalCardSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  scBadge: {
-    marginTop: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: '#FF550020',
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#FF5500',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-  },
-  scBadgeText: { color: '#FF5500', fontSize: 9, fontWeight: '700' },
-  spotifyBadge: {
-    marginTop: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: '#1DB95420',
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#1DB954',
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-  },
-  spotifyBadgeText: { color: '#1DB954', fontSize: 9, fontWeight: '700' },
-  artistHorizontalList: {
-    paddingHorizontal: 20,
-    gap: 12,
-  },
-  artistHorizontalCard: {
-    width: 280,
-    marginBottom: 0,
-  },
-  genreChipCloud: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    paddingHorizontal: 20,
-  },
-  genreChip: {
-    borderWidth: 1,
-    borderColor: colors.accentBorder25,
-    backgroundColor: colors.surfaceLow,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  genreChipActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.accentFill20,
-  },
-  genreChipText: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  genreChipTextActive: {
-    color: colors.accent,
-  },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  quickCard: { width: '47%', borderRadius: 14, overflow: 'hidden' },
-  quickGradient: { padding: 16, minHeight: 90, justifyContent: 'space-between' },
-  cardEmoji: { fontSize: 26 },
-  cardTitle: { color: colors.text, fontWeight: '700' },
+  // ── Existing styles...
   genreHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginTop: 18,
-    marginBottom: 8,
+    marginTop: 20,
+    marginBottom: 10,
   },
-  genreSectionTitle: { color: colors.text, fontSize: 18, fontWeight: '700' },
+  genreSectionTitle: { color: colors.white, fontSize: 18, fontWeight: '800' },
   seeMoreText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
   loadingWrap: { alignItems: 'center', paddingVertical: 32 },
   loadingText: { color: colors.textSecondary, fontSize: 13, marginTop: 10 },
@@ -1130,25 +1087,25 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   modalCard: {
     width: '100%',
     backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: 20,
+    padding: 18,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.glass10,
   },
-  modalTitle: { color: colors.text, fontSize: 17, fontWeight: '800', marginBottom: 10 },
+  modalTitle: { color: colors.white, fontSize: 17, fontWeight: '800', marginBottom: 10 },
   modalClose: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: 12,
+    right: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: colors.surfaceMid,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
-  modalCloseIcon: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  modalCloseIcon: { color: colors.white, fontSize: 16, fontWeight: '700' },
   modalItem: { color: colors.textSecondary, fontSize: 14, marginTop: 8 },
-  qrImage: { width: 220, height: 220, borderRadius: 8, alignSelf: 'center', marginTop: 12 },
+  qrImage: { width: 220, height: 220, borderRadius: 14, alignSelf: 'center', marginTop: 12 },
 });

@@ -1,0 +1,322 @@
+import React, { useMemo } from 'react';
+import {
+    View,
+    Text,
+    ScrollView,
+    Pressable,
+    StyleSheet,
+    Switch,
+    useColorScheme,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+import { ColorScheme, useThemeColors } from '../../config/colors';
+import { useTheme } from '../../context/ThemeContext';
+import { useTranslation } from '../../context/LocalizationContext';
+import { THEMES, ThemeName } from '../../config/themes';
+import { BackButton } from '../../components/BackButton';
+import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
+import type { RootStackParamList } from '../../navigation/AppNavigator';
+
+const LANGUAGE_OPTIONS = [
+    { code: 'vi', labelKey: 'screens.settings.languages.vi', flag: '🇻🇳' },
+    { code: 'en', labelKey: 'screens.settings.languages.en', flag: '🇺🇸' },
+];
+
+type Nav = NativeStackNavigationProp<RootStackParamList, 'SystemSettings'>;
+
+export const SystemSettingsScreen = () => {
+    const navigation = useNavigation<Nav>();
+    const insets = useSafeAreaInsets();
+    const { theme, setTheme, followSystem } = useTheme();
+    const { language, setLanguage, t } = useTranslation();
+    const { colors: themeColors } = useTheme();
+    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+    const deviceColorScheme = useColorScheme();
+
+    const THEME_OPTIONS: { id: ThemeName; label: string; emoji: string }[] = useMemo(() => [
+        { id: 'dark', label: t('screens.settings.themes.dark') || 'Dark Mode', emoji: '🌙' },
+        { id: 'classic', label: t('screens.settings.themes.classic') || 'Classic', emoji: '✨' },
+        { id: 'neonCurator', label: t('screens.settings.themes.neonCurator') || 'Neon Curator', emoji: '👾' },
+        { id: 'neonGen', label: t('screens.settings.themes.neonGen') || 'Neon Gen Z', emoji: '🔥' },
+        { id: 'sunset', label: t('screens.settings.themes.sunset') || 'Sunset', emoji: '🌇' },
+        { id: 'ocean', label: t('screens.settings.themes.ocean') || 'Ocean', emoji: '🌊' },
+    ], [t]);
+
+    const resolveTheme = (themeId: ThemeName) => THEMES[themeId] ?? THEMES.dark;
+    const activeTheme = resolveTheme(theme);
+
+    return (
+        <View style={styles.root}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+            >
+                <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+                    <BackButton onPress={() => navigation.goBack()} />
+                    <Text style={styles.headerTitle}>
+                        {t('screens.settings.systemSettingsTitle', 'Cài đặt hệ thống')}
+                    </Text>
+                    <View style={{ width: 40 }} />
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>
+                        {t('screens.settings.themeSection') || 'Chủ đề'}
+                    </Text>
+                    <View style={styles.optionsContainer}>
+                        {THEME_OPTIONS.map((themeOption) => (
+                            <Pressable
+                                key={themeOption.id}
+                                style={[
+                                    styles.themeOption,
+                                    theme === themeOption.id && styles.themeOptionActive,
+                                ]}
+                                onPress={() => setTheme(themeOption.id)}
+                            >
+                                <View
+                                    style={[
+                                        styles.themePreviewBox,
+                                        {
+                                            backgroundColor: resolveTheme(themeOption.id).surface,
+                                            borderColor: resolveTheme(themeOption.id).accent,
+                                        },
+                                    ]}
+                                >
+                                    <AnimatedDecorIcon active={theme === themeOption.id} intensity="soft">
+                                        <Text style={styles.themeEmoji}>{themeOption.emoji}</Text>
+                                    </AnimatedDecorIcon>
+                                </View>
+                                <Text style={styles.themeLabel}>{themeOption.label}</Text>
+                                {theme === themeOption.id && (
+                                    <View style={styles.checkmark}>
+                                        <MaterialIcons name="check-circle" color={themeColors.accent} size={20} />
+                                    </View>
+                                )}
+                            </Pressable>
+                        ))}
+                    </View>
+                    <View style={styles.toggleRow}>
+                        <View style={{ flex: 1, marginRight: 12 }}>
+                            <Text style={styles.toggleLabel}>
+                                {t('screens.settings.followSystem') || 'Theo dõi cài đặt hệ thống'}
+                            </Text>
+                            <Text style={styles.toggleDesc}>
+                                {t('screens.settings.followSystemDesc') ||
+                                    `Hiện tại là ${deviceColorScheme === 'dark' ? 'tối' : 'sáng'}`}
+                            </Text>
+                        </View>
+                        <Switch
+                            value={followSystem}
+                            onValueChange={(val) => {
+                                if (val) setTheme('system');
+                                else setTheme(theme);
+                            }}
+                            trackColor={{
+                                false: themeColors.glass15,
+                                true: themeColors.accentBorder40,
+                            }}
+                            thumbColor={followSystem ? themeColors.accent : themeColors.glass25}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>
+                        {t('screens.settings.languageSection') || 'Ngôn ngữ'}
+                    </Text>
+                    <View style={styles.optionsContainer}>
+                        {LANGUAGE_OPTIONS.map((lang) => (
+                            <Pressable
+                                key={lang.code}
+                                style={[
+                                    styles.languageOption,
+                                    language === lang.code && styles.languageOptionActive,
+                                ]}
+                                onPress={() => setLanguage(lang.code as 'vi' | 'en')}
+                            >
+                                <AnimatedDecorIcon active={language === lang.code} intensity="soft">
+                                    <Text style={styles.flagEmoji}>{lang.flag}</Text>
+                                </AnimatedDecorIcon>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.languageLabel}>{t(lang.labelKey)}</Text>
+                                    <Text style={styles.languageCode}>({lang.code})</Text>
+                                </View>
+                                {language === lang.code && (
+                                    <MaterialIcons name="check-circle" color={themeColors.accent} size={24} />
+                                )}
+                            </Pressable>
+                        ))}
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>
+                        {t('screens.settings.aboutSection') || 'Về ứng dụng'}
+                    </Text>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>
+                            {t('screens.settings.version') || 'Phiên bản'}
+                        </Text>
+                        <Text style={styles.infoValue}>1.0.0</Text>
+                    </View>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>
+                            {t('screens.settings.appName') || 'Ứng dụng'}
+                        </Text>
+                        <Text style={styles.infoValue}>Monu</Text>
+                    </View>
+                </View>
+
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>
+                        {t('screens.settings.currentSettings') || 'Cài đặt hiện tại'}
+                    </Text>
+                    <View
+                        style={[
+                            styles.settingsPreview,
+                            {
+                                backgroundColor: activeTheme.surface,
+                                borderColor: activeTheme.accent,
+                            },
+                        ]}
+                    >
+                        <View style={styles.previewRow}>
+                            <Text style={styles.previewLabel}>
+                                {t('screens.settings.theme') || 'Chủ đề'}:
+                            </Text>
+                            <Text style={[styles.previewValue, { color: activeTheme.accent }]}>
+                                {THEME_OPTIONS.find((x) => x.id === theme)?.label}
+                            </Text>
+                        </View>
+                        <View style={styles.previewRow}>
+                            <Text style={styles.previewLabel}>
+                                {t('screens.settings.language') || 'Ngôn ngữ'}:
+                            </Text>
+                            <Text style={[styles.previewValue, { color: activeTheme.accent }]}>
+                                {LANGUAGE_OPTIONS.find((l) => l.code === language)
+                                    ? t(LANGUAGE_OPTIONS.find((l) => l.code === language)!.labelKey)
+                                    : ''}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            </ScrollView>
+        </View>
+    );
+};
+
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
+    root: { flex: 1, backgroundColor: colors.bg },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 12,
+        paddingBottom: 16,
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: colors.white,
+        textAlign: 'center',
+        flex: 1,
+    },
+    section: { paddingHorizontal: 16, marginBottom: 28 },
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        marginBottom: 12,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    optionsContainer: { gap: 12 },
+    themeOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        backgroundColor: colors.surface,
+        borderWidth: 2,
+        borderColor: colors.glass15,
+    },
+    themeOptionActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.surface,
+    },
+    themePreviewBox: {
+        width: 50,
+        height: 50,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        marginRight: 12,
+    },
+    themeEmoji: { fontSize: 24 },
+    themeLabel: { fontSize: 14, fontWeight: '600', color: colors.white, flex: 1 },
+    checkmark: { marginLeft: 'auto' },
+    languageOption: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        backgroundColor: colors.surface,
+        borderWidth: 2,
+        borderColor: colors.glass15,
+    },
+    languageOptionActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.surface,
+    },
+    flagEmoji: { fontSize: 28, marginRight: 12 },
+    languageLabel: { fontSize: 15, fontWeight: '600', color: colors.white },
+    languageCode: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+    toggleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.glass15,
+        marginTop: 12,
+    },
+    toggleLabel: { fontSize: 14, fontWeight: '600', color: colors.white, marginBottom: 2 },
+    toggleDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 4 },
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.glass15,
+        marginBottom: 10,
+    },
+    infoLabel: { fontSize: 14, fontWeight: '500', color: colors.textSecondary },
+    infoValue: { fontSize: 14, fontWeight: '600', color: colors.white },
+    settingsPreview: {
+        paddingVertical: 16,
+        paddingHorizontal: 14,
+        borderRadius: 12,
+        borderWidth: 2,
+    },
+    previewRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 10,
+    },
+    previewLabel: { fontSize: 13, fontWeight: '500', color: colors.textSecondary },
+    previewValue: { fontSize: 13, fontWeight: '700' },
+});

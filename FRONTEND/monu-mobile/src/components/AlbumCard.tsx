@@ -70,15 +70,16 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({
       flex: 1,
     },
     title: {
-      fontSize: themeUtils.fontSize.md,
-      fontWeight: '600',
+      fontSize: themeUtils.fontSize.lg,
+      fontWeight: '800',
       color: colors.text,
-      marginBottom: 2,
+      marginBottom: 4,
     },
     artist: {
       fontSize: themeUtils.fontSize.sm,
+      fontWeight: '500',
       color: colors.textSecondary,
-      marginBottom: themeUtils.spacing.sm,
+      marginBottom: themeUtils.spacing.md,
     },
     statsRow: {
       flexDirection: 'row',

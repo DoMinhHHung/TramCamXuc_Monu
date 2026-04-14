@@ -44,7 +44,11 @@
     "discover": "Khám phá",
     "create": "Tạo",
     "library": "Thư viện",
-    "premium": "Premium"
+    "premium": "Premium",
+    "headerHome": "MONU · Trang chủ",
+    "headerDiscover": "MONU · Khám phá",
+    "headerLibrary": "MONU · Thư viện",
+    "headerCreate": "MONU · Sáng tạo"
   },
   "screens": {
     "home": {
@@ -66,7 +70,16 @@
       "expandedSections": "Nhạc theo thể loại",
       "loadingExpandedSections": "Đang tải mục nhạc mở rộng...",
       "showMore": "Xem thêm",
-      "showLess": "Thu gọn"
+      "showLess": "Thu gọn",
+      "streakLabel": "CHUỖI NGHE NHẠC",
+      "streakValue": "{{days}} Ngày",
+      "streakSub": "Bạn đang có phong độ tuyệt vời! Tiếp tục nghe nhạc nhé.",
+      "streakDetail": "CHI TIẾT",
+      "dailyMix": "DAILY MIX",
+      "topHits": "Top Hits 2024",
+      "yourMusicGu": "Gu nhạc của riêng bạn",
+      "discoveryNew": "Khám phá mới",
+      "discoverySub": "30 bài hát mới mỗi thứ Hai"
     },
     "discover": {
       "title": "Khám phá",
@@ -194,6 +207,14 @@
       "currentSettings": "Cài đặt hiện tại",
       "theme": "Chủ đề",
       "language": "Ngôn ngữ",
+      "themes": {
+        "dark": "Chế độ tối",
+        "classic": "Cổ điển",
+        "neonCurator": "Neon Curator",
+        "neonGen": "Neon Gen Z",
+        "sunset": "Hoàng hôn",
+        "ocean": "Đại dương"
+      },
       "languages": {
         "vi": "Tiếng Việt",
         "en": "English"
@@ -201,7 +222,34 @@
       "followSystem": "Theo dõi cài đặt hệ thống",
       "followSystemDesc": "Hiện tại đang sử dụng cài đặt giao diện hệ thống",
       "version": "Phiên bản",
-      "appName": "Ứng dụng"
+      "appName": "Ứng dụng",
+      "systemSettingsTitle": "Cài đặt hệ thống",
+      "hubPersonalSub": "Yêu thích, lịch sử, bài đăng, theo dõi…",
+      "hubSystemSub": "Chủ đề, ngôn ngữ, thông tin ứng dụng",
+      "hubAccountSub": "Chỉnh sửa hồ sơ, avatar, xóa tài khoản",
+      "personalSection": "Cá nhân",
+      "personalMenuTitle": "Cá nhân",
+      "personalMenuSub": "Yêu thích, lịch sử, bài đăng, thống kê…",
+      "personal": {
+        "favoriteArtists": "Nghệ sĩ yêu thích",
+        "favoriteArtistsSub": "Chỉnh sửa trong mục yêu thích",
+        "favoriteGenres": "Thể loại yêu thích",
+        "favoriteGenresSub": "Chỉnh sửa trong mục yêu thích",
+        "myPosts": "Quản lý bài đăng",
+        "myPostsSub": "Bài đăng của tôi"
+      },
+      "account": {
+        "title": "Cài đặt tài khoản",
+        "editSub": "Tên hiển thị",
+        "updateAvatar": "Cập nhật Avatar",
+        "avatarSub": "Ảnh đại diện tài khoản",
+        "choosePhoto": "Chọn ảnh",
+        "avatarHint": "Chọn ảnh mới từ thư viện. Ảnh sẽ được cắt vuông."
+      },
+      "deleteAccount": {
+        "lead": "Thao tác này không thể hoàn tác",
+        "body": "Tài khoản, dữ liệu cá nhân và các nội dung liên quan sẽ bị xóa vĩnh viễn theo chính sách của ứng dụng."
+      }
     },
     "history": {
       "title": "Lịch sử nghe nhạc",
@@ -531,6 +579,7 @@
       "permissionDeniedTitle": "Quyền truy cập bị từ chối",
       "permissionDeniedMessage": "Vui lòng cấp quyền để chọn ảnh.",
       "updateAvatarFailed": "Không thể cập nhật avatar.",
+      "avatarUpdated": "Đã cập nhật ảnh đại diện.",
       "updateProfileFailed": "Không thể cập nhật hồ sơ.",
       "deleteAccountFailed": "Không thể xóa tài khoản.",
       "deleteDownloadedTitle": "Xoá bài đã tải",
@@ -644,7 +693,7 @@
       "liveBadge": "LIVE",
       "communityLabel": "Cộng đồng âm nhạc",
       "posts": "Bài đăng",
-      "composerPlaceholder": "Bạn đang nghĩ gì về âm nhạc?",
+      "composerPlaceholder": "Chia sẻ giai điệu, tâm trạng của bạn hôm nay...",
       "noPosts": "Chưa có bài đăng nào",
       "beFirstToShare": "Hãy là người đầu tiên chia sẻ!",
       "createPost": "Tạo bài viết",
@@ -762,9 +811,9 @@
       "unlimitedPlaylists": "Không giới hạn",
       "recommendationBasic": "Cơ bản",
       "recommendationAdvanced": "Nâng cao",
-      "generationsPerMonth": "lượt tạo / tháng",
-      "secondsMax": "Tối đa {n}s mỗi bài",
-      "minutesMonthly": "Tối đa {n} phút / tháng"
+      "generationsPerMonth": "lượt tạo/tháng",
+      "secondsMax": "{n}s/bài",
+      "minutesMonthly": "{n} phút/tháng"
     },
     "features": {
       "quality": {
@@ -793,19 +842,19 @@
       },
       "ai_music_enabled": {
         "label": "Tạo nhạc bằng AI",
-        "desc": "Sinh bài bằng AI (hạn mức cần tài khoản nghệ sĩ đã xác thực)"
+        "desc": "Sinh bài bằng AI"
       },
       "ai_music_generations_per_month": {
         "label": "Lượt tạo nhạc AI / tháng",
-        "desc": "Giới hạn số lần tạo nhạc AI mỗi tháng"
+        "desc": "Giới hạn số lần tạo nhạc AI"
       },
       "ai_music_max_duration_seconds": {
         "label": "Độ dài tối đa mỗi bài AI",
-        "desc": "Thời lượng tối đa của mỗi bản tạo bằng AI"
+        "desc": "Thời lượng tối đa"
       },
       "ai_music_max_minutes_per_month": {
         "label": "Hạn mức phút nhạc AI / tháng",
-        "desc": "Tổng số phút audio AI được tạo mỗi tháng"
+        "desc": "Số giờ được tạo"
       },
       "can_become_artist": {
         "label": "Đăng ký nghệ sĩ",

@@ -35,14 +35,14 @@ export const RADIUS = {
   xs: scale(6),
   /** 8px – small chip / badge */
   sm: scale(8),
-  /** 12px – standard card corner */
-  md: scale(12),
-  /** 16px – large card / modal */
-  lg: scale(16),
-  /** 20px – bottom sheet top corners */
-  xl: scale(20),
-  /** 24px – hero cards */
-  xxl: scale(24),
+  /** 14px – standard card corner */
+  md: scale(14),
+  /** 20px – large card / modal */
+  lg: scale(20),
+  /** 24px – bottom sheet top corners */
+  xl: scale(24),
+  /** 32px – hero cards */
+  xxl: scale(32),
   /** 999 – full pill / circle */
   full: 999,
 } as const;
@@ -50,28 +50,28 @@ export const RADIUS = {
 // ── Typography ────────────────────────────────────────────────────────────────
 /** Font-size scale. */
 export const FONT_SIZE = {
-  /** 10px – badge / label tiny */
-  xxs: moderateScale(10),
-  /** 11px – caption / supplemental info */
-  xs: moderateScale(11),
-  /** 12px – secondary text */
-  sm: moderateScale(12),
-  /** 13px – body small */
-  body_sm: moderateScale(13),
-  /** 14px – body default */
-  body: moderateScale(14),
-  /** 15px – body medium */
-  body_md: moderateScale(15),
-  /** 16px – card title / section heading */
-  md: moderateScale(16),
-  /** 18px – modal title */
-  lg: moderateScale(18),
-  /** 20px – screen title */
-  xl: moderateScale(20),
-  /** 22px – hero value */
-  xxl: moderateScale(22),
-  /** 28px – display title */
-  display: moderateScale(28),
+  /** 11px – badge / label tiny */
+  xxs: moderateScale(11),
+  /** 12px – caption / supplemental info */
+  xs: moderateScale(12),
+  /** 13px – secondary text */
+  sm: moderateScale(13),
+  /** 14px – body small */
+  body_sm: moderateScale(14),
+  /** 15px – body default */
+  body: moderateScale(15),
+  /** 16px – body medium */
+  body_md: moderateScale(16),
+  /** 18px – card title / section heading */
+  md: moderateScale(18),
+  /** 20px – modal title */
+  lg: moderateScale(20),
+  /** 24px – screen title */
+  xl: moderateScale(24),
+  /** 28px – hero value */
+  xxl: moderateScale(28),
+  /** 34px – display title */
+  display: moderateScale(34),
 } as const;
 
 /** Font-weight helpers. */
@@ -94,23 +94,23 @@ export const SHADOW = {
   sm: {
     elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
   },
   md: {
     elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-  },
-  lg: {
-    elevation: 16,
-    shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
-    shadowRadius: 14,
+    shadowRadius: 12,
+  },
+  lg: {
+    elevation: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
   },
 } as const;
 

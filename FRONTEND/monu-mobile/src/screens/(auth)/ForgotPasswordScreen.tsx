@@ -10,6 +10,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
 import { useTranslation } from '../../context/LocalizationContext';
+import { moderateScale, scale, verticalScale } from '../../utils/responsive';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 
@@ -24,13 +25,13 @@ export default function ForgotPasswordScreen() {
     const [sent, setSent] = useState(false);
 
     const handleSubmit = async () => {
-        if (!email.trim()) { Alert.alert(t('common.error'), t('screens.authForgot.emailRequired')); return; }
+        if (!email.trim()) { Alert.alert(t('common.error'), t('screens.authForgot.emailRequired', 'Vui lòng nhập email.')); return; }
         setLoading(true);
         try {
             await forgotPassword(email.trim());
             setSent(true);
         } catch (e: any) {
-            Alert.alert(t('common.error'), e?.message || t('screens.authForgot.notFound'));
+            Alert.alert(t('common.error'), e?.message || t('screens.authForgot.notFound', 'Không tìm thấy tài khoản.'));
         } finally { setLoading(false); }
     };
 
@@ -38,80 +39,84 @@ export default function ForgotPasswordScreen() {
         <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <StatusBar style="light" />
 
-            <LinearGradient
-                colors={[themeColors.gradIndigo, themeColors.bg]}
-                style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
-            >
+            {/* Background Decor */}
+            <View style={styles.bgMeshWrapper}>
+                <View style={[styles.gradTopHero, { backgroundColor: themeColors.gradIndigo + '15' }]} />
+            </View>
+
+            <View style={[styles.headerBox, { paddingTop: insets.top + verticalScale(12) }]}>
                 <BackButton onPress={() => navigation.goBack()} />
+            </View>
 
-                <View style={styles.iconWrap}>
-                    <Text style={{ fontSize: 40 }}>{sent ? '✅' : '🔑'}</Text>
+            <View style={[styles.contentWrap, { paddingBottom: insets.bottom + verticalScale(32) }]}>
+                <View style={styles.heroWrap}>
+                    <Text style={styles.title}>
+                        {sent ? t('screens.authForgot.sentTitle', 'Kiểm tra hộp thư') : t('screens.authForgot.title', 'Quên\nmật khẩu')}
+                    </Text>
+                    <Text style={styles.subtitle}>
+                        {sent
+                            ? t('screens.authForgot.sentSubtitle', 'Mã xác nhận đã được gửi đến:')
+                            : t('screens.authForgot.subtitle', 'Nhập email liên kết với tài khoản của bạn để khôi phục mật khẩu.')}
+                    </Text>
+
+                    {sent && (
+                        <View style={styles.emailHighlight}>
+                            <Text style={styles.emailHighlightText}>{email}</Text>
+                        </View>
+                    )}
                 </View>
-            </LinearGradient>
 
-            <View style={[styles.form, { paddingBottom: insets.bottom + 32 }]}>
-                <Text style={styles.title}>
-                    {sent ? t('screens.authForgot.sentTitle') : t('screens.authForgot.title')}
-                </Text>
-                <Text style={styles.subtitle}>
-                    {sent
-                        ? t('screens.authForgot.sentSubtitle')
-                        : t('screens.authForgot.subtitle')}
-                </Text>
+                {/* Form Controls */}
+                <View style={styles.formBox}>
+                    {!sent ? (
+                        <>
+                            <Text style={styles.fieldLabel}>{t('auth.email', 'Email')}</Text>
+                            <TextInput
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                placeholder="Nhập email của bạn"
+                                placeholderTextColor={themeColors.glass40}
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                selectionColor={themeColors.accent}
+                            />
 
-                {sent && (
-                    <View style={styles.emailHighlight}>
-                        <Text style={styles.emailHighlightText}>{email}</Text>
-                    </View>
-                )}
-
-                {!sent ? (
-                    <>
-                        <Text style={styles.fieldLabel}>{t('auth.email')}</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={email}
-                            onChangeText={setEmail}
-                            placeholder="you@example.com"
-                            placeholderTextColor={themeColors.glass25}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                        />
-
-                        <Pressable
-                            style={({ pressed }) => [styles.btn, (loading || pressed) && { opacity: 0.8 }]}
-                            onPress={handleSubmit}
-                            disabled={loading}
-                        >
-                            <LinearGradient
-                                colors={[themeColors.accent, themeColors.accentAlt]}
-                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                                style={styles.btnGradient}
+                            <Pressable
+                                style={({ pressed }) => [styles.btn, (loading || pressed) && { opacity: 0.8 }]}
+                                onPress={handleSubmit}
+                                disabled={loading}
                             >
-                                <Text style={styles.btnText}>{loading ? t('screens.authForgot.sending') : t('screens.authForgot.sendOtp')}</Text>
-                            </LinearGradient>
-                        </Pressable>
-                    </>
-                ) : (
-                    <>
-                        <Pressable
-                            style={({ pressed }) => [styles.btn, pressed && { opacity: 0.8 }]}
-                            onPress={() => navigation.navigate('ResetPassword', { email: email.trim() })}
-                        >
-                            <LinearGradient
-                                colors={[themeColors.accent, themeColors.accentAlt]}
-                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                                style={styles.btnGradient}
+                                <LinearGradient
+                                    colors={[themeColors.accent, themeColors.accentAlt]}
+                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                    style={styles.btnGradient}
+                                >
+                                    <Text style={styles.btnText}>{loading ? t('screens.authForgot.sending', 'Đang gửi...') : t('screens.authForgot.sendOtp', 'Nhận mã xác nhận')}</Text>
+                                </LinearGradient>
+                            </Pressable>
+                        </>
+                    ) : (
+                        <>
+                            <Pressable
+                                style={({ pressed }) => [styles.btn, pressed && { opacity: 0.8 }]}
+                                onPress={() => navigation.navigate('ResetPassword', { email: email.trim() })}
                             >
-                                <Text style={styles.btnText}>{t('screens.authForgot.enterOtp')}</Text>
-                            </LinearGradient>
-                        </Pressable>
+                                <LinearGradient
+                                    colors={[themeColors.accent, themeColors.accentAlt]}
+                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                    style={styles.btnGradient}
+                                >
+                                    <Text style={styles.btnText}>{t('screens.authForgot.enterOtp', 'Tiếp tục')}</Text>
+                                </LinearGradient>
+                            </Pressable>
 
-                        <Pressable style={styles.secondaryBtn} onPress={() => setSent(false)}>
-                            <Text style={styles.secondaryBtnText}>{t('screens.authForgot.useDifferentEmail')}</Text>
-                        </Pressable>
-                    </>
-                )}
+                            <Pressable style={styles.secondaryBtn} onPress={() => setSent(false)}>
+                                <Text style={styles.secondaryBtnText}>{t('screens.authForgot.useDifferentEmail', 'Sử dụng email khác?')}</Text>
+                            </Pressable>
+                        </>
+                    )}
+                </View>
             </View>
         </KeyboardAvoidingView>
     );
@@ -119,60 +124,60 @@ export default function ForgotPasswordScreen() {
 
 const createStyles = (colors: ColorScheme) => StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    gradientTop: { paddingHorizontal: 24, paddingBottom: 36 },
-    iconWrap: {
-        width: 88, height: 88, borderRadius: 44,
-        backgroundColor: colors.glass07,
-        borderWidth: 1.5,
-        borderColor: colors.accentBorder40,
-        alignItems: 'center', justifyContent: 'center',
-        marginTop: 24, marginBottom: 20, alignSelf: 'center',
+    bgMeshWrapper: { ...StyleSheet.absoluteFillObject, opacity: 0.7, zIndex: 0 },
+    gradTopHero: { position: 'absolute', top: -scale(100), left: -scale(100), width: scale(400), height: scale(400), borderRadius: scale(200) },
+    headerBox: { paddingHorizontal: scale(20), zIndex: 10 },
+    contentWrap: { flex: 1, paddingHorizontal: scale(24), justifyContent: 'space-between', zIndex: 10 },
+    heroWrap: { marginTop: verticalScale(40) },
+    title: {
+        color: colors.white,
+        fontSize: moderateScale(42),
+        fontWeight: '900',
+        letterSpacing: -1,
+        lineHeight: moderateScale(50),
+        marginBottom: verticalScale(12),
     },
-    title: { color: colors.white, fontSize: 28, fontWeight: '800', textAlign: 'center', marginBottom: 10 },
-    subtitle: { color: colors.glass50, fontSize: 15, textAlign: 'center', lineHeight: 22 },
+    subtitle: { color: colors.glass65, fontSize: moderateScale(16), fontWeight: '500', maxWidth: scale(280), lineHeight: moderateScale(24) },
     emailHighlight: {
-        marginTop: 14,
-        alignSelf: 'center',
-        backgroundColor: colors.accentFill20,
-        borderRadius: 999,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        marginTop: verticalScale(16),
+        alignSelf: 'flex-start',
+        backgroundColor: colors.accent + '20',
+        borderRadius: scale(8),
+        paddingHorizontal: scale(16),
+        paddingVertical: verticalScale(10),
         borderWidth: 1,
-        borderColor: colors.accentBorder30,
+        borderColor: colors.accent + '30',
     },
-    emailHighlightText: { color: colors.accent, fontWeight: '700', fontSize: 14 },
-    form: { paddingHorizontal: 24, paddingTop: 8 },
+    emailHighlightText: { color: colors.accent, fontWeight: '700', fontSize: moderateScale(15) },
+    formBox: { width: '100%', paddingBottom: verticalScale(20) },
     fieldLabel: {
-        color: colors.glass40,
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1.2,
-        textTransform: 'uppercase',
-        marginBottom: 8,
-        marginTop: 16,
+        color: colors.glass50,
+        fontSize: moderateScale(13),
+        fontWeight: '600',
+        marginBottom: verticalScale(8),
     },
     input: {
-        backgroundColor: colors.glass06,
-        borderWidth: 1,
-        borderColor: colors.glass10,
-        borderRadius: 14,
-        paddingHorizontal: 16,
-        paddingVertical: 15,
+        backgroundColor: 'transparent',
+        borderBottomWidth: 1,
+        borderBottomColor: colors.glass20,
         color: colors.white,
-        fontSize: 15,
-        marginBottom: 8,
+        fontSize: moderateScale(16),
+        paddingVertical: verticalScale(12),
+        paddingHorizontal: 0,
+        marginBottom: verticalScale(32),
     },
-    btn: { borderRadius: 999, overflow: 'hidden', marginTop: 20 },
-    btnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
-    btnText: { color: colors.white, fontWeight: '800', fontSize: 16 },
+    btn: { borderRadius: 999, overflow: 'hidden', shadowColor: colors.accent, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20 },
+    btnGradient: { minHeight: verticalScale(56), alignItems: 'center', justifyContent: 'center' },
+    btnText: { color: colors.white, fontWeight: '800', fontSize: moderateScale(16) },
     secondaryBtn: {
-        minHeight: 52,
+        minHeight: verticalScale(56),
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 12,
+        marginTop: verticalScale(16),
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: colors.glass12,
+        borderColor: colors.glass10,
+        backgroundColor: colors.glass04,
     },
-    secondaryBtnText: { color: colors.glass60, fontWeight: '600', fontSize: 15 },
+    secondaryBtnText: { color: colors.glass60, fontWeight: '600', fontSize: moderateScale(15) },
 });

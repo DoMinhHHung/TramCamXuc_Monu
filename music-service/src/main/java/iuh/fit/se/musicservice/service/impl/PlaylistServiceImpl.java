@@ -377,18 +377,18 @@ public class PlaylistServiceImpl implements PlaylistService {
         UUID userId = currentUserId();
         Playlist playlist = requireOwner(playlistId, userId);
 
-        // If the linked list is broken/detached, heal first so prev/next pointers are consistent.
-        // This prevents INVALID_REQUEST during drag-and-drop when the stored chain is corrupted.
-        try {
-            linkedListService.heal(playlistId);
-        } catch (Exception e) {
-            log.warn("[LL-HEAL] playlist={} heal skipped: {}", playlistId, e.getMessage());
-        }
-
         PlaylistSong target = playlistSongRepository
                 .findById(request.getDraggedId())
                 .filter(ps -> ps.getPlaylist().getId().equals(playlistId))
-                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+                .orElse(null);
+
+        if (target == null) {
+            linkedListService.heal(playlistId);
+            target = playlistSongRepository
+                    .findById(request.getDraggedId())
+                    .filter(ps -> ps.getPlaylist().getId().equals(playlistId))
+                    .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST));
+        }
 
         linkedListService.move(playlistId, target, request.getPrevId(), request.getNextId());
 

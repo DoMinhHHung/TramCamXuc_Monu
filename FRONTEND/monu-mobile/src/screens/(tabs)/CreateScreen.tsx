@@ -702,7 +702,7 @@ export const CreateScreen = () => {
             <AnimatedDecorIcon intensity="medium">
               <Text style={styles.heroEmoji}>🎼</Text>
             </AnimatedDecorIcon>
-            <Text style={styles.heroTitle}>{t('screens.create.creatorStudio', 'Creator Studio')}</Text>
+            <Text style={styles.heroTitle}>{t('navigation.headerCreate')}</Text>
             <Text style={styles.heroSub}>
               {canUpload
                   ? `${t('screens.create.greetingPrefix', 'Hello')}, ${artistProfile?.stageName} 👋`
@@ -1392,15 +1392,18 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
 
   hero: {
     paddingHorizontal: 24,
-    paddingBottom: 28,
+    paddingBottom: 30,
     alignItems: 'center',
   },
   heroEmoji: { fontSize: 52, marginBottom: 12 },
   heroTitle: {
-    color: colors.white,
-    fontSize: 28,
-    fontWeight: '800',
+    color: colors.accent,
+    fontSize: 22,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    letterSpacing: 2,
     marginBottom: 6,
+    textTransform: 'uppercase',
   },
   heroSub: {
     color: colors.glass50,
@@ -1421,7 +1424,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 8,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.glass08,
@@ -1445,7 +1448,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   // ── Status card ──────────────────────────────────────────────────────────
   statusCard: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.accentBorder25,
     padding: 16,
@@ -1453,8 +1456,8 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   statusTitle: {
     color: colors.white,
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
   },
   statusSong: {
     color: colors.glass60,
@@ -1473,14 +1476,14 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   progressTrack: {
     flex: 1,
-    height: 4,
+    height: 5,
     backgroundColor: colors.glass10,
-    borderRadius: 2,
+    borderRadius: 3,
   },
   progressFill: {
-    height: 4,
+    height: 5,
     backgroundColor: colors.accent,
-    borderRadius: 2,
+    borderRadius: 3,
   },
   progressPct: {
     color: colors.accent,
@@ -1493,16 +1496,21 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   // ── Card ────────────────────────────────────────────────────────────────
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: colors.glass10,
+    borderColor: colors.glass12,
     padding: 18,
     gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 6,
   },
   cardTitle: {
     color: colors.white,
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 19,
+    fontWeight: '800',
   },
   cardDesc: {
     color: colors.glass60,
@@ -1530,7 +1538,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.glass15,
     backgroundColor: colors.surfaceLow,
-    borderRadius: 10,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     color: colors.white,
@@ -1573,7 +1581,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.glass15,
     borderStyle: 'dashed',
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
   },
   filePickerSelected: {
@@ -1583,7 +1591,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   filePickerEmpty: {
     alignItems: 'center',
-    paddingVertical: 22,
+    paddingVertical: 24,
     gap: 4,
   },
   filePickerPlus: {
@@ -1661,7 +1669,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     marginTop: 4,
   },
   publishBtnGradient: {
-    minHeight: 52,
+    minHeight: 54,
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1702,14 +1710,14 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   // ── Shared ───────────────────────────────────────────────────────────────
   primaryBtn: {
     backgroundColor: colors.accentDim,
-    borderRadius: 12,
-    minHeight: 48,
+    borderRadius: 14,
+    minHeight: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryBtnText: {
     color: colors.white,
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 15,
   },
   disabledBtn: {
@@ -1723,7 +1731,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     marginTop: 4,
   },
   secondaryBtn: {
-    borderRadius: 10,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.glass20,
     paddingVertical: 10,

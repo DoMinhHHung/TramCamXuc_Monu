@@ -847,7 +847,6 @@ const styles = StyleSheet.create({
 
     controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 8 },
     sideBtn:            { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-    /** Play button — solid white circle, icon màu tối */
     playBtn:            {
         width: 64, height: 64, borderRadius: 32,
         backgroundColor: COLORS.white,

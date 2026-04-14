@@ -41,6 +41,12 @@ import { DiscoverScreen }         from '../screens/(tabs)/DiscoverScreen';
 import { EditFavoritesScreen }    from '../screens/(settings)/EditFavoritesScreen';
 import { HistoryScreen }          from '../screens/(settings)/HistoryScreen';
 import { SettingsScreen }         from '../screens/SettingsScreen';
+import { PersonalSettingsScreen } from '../screens/(settings)/PersonalSettingsScreen';
+import { SystemSettingsScreen }   from '../screens/(settings)/SystemSettingsScreen';
+import { AccountSettingsScreen }  from '../screens/(settings)/AccountSettingsScreen';
+import { EditProfileScreen }      from '../screens/(settings)/EditProfileScreen';
+import { UpdateAvatarScreen }     from '../screens/(settings)/UpdateAvatarScreen';
+import { DeleteAccountScreen }    from '../screens/(settings)/DeleteAccountScreen';
 import { InsightsScreen }         from '../screens/InsightsScreen';
 import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
 import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
@@ -73,7 +79,13 @@ export type RootStackParamList = {
     MainTabs:        undefined;
     EditFavorites:   undefined;
     History:         undefined;
-    Settings:        undefined;
+    Settings:          undefined;
+    PersonalSettings:  undefined;
+    SystemSettings:    undefined;
+    AccountSettings:   undefined;
+    EditProfile:       undefined;
+    UpdateAvatar:      undefined;
+    DeleteAccount:     undefined;
     Insights:        undefined;
     Profile:         undefined;
     Search:          undefined;
@@ -228,7 +240,13 @@ export const AppNavigator = () => {
                                 <Stack.Screen name="Search"         component={SearchScreen}        />
                                 <Stack.Screen name="EditFavorites"  component={EditFavoritesScreen} />
                                 <Stack.Screen name="History"        component={HistoryScreen}       />
-                                <Stack.Screen name="Settings"       component={SettingsScreen}      />
+                                <Stack.Screen name="Settings"         component={SettingsScreen}         />
+                                <Stack.Screen name="PersonalSettings" component={PersonalSettingsScreen} />
+                                <Stack.Screen name="SystemSettings"   component={SystemSettingsScreen}   />
+                                <Stack.Screen name="AccountSettings"  component={AccountSettingsScreen}  />
+                                <Stack.Screen name="EditProfile"      component={EditProfileScreen}      />
+                                <Stack.Screen name="UpdateAvatar"     component={UpdateAvatarScreen}     />
+                                <Stack.Screen name="DeleteAccount"    component={DeleteAccountScreen}    />
                                 <Stack.Screen name="Insights"       component={InsightsScreen}      />
                                 <Stack.Screen name="Profile"        component={ProfileScreen}       />
                                 <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen}/>

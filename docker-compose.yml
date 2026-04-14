@@ -1,3 +1,5 @@
+version: "3.9"
+
 networks:
   tramcamxuc-net:
     driver: bridge
@@ -38,14 +40,14 @@ x-internal: &internal
 
 x-java-env: &java-env
   JAVA_OPTS: >-
-    -Xmx160m -Xms64m
+    -Xmx256m -Xms128m
     -XX:+UseG1GC
     -XX:MaxGCPauseMillis=200
     -XX:GCTimeRatio=4
     -XX:AdaptiveSizePolicyWeight=90
     -XX:+UseStringDeduplication
-    -XX:MaxMetaspaceSize=128m
-    -XX:TieredStopAtLevel=1
+    -XX:MaxMetaspaceSize=96m
+    -XX:TieredStopAtLevel=4
     -XX:CICompilerCount=2
     -Djava.security.egd=file:/dev/./urandom
     -Dspring.jmx.enabled=false
@@ -59,10 +61,10 @@ x-limits: &limits
     resources:
       limits:
         cpus: "1.0"
-        memory: 420M
+        memory: 380M
       reservations:
         cpus: "0.05"
-        memory: 256M
+        memory: 192M
 
 x-common: &common
   env_file: [.env]
@@ -164,10 +166,6 @@ services:
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
       MINIO_RAW_BUCKET: ${MINIO_RAW_BUCKET:-music}
       MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET:-public-songs}
-      SONAUTO_SECRET_KEY: ${SONAUTO_SECRET_KEY:-}
-      ELEVENLABS_API_KEY_PRIMARY: ${ELEVENLABS_API_KEY_PRIMARY:-}
-      ELEVENLABS_API_KEY_SECONDARY: ${ELEVENLABS_API_KEY_SECONDARY:-}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       SPRING_DATASOURCE_USERNAME: postgres.ruqepnfjufvvtomewuix
     depends_on:
       discovery-server:
@@ -190,7 +188,7 @@ services:
       PAYOS_CLIENT_ID: ${PAYOS_CLIENT_ID}
       PAYOS_API_KEY: ${PAYOS_API_KEY}
       PAYOS_CHECK_SUM: ${PAYOS_CHECK_SUM}
-      FRONTEND_URL: ${FRONTEND_URL:-https://tram-cam-xuc-monu.vercel.app}
+      FRONTEND_URL: ${FRONTEND_URL:-https://phazelsound.oopsgolden.id.vn}
       SPRING_DATASOURCE_USERNAME: postgres.jzytcnpyacdldabcgcnc
     depends_on:
       discovery-server:
@@ -253,8 +251,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 512M
+          cpus: "1.5"
+          memory: 640M
         reservations:
           cpus: "0.05"
           memory: 256M
@@ -282,9 +280,7 @@ services:
       SPRING_DATA_MONGODB_URI: ${MONGODB_URI}
       MONGODB_URI: ${MONGODB_URI}
       MINIO_AI_BUCKET: ${MINIO_AI_BUCKET:-ai-training-data}
-      # Public URL trang share (Next trên Vercel: /share/song|playlist|album/...)
-      FRONTEND_URL: ${FRONTEND_URL:-https://tram-cam-xuc-monu.vercel.app}
-      SHARE_DEEP_LINK_BASE: ${SHARE_DEEP_LINK_BASE:-monumobile://}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -296,12 +292,11 @@ services:
       start_period: 80s
 
   # ─── 10. RECOMMENDATION ML (Python) ─────────────────────────
-  # Không dùng Compose profile: `docker compose up -d --build` đã khởi chạy ML mặc định.
-  # recommendation-service depends_on recommendation-ml — nếu tắt ML, chỉnh depends_on / ML_SERVICE_URL.
   recommendation-ml:
     <<: [*common]
     build: { context: ./recommendation-ml }
     container_name: recommendation-ml
+    profiles: ["advance"]
     deploy:
       resources:
         limits:
@@ -344,7 +339,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 480M
+          memory: 384M
         reservations:
           cpus: "0.05"
           memory: 192M
@@ -359,7 +354,7 @@ services:
       discovery-server:
         condition: service_healthy
       recommendation-ml:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test:
         [

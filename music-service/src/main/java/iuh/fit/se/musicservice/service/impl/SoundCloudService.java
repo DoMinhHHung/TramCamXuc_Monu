@@ -1,11 +1,10 @@
-// music-service/src/main/java/iuh/fit/se/musicservice/service/impl/SoundCloudService.java
-
 package iuh.fit.se.musicservice.service.impl;
 
 import iuh.fit.se.musicservice.repository.SoundCloudTrackResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
@@ -21,6 +20,7 @@ import java.text.Normalizer;
 import java.time.Instant;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +31,8 @@ public class SoundCloudService {
 
     private volatile String scAccessToken;
     private volatile Instant scTokenExpiry = Instant.EPOCH;
+    private final StringRedisTemplate redisTemplate;
+    private static final Duration STREAM_URL_TTL = Duration.ofMinutes(45);
 
     @Value("${soundcloud.client-id}")
     private String clientId;
@@ -209,17 +211,15 @@ public List<SoundCloudTrackResult> searchTracks(String query, int limit) {
 
     // ── Stream URL ───────────────────────────────────────────────────────────
 
-    /**
-     * Trả về stream URL hợp lệ để mobile player dùng.
-     * SoundCloud Terms: chỉ dùng để stream, không download.
-     */
     public String getStreamUrl(String soundcloudId) {
-        try {
-            return resolvePlayableStreamUrl(soundcloudId);
-        } catch (Exception e) {
-            log.error("[SoundCloud] Failed to resolve stream URL for id={}: {}", soundcloudId, e.getMessage());
-            throw new RuntimeException("SoundCloud stream not available", e);
+        String cacheKey = "sc:stream:" + extractNumericId(soundcloudId);
+        String cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return cached;
         }
+        String url = resolvePlayableStreamUrl(soundcloudId);
+        redisTemplate.opsForValue().set(cacheKey, url, STREAM_URL_TTL);
+        return url;
     }
 
     public String resolvePlayableStreamUrl(String soundcloudId) {

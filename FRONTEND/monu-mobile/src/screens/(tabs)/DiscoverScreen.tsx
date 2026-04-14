@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -2026,7 +2026,12 @@ export const DiscoverScreen = () => {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <View style={styles.root}>
+    <LinearGradient
+      colors={[themeColors.surfaceMid, themeColors.bg]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.root}
+    >
       <StatusBar style="light" />
 
       <ScrollView
@@ -2042,7 +2047,7 @@ export const DiscoverScreen = () => {
           style={[styles.header, { paddingTop: insets.top + 16 }]}
         >
           <View style={styles.headerRow}>
-            <Text style={styles.headerTitle}>{t('screens.discover.title', 'Khám phá')}</Text>
+            <Text style={styles.headerTitle}>{t('navigation.headerDiscover', 'MONU · Khám phá')}</Text>
             <View style={styles.liveBadge}>
               <Text style={styles.liveBadgeText}>LIVE</Text>
             </View>
@@ -2197,7 +2202,7 @@ export const DiscoverScreen = () => {
         canManageAlbums={canManageAlbums}
         onClose={() => setOpenedContent(null)}
       />
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -2209,23 +2214,30 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   avatar: { alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: C.white, fontWeight: '700' },
-  header: { paddingHorizontal: 20, paddingBottom: 20 },
+  header: { paddingHorizontal: 20, paddingBottom: 18, paddingTop: 2 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerTitle: { color: C.text, fontSize: 26, fontWeight: '800' },
+  headerTitle: {
+    color: C.accent,
+    fontSize: 22,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
   liveBadge: { backgroundColor: C.error, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   liveBadgeText: { color: C.white, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   headerSub: { color: C.muted, fontSize: 13, marginTop: 4 },
-  tabBar: { flexDirection: 'row', backgroundColor: C.surfaceLow, borderRadius: 12, padding: 3, marginTop: 12, borderWidth: 1, borderColor: C.borderSubtle },
-  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
+  tabBar: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 18, padding: 4, marginTop: 14, borderWidth: 1, borderColor: C.glass10 },
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 14 },
   tabActive: { backgroundColor: C.accentFill20, borderWidth: 1, borderColor: C.accentBorder25 },
   tabText: { color: C.muted, fontSize: 13, fontWeight: '700' },
   tabTextActive: { color: C.accent },
   tabHint: { color: C.muted, fontSize: 11, marginTop: 6 },
-  composerBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  composerInput: { flex: 1, backgroundColor: C.surface, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: C.borderSubtle },
+  composerBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10, marginTop: 2 },
+  composerInput: { flex: 1, backgroundColor: C.surface, borderRadius: 24, paddingHorizontal: 16, paddingVertical: 11, borderWidth: 1, borderColor: C.glass10 },
   composerPlaceholder: { color: C.muted, fontSize: 14 },
-  composerIconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderSubtle, alignItems: 'center', justifyContent: 'center' },
-  feedDivider: { height: 6, backgroundColor: C.surfaceLow, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.divider },
+  composerIconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.glass08, borderWidth: 1, borderColor: C.glass12, alignItems: 'center', justifyContent: 'center' },
+  feedDivider: { height: 8, backgroundColor: C.surfaceLow, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.divider },
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
   emptyWrap: { paddingVertical: 64, alignItems: 'center', paddingHorizontal: 32 },
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
@@ -2234,10 +2246,10 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   emptyBtn: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 24, paddingVertical: 12 },
   emptyBtnText: { color: C.white, fontWeight: '700' },
   // Post card
-  postCard: { backgroundColor: C.bg, borderBottomWidth: 6, borderBottomColor: C.surface, paddingVertical: 12 },
+  postCard: { backgroundColor: C.bg, borderBottomWidth: 8, borderBottomColor: C.surface, paddingVertical: 14 },
   postHeader: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, marginBottom: 10, gap: 10 },
   postMeta: { flex: 1 },
-  postOwner: { color: C.text, fontWeight: '700', fontSize: 14, lineHeight: 18 },
+  postOwner: { color: C.white, fontWeight: '800', fontSize: 14, lineHeight: 18 },
   postMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   postTime: { color: C.muted, fontSize: 12 },
   dot: { color: C.muted, fontSize: 12 },
@@ -2245,16 +2257,16 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   visText: { color: C.muted, fontSize: 11, fontWeight: '600' },
   menuBtn: { paddingHorizontal: 6, paddingVertical: 4 },
   menuIcon: { color: C.textSecondary, fontSize: 13, letterSpacing: 1, fontWeight: '700' },
-  menu: { marginHorizontal: 16, marginBottom: 8, backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: C.borderSubtle, overflow: 'hidden' },
+  menu: { marginHorizontal: 16, marginBottom: 10, backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.glass10, overflow: 'hidden' },
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
   menuItemText: { color: C.text, fontSize: 14, fontWeight: '500' },
   menuDivider: { height: 1, backgroundColor: C.divider },
   postContent: { paddingHorizontal: 16, marginBottom: 10 },
   postTitle: { color: C.text, fontSize: 15, fontWeight: '700', lineHeight: 21, marginBottom: 4 },
   postCaption: { color: C.textSecondary, fontSize: 14, lineHeight: 20 },
-  contentCard: { marginTop: 10, borderRadius: 14, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderSubtle, padding: 10, gap: 10 },
+  contentCard: { marginTop: 10, borderRadius: 18, backgroundColor: C.surface, borderWidth: 1, borderColor: C.glass10, padding: 12, gap: 10 },
   contentHeader: { flexDirection: 'row', gap: 10 },
-  contentCover: { width: 68, height: 68, borderRadius: 12, backgroundColor: C.glass06 },
+  contentCover: { width: 72, height: 72, borderRadius: 14, backgroundColor: C.glass06 },
   contentMeta: { flex: 1, gap: 3, justifyContent: 'center' },
   contentTitle: { color: C.text, fontSize: 15, fontWeight: '700' },
   contentSub: { color: C.textSecondary, fontSize: 12 },
@@ -2271,7 +2283,7 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   statText: { color: C.muted, fontSize: 12 },
   postDivider: { height: 1, backgroundColor: C.divider, marginHorizontal: 16, marginBottom: 4 },
   // ─── Actions ───
-  postActions: { flexDirection: 'row', paddingHorizontal: 8 },
+  postActions: { flexDirection: 'row', paddingHorizontal: 8, paddingBottom: 4 },
   actionBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -2279,7 +2291,7 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 10,
     gap: 5,
-    borderRadius: 8,
+    borderRadius: 14,
   },
   likeWrap: {},
   likeWrapActive: {},
@@ -2293,21 +2305,21 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
 
 const createDetailStyles = (C: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: C.divider },
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4, paddingVertical: 6 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.divider },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 999, backgroundColor: C.glass08 },
   backText: { color: C.text, fontSize: 15, fontWeight: '700' },
-  saveBtn: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+  saveBtn: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10 },
   saveBtnText: { color: C.white, fontSize: 12, fontWeight: '700' },
   body: { paddingHorizontal: 18, paddingBottom: 34, paddingTop: 14 },
-  cover: { width: 200, height: 200, borderRadius: 14, alignSelf: 'center', marginBottom: 14, backgroundColor: C.glass08 },
-  typeBadge: { alignSelf: 'center', backgroundColor: C.accentFill20, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4, borderWidth: 1, borderColor: C.accentBorder25, marginBottom: 8 },
+  cover: { width: 220, height: 220, borderRadius: 20, alignSelf: 'center', marginBottom: 14, backgroundColor: C.glass08 },
+  typeBadge: { alignSelf: 'center', backgroundColor: C.accentFill20, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: C.accentBorder25, marginBottom: 8 },
   typeText: { color: C.accent, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
-  title: { color: C.text, fontSize: 22, fontWeight: '800', textAlign: 'center' },
+  title: { color: C.white, fontSize: 23, fontWeight: '900', textAlign: 'center', letterSpacing: -0.2 },
   subtitle: { color: C.textSecondary, fontSize: 14, textAlign: 'center', marginTop: 4 },
   owner: { color: C.muted, fontSize: 13, textAlign: 'center', marginTop: 6 },
   count: { color: C.muted, fontSize: 12, textAlign: 'center', marginTop: 4, marginBottom: 18 },
   tracks: { gap: 8 },
-  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: C.glass08 },
+  trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 16, backgroundColor: C.glass08 },
   trackRowActive: { backgroundColor: C.accentFill20, borderWidth: 1, borderColor: C.accentBorder25 },
   trackNum: { color: C.muted, width: 20, textAlign: 'center', fontWeight: '700' },
   trackInfo: { flex: 1 },
@@ -2320,33 +2332,33 @@ const createDetailStyles = (C: ColorScheme) => StyleSheet.create({
 
 const createSaveStyles = (C: ColorScheme) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: C.scrim },
-  sheet: { backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, maxHeight: '85%', borderWidth: 1, borderBottomWidth: 0, borderColor: C.border },
+  sheet: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, maxHeight: '85%', borderWidth: 1, borderBottomWidth: 0, borderColor: C.glass10 },
   handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: C.glass20, alignSelf: 'center', marginBottom: 14 },
-  title: { color: C.text, fontSize: 17, fontWeight: '700', marginBottom: 10 },
-  sourceBadge: { backgroundColor: C.glass07, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10, borderWidth: 1, borderColor: C.borderSubtle },
+  title: { color: C.white, fontSize: 18, fontWeight: '800', marginBottom: 10 },
+  sourceBadge: { backgroundColor: C.glass07, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 10, borderWidth: 1, borderColor: C.glass10 },
   sourceText: { color: C.textSecondary, fontSize: 12, lineHeight: 17 },
-  lockedNotice: { backgroundColor: C.glass08, borderWidth: 1, borderColor: C.borderSubtle, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
+  lockedNotice: { backgroundColor: C.glass08, borderWidth: 1, borderColor: C.glass10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, marginBottom: 10 },
   lockedNoticeText: { color: C.muted, fontSize: 12, lineHeight: 17 },
   // Tab bar
-  tabBar: { flexDirection: 'row', backgroundColor: C.surfaceLow, borderRadius: 10, padding: 3, marginBottom: 10 },
-  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
+  tabBar: { flexDirection: 'row', backgroundColor: C.surfaceLow, borderRadius: 14, padding: 4, marginBottom: 12 },
+  tab: { flex: 1, paddingVertical: 9, alignItems: 'center', borderRadius: 10 },
   tabActive: { backgroundColor: C.accentFill20, borderWidth: 1, borderColor: C.accentBorder25 },
   tabText: { color: C.muted, fontSize: 13, fontWeight: '600' },
   tabTextActive: { color: C.accent },
   tabHint: { color: C.muted, fontSize: 11, textAlign: 'center', marginBottom: 6 },
   // List
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 12, borderBottomWidth: 1, borderBottomColor: C.divider },
-  rowIcon: { width: 40, height: 40, borderRadius: 10, backgroundColor: C.glass08, alignItems: 'center', justifyContent: 'center' },
+  rowIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: C.glass08, alignItems: 'center', justifyContent: 'center' },
   rowName: { color: C.text, fontSize: 14, fontWeight: '500' },
   rowCount: { color: C.muted, fontSize: 12, marginTop: 2 },
   addIcon: { color: C.accent, fontSize: 22, fontWeight: '300' },
   empty: { color: C.muted, textAlign: 'center', paddingVertical: 16 },
-  createSection: { marginTop: 10, backgroundColor: C.glass07, borderRadius: 12, borderWidth: 1, borderColor: C.borderSubtle, padding: 10 },
+  createSection: { marginTop: 10, backgroundColor: C.glass07, borderRadius: 14, borderWidth: 1, borderColor: C.glass10, padding: 12 },
   createLabel: { color: C.text, fontSize: 13, fontWeight: '700' },
   createHint: { color: C.muted, fontSize: 11, marginTop: 2 },
   newRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  input: { flex: 1, backgroundColor: C.surfaceLow, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, color: C.text, fontSize: 14 },
-  newBtn: { minWidth: 56, height: 44, borderRadius: 10, paddingHorizontal: 12, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  input: { flex: 1, backgroundColor: C.surfaceLow, borderWidth: 1, borderColor: C.border, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, color: C.text, fontSize: 14 },
+  newBtn: { minWidth: 56, height: 44, borderRadius: 12, paddingHorizontal: 12, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
   newBtnText: { color: C.white, fontSize: 13, fontWeight: '700' },
   inputMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
   inputMetaText: { color: C.muted, fontSize: 11 },

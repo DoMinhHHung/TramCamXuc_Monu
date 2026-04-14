@@ -1,9 +1,8 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
-import * as ImagePicker from 'expo-image-picker';
 import {
     ActivityIndicator, Alert, Image, Modal, Pressable,
-    ScrollView, StyleSheet, Text, TextInput, View, FlatList,
+    ScrollView, StyleSheet, Text, View, FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -14,13 +13,12 @@ import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useDownload } from '../../context/DownloadContext';
 import { useTranslation } from '../../context/LocalizationContext';
-import { deleteMyProfile, updateMyProfile, uploadAvatar } from '../../services/auth';
 import { getMyPlaylists } from '../../services/music';
 import { getMyHearts } from '../../services/social';
 import { apiClient } from '../../services/api';
 import { BackButton } from '../../components/BackButton';
 import { useNavigation } from '@react-navigation/native';
-import {AntDesign, FontAwesome, Fontisto, SimpleLineIcons, Feather  } from "@expo/vector-icons";
+import { AntDesign, FontAwesome, Fontisto, Feather } from '@expo/vector-icons';
 
 type ArtistProfile = {
     id: string;
@@ -39,11 +37,7 @@ export const ProfileScreen = () => {
     const { downloadedSongs, storageUsed, deleteDownload } = useDownload();
 
     const [menuOpen,    setMenuOpen]    = useState(false);
-    const [editOpen,    setEditOpen]    = useState(false);
-    const [deleteOpen,  setDeleteOpen]  = useState(false);
     const [logoutOpen,  setLogoutOpen]  = useState(false);
-    const [saving,      setSaving]      = useState(false);
-    const [fullName,    setFullName]    = useState(authSession?.profile?.fullName ?? '');
     const [artistProfile, setArtistProfile] = useState<ArtistProfile | null>(null);
     const [loadingArtist, setLoadingArtist] = useState(true);
 
@@ -64,10 +58,6 @@ export const ProfileScreen = () => {
         void loadArtistProfile();
         void loadStats();
     }, [authSession?.tokens.accessToken]);
-
-    useEffect(() => {
-        setFullName(authSession?.profile?.fullName ?? '');
-    }, [authSession?.profile?.fullName]);
 
     const loadArtistProfile = async () => {
         setLoadingArtist(true);
@@ -90,56 +80,6 @@ export const ProfileScreen = () => {
             if (plRes.status === 'fulfilled') setPlaylistCount(plRes.value.totalElements ?? 0);
             if (hvRes.status === 'fulfilled') setFavoriteCount(hvRes.value.totalElements ?? 0);
         } catch { /* silent */ }
-    };
-
-    const pickAvatar = async () => {
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!permission.granted) {
-            Alert.alert(t('screens.profile.permissionDeniedTitle', 'Permission denied'), t('screens.profile.permissionDeniedMessage', 'Please grant permission to select image.'));
-            return;
-        }
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
-        if (result.canceled || !result.assets?.[0]) return;
-        try {
-            setSaving(true);
-            await uploadAvatar(result.assets[0].uri);
-            await refreshProfile();
-        } catch (error: any) {
-            Alert.alert(t('common.error'), error?.message || t('screens.profile.updateAvatarFailed', 'Cannot update avatar.'));
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const onSaveProfile = async () => {
-        try {
-            setSaving(true);
-            await updateMyProfile({ fullName: fullName.trim() });
-            await refreshProfile();
-            setEditOpen(false);
-        } catch (error: any) {
-            Alert.alert(t('common.error'), error?.message || t('screens.profile.updateProfileFailed', 'Cannot update profile.'));
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const onDeleteAccount = async () => {
-        try {
-            setSaving(true);
-            await deleteMyProfile();
-            setDeleteOpen(false);
-            await logout();
-        } catch (error: any) {
-            Alert.alert(t('common.error'), error?.message || t('screens.profile.deleteAccountFailed', 'Cannot delete account.'));
-        } finally {
-            setSaving(false);
-        }
     };
 
     const handleDeleteDownloadedSong = async (songId: string) => {
@@ -201,18 +141,6 @@ export const ProfileScreen = () => {
             onPress: () => navigation.navigate('FavoriteSongs'),
         },
         {
-            icon: <FontAwesome name="history" color={themeColors.accentAlt} size={18} />,
-            label: t('screens.history.title', 'Listening history'),
-            sub: t('screens.profile.listenedSongsSub', 'Songs you listened to'),
-            onPress: () => navigation.navigate('History'),
-        },
-        {
-            icon: <FontAwesome name="newspaper-o" color={themeColors.accent} size={18} />,
-            label: 'Bài đăng của tôi',
-            sub: 'Quản lý nội dung, quyền riêng tư',
-            onPress: () => navigation.navigate('MyPosts'),
-        },
-        {
             icon: <FontAwesome name="flag" color={themeColors.warningMid} size={18} />,
             label: 'Quản lý nội dung',
             sub: 'Bài hát bị báo cáo và trạng thái xử lý',
@@ -226,18 +154,6 @@ export const ProfileScreen = () => {
                 : t('screens.profile.noSongsYet', 'No songs yet'),
             onPress: () => setDownloadsOpen(true),
         },
-        {
-            icon: <SimpleLineIcons name="user-following" color={themeColors.success} size={18} />,
-            label: t('artistProfile.following', 'Following'),
-            sub: undefined,
-            onPress: () => navigation.navigate('Following'),
-        },
-
-        {
-            icon: '📊',
-            label: t('screens.insights.title', 'Insights'),
-            onPress: () => navigation.navigate('Insights'),
-        }
     ];
 
     return (
@@ -253,14 +169,14 @@ export const ProfileScreen = () => {
                 >
                     <View style={styles.topBar}>
                         <BackButton onPress={() => navigation.goBack()} />
-                        <Text style={styles.topBarTitle}>{t('screens.profile.title', 'Profile')}</Text>
+                        <Text style={styles.topBarTitle}>{t('navigation.headerProfile', 'MONU · Cá nhân')}</Text>
                         <Pressable onPress={() => setMenuOpen(p => !p)} style={styles.gearBtn}>
                             <Text style={styles.gearIcon}><Feather name="settings" color={themeColors.white} size={24} /></Text>
                         </Pressable>
                     </View>
 
                     {/* Avatar */}
-                    <Pressable onPress={pickAvatar} style={styles.avatarWrap}>
+                    <Pressable onPress={() => navigation.navigate('UpdateAvatar')} style={styles.avatarWrap}>
                         {authSession?.profile?.avatarUrl ? (
                             <Image
                                 source={{ uri: authSession.profile.avatarUrl }}
@@ -279,7 +195,7 @@ export const ProfileScreen = () => {
                     <Text style={styles.name}>{displayName}</Text>
                     <Text style={styles.email}>{authSession?.profile?.email}</Text>
 
-                    <Pressable style={styles.editBtn} onPress={() => setEditOpen(true)}>
+                    <Pressable style={styles.editBtn} onPress={() => navigation.navigate('EditProfile')}>
                         <Text style={styles.editBtnText}>{t('screens.profile.editProfile', 'Edit profile')}</Text>
                     </Pressable>
                 </LinearGradient>
@@ -414,41 +330,6 @@ export const ProfileScreen = () => {
                     >
                         <Text style={styles.dropText}>{t('screens.profile.logout', 'Logout')}</Text>
                     </Pressable>
-                    <View style={styles.dropDivider} />
-                    <Pressable
-                        style={styles.dropItem}
-                        onPress={() => { setMenuOpen(false); setDeleteOpen(true); }}
-                    >
-                        <Text style={[styles.dropText, { color: themeColors.error }]}>{t('screens.profile.deleteAccount', 'Delete account')}</Text>
-                    </Pressable>
-                </View>
-            )}
-
-            {/* Edit profile modal */}
-            {editOpen && (
-                <View style={styles.modalOverlay}>
-                    <View style={styles.editModal}>
-                        <Text style={styles.modalTitle}>{t('screens.profile.editProfile', 'Edit profile')}</Text>
-                        <Text style={styles.modalFieldLabel}>{t('screens.profile.displayNameLabel', 'Display name')}</Text>
-                        <TextInput
-                            style={styles.modalInput}
-                            value={fullName}
-                            onChangeText={setFullName}
-                            placeholder={t('screens.profile.displayNamePlaceholder', 'Enter display name')}
-                            placeholderTextColor={themeColors.glass25}
-                        />
-                        <View style={styles.modalActions}>
-                            <Pressable style={styles.cancelBtn} onPress={() => setEditOpen(false)}>
-                                <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
-                            </Pressable>
-                            <Pressable style={styles.saveBtn} onPress={onSaveProfile}>
-                                {saving
-                                    ? <ActivityIndicator color={themeColors.white} size="small" />
-                                    : <Text style={styles.saveBtnText}>{t('common.save')}</Text>
-                                }
-                            </Pressable>
-                        </View>
-                    </View>
                 </View>
             )}
 
@@ -523,15 +404,6 @@ export const ProfileScreen = () => {
             </Modal>
 
             <ConfirmModal
-                visible={deleteOpen}
-                title={t('screens.profile.deleteAccountConfirmTitle', 'Delete account?')}
-                message={t('screens.profile.deleteAccountConfirmMessage', 'This action cannot be undone.')}
-                confirmText={t('screens.profile.deleteAccount', 'Delete account')}
-                destructive
-                onCancel={() => setDeleteOpen(false)}
-                onConfirm={onDeleteAccount}
-            />
-            <ConfirmModal
                 visible={logoutOpen}
                 title={t('screens.profile.logoutConfirmTitle', 'Confirm logout')}
                 message={t('screens.profile.logoutConfirmMessage', 'Are you sure you want to logout?')}
@@ -554,7 +426,14 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
         alignItems: 'center',
         marginBottom: 24,
     },
-    topBarTitle: { color: c.text, fontSize: 20, fontWeight: '700' },
+    topBarTitle: {
+        color: c.accent,
+        fontSize: 22,
+        fontWeight: '900',
+        fontStyle: 'italic',
+        letterSpacing: 2,
+        textTransform: 'uppercase',
+    },
     gearBtn:     { padding: 8 },
     gearIcon:    { fontSize: 22 },
 
@@ -671,42 +550,6 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     dropItem:    { paddingHorizontal: 16, paddingVertical: 14 },
     dropText:    { color: c.text, fontWeight: '600' },
     dropDivider: { height: 1, backgroundColor: c.divider },
-
-    // Edit modal
-    modalOverlay: {
-        position: 'absolute', inset: 0,
-        backgroundColor: c.scrim,
-        alignItems: 'center', justifyContent: 'center', padding: 24,
-    },
-    editModal: {
-        width: '100%', backgroundColor: c.surface,
-        borderRadius: 20, padding: 20,
-        borderWidth: 1, borderColor: c.border,
-    },
-    modalTitle: { color: c.text, fontSize: 18, fontWeight: '800', marginBottom: 16 },
-    modalFieldLabel: {
-        color: c.textSecondary, fontSize: 11, fontWeight: '700',
-        letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8,
-    },
-    modalInput: {
-        backgroundColor: c.glass07, borderWidth: 1,
-        borderColor: c.glass12, borderRadius: 12,
-        paddingHorizontal: 14, paddingVertical: 12,
-        color: c.text, fontSize: 15, marginBottom: 16,
-    },
-    modalActions:  { flexDirection: 'row', gap: 10 },
-    cancelBtn: {
-        flex: 1, minHeight: 44, borderRadius: 12,
-        alignItems: 'center', justifyContent: 'center',
-        borderWidth: 1, borderColor: c.border,
-    },
-    cancelBtnText: { color: c.textSecondary, fontWeight: '600' },
-    saveBtn: {
-        flex: 1, minHeight: 44, borderRadius: 12,
-        alignItems: 'center', justifyContent: 'center',
-        backgroundColor: c.accent,
-    },
-    saveBtnText: { color: c.white, fontWeight: '700' },
 
     // Downloads sheet
     dlSheet: {

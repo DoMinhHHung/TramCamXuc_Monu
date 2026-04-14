@@ -1,9 +1,3 @@
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * GlassCard – Reusable glassmorphic card component
- * Provides frosted glass appearance with backdrop blur and depth
- * ─────────────────────────────────────────────────────────────────────────────
- */
 
 import React from 'react';
 import {
@@ -62,15 +56,19 @@ export const GlassCard: React.FC<GlassCardProps> = ({
       overflow: 'hidden',
     },
     container: {
-      backgroundColor: currentVariant.backgroundColor,
       borderColor: currentVariant.borderColor,
       borderWidth: 0.5,
       borderRadius: themeUtils.borderRadius.lg,
       padding: themeUtils.spacing.md,
       ...themeUtils.shadowPresets.md,
     },
+    linearGradient: {
+      ...StyleSheet.absoluteFillObject,
+      borderRadius: themeUtils.borderRadius.lg,
+      opacity: intensityMap[intensity] * 10,
+    },
     glassOverlay: {
-      backgroundColor: `rgba(255, 255, 255, 0.02)`,
+      backgroundColor: `rgba(255, 255, 255, 0.03)`,
       position: 'absolute',
       top: 0,
       left: 0,
@@ -89,6 +87,12 @@ export const GlassCard: React.FC<GlassCardProps> = ({
       {...pressableProps}
     >
       <View style={styles.container}>
+        <LinearGradient
+          colors={[currentVariant.backgroundColor, 'rgba(0,0,0,0)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.linearGradient}
+        />
         <View style={styles.glassOverlay} />
         {children}
       </View>

@@ -55,9 +55,14 @@ export const SongCard = ({
               ? <Image source={{ uri: song.thumbnailUrl }} style={styles.songThumbnail} />
               : (
                 <View style={styles.thumbPlaceholder}>
-                  <AppIcon name="musicNote" size={22} color={colors.textSecondary} />
+                  <AppIcon name="musicNote" size={24} color={colors.textSecondary} />
                 </View>
               )}
+            {isActive && (
+              <View style={styles.playingOverlay}>
+                <AppIcon name={isPlaying ? "pause" : "play"} size={22} color="#FFF" />
+              </View>
+            )}
           </View>
 
           <View style={styles.listInfo}>
@@ -92,19 +97,20 @@ export const SongCard = ({
 };
 
 const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
-  listCard:            { marginBottom: 10, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
+  listCard:            { marginBottom: 12, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
   listCardActive:      { borderColor: colors.accentBorder35 },
-  listCardGradient:    { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
+  listCardGradient:    { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 14 },
   mainArea:            { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  listIconWrap:        { width: 50, height: 50, borderRadius: 14, backgroundColor: colors.accentBorder25, alignItems: 'center', justifyContent: 'center', marginRight: 14, overflow: 'hidden' },
-  listIconWrapActive:  { borderWidth: 1.5, borderColor: colors.accent },
-  thumbPlaceholder:    { width: 50, height: 50, alignItems: 'center', justifyContent: 'center' },
-  songThumbnail:       { width: 50, height: 50, borderRadius: 14 },
+  listIconWrap:        { width: 56, height: 56, borderRadius: 12, backgroundColor: colors.surfaceMid, alignItems: 'center', justifyContent: 'center', marginRight: 14, overflow: 'hidden' },
+  listIconWrapActive:  { borderWidth: 2, borderColor: colors.accent },
+  thumbPlaceholder:    { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  songThumbnail:       { width: 56, height: 56, borderRadius: 12 },
+  playingOverlay:      { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
   listInfo:            { flex: 1 },
-  listTitle:           { color: colors.text, fontWeight: '700', fontSize: 15, letterSpacing: -0.2 },
+  listTitle:           { color: colors.text, fontWeight: '800', fontSize: 16, letterSpacing: -0.2 },
   listTitleActive:     { color: colors.accent },
-  listSubtitle:        { color: colors.textSecondary, fontSize: 12, marginTop: 3 },
+  listSubtitle:        { color: colors.textSecondary, fontSize: 13, marginTop: 4, fontWeight: '500' },
   rightMeta:           { alignItems: 'flex-end', gap: 6 },
   listDuration:        { color: colors.textSecondary, fontSize: 12 },
-  moreBtn:             { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.glass08, borderWidth: 1, borderColor: colors.glass12 },
+  moreBtn:             { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLow, borderWidth: 1, borderColor: colors.divider },
 });

@@ -20,11 +20,17 @@ export const COLORS = {
   surfaceMid: '#2A2A3A',
   /** Surface tối nhất (inactive) */
   surfaceDim: '#333333',
+  /** Surface variant cho design mới */
+  surfaceVariant: '#2D1B69',
 
   // ── Gradient stops ─────────────────────────────────────────────────────────
   /** WelcomeScreen hero top */
-  gradViolet: '#1a0533',
+  backgroundStart: '#1a0533',
   /** HomeScreen / ProfileScreen hero */
+  backgroundEnd: '#2D1B69',
+  /** WelcomeScreen hero top (v2) */
+  gradViolet: '#1a0533',
+  /** HomeScreen / ProfileScreen hero (v2) */
   gradPurple: '#2D1B69',
   /** Auth screens (Login, ForgotPassword, VerifyOtp, ResetPassword) */
   gradIndigo: '#1a0f3d',
@@ -32,6 +38,10 @@ export const COLORS = {
   gradNavy:   '#0f1a3d',
   /** Library, Search, EditFavorites header */
   gradSlate:  '#16102E',
+
+  // ── Streak Banner ──────────────────────────────────────────────────────────
+  streakFrom: '#1a1040',
+  streakTo: '#2D1B69',
 
   // ── Accent ─────────────────────────────────────────────────────────────────
   /** Primary accent – lavender (buttons, links, active state) */

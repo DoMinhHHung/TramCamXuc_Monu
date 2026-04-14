@@ -11,6 +11,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
 import { useTranslation } from '../../context/LocalizationContext';
+import { moderateScale, scale, verticalScale } from '../../utils/responsive';
 
 const OTP_LENGTH = 6;
 const RESEND_SECS = 60;
@@ -69,17 +70,17 @@ export default function VerifyOtpScreen() {
 
     const handleVerify = async () => {
         if (!isComplete) {
-            Alert.alert(t('common.error'), t('screens.authVerifyOtp.missingOtp'));
+            Alert.alert(t('common.error'), t('screens.authVerifyOtp.missingOtp', 'Vui lòng nhập đủ mã OTP.'));
             return;
         }
         setLoading(true);
         try {
             await verifyOtp({ email, otp: code });
-            Alert.alert(t('common.success'), t('screens.authVerifyOtp.verifiedSuccess'), [
+            Alert.alert(t('common.success'), t('screens.authVerifyOtp.verifiedSuccess', 'Xác thực thành công'), [
                 { text: t('auth.login'), onPress: () => navigation.navigate('Login') },
             ]);
         } catch (e: any) {
-            Alert.alert(t('screens.authVerifyOtp.verifyFailed'), e?.message || t('screens.authVerifyOtp.invalidOtp'));
+            Alert.alert(t('screens.authVerifyOtp.verifyFailed', 'Xác thực thất bại'), e?.message || t('screens.authVerifyOtp.invalidOtp', 'Mã OTP không hợp lệ.'));
         } finally {
             setLoading(false);
         }
@@ -91,9 +92,9 @@ export default function VerifyOtpScreen() {
         try {
             await resendOtp(email);
             setCountdown(RESEND_SECS);
-            Alert.alert(t('screens.authVerifyOtp.resentTitle'), `${t('screens.authVerifyOtp.resentToPrefix')} ${email}`);
+            Alert.alert(t('screens.authVerifyOtp.resentTitle', 'Đã gửi lại'), `${t('screens.authVerifyOtp.resentToPrefix', 'Mã mới đã gửi đến')} ${email}`);
         } catch (e: any) {
-            Alert.alert(t('common.error'), e?.message || t('screens.authVerifyOtp.resendFailed'));
+            Alert.alert(t('common.error'), e?.message || t('screens.authVerifyOtp.resendFailed', 'Gửi lại mã thất bại.'));
         } finally {
             setResending(false);
         }
@@ -107,83 +108,81 @@ export default function VerifyOtpScreen() {
             >
                 <StatusBar style="light" />
 
-                <LinearGradient
-                    colors={[themeColors.gradIndigo, themeColors.bg]}
-                    style={[styles.gradientTop, { paddingTop: insets.top + 12 }]}
-                >
+                {/* Background Decor */}
+                <View style={styles.bgMeshWrapper}>
+                    <View style={[styles.gradTopHero, { backgroundColor: themeColors.gradIndigo + '15' }]} />
+                </View>
 
-                    <View style={{ width: '100%', alignItems: 'flex-start', marginBottom: 0 }}>
-                        <BackButton onPress={() => navigation.goBack()} />
+                <View style={[styles.headerBox, { paddingTop: insets.top + verticalScale(12) }]}>
+                    <BackButton onPress={() => navigation.goBack()} />
+                </View>
+
+                <View style={[styles.contentWrap, { paddingBottom: insets.bottom + verticalScale(32) }]}>
+                    <View style={styles.heroWrap}>
+                        <Text style={styles.title}>{t('auth.verifyOtp', 'Xác thực\nOTP')}</Text>
+                        <Text style={styles.subtitle}>
+                            {t('screens.authVerifyOtp.sentTo', 'Vui lòng nhập mã bảo mật 6 số vừa được gửi đến:\n')}
+                        </Text>
+                        <Text style={styles.emailHighlight}>{email}</Text>
                     </View>
 
-                    <View style={{ width: '100%', alignItems: 'center', marginTop: 24, marginBottom: 20 }}>
-                        <View style={styles.iconWrap}>
-                            <Text style={{ fontSize: 40 }}>🔑</Text>
+                    <View style={styles.formBox}>
+                        <View style={styles.otpRow}>
+                            {otp.map((digit, index) => (
+                                <TextInput
+                                    key={index}
+                                    ref={(ref) => { inputs.current[index] = ref; }}
+                                    style={[
+                                        styles.cell,
+                                        digit && styles.cellFilled,
+                                    ]}
+                                    value={digit}
+                                    onChangeText={text => handleCellChange(text, index)}
+                                    onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
+                                    keyboardType="number-pad"
+                                    maxLength={1}
+                                    autoFocus={index === 0}
+                                    textAlign="center"
+                                    selectionColor={themeColors.accent}
+                                />
+                            ))}
                         </View>
-                    </View>
 
-                    <Text style={styles.title}>{t('auth.verifyOtp')}</Text>
-                    <Text style={styles.subtitle}>
-                        {t('screens.authVerifyOtp.sentTo')} <Text style={{ color: themeColors.accent }}>{email}</Text>
-                    </Text>
-                </LinearGradient>
-
-                <View style={[styles.content, { paddingBottom: insets.bottom + 32 }]}> 
-                    <View style={styles.otpRow}>
-                        {otp.map((digit, index) => (
-                            <TextInput
-                                key={index}
-                                ref={(ref) => { inputs.current[index] = ref; }}
-                                style={[
-                                    styles.cell,
-                                    digit && styles.cellFilled,
-                                    // Có thể thêm active nếu cần focus style
-                                ]}
-                                value={digit}
-                                onChangeText={text => handleCellChange(text, index)}
-                                onKeyPress={({ nativeEvent }) => handleKeyPress(nativeEvent.key, index)}
-                                keyboardType="number-pad"
-                                maxLength={1}
-                                autoFocus={index === 0}
-                                textAlign="center"
-                            />
-                        ))}
-                    </View>
-
-                    <Pressable
-                        style={({ pressed }) => [
-                            styles.btn,
-                            (!isComplete || loading || pressed) && { opacity: 0.6 },
-                        ]}
-                        onPress={handleVerify}
-                        disabled={!isComplete || loading}
-                    >
-                        <LinearGradient
-                            colors={[themeColors.accent, themeColors.accentAlt]}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.btnGradient}
+                        <Pressable
+                            style={({ pressed }) => [
+                                styles.btn,
+                                (!isComplete || loading || pressed) && { opacity: 0.6 },
+                            ]}
+                            onPress={handleVerify}
+                            disabled={!isComplete || loading}
                         >
-                            <Text style={styles.btnText}>
-                                {loading ? t('screens.authVerifyOtp.verifying') : t('screens.authVerifyOtp.verify')}
-                            </Text>
-                        </LinearGradient>
-                    </Pressable>
-
-                    <View style={styles.resendRow}>
-                        <Text style={styles.resendPrefix}>{t('screens.authVerifyOtp.notReceived')} </Text>
-                        <Pressable onPress={handleResend} disabled={countdown > 0 || resending}>
-                            <Text style={[
-                                styles.resendBtn,
-                                (countdown > 0 || resending) && styles.resendDisabled
-                            ]}>
-                                {countdown > 0
-                                    ? `${t('screens.authVerifyOtp.resendAfterPrefix')} ${countdown}s`
-                                    : resending
-                                        ? t('screens.authVerifyOtp.resending')
-                                        : t('screens.authVerifyOtp.resend')}
-                            </Text>
+                            <LinearGradient
+                                colors={[themeColors.accent, themeColors.accentAlt]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.btnGradient}
+                            >
+                                <Text style={styles.btnText}>
+                                    {loading ? t('screens.authVerifyOtp.verifying', 'Đang xác thực...') : t('screens.authVerifyOtp.verify', 'Xác nhận')}
+                                </Text>
+                            </LinearGradient>
                         </Pressable>
+
+                        <View style={styles.resendRow}>
+                            <Text style={styles.resendPrefix}>{t('screens.authVerifyOtp.notReceived', 'Chưa nhận được mã?')} </Text>
+                            <Pressable onPress={handleResend} disabled={countdown > 0 || resending}>
+                                <Text style={[
+                                    styles.resendBtn,
+                                    (countdown > 0 || resending) && styles.resendDisabled
+                                ]}>
+                                    {countdown > 0
+                                        ? `${t('screens.authVerifyOtp.resendAfterPrefix', 'Gửi lại sau')} ${countdown}s`
+                                        : resending
+                                            ? t('screens.authVerifyOtp.resending', 'Đang gửi...')
+                                            : t('screens.authVerifyOtp.resend', 'Gửi lại')}
+                                </Text>
+                            </Pressable>
+                        </View>
                     </View>
                 </View>
             </KeyboardAvoidingView>
@@ -193,41 +192,41 @@ export default function VerifyOtpScreen() {
 
 const createStyles = (colors: ColorScheme) => StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    gradientTop: { paddingHorizontal: 24, paddingBottom: 36 },
-    iconWrap: {
-        width: 88,
-        height: 88,
-        borderRadius: 44,
-        backgroundColor: colors.glass07,
-        borderWidth: 1.5,
-        borderColor: colors.accentBorder40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 24,
-        marginBottom: 20,
+    bgMeshWrapper: { ...StyleSheet.absoluteFillObject, opacity: 0.7, zIndex: 0 },
+    gradTopHero: { position: 'absolute', top: -scale(100), left: -scale(100), width: scale(400), height: scale(400), borderRadius: scale(200) },
+    headerBox: { paddingHorizontal: scale(20), zIndex: 10 },
+    contentWrap: { flex: 1, paddingHorizontal: scale(24), justifyContent: 'space-between', zIndex: 10 },
+    heroWrap: { marginTop: verticalScale(40) },
+    title: {
+        color: colors.white,
+        fontSize: moderateScale(42),
+        fontWeight: '900',
+        letterSpacing: -1,
+        lineHeight: moderateScale(50),
+        marginBottom: verticalScale(12),
     },
-    title: { color: colors.white, fontSize: 28, fontWeight: '800', marginBottom: 10, textAlign: 'center' },
-    subtitle: { color: colors.glass50, fontSize: 15, textAlign: 'center' },
-    content: { paddingHorizontal: 24, paddingTop: 24, alignItems: 'center' },
-    otpRow: { flexDirection: 'row', justifyContent: 'space-between', width: '80%', marginBottom: 32 },
+    subtitle: { color: colors.glass65, fontSize: moderateScale(16), fontWeight: '500', maxWidth: scale(300), lineHeight: moderateScale(24) },
+    emailHighlight: { color: colors.accent, fontSize: moderateScale(16), fontWeight: '700', marginTop: verticalScale(4) },
+    formBox: { width: '100%', paddingBottom: verticalScale(20), alignItems: 'center' },
+    otpRow: { flexDirection: 'row', justifyContent: 'center', gap: scale(8), width: '100%', marginBottom: verticalScale(32) },
     cell: {
-        width: 50,
-        height: 60,
-        borderRadius: 14,
-        borderWidth: 1.5,
-        borderColor: colors.glass12,
-        backgroundColor: colors.glass05,
-        fontSize: 24,
+        width: scale(48),
+        height: verticalScale(56),
+        borderRadius: scale(14),
+        borderBottomWidth: 2,
+        borderColor: colors.glass15,
+        backgroundColor: colors.glass04,
+        fontSize: moderateScale(24),
         fontWeight: '800',
         color: colors.white,
         textAlign: 'center',
     },
-    cellFilled: { borderColor: colors.accent, backgroundColor: colors.accentFill20 },
-    btn: { borderRadius: 999, overflow: 'hidden', width: '80%', marginBottom: 24 },
-    btnGradient: { minHeight: 56, alignItems: 'center', justifyContent: 'center' },
-    btnText: { color: colors.white, fontWeight: '800', fontSize: 16 },
-    resendRow: { flexDirection: 'row', alignItems: 'center' },
-    resendPrefix: { color: colors.glass40, fontSize: 14 },
-    resendBtn: { color: colors.accent, fontSize: 14, fontWeight: '700' },
+    cellFilled: { borderColor: colors.accent, backgroundColor: colors.accent + '15' },
+    btn: { borderRadius: 999, overflow: 'hidden', width: '100%', marginBottom: verticalScale(24), shadowColor: colors.accent, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20 },
+    btnGradient: { minHeight: verticalScale(56), alignItems: 'center', justifyContent: 'center' },
+    btnText: { color: colors.white, fontWeight: '800', fontSize: moderateScale(16) },
+    resendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+    resendPrefix: { color: colors.glass40, fontSize: moderateScale(14) },
+    resendBtn: { color: colors.accent, fontSize: moderateScale(14), fontWeight: '700' },
     resendDisabled: { color: colors.glass30 },
 });

@@ -1,11 +1,3 @@
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * Monu – Theme Context
- * Manages theme selection and provides useTheme hook for all components.
- * Supports device appearance detection and persistent user preferences.
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -65,7 +57,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // Use device appearance
           const initialTheme = getInitialTheme(systemDarkMode);
           setThemeState(initialTheme);
-        } else if (savedTheme && (savedTheme === 'dark' || savedTheme === 'classic' || savedTheme === 'sunset' || savedTheme === 'ocean' || savedTheme === 'neonGen')) {
+        } else if (savedTheme && (savedTheme === 'dark' || savedTheme === 'classic' || savedTheme === 'sunset' || savedTheme === 'ocean' || savedTheme === 'neonGen' || savedTheme === 'neonCurator')) {
           setThemeState(savedTheme as any);
         } else {
           // Default
