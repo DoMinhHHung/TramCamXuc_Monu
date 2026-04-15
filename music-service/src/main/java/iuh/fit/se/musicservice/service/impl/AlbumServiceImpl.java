@@ -237,8 +237,7 @@ public class AlbumServiceImpl implements AlbumService {
 
     @Override
     @Transactional(readOnly = true)
-    @Cacheable(value = "albumDetail", key = "#albumId")
-    public AlbumResponse getAlbumDetail(UUID albumId) {
+    public AlbumResponse getMyAlbumDetail(UUID albumId) {
         Artist artist = requireCurrentArtist();
         Album album = requireOwnAlbum(albumId, artist.getId());
         return withSongs(album);
@@ -493,6 +492,7 @@ public class AlbumServiceImpl implements AlbumService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "albumDetail", key = "#albumId")
     public AlbumResponse getPublicAlbumDetail(UUID albumId) {
         Album album = albumRepository.findByIdAndStatus(albumId, AlbumStatus.PUBLIC)
                 .orElseThrow(() -> new AppException(ErrorCode.ALBUM_NOT_FOUND));

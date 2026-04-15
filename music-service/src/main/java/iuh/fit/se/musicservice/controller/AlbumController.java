@@ -95,7 +95,7 @@ public class AlbumController {
     @PreAuthorize("hasRole('ARTIST')")
     public ApiResponse<AlbumResponse> getMyAlbumDetail(@PathVariable UUID albumId) {
         return ApiResponse.<AlbumResponse>builder()
-                .result(albumService.getAlbumDetail(albumId))
+                .result(albumService.getMyAlbumDetail(albumId))
                 .build();
     }
 

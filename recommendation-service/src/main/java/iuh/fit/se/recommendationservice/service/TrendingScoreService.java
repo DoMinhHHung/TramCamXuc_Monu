@@ -1,16 +1,16 @@
 package iuh.fit.se.recommendationservice.service;
 
 import iuh.fit.se.recommendationservice.config.RedisConfig;
-import iuh.fit.se.recommendationservice.dto.RecommendedSongDto;
 import iuh.fit.se.recommendationservice.dto.SongListenEventDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -138,23 +138,30 @@ public class TrendingScoreService {
         if (entries == null || entries.isEmpty()) return;
 
         double factor = props.getTrending().getDecayFactor();
-        int updated = 0;
+        byte[] rawKey = serializeKey(zsetKey);
+        int[] updated = {0};
 
-        for (ZSetOperations.TypedTuple<Object> entry : entries) {
-            if (entry.getValue() == null || entry.getScore() == null) continue;
+        redisTemplate.executePipelined((RedisCallback<Object>) connection -> {
+            for (ZSetOperations.TypedTuple<Object> entry : entries) {
+                if (entry.getValue() == null || entry.getScore() == null) continue;
 
-            double newScore = entry.getScore() * factor;
+                byte[] rawMember = serializeMember(entry.getValue());
+                if (rawMember == null) continue;
 
-            if (newScore < 0.01) {
-                // Score quá nhỏ → remove để giữ ZSET sạch
-                redisTemplate.opsForZSet().remove(zsetKey, entry.getValue());
-            } else {
-                redisTemplate.opsForZSet().add(zsetKey, entry.getValue(), newScore);
+                double newScore = entry.getScore() * factor;
+
+                if (newScore < 0.01) {
+                    // Score quá nhỏ → remove để giữ ZSET sạch
+                    connection.zSetCommands().zRem(rawKey, rawMember);
+                } else {
+                    connection.zSetCommands().zAdd(rawKey, newScore, rawMember);
+                }
+                updated[0]++;
             }
-            updated++;
-        }
+            return null;
+        });
 
-        log.debug("[Trending] Decayed {} entries in {} (factor={})", updated, zsetKey, factor);
+        log.debug("[Trending] Decayed {} entries in {} (factor={})", updated[0], zsetKey, factor);
     }
 
     /**
@@ -222,5 +229,15 @@ public class TrendingScoreService {
             // Xóa từ vị trí 0 đến (currentSize - maxSize - 1) — tức là bottom entries
             redisTemplate.opsForZSet().removeRange(key, 0, currentSize - maxSize - 1);
         }
+    }
+
+    private byte[] serializeKey(String key) {
+        return redisTemplate.getStringSerializer().serialize(key);
+    }
+
+    @SuppressWarnings("unchecked")
+    private byte[] serializeMember(Object member) {
+        RedisSerializer<Object> serializer = (RedisSerializer<Object>) redisTemplate.getValueSerializer();
+        return serializer != null ? serializer.serialize(member) : null;
     }
 }

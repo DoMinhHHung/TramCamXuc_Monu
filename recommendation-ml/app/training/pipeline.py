@@ -23,7 +23,7 @@ from app.data.dataset import (
 from app.training.cf_trainer import CFTrainer
 from app.training.cb_trainer import CBTrainer
 from app.core.settings import get_settings
-from app.core.clients import get_sync_redis
+from app.core.clients import get_sync_redis, RedisKeys
 from app.core.logging import get_logger
 
 log = get_logger(__name__)
@@ -166,14 +166,15 @@ async def _get_active_user_ids(puller: DataPuller) -> list[str]:
     if active_users:
         return list(active_users)[:5000]  # cap để tránh quá lớn
 
-    # 2. Fallback: users từ model cũ
-    existing_keys = list(redis.scan_iter("ml:cf:user:*", count=10000))
-    if existing_keys:
-        return [k.replace("ml:cf:user:", "") for k in existing_keys]
+    # 2. Serving/training path không scan keyspace: chỉ kiểm tra index set đã maintain.
+    indexed_items = redis.smembers(RedisKeys.CF_ITEM_INDEX)
+    if indexed_items:
+        log.warning("active_users_set_missing_but_cf_item_index_exists",
+                    item_count=len(indexed_items))
+        return []
 
-    # 3. NEW: Gọi social-service để lấy user list có lịch sử nghe
-    # social-service cần expose endpoint này
-    log.warning("no_user_source_found - consider adding /internal/users/active endpoint")
+    # 3. Không còn SCAN fallback để tránh chậm ở serving/training path.
+    log.warning("no_active_user_source_found")
     return []
 
 
