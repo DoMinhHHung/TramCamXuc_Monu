@@ -69,7 +69,8 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
     try {
       setLoading(true);
       const merged = new Map<string, Artist>();
-      let page = 0;
+      // Backend `/artists` currently uses 1-based `page` (page=1 is first page).
+      let page = 1;
       let last = false;
 
       while (!last && page < MAX_CATALOG_PAGES) {

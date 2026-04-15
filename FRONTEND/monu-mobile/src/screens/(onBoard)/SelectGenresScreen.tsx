@@ -78,20 +78,6 @@ export const SelectGenresScreen = () => {
     navigation.navigate('SelectArtists', { selectedGenreIds: selectedGenres });
   };
 
-  const handleSkip = () => {
-    Alert.alert(t('controls.skip'), t('screens.onboarding.skipGenresMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('controls.skip'),
-        style: 'destructive',
-        onPress: async () => {
-          await refreshProfile();
-          navigation.navigate('SelectArtists', { selectedGenreIds: [] });
-        },
-      },
-    ]);
-  };
-
   const canContinue = selectedGenres.length >= MIN_GENRES;
 
   if (loading) {
@@ -157,9 +143,6 @@ export const SelectGenresScreen = () => {
               </LinearGradient>
             </Pressable>
 
-            <Pressable style={styles.skipBtn} onPress={handleSkip}>
-              <Text style={styles.skipText}>{t('screens.onboarding.skipStep')}</Text>
-            </Pressable>
           </View>
         </ScrollView>
       </View>
