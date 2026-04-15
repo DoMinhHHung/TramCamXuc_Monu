@@ -20,6 +20,8 @@ import { SongActionSheet } from './SongActionSheet';
 import { AppIcon } from '../config/appIcons';
 import { HeartButton } from './HeartButton';
 import { ReportReasonSheet } from './ReportReasonSheet';
+import { Waveform } from './Waveform';
+import { useWaveformData } from '../services/waveform';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -29,8 +31,6 @@ const formatTime = (seconds: number): string => {
     const s = Math.floor(seconds % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
 };
-
-const THUMB_RADIUS = 10;
 
 const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
     { value: 64,  label: '64k'  },
@@ -207,7 +207,6 @@ export const FullPlayerModal = () => {
     const [reportSheetOpen, setReportSheetOpen] = useState(false);
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
     const [shareQr, setShareQr] = useState<string | null>(null);
-    const [isSeeking, setIsSeeking] = useState(false);
 
     // Lyrics state
     const [activePage, setActivePage] = useState(0);
@@ -228,6 +227,9 @@ export const FullPlayerModal = () => {
 
     const hasLyrics = !!currentSong?.lyricUrl;
     const currentTimeMs = currentTime * 1000;
+
+    // Waveform data
+    const { data: waveformData, loading: waveformLoading } = useWaveformData(currentSong?.id, isFullScreen);
 
     const NETWORK_LABEL: Record<string, string> = {
         high: '📶 Mạng tốt', medium: '📶 Mạng trung bình', low: '📶 Mạng yếu', offline: '📴 Ngoại tuyến',
@@ -263,29 +265,6 @@ export const FullPlayerModal = () => {
         }
     }, [isFullScreen, currentSong?.id]);
 
-    // ── Seek bar ──────────────────────────────────────────────────────────────
-    const barWidthRef = useRef(1);
-    const durationRef = useRef(0);
-    useEffect(() => { durationRef.current = duration; }, [duration]);
-
-    const seekPan = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: () => true,
-            onPanResponderGrant: evt => {
-                setIsSeeking(true);
-                const ratio = Math.max(0, Math.min(1, evt.nativeEvent.locationX / barWidthRef.current));
-                seekTo(ratio * durationRef.current);
-            },
-            onPanResponderMove: evt => {
-                const ratio = Math.max(0, Math.min(1, evt.nativeEvent.locationX / barWidthRef.current));
-                seekTo(ratio * durationRef.current);
-            },
-            onPanResponderRelease: () => setIsSeeking(false),
-            onPanResponderTerminate: () => setIsSeeking(false),
-        }),
-    ).current;
-
     // ── Swipe down → dismiss (vertical only) ─────────────────────────────────
     const translateY = useRef(new Animated.Value(0)).current;
 
@@ -311,8 +290,7 @@ export const FullPlayerModal = () => {
         }),
     ).current;
 
-    const progress  = duration > 0 ? currentTime / duration : 0;
-    const thumbLeft = Math.max(0, progress * barWidthRef.current - THUMB_RADIUS);
+    const progress = duration > 0 ? currentTime / duration : 0;
 
     const looksLikeSoundCloud = !!currentSong?.soundcloudId || !!currentSong?.soundcloudPermalink;
     const isSoundCloudTrack = currentSong?.sourceType === 'SOUNDCLOUD' || looksLikeSoundCloud;
@@ -455,25 +433,20 @@ export const FullPlayerModal = () => {
                                 )}
                             </View>
 
-                            {/* Seek bar */}
+                            {/* Seek bar with waveform */}
                             <View style={styles.progressSection}>
-                                <View
-                                    style={styles.seekTouchArea}
-                                    onLayout={e => { barWidthRef.current = e.nativeEvent.layout.width; }}
-                                    {...seekPan.panHandlers}
-                                >
-                                    <View style={[styles.seekTrack, isSeeking && styles.seekTrackActive]}>
-                                        <View style={[styles.seekFill, { width: `${progress * 100}%` as any }]} />
-                                    </View>
-                                    <View
-                                        style={[
-                                            styles.seekThumb,
-                                            { left: thumbLeft },
-                                            isSeeking && styles.seekThumbActive,
-                                        ]}
-                                        pointerEvents="none"
-                                    />
-                                </View>
+                                <Waveform
+                                    waveformImageUrl={
+                                        currentSong.waveformUrl || currentSong.soundcloudWaveformUrl
+                                    }
+                                    amplitudes={waveformData?.amplitudes}
+                                    progress={progress}
+                                    currentTime={currentTime}
+                                    duration={duration}
+                                    onSeek={seekTo}
+                                    loading={waveformLoading}
+                                    variant="compact"
+                                />
                                 <View style={styles.timeRow}>
                                     <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
                                     <Text style={styles.timeText}>{formatTime(duration)}</Text>
@@ -642,9 +615,21 @@ export const FullPlayerModal = () => {
                                     </Pressable>
                                 </View>
 
-                                {/* Progress bar thin */}
+                                {/* Progress bar with mini waveform */}
                                 <View style={styles.lyricProgress}>
-                                    <View style={[styles.lyricProgressFill, { width: `${progress * 100}%` as any }]} />
+                                    {waveformData?.amplitudes && currentSong.waveformUrl ? (
+                                        <Waveform
+                                            waveformImageUrl={currentSong.waveformUrl || currentSong.soundcloudWaveformUrl}
+                                            amplitudes={waveformData.amplitudes}
+                                            progress={progress}
+                                            currentTime={currentTime}
+                                            duration={duration}
+                                            onSeek={seekTo}
+                                            variant="full"
+                                        />
+                                    ) : (
+                                        <View style={[styles.lyricProgressFill, { width: `${progress * 100}%` as any }]} />
+                                    )}
                                 </View>
 
                                 {/* Lyrics content */}

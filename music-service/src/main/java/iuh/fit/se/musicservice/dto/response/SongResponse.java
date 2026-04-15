@@ -18,6 +18,7 @@ public class SongResponse {
     private String title;
     private String slug;
     private String thumbnailUrl;
+    private String waveformUrl;
     private Integer durationSeconds;
     private Long playCount;
 

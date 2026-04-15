@@ -145,6 +145,12 @@
             <version>${mapstruct.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.github.axet</groupId>
+            <artifactId>wav</artifactId>
+            <version>0.4</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

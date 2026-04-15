@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,13 +19,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class MinioStorageService {
 
-    // Client dùng INTERNAL URL (localhost:9000)
-    // → dùng cho mọi backend operation: put, get, exists
     private final MinioClient minioClient;
 
-    // Client dùng PUBLIC URL (https://minio.oopsgolden.id.vn)
-    // → CHỈ dùng để sinh presigned URL trả về mobile/client
-    // → Signature được ký với Host đúng → mobile PUT thành công
     private final MinioClient presignedMinioClient;
 
     @Value("${minio.bucket.raw-songs}")
@@ -235,6 +231,42 @@ public class MinioStorageService {
         } catch (Exception e) {
             log.error("copyRawObject failed {} → {}", sourceKey, destKey, e);
             throw new RuntimeException("MinIO copy failed", e);
+        }
+    }
+
+    /**
+     * Read raw object từ MinIO thành byte array.
+     */
+    public byte[] readRawObject(String objectKey) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(rawBucket)
+                            .object(objectKey)
+                            .build())
+                    .transferTo(baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            log.error("Failed to read raw object: {}", objectKey, e);
+            throw new RuntimeException("MinIO read failed: " + objectKey, e);
+        }
+    }
+
+    /**
+     * Check xem object có tồn tại trong raw bucket không.
+     */
+    public boolean objectExists(String objectKey) {
+        try {
+            minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(rawBucket)
+                            .object(objectKey)
+                            .build());
+            return true;
+        } catch (Exception e) {
+            log.debug("Object does not exist: {}", objectKey);
+            return false;
         }
     }
 }

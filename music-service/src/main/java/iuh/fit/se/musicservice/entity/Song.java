@@ -73,6 +73,9 @@ public class Song extends BaseEntity {
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
+    @Column(name = "waveform_url", length = 500)
+    private String waveformUrl;
+
     // ── Status ────────────────────────────────────────────────────────────────
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
