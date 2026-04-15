@@ -187,7 +187,7 @@ public class ArtistServiceImpl implements ArtistService {
     @Override
     @Transactional(readOnly = true)
     public Page<ArtistResponse> searchArtists(String stageName, ArtistStatus status, Pageable pageable) {
-        return artistRepository.searchArtists(stageName, status, pageable)
+        return artistRepository.searchArtists(toKeywordPattern(stageName), status, pageable)
                 .map(artistMapper::toResponse);
     }
 
@@ -209,5 +209,16 @@ public class ArtistServiceImpl implements ArtistService {
                 .stream()
                 .map(artistMapper::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    private String toKeywordPattern(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String normalized = keyword.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        return "%" + normalized + "%";
     }
 }
