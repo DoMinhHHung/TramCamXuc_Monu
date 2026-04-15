@@ -26,10 +26,10 @@ public interface ArtistRepository extends JpaRepository<Artist, UUID> {
 
     @Query("""
             SELECT a FROM Artist a
-            WHERE (:stageName IS NULL OR LOWER(a.stageName) LIKE LOWER(CONCAT('%', :stageName, '%')))
+            WHERE (:keywordPattern IS NULL OR a.stageName ILIKE :keywordPattern)
               AND (:status IS NULL OR a.status = :status)
             """)
-    Page<Artist> searchArtists(@Param("stageName") String stageName,
+    Page<Artist> searchArtists(@Param("keywordPattern") String keywordPattern,
                                @Param("status") ArtistStatus status,
                                Pageable pageable);
 
