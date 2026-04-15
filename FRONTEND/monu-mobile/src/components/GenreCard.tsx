@@ -12,6 +12,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
 import themeUtils from '../config/themeUtils';
 import type { GenreStats } from '../hooks/useHomeStats';
+import { createCachedThemeStyles } from '../utils/cardStyles';
 
 interface GenreCardProps {
   genre: GenreStats;
@@ -21,76 +22,79 @@ interface GenreCardProps {
 
 type McIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
+const getStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
+  container: {
+    marginBottom: 12,
+    ...themeUtils.shadowPresets.md,
+  },
+  card: {
+    borderRadius: themeUtils.borderRadius.lg,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderColor: colors.accentBorder25,
+    borderWidth: 0.5,
+  },
+  gradient: {
+    padding: themeUtils.spacing.md,
+    paddingRight: themeUtils.spacing.lg,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  leftContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: themeUtils.spacing.md,
+  },
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: themeUtils.borderRadius.md,
+    backgroundColor: colors.surfaceMid,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderColor: colors.accentBorder25,
+    borderWidth: 0.5,
+  },
+  genreInfo: {
+    flex: 1,
+  },
+  genreName: {
+    fontSize: themeUtils.fontSize.lg,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  genreSubtitle: {
+    fontSize: themeUtils.fontSize.sm,
+    color: colors.textSecondary,
+  },
+  rightContent: {
+    alignItems: 'center',
+    gap: themeUtils.spacing.sm,
+  },
+  trendingBadge: {
+    paddingHorizontal: themeUtils.spacing.sm,
+    paddingVertical: 4,
+    borderRadius: themeUtils.borderRadius.full,
+    backgroundColor: colors.accentFill20,
+    borderColor: colors.accentBorder25,
+    borderWidth: 0.5,
+  },
+  trendingText: {
+    fontSize: themeUtils.fontSize.xs,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+});
+
+const useCardStyles = createCachedThemeStyles(getStyles);
+
 export const GenreCard: React.FC<GenreCardProps> = ({ genre, onPress, style }) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
-
-  const styles = StyleSheet.create({
-    container: {
-      marginBottom: 12,
-      ...themeUtils.shadowPresets.md,
-    },
-    card: {
-      borderRadius: themeUtils.borderRadius.lg,
-      overflow: 'hidden',
-      backgroundColor: colors.surface,
-      borderColor: colors.accentBorder25,
-      borderWidth: 0.5,
-    },
-    gradient: {
-      padding: themeUtils.spacing.md,
-      paddingRight: themeUtils.spacing.lg,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    leftContent: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: themeUtils.spacing.md,
-    },
-    iconContainer: {
-      width: 56,
-      height: 56,
-      borderRadius: themeUtils.borderRadius.md,
-      backgroundColor: colors.surfaceMid,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderColor: colors.accentBorder25,
-      borderWidth: 0.5,
-    },
-    genreInfo: {
-      flex: 1,
-    },
-    genreName: {
-      fontSize: themeUtils.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 4,
-    },
-    genreSubtitle: {
-      fontSize: themeUtils.fontSize.sm,
-      color: colors.textSecondary,
-    },
-    rightContent: {
-      alignItems: 'center',
-      gap: themeUtils.spacing.sm,
-    },
-    trendingBadge: {
-      paddingHorizontal: themeUtils.spacing.sm,
-      paddingVertical: 4,
-      borderRadius: themeUtils.borderRadius.full,
-      backgroundColor: colors.accentFill20,
-      borderColor: colors.accentBorder25,
-      borderWidth: 0.5,
-    },
-    trendingText: {
-      fontSize: themeUtils.fontSize.xs,
-      fontWeight: '600',
-      color: colors.accent,
-    },
-  });
+  const styles = useCardStyles(colors);
 
   const getTrendingIcon = (rank?: number): McIconName => {
     if (!rank) return 'star-outline' as McIconName;

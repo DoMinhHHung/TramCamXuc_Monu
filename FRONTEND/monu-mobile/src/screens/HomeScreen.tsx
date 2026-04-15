@@ -24,7 +24,7 @@ import { ThemeName, ThemeColors, THEMES } from '../config/themes';
 import { useTheme } from '../context/ThemeContext';
 import { MOOD_EMOJIS, MUSIC_EMOJIS } from '../config/emojis';
 import { useAuth } from '../context/AuthContext';
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayerControls, usePlayerState, usePlayerStatus } from '../context/PlayerContext';
 import { useDownload } from '../context/DownloadContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -100,7 +100,9 @@ const shuffleInSession = <T,>(items: T[]): T[] => {
 export const HomeScreen = () => {
   const navigation = useNavigation<HomeNavigationProp>();
   const { authSession } = useAuth();
-  const { playSong, currentSong, isPlaying } = usePlayer();
+  const { playSong } = usePlayerControls();
+  const { currentSong } = usePlayerState();
+  const { isPlaying } = usePlayerStatus();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const { startDownload, isDownloaded, getJobStatus } = useDownload();

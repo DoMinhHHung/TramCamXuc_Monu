@@ -25,7 +25,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayerControls, usePlayerState, usePlayerStatus } from '../context/PlayerContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Song } from '../services/music';
 import { SongSection } from '../components/SongSection';
@@ -44,7 +44,9 @@ export const GenreDetailScreen = () => {
   const route = useRoute();
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const { playSong, currentSong, isPlaying } = usePlayer();
+  const { playSong } = usePlayerControls();
+  const { currentSong } = usePlayerState();
+  const { isPlaying } = usePlayerStatus();
   const insets = useSafeAreaInsets();
 
   const params = (route.params as unknown as GenreDetailRoute) || {};

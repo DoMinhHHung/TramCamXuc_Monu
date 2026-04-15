@@ -111,7 +111,46 @@ interface PlayerContextValue {
     dismissAd: () => void;
 }
 
-const PlayerContext = createContext<PlayerContextValue | null>(null);
+export interface PlayerStateValue {
+    currentSong: Song | null;
+    queue: Song[];
+    isFullScreen: boolean;
+    setFullScreen: (v: boolean) => void;
+    pendingAd: AdDelivery | null;
+    isPlayingAd: boolean;
+    adNotice: AdNotice | null;
+    dismissAd: () => void;
+}
+
+export interface PlayerStatusValue {
+    isPlaying: boolean;
+    isLoaded: boolean;
+    currentTime: number;
+    duration: number;
+}
+
+export interface PlayerControlValue {
+    playSong: (song: Song, queue?: Song[]) => void;
+    togglePlay: () => void;
+    seekTo: (seconds: number) => void;
+    playNext: () => void;
+    playPrev: () => void;
+    stopPlayer: () => void;
+    selectedQuality: AudioQuality;
+    maxQuality: AudioQuality;
+    setQuality: (q: AudioQuality) => void;
+    autoQuality: boolean;
+    setAutoQuality: (v: boolean) => void;
+    networkTier: NetworkTier;
+    repeatMode: RepeatMode;
+    isShuffled: boolean;
+    cycleRepeatMode: () => void;
+    toggleShuffle: () => void;
+}
+
+const PlayerStateContext = createContext<PlayerStateValue | null>(null);
+const PlayerStatusContext = createContext<PlayerStatusValue | null>(null);
+const PlayerControlContext = createContext<PlayerControlValue | null>(null);
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
@@ -652,15 +691,25 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    const value: PlayerContextValue = {
+    const stateValue = React.useMemo<PlayerStateValue>(() => ({
         currentSong,
         queue,
         isFullScreen,
         setFullScreen,
+        pendingAd,
+        isPlayingAd,
+        adNotice,
+        dismissAd,
+    }), [currentSong, queue, isFullScreen, setFullScreen, pendingAd, isPlayingAd, adNotice, dismissAd]);
+
+    const statusValue = React.useMemo<PlayerStatusValue>(() => ({
         isPlaying: status.playing ?? false,
         isLoaded: status.isLoaded ?? false,
         currentTime: status.currentTime ?? 0,
         duration: status.duration ?? 0,
+    }), [status.playing, status.isLoaded, status.currentTime, status.duration]);
+
+    const controlValue = React.useMemo<PlayerControlValue>(() => ({
         playSong,
         togglePlay,
         seekTo,
@@ -677,21 +726,50 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         isShuffled,
         cycleRepeatMode,
         toggleShuffle,
-        pendingAd,
-        isPlayingAd,
-        adNotice,
-        dismissAd,
-    };
+    }), [
+        playSong,
+        togglePlay,
+        seekTo,
+        playNext,
+        playPrev,
+        stopPlayer,
+        selectedQuality,
+        maxQuality,
+        setQuality,
+        autoQuality,
+        setAutoQuality,
+        networkTier,
+        repeatMode,
+        isShuffled,
+        cycleRepeatMode,
+        toggleShuffle,
+    ]);
 
     return (
-        <PlayerContext.Provider value={value}>
-            {children}
-        </PlayerContext.Provider>
+        <PlayerControlContext.Provider value={controlValue}>
+            <PlayerStatusContext.Provider value={statusValue}>
+                <PlayerStateContext.Provider value={stateValue}>
+                    {children}
+                </PlayerStateContext.Provider>
+            </PlayerStatusContext.Provider>
+        </PlayerControlContext.Provider>
     );
 };
 
 export const usePlayer = (): PlayerContextValue => {
-    const ctx = useContext(PlayerContext);
-    if (!ctx) throw new Error('usePlayer must be inside PlayerProvider');
+    return {
+        ...usePlayerState(),
+        ...usePlayerStatus(),
+        ...usePlayerControls(),
+    };
+};
+
+const useRequiredContext = <T,>(context: React.Context<T | null>, hookName: string): T => {
+    const ctx = useContext(context);
+    if (!ctx) throw new Error(`${hookName} must be inside PlayerProvider`);
     return ctx;
 };
+
+export const usePlayerState = (): PlayerStateValue => useRequiredContext(PlayerStateContext, 'usePlayerState');
+export const usePlayerStatus = (): PlayerStatusValue => useRequiredContext(PlayerStatusContext, 'usePlayerStatus');
+export const usePlayerControls = (): PlayerControlValue => useRequiredContext(PlayerControlContext, 'usePlayerControls');

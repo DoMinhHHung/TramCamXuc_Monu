@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator, Animated, Dimensions, FlatList, Image,
     Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
@@ -8,8 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '../context/LocalizationContext';
 import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 
-import { COLORS } from '../config/colors';
-import { AudioQuality, RepeatMode, usePlayer } from '../context/PlayerContext';
+import { COLORS, type ColorScheme, useThemeColors } from '../config/colors';
+import { AudioQuality, RepeatMode, usePlayerControls, usePlayerState, usePlayerStatus } from '../context/PlayerContext';
 import {
     addSongToPlaylist, createPlaylist, getLyric, getMyPlaylists,
     LyricLine, LyricResponse, Playlist,
@@ -200,6 +200,8 @@ const lyricStyles = StyleSheet.create({
 export const FullPlayerModal = () => {
     const insets = useSafeAreaInsets();
     const { t } = useTranslation();
+    const themeColors = useThemeColors();
+    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
     const [menuOpen, setMenuOpen] = useState(false);
     const [playlistPickerOpen, setPlaylistPickerOpen] = useState(false);
     const [reportSheetOpen, setReportSheetOpen] = useState(false);
@@ -215,14 +217,14 @@ export const FullPlayerModal = () => {
     const lyricFetchedForRef = useRef<string | null>(null);
     const pagerRef = useRef<ScrollView>(null);
 
+    const { currentSong, isFullScreen, setFullScreen } = usePlayerState();
+    const { isPlaying, isLoaded, currentTime, duration } = usePlayerStatus();
     const {
-        currentSong, isFullScreen, setFullScreen,
-        isPlaying, isLoaded, currentTime, duration,
         togglePlay, seekTo, playNext, playPrev, stopPlayer,
         selectedQuality, maxQuality, setQuality,
         autoQuality, setAutoQuality, networkTier,
         repeatMode, isShuffled, cycleRepeatMode, toggleShuffle,
-    } = usePlayer();
+    } = usePlayerControls();
 
     const hasLyrics = !!currentSong?.lyricUrl;
     const currentTimeMs = currentTime * 1000;
@@ -786,32 +788,32 @@ export const FullPlayerModal = () => {
     );
 };
 
-const styles = StyleSheet.create({
-    root:               { flex: 1, backgroundColor: '#0E0E16' },
+const createStyles = (c: ColorScheme) => StyleSheet.create({
+    root:               { flex: 1, backgroundColor: c.bg },
     header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 20 },
     chevronBtn:         { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-    headerTitle:        { color: COLORS.glass50, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-    moreBtn:            { color: COLORS.white, fontSize: 30, lineHeight: 30 },
+    headerTitle:        { color: c.glass50, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
+    moreBtn:            { color: c.white, fontSize: 30, lineHeight: 30 },
 
     pageIndicator:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    pageIndicatorText:  { color: COLORS.glass35, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
-    pageIndicatorActive: { color: COLORS.white },
-    pageDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.glass20 },
+    pageIndicatorText:  { color: c.glass35, fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
+    pageIndicatorActive: { color: c.white },
+    pageDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: c.glass20 },
 
     artworkSection:     { alignItems: 'center', marginTop: 4, marginBottom: 24 },
-    artwork:            { width: 260, height: 260, borderRadius: 16, backgroundColor: COLORS.surface },
-    artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface },
+    artwork:            { width: 260, height: 260, borderRadius: 18, backgroundColor: c.surface },
+    artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
     songInfo:           { marginBottom: 20 },
-    songTitle:          { color: COLORS.white, fontSize: 20, fontWeight: '700', marginBottom: 4 },
+    songTitle:          { color: c.white, fontSize: 22, fontWeight: '800', marginBottom: 4 },
     songMetaRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
-    artistName:         { color: COLORS.glass50, fontSize: 14, fontWeight: '500', flex: 1 },
+    artistName:         { color: c.glass60, fontSize: 14, fontWeight: '600', flex: 1 },
     heartWrap:          {
         width: 36,
         height: 36,
         borderRadius: 18,
-        backgroundColor: COLORS.surface,
+        backgroundColor: c.glass07,
         borderWidth: 1,
-        borderColor: COLORS.accentBorder25,
+        borderColor: c.glass12,
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
@@ -826,71 +828,71 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 999,
-        backgroundColor: COLORS.accentFill20,
+        backgroundColor: c.accentFill20,
         borderWidth: 1,
-        borderColor: COLORS.accentBorder25,
+        borderColor: c.accentBorder25,
     },
-    externalBadgeText:  { color: COLORS.accent, fontSize: 11, fontWeight: '700' },
+    externalBadgeText:  { color: c.accent, fontSize: 11, fontWeight: '800' },
     genreRow:           { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-    genreChip:          { backgroundColor: COLORS.surface, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 3 },
-    genreText:          { color: COLORS.glass50, fontSize: 11, fontWeight: '600' },
+    genreChip:          { backgroundColor: c.glass06, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: c.glass10 },
+    genreText:          { color: c.glass60, fontSize: 11, fontWeight: '700' },
 
     progressSection:    { marginBottom: 20 },
     seekTouchArea:      { height: 56, justifyContent: 'center' },
-    seekTrack:          { height: 3, backgroundColor: COLORS.glass15, borderRadius: 2 },
+    seekTrack:          { height: 3, backgroundColor: c.glass12, borderRadius: 2 },
     seekTrackActive:    { height: 5 },
-    seekFill:           { height: 3, backgroundColor: COLORS.white, borderRadius: 2 },
-    seekThumb:          { position: 'absolute', top: '50%', marginTop: -THUMB_RADIUS, width: THUMB_RADIUS * 2, height: THUMB_RADIUS * 2, borderRadius: THUMB_RADIUS, backgroundColor: COLORS.white, shadowColor: COLORS.white, shadowOpacity: 0, shadowRadius: 6 },
+    seekFill:           { height: 3, backgroundColor: c.white, borderRadius: 2 },
+    seekThumb:          { position: 'absolute', top: '50%', marginTop: -THUMB_RADIUS, width: THUMB_RADIUS * 2, height: THUMB_RADIUS * 2, borderRadius: THUMB_RADIUS, backgroundColor: c.white, shadowColor: c.white, shadowOpacity: 0, shadowRadius: 6 },
     seekThumbActive:    { width: THUMB_RADIUS * 2.8, height: THUMB_RADIUS * 2.8, marginTop: -(THUMB_RADIUS * 1.4), borderRadius: THUMB_RADIUS * 1.4, shadowOpacity: 0.4 },
     timeRow:            { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-    timeText:           { color: COLORS.glass40, fontSize: 11, fontWeight: '500' },
+    timeText:           { color: c.glass45, fontSize: 11, fontWeight: '600' },
 
     controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 8 },
     sideBtn:            { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
     playBtn:            {
         width: 64, height: 64, borderRadius: 32,
-        backgroundColor: COLORS.white,
+        backgroundColor: c.white,
         alignItems: 'center', justifyContent: 'center',
         shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3, shadowRadius: 10, elevation: 8,
     },
 
-    modeDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.accent, marginTop: 2, alignSelf: 'center' },
+    modeDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: c.accent, marginTop: 2, alignSelf: 'center' },
     modeLabels:         { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 14, minHeight: 16 },
-    modeLabelText:      { color: COLORS.glass40, fontSize: 11, fontWeight: '600' },
+    modeLabelText:      { color: c.glass45, fontSize: 11, fontWeight: '700' },
 
     qualitySection:         { marginBottom: 14 },
     qualityHeader:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-    qualityLabel:           { color: COLORS.glass35, fontSize: 11, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' },
-    autoBtn:                { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: COLORS.glass15, backgroundColor: COLORS.surface },
-    autoBtnActive:          { borderColor: COLORS.accent, backgroundColor: COLORS.accentFill20 },
-    autoBtnText:            { color: COLORS.muted, fontSize: 11, fontWeight: '600' },
-    autoBtnTextActive:      { color: COLORS.accent },
+    qualityLabel:           { color: c.glass35, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
+    autoBtn:                { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: c.glass12, backgroundColor: c.glass06 },
+    autoBtnActive:          { borderColor: c.accent, backgroundColor: c.accentFill20 },
+    autoBtnText:            { color: c.glass60, fontSize: 11, fontWeight: '700' },
+    autoBtnTextActive:      { color: c.accent },
     qualityRow:             { flexDirection: 'row', gap: 8, marginBottom: 8 },
-    qualityBtn:             { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: COLORS.glass12, backgroundColor: COLORS.surface },
-    qualityBtnActive:       { borderColor: COLORS.glass40, backgroundColor: COLORS.glass08 },
+    qualityBtn:             { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: c.glass12, backgroundColor: c.glass06 },
+    qualityBtnActive:       { borderColor: c.glass35, backgroundColor: c.glass10 },
     qualityBtnLocked:       { opacity: 0.3 },
-    qualityBtnText:         { color: COLORS.muted, fontSize: 12, fontWeight: '600' },
-    qualityBtnTextActive:   { color: COLORS.white, fontWeight: '700' },
-    qualityBtnTextLocked:   { color: COLORS.glass20 },
-    qualityHint:            { color: COLORS.glass25, fontSize: 11, lineHeight: 16 },
+    qualityBtnText:         { color: c.glass60, fontSize: 12, fontWeight: '700' },
+    qualityBtnTextActive:   { color: c.white, fontWeight: '800' },
+    qualityBtnTextLocked:   { color: c.glass20 },
+    qualityHint:            { color: c.glass35, fontSize: 11, lineHeight: 16 },
 
     lyricHint:          { alignItems: 'center', marginBottom: 8 },
-    lyricHintText:      { color: COLORS.glass25, fontSize: 11, fontWeight: '500' },
+    lyricHintText:      { color: c.glass35, fontSize: 11, fontWeight: '600' },
 
     lyricMiniBar:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12 },
     lyricMiniArt:       { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-    lyricMiniTitle:     { color: COLORS.white, fontSize: 13, fontWeight: '700' },
-    lyricMiniArtist:    { color: COLORS.glass45, fontSize: 11 },
-    lyricProgress:      { height: 2, backgroundColor: COLORS.glass08, marginHorizontal: 20 },
-    lyricProgressFill:  { height: 2, backgroundColor: COLORS.glass50, borderRadius: 1 },
+    lyricMiniTitle:     { color: c.white, fontSize: 13, fontWeight: '800' },
+    lyricMiniArtist:    { color: c.glass45, fontSize: 11, fontWeight: '600' },
+    lyricProgress:      { height: 2, backgroundColor: c.glass08, marginHorizontal: 20 },
+    lyricProgressFill:  { height: 2, backgroundColor: c.glass50, borderRadius: 1 },
 
-    menuBackdrop:       { flex: 1, justifyContent: 'flex-end', backgroundColor: COLORS.scrim },
-    menuSheet:          { backgroundColor: '#18181f', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, gap: 10 },
-    menuTitle:          { color: COLORS.white, fontSize: 16, fontWeight: '700', marginBottom: 6 },
-    menuItem:           { color: COLORS.glass80, fontSize: 14, marginBottom: 8 },
+    menuBackdrop:       { flex: 1, justifyContent: 'flex-end', backgroundColor: c.scrim },
+    menuSheet:          { backgroundColor: c.surfaceLow ?? c.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 20, gap: 10, borderWidth: 1, borderColor: c.glass10 },
+    menuTitle:          { color: c.white, fontSize: 16, fontWeight: '800', marginBottom: 6 },
+    menuItem:           { color: c.glass80, fontSize: 14, marginBottom: 8 },
     stats:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-    statsText:          { color: COLORS.glass25, fontSize: 12 },
+    statsText:          { color: c.glass35, fontSize: 12 },
     scAttribution: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
         marginTop: 8, paddingVertical: 8, paddingHorizontal: 16,

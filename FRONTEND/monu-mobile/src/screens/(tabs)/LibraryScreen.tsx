@@ -16,9 +16,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Fontisto, AntDesign, FontAwesome } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -27,7 +28,7 @@ import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useLayoutConstants } from '../../config/layout';
 import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { useAuth } from '../../context/AuthContext';
-import { usePlayer } from '../../context/PlayerContext';
+import { usePlayerControls, usePlayerState, usePlayerStatus } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import {
   addSongToPlaylist,
@@ -1080,7 +1081,9 @@ const AlbumDetailModal = ({
   const [album, setAlbum] = useState<Album | null>(null);
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const { playSong, currentSong, isPlaying } = usePlayer();
+  const { playSong } = usePlayerControls();
+  const { currentSong } = usePlayerState();
+  const { isPlaying } = usePlayerStatus();
 
   React.useEffect(() => {
     if (!albumId || !visible) return;
@@ -1335,7 +1338,9 @@ export const LibraryScreen = () => {
   const styles = useMemo(() => getMainLibraryStyles(themeColors), [themeColors]);
   const modalStyles = useMemo(() => getModalStyles(themeColors), [themeColors]);
   tr = t;
-  const { playSong, currentSong, isPlaying } = usePlayer();
+  const { playSong } = usePlayerControls();
+  const { currentSong } = usePlayerState();
+  const { isPlaying } = usePlayerStatus();
   const { toast, show: showToast, hide: hideToast } = useToast();
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const dataSignatureRef = useRef<string>('');
@@ -1369,22 +1374,7 @@ export const LibraryScreen = () => {
   const [discoveryShareItem, setDiscoveryShareItem] = useState<{ type: ShareItemType; id: string; title: string } | null>(null);
   const [shareQrData, setShareQrData] = useState<{ link: string; image?: string } | null>(null);
 
-  /** Lần đầu vào tab: có spinner; các lần sau chỉ refresh nền — tránh chặn UI mỗi lần chuyển tab */
-  const libraryFocusPassRef = useRef(0);
-
-  useEffect(() => {
-    libraryFocusPassRef.current = 0;
-  }, [authSession?.tokens.accessToken]);
-
   const userScope = authSession?.profile?.id ?? authSession?.tokens?.accessToken?.slice(-24) ?? 'anonymous';
-
-  // ── Load (stale-while-revalidate) ─────────────────────────────────────────
-  useFocusEffect(useCallback(() => {
-    const mode: 'initial' | 'silent' = libraryFocusPassRef.current > 0 ? 'silent' : 'initial';
-    libraryFocusPassRef.current += 1;
-    void load(mode, { skipIfFresh: false });
-    return undefined;
-  }, [authSession?.tokens.accessToken]));
 
   const load = async (
     mode: 'initial' | 'refresh' | 'silent' = 'initial',
@@ -1507,6 +1497,10 @@ export const LibraryScreen = () => {
       if (mode === 'refresh') setRefreshing(false);
     }
   };
+
+  useEffect(() => {
+    void load('initial');
+  }, [authSession?.tokens.accessToken]);
 
   const isArtist = !!artistProfile?.id;
   const canCreateAlbum = isArtist && canCreateAlbumByPlan;
@@ -1840,34 +1834,38 @@ export const LibraryScreen = () => {
   );
 
   const renderSongs = () => (
-    <>
-      {songs.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>🎵</Text>
-          <Text style={styles.emptyTitle}>{t('screens.library.noSongs', 'No songs yet')}</Text>
-          <Text style={styles.emptySub}>{t('screens.library.noSongsHint', 'Upload songs in the Create tab')}</Text>
-        </View>
-      ) : songs.map(s => {
-        const aiDraftPending =
-          s.sourceType === 'AI' && s.status === 'DRAFT' && s.transcodeStatus === 'PENDING';
-        return (
-          <SongRow
-            key={s.id}
-            song={s}
-            isActive={currentSong?.id === s.id}
-            isPlaying={currentSong?.id === s.id && isPlaying}
-            onPlay={() => playSong(s, songs)}
-            onAddToPlaylist={() => setAddSongTo(s)}
-            onShare={() => openShareOptions('song', s.id, s.title)}
-            onEdit={isArtist ? () => navigation.navigate('EditSong', { songId: s.id }) : undefined}
-            showAiReview={aiDraftPending}
-            onAiPublish={aiDraftPending ? () => void handleAiFinalizeSong(s.id, true) : undefined}
-            onAiKeepPrivate={aiDraftPending ? () => void handleAiFinalizeSong(s.id, false) : undefined}
-            aiFinalizeBusy={aiFinSongId === s.id}
-          />
-        );
-      })}
-    </>
+    songs.length === 0 ? (
+      <View style={styles.empty}>
+        <Text style={styles.emptyEmoji}>🎵</Text>
+        <Text style={styles.emptyTitle}>{t('screens.library.noSongs', 'No songs yet')}</Text>
+        <Text style={styles.emptySub}>{t('screens.library.noSongsHint', 'Upload songs in the Create tab')}</Text>
+      </View>
+    ) : (
+      <FlashList
+        data={songs}
+        keyExtractor={(s) => s.id}
+        drawDistance={500}
+        renderItem={({ item: s }) => {
+          const aiDraftPending =
+            s.sourceType === 'AI' && s.status === 'DRAFT' && s.transcodeStatus === 'PENDING';
+          return (
+            <SongRow
+              song={s}
+              isActive={currentSong?.id === s.id}
+              isPlaying={currentSong?.id === s.id && isPlaying}
+              onPlay={() => playSong(s, songs)}
+              onAddToPlaylist={() => setAddSongTo(s)}
+              onShare={() => openShareOptions('song', s.id, s.title)}
+              onEdit={isArtist ? () => navigation.navigate('EditSong', { songId: s.id }) : undefined}
+              showAiReview={aiDraftPending}
+              onAiPublish={aiDraftPending ? () => void handleAiFinalizeSong(s.id, true) : undefined}
+              onAiKeepPrivate={aiDraftPending ? () => void handleAiFinalizeSong(s.id, false) : undefined}
+              aiFinalizeBusy={aiFinSongId === s.id}
+            />
+          );
+        }}
+      />
+    )
   );
 
   const renderAlbums = () => (
@@ -1939,6 +1937,14 @@ export const LibraryScreen = () => {
     </>
   );
 
+  const renderContent = () => (
+    displayedTab === 'playlists' ? renderPlaylists() :
+      displayedTab === 'songs' ? renderSongs() :
+        renderAlbums()
+  );
+
+  const showSkeleton = loading && songs.length === 0;
+
   // ─────────────────────────────────────────────────────────────────────────
   return (
     <View style={styles.root}>
@@ -1974,14 +1980,17 @@ export const LibraryScreen = () => {
 
         {/* Content */}
         <Animated.View style={[styles.tabContent, { opacity: fadeAnim }]}>
-          {loading ? (
+          {showSkeleton ? (
             <View style={styles.loadingWrap}>
               <SectionSkeleton rows={3} />
             </View>
           ) : (
-            displayedTab === 'playlists' ? renderPlaylists() :
-              displayedTab === 'songs' ? renderSongs() :
-                renderAlbums()
+            <>
+              {loading ? (
+                <ActivityIndicator size="small" color={themeColors.accent} style={styles.refreshIndicator} />
+              ) : null}
+              {renderContent()}
+            </>
           )}
         </Animated.View>
       </ScrollView>
@@ -2133,6 +2142,7 @@ const getMainLibraryStyles = (c: ColorScheme) => StyleSheet.create({
   headerSub: { color: c.glass40, fontSize: 13, marginTop: 4 },
 
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
+  refreshIndicator: { marginBottom: 12 },
   tabContent: { flex: 1 },
 
   empty: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32 },

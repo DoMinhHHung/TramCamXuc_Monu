@@ -36,7 +36,7 @@ import {
 } from '../../services/aiMusic';
 import { getMySubscription } from '../../services/payment';
 import type { Song } from '../../services/music';
-import { usePlayer } from '../../context/PlayerContext';
+import { usePlayerControls, usePlayerState, usePlayerStatus } from '../../context/PlayerContext';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -1315,7 +1315,9 @@ const AiMusicPreviewControls = ({
   accent,
 }: PreviewProps) => {
   const { t } = useTranslation();
-  const { playSong, currentSong, isPlaying, togglePlay } = usePlayer();
+  const { playSong, togglePlay } = usePlayerControls();
+  const { currentSong } = usePlayerState();
+  const { isPlaying } = usePlayerStatus();
 
   const previewSong = useMemo((): Song | null => {
     if (!previewUrl || !previewTrackId) return null;

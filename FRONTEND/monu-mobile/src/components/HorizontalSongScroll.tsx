@@ -1,12 +1,12 @@
 import React, { memo, useMemo, useRef } from 'react';
 import {
-  FlatList,
   Image,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '../config/colors';
 import { HorizontalRecommendationSkeleton } from './SkeletonLoader';
@@ -124,10 +124,11 @@ export const HorizontalSongScroll = ({
   }
 
   return (
-    <FlatList
+    <FlashList
       horizontal
       data={songs}
       keyExtractor={(item) => item.songId}
+      drawDistance={500}
       renderItem={({ item }) => (
         <SongCard
           item={item}

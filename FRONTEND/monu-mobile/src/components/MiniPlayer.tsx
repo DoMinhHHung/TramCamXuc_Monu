@@ -4,7 +4,7 @@ import {
     StyleSheet, Text, View, Image,
 } from 'react-native';
 import { haptic } from '../utils/haptics';
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayerControls, usePlayerState, usePlayerStatus } from '../context/PlayerContext';
 import { useThemeColors, ColorScheme } from '../config/colors';
 import { Fold } from 'react-native-animated-spinkit';
 import { AppIcon } from '../config/appIcons';
@@ -12,16 +12,13 @@ import { RADIUS, SHADOW } from '../config/design';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const MINI_HEIGHT     = 64;
+const MINI_HEIGHT     = 68;
 const SWIPE_THRESHOLD = 60;
 
 export const MiniPlayer = () => {
-    const {
-        currentSong, isPlaying, isLoaded,
-        currentTime, duration,
-        togglePlay, playNext, setFullScreen, stopPlayer,
-        repeatMode, isShuffled,
-    } = usePlayer();
+    const { currentSong, setFullScreen } = usePlayerState();
+    const { isPlaying, isLoaded, currentTime, duration } = usePlayerStatus();
+    const { togglePlay, playNext, stopPlayer, repeatMode, isShuffled } = usePlayerControls();
 
     const insets = useSafeAreaInsets();
     const TAB_BAR_BASE = 58;
@@ -83,7 +80,7 @@ export const MiniPlayer = () => {
 
     if (!currentSong) return null;
 
-    // Progress bar colour reflects repeat / shuffle mode
+    // Progress color reflects repeat mode; shuffle is conveyed via icon.
     const progressColor =
         repeatMode === 'one' ? themeColors.accent :
             repeatMode === 'all' ? themeColors.success :
@@ -100,13 +97,19 @@ export const MiniPlayer = () => {
         >
             {/* Progress bar */}
             <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, {
-                    width: `${progress * 100}%` as any,
-                    backgroundColor: progressColor,
-                }]} />
+                <LinearGradient
+                    colors={[progressColor, themeColors.accentAlt]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[
+                        styles.progressFill,
+                        { width: `${progress * 100}%` as any },
+                    ]}
+                />
             </View>
+            {/* Glass surface */}
             <LinearGradient
-                colors={[themeColors.surfaceMid, themeColors.surface]}
+                colors={[themeColors.glass08, themeColors.surface]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
@@ -182,24 +185,22 @@ export const MiniPlayer = () => {
 
 const getStyles = (colors: ColorScheme) => StyleSheet.create({
     container: {
-        position: 'absolute', left: 8, right: 8,
+        position: 'absolute', left: 10, right: 10,
         height: MINI_HEIGHT,
         backgroundColor: 'transparent',
-        borderRadius: RADIUS.md,
+        borderRadius: RADIUS.lg ?? RADIUS.md,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: colors.borderSubtle || colors.divider,
         ...SHADOW.lg,
     },
-    progressTrack:        { height: 2, backgroundColor: colors.glass08 },
+    progressTrack:        { height: 2, backgroundColor: colors.glass12 },
     progressFill:         { height: 2 },
-    content:              { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 },
-    thumbnail:            { width: 40, height: 40, borderRadius: RADIUS.sm, backgroundColor: colors.surfaceLow },
+    content:              { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 12 },
+    thumbnail:            { width: 44, height: 44, borderRadius: RADIUS.sm, backgroundColor: colors.surfaceLow },
     thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
     info:                 { flex: 1 },
     metaRow:              { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-    title:                { color: colors.text,   fontSize: 13, fontWeight: '600', lineHeight: 17 },
-    artist:               { color: colors.muted,  fontSize: 11, fontWeight: '400' },
+    title:                { color: colors.text,   fontSize: 13, fontWeight: '700', lineHeight: 17 },
+    artist:               { color: colors.glass60 ?? colors.muted,  fontSize: 11, fontWeight: '500' },
     controls:             { flexDirection: 'row', alignItems: 'center', gap: 2 },
     iconBtn:              { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
     stopBtn: {
@@ -207,11 +208,9 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
         height: 32,
         borderRadius: 16,
         backgroundColor: colors.glass08,
-        borderWidth: 1,
-        borderColor: colors.glass12,
         alignItems: 'center',
         justifyContent: 'center',
         marginLeft: 4,
     },
-    swipeHandle:          {position: 'absolute', top: 6, alignSelf: 'center',width: 36, height: 4, borderRadius: 2,backgroundColor: colors.glass35,   },
+    swipeHandle:          {position: 'absolute', top: 7, alignSelf: 'center',width: 42, height: 4, borderRadius: 2,backgroundColor: colors.glass25,   },
 });

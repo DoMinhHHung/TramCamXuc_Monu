@@ -2,14 +2,15 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayerControls, usePlayerState } from '../context/PlayerContext';
 import { Song } from '../services/music';
 import { useThemeColors } from '../config/colors';
 import { getListenHistory } from '../utils/listenHistory';
 
 export const ContinueListeningSection = () => {
   const colors = useThemeColors();
-  const { playSong, currentSong } = usePlayer();
+  const { playSong } = usePlayerControls();
+  const { currentSong } = usePlayerState();
   const [recentSongs, setRecentSongs] = useState<Song[]>([]);
 
   const refresh = useCallback(async () => {

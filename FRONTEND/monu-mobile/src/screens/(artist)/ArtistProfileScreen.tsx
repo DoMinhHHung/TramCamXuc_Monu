@@ -21,7 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
 import { SongCard } from '../../components/SongCard';
-import { usePlayer } from '../../context/PlayerContext';
+import { usePlayerControls, usePlayerState, usePlayerStatus } from '../../context/PlayerContext';
 import { useAuth } from '../../context/AuthContext';
 import { Album, Song, getSongsByArtist } from '../../services/music';
 import { FeedPost, getTimeline, getArtistStats, getMyFollowedArtists } from '../../services/social';
@@ -205,7 +205,9 @@ export const ArtistProfileScreen = () => {
     const route = useRoute<any>();
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
-    const { playSong, currentSong, isPlaying } = usePlayer();
+    const { playSong } = usePlayerControls();
+    const { currentSong } = usePlayerState();
+    const { isPlaying } = usePlayerStatus();
     const { authSession } = useAuth();
 
     const artistId = route.params?.artistId as string;

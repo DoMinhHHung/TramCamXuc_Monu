@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ColorScheme, useThemeColors } from '../config/colors';
 import { BackButton } from '../components/BackButton';
 import { SongCard } from '../components/SongCard';
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayerControls, usePlayerState, usePlayerStatus } from '../context/PlayerContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { Album, getAlbumById, getMyAlbumById, Song } from '../services/music';
 
@@ -16,7 +16,9 @@ export const AlbumDetailScreen = () => {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { playSong, currentSong, isPlaying } = usePlayer();
+  const { playSong } = usePlayerControls();
+  const { currentSong } = usePlayerState();
+  const { isPlaying } = usePlayerStatus();
   const themeColors = useThemeColors();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
