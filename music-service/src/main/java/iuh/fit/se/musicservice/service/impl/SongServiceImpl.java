@@ -22,6 +22,7 @@ import iuh.fit.se.musicservice.repository.GenreRepository;
 import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.SongService;
+import iuh.fit.se.musicservice.service.WaveformService;
 import iuh.fit.se.musicservice.util.RestPage;
 import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;

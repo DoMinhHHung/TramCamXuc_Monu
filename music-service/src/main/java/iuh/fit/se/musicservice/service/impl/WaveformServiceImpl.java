@@ -16,7 +16,10 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -73,7 +76,7 @@ public class WaveformServiceImpl implements WaveformService {
             throw e;
         } catch (Exception e) {
             log.error("Failed to generate waveform for song: {}", songId, e);
-            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 
@@ -119,7 +122,7 @@ public class WaveformServiceImpl implements WaveformService {
 
         } catch (Exception e) {
             log.error("Failed to get complete waveform data for song: {}", songId, e);
-            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 
@@ -130,7 +133,7 @@ public class WaveformServiceImpl implements WaveformService {
             String waveformJsonKey = String.format("waveforms/%s%s", songId, WaveformFormat.JSON.fileSuffix);
 
             if (!storageService.objectExists(waveformJsonKey)) {
-                throw new AppException(ErrorCode.NOT_FOUND);
+                throw new AppException(ErrorCode.SONG_NOT_FOUND);
             }
 
             byte[] jsonData = storageService.readRawObject(waveformJsonKey);
@@ -140,7 +143,7 @@ public class WaveformServiceImpl implements WaveformService {
             throw e;
         } catch (Exception e) {
             log.error("Failed to get waveform data for song: {}", songId, e);
-            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
     }
 
