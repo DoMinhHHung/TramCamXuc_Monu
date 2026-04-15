@@ -19,6 +19,60 @@ public class ListenHistoryAggregationRepository {
 
     private final MongoTemplate mongoTemplate;
 
+    public Map<String, Object> aggregateInsightsFacet(UUID userId, int days, int limit) {
+        Instant since = Instant.now().minus(days, ChronoUnit.DAYS);
+
+        MatchOperation match = Aggregation.match(
+                Criteria.where("userId").is(userId)
+                        .and("listenedAt").gte(since)
+        );
+
+        FacetOperation facet = Aggregation.facet(
+                        Aggregation.group()
+                                .sum("durationSeconds").as("totalSeconds")
+                                .addToSet("songId").as("uniqueSongIds"),
+                        Aggregation.project()
+                                .and("totalSeconds").as("totalSeconds")
+                                .and(ArrayOperators.Size.lengthOfArray("uniqueSongIds")).as("uniqueSongsCount")
+                ).as("summary")
+                .and(
+                        Aggregation.group("songId")
+                                .count().as("playCount")
+                                .sum("durationSeconds").as("totalDurationSeconds"),
+                        Aggregation.sort(Sort.by(Sort.Direction.DESC, "playCount")),
+                        Aggregation.limit(limit)
+                ).as("topSongs")
+                .and(
+                        Aggregation.match(Criteria.where("artistId").ne(null)),
+                        Aggregation.group("artistId")
+                                .sum("durationSeconds").as("totalDurationSeconds")
+                                .count().as("playCount"),
+                        Aggregation.sort(Sort.by(Sort.Direction.DESC, "totalDurationSeconds")),
+                        Aggregation.limit(limit)
+                ).as("topArtists")
+                .and(
+                        Aggregation.project()
+                                .and(DateOperators.dateOf("listenedAt").hour()).as("hour"),
+                        Aggregation.group("hour").count().as("count")
+                ).as("listenByHour")
+                .and(
+                        Aggregation.project()
+                                .and(DateOperators.dateOf("listenedAt").dayOfWeek()).as("dow"),
+                        Aggregation.group("dow").count().as("count")
+                ).as("listenByDayOfWeek");
+
+        Aggregation aggregation = Aggregation.newAggregation(match, facet);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> rows = (List<Map<String, Object>>) (List<?>) mongoTemplate.aggregate(
+                aggregation, ListenHistory.class, Map.class).getMappedResults();
+
+        if (rows.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+                return rows.get(0);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Top songs — top 10 bài nghe nhiều nhất trong N ngày
     // ─────────────────────────────────────────────────────────────────────────

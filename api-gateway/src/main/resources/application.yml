@@ -371,6 +371,19 @@ spring:
                 redis-rate-limiter.burstCapacity: 40
                 redis-rate-limiter.requestedTokens: 1
 
+        - id: ads-swagger
+          uri: lb://ADS-SERVICE
+          predicates:
+            - Path=/service-ads/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 1
+
         - id: payment-service-subscriptions
           uri: lb://PAYMENT-SERVICE
           predicates:
@@ -600,6 +613,8 @@ springdoc:
         url: /service-social/v3/api-docs
       - name: recommendation-service
         url: /service-recommendation/v3/api-docs
+      - name: ads-service
+        url: /service-ads/v3/api-docs
   api-docs:
     enabled: true
 

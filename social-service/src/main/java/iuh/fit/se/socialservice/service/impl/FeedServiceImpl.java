@@ -144,7 +144,9 @@ public class FeedServiceImpl implements FeedService {
                 .likeCount(0).commentCount(0).shareCount(0)
                 .build();
 
-        return toResponse(feedPostRepository.save(post), ownerId);
+        FeedPost savedPost = feedPostRepository.save(post);
+        Set<String> likedPostIds = getLikedPostIdsByViewer(ownerId, List.of(savedPost));
+        return toResponse(savedPost, likedPostIds);
     }
 
     @Override
@@ -160,7 +162,9 @@ public class FeedServiceImpl implements FeedService {
         if (req.getCaption()    != null) post.setCaption(req.getCaption());
         if (req.getVisibility() != null) post.setVisibility(req.getVisibility());
 
-        return toResponse(feedPostRepository.save(post), ownerId);
+        FeedPost savedPost = feedPostRepository.save(post);
+        Set<String> likedPostIds = getLikedPostIdsByViewer(ownerId, List.of(savedPost));
+        return toResponse(savedPost, likedPostIds);
     }
 
     @Override
@@ -256,19 +260,4 @@ public class FeedServiceImpl implements FeedService {
                 .build();
     }
 
-    private FeedPostResponse toResponse(FeedPost p, UUID viewerId) {
-        boolean liked = viewerId != null &&
-                feedPostLikeRepository.existsByUserIdAndPostId(viewerId, p.getId());
-        return FeedPostResponse.builder()
-                .id(p.getId()).ownerId(p.getOwnerId()).ownerType(p.getOwnerType())
-                .ownerDisplayName(p.getOwnerDisplayName())
-                .ownerAvatarUrl(p.getOwnerAvatarUrl())
-                .contentType(p.getContentType()).contentId(p.getContentId())
-                .title(p.getTitle()).caption(p.getCaption())
-                .coverImageUrl(p.getCoverImageUrl()).visibility(p.getVisibility())
-                .likeCount(p.getLikeCount()).commentCount(p.getCommentCount())
-                .shareCount(p.getShareCount()).likedByCurrentUser(liked)
-                .createdAt(p.getCreatedAt())
-                .build();
-    }
 }

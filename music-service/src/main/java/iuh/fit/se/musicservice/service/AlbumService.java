@@ -4,7 +4,6 @@ import iuh.fit.se.musicservice.dto.request.AlbumCreateRequest;
 import iuh.fit.se.musicservice.dto.request.AlbumReorderRequest;
 import iuh.fit.se.musicservice.dto.request.AlbumUpdateRequest;
 import iuh.fit.se.musicservice.dto.response.AlbumResponse;
-import iuh.fit.se.musicservice.enums.AlbumStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -25,7 +24,7 @@ public interface AlbumService {
     Page<AlbumResponse> getMyAlbums(Pageable pageable);
 
     /** Chi tiết album kèm danh sách bài hát theo thứ tự linked list */
-    AlbumResponse getAlbumDetail(UUID albumId);
+    AlbumResponse getMyAlbumDetail(UUID albumId);
 
     // ── Artist: Song management ────────────────────────────────────────────────
 

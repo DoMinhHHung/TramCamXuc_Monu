@@ -2,16 +2,21 @@ package iuh.fit.se.recommendationservice.service;
 
 import iuh.fit.se.recommendationservice.client.IdentityInternalClient;
 import iuh.fit.se.recommendationservice.client.MusicInternalClient;
+import iuh.fit.se.recommendationservice.config.RecommendationFetchExecutorConfig;
 import iuh.fit.se.recommendationservice.config.RedisConfig;
 import iuh.fit.se.recommendationservice.dto.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -40,7 +45,6 @@ import java.util.stream.Collectors;
  *   Platform cũ:  ZSET có data → trending theo genre chính xác hơn DB query
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class ColdStartHandler {
 
@@ -49,6 +53,22 @@ public class ColdStartHandler {
     private final TrendingScoreService   trendingScoreService;
     private final RedisTemplate<String, Object> redisTemplate;
     private final RedisConfig.RecommendationProperties props;
+    private final Executor fetchExecutor;
+
+    public ColdStartHandler(
+            IdentityInternalClient identityClient,
+            MusicInternalClient musicClient,
+            TrendingScoreService trendingScoreService,
+            RedisTemplate<String, Object> redisTemplate,
+            RedisConfig.RecommendationProperties props,
+            @Qualifier(RecommendationFetchExecutorConfig.BEAN_NAME) Executor fetchExecutor) {
+        this.identityClient = identityClient;
+        this.musicClient = musicClient;
+        this.trendingScoreService = trendingScoreService;
+        this.redisTemplate = redisTemplate;
+        this.props = props;
+        this.fetchExecutor = fetchExecutor;
+    }
 
     /** Nếu ML trả về ít hơn ngưỡng này → bổ sung cold-start */
     public static final int MIN_ML_RESULTS = 10;
@@ -58,6 +78,7 @@ public class ColdStartHandler {
 
     /** Số bài tối đa lấy cho mỗi genre trong onboarding */
     private static final int SONGS_PER_GENRE = 8;
+    private static final int ARTIST_FETCH_TIMEOUT_SECONDS = 3;
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -138,34 +159,56 @@ public class ColdStartHandler {
 
     private List<RecommendedSongDto> getSongsFromFavoriteArtists(
             Set<UUID> artistIds, int limit, Set<String> exclude) {
+        if (CollectionUtils.isEmpty(artistIds) || limit <= 0) {
+            return Collections.emptyList();
+        }
 
         List<RecommendedSongDto> result = new ArrayList<>();
         // Phân bổ đều số bài cho mỗi artist
         int perArtist = Math.max(1, limit / artistIds.size());
+        int fetchSize = perArtist + 2;
 
-        for (UUID artistId : artistIds) {
+        List<CompletableFuture<List<SongDetailDto>>> futures = artistIds.stream()
+                .map(artistId -> CompletableFuture.supplyAsync(
+                        () -> safeGetArtistSongs(artistId, fetchSize), fetchExecutor))
+                .toList();
+
+        List<SongDetailDto> songs = futures.stream()
+                .map(future -> future
+                        .orTimeout(ARTIST_FETCH_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .exceptionally(e -> Collections.emptyList())
+                        .join())
+                .flatMap(List::stream)
+                .toList();
+
+        Set<String> seen = new HashSet<>(exclude);
+
+        for (SongDetailDto song : songs) {
             if (result.size() >= limit) break;
+            if (song == null || !StringUtils.hasText(song.getId())) continue;
 
-            try {
-                ApiResponse<List<SongDetailDto>> resp =
-                        musicClient.getSongsByArtist(artistId, perArtist + 2);  // +2 để bù exclude
+            String songId = song.getId();
+            if (seen.contains(songId)) continue;
 
-                if (resp == null || CollectionUtils.isEmpty(resp.getResult())) continue;
-
-                for (SongDetailDto song : resp.getResult()) {
-                    if (result.size() >= limit) break;
-                    if (exclude.contains(song.getId())) continue;
-
-                    result.add(toDto(song, RecommendedSongDto.ReasonType.ARTIST_YOU_FOLLOW,
-                            artistStageName(song)));
-                }
-
-            } catch (Exception e) {
-                log.warn("[ColdStart] Failed to get songs for artistId={}: {}", artistId, e.getMessage());
-            }
+            result.add(toDto(song, RecommendedSongDto.ReasonType.ARTIST_YOU_FOLLOW,
+                    artistStageName(song)));
+            seen.add(songId);
         }
 
         return result;
+    }
+
+    private List<SongDetailDto> safeGetArtistSongs(UUID artistId, int limit) {
+        try {
+            ApiResponse<List<SongDetailDto>> resp = musicClient.getSongsByArtist(artistId, limit);
+            if (resp == null || CollectionUtils.isEmpty(resp.getResult())) {
+                return Collections.emptyList();
+            }
+            return resp.getResult();
+        } catch (Exception e) {
+            log.warn("[ColdStart] Failed to get songs for artistId={}: {}", artistId, e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
