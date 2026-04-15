@@ -6,6 +6,7 @@ import iuh.fit.se.musicservice.enums.SongStatus;
 import iuh.fit.se.musicservice.enums.SourceType;
 import iuh.fit.se.musicservice.enums.TranscodeStatus;
 import iuh.fit.se.musicservice.repository.SongRepository;
+import iuh.fit.se.musicservice.service.WaveformService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -24,6 +25,7 @@ import java.util.UUID;
 public class SongTranscodeResultListener {
 
     private final SongRepository songRepository;
+    private final WaveformService waveformService;
 
     @RabbitListener(queues = RabbitMQConfig.TRANSCODE_SUCCESS_QUEUE, ackMode = "MANUAL")
     @Transactional
@@ -43,6 +45,17 @@ public class SongTranscodeResultListener {
                 song.setTranscodeStatus(TranscodeStatus.COMPLETED);
                 song.setDurationSeconds(duration);
                 song.setHlsMasterUrl(hlsMasterUrl);
+
+                if ((song.getWaveformUrl() == null || song.getWaveformUrl().isBlank())
+                        && song.getRawFileKey() != null && !song.getRawFileKey().isBlank()) {
+                    try {
+                        String waveformUrl = waveformService.generateAndSaveWaveform(songId, song.getRawFileKey());
+                        song.setWaveformUrl(waveformUrl);
+                        log.info("Waveform generated on transcode success for song {} at {}", songId, waveformUrl);
+                    } catch (Exception waveformErr) {
+                        log.warn("Failed to generate waveform after transcode success for song {}", songId, waveformErr);
+                    }
+                }
 
                 if (song.getAiVisibilityTarget() != null) {
                     song.setStatus(song.getAiVisibilityTarget());
