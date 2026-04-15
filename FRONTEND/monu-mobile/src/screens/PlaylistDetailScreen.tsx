@@ -26,7 +26,7 @@ import { useLayoutConstants } from '../config/layout';
 import { BackButton } from '../components/BackButton';
 import { RetryState } from '../components/RetryState';
 import { SectionSkeleton } from '../components/SkeletonLoader';
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayerControls, usePlayerState, usePlayerStatus } from '../context/PlayerContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { useHomeDataPriority } from '../hooks/useHomeDataPriority';
 import {
@@ -249,7 +249,9 @@ export const PlaylistDetailScreen = () => {
   const [dragTargetIdx, setDragTargetIdx] = useState<number | null>(null); // hover index
   const draggedNodeIdRef = useRef<string | null>(null);
 
-  const { playSong, currentSong, isPlaying } = usePlayer();
+  const { playSong } = usePlayerControls();
+  const { currentSong } = usePlayerState();
+  const { isPlaying } = usePlayerStatus();
   const themeColors = useThemeColors();
   const { t, language }       = useTranslation();
   const isVi = (language as string | undefined) !== 'en';

@@ -18,7 +18,7 @@ import { ColorScheme, useThemeColors } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
 import { RetryState } from '../../components/RetryState';
 import { SectionSkeleton } from '../../components/SkeletonLoader';
-import { usePlayer } from '../../context/PlayerContext';
+import { usePlayerControls } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { getSongsByIds } from '../../services/music';
 import { getMyListenHistory } from '../../services/social';
@@ -35,7 +35,7 @@ const timeAgo = (ms: number, t: (key: string, params?: any) => string): string =
 export const HistoryScreen = () => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
-  const { playSong } = usePlayer();
+  const { playSong } = usePlayerControls();
   const { t } = useTranslation();
   const themeColors = useThemeColors();
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);

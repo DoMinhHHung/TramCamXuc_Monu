@@ -16,6 +16,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -66,7 +67,7 @@ import {
 import { getMySubscription } from '../../services/payment';
 import { getPublicUserProfile } from '../../services/auth';
 import { apiClient } from '../../services/api';
-import { usePlayer } from '../../context/PlayerContext';
+import { usePlayerControls, usePlayerState } from '../../context/PlayerContext';
 import { notifyFeedUpdated, subscribeFeedUpdates } from '../../services/feedEvents';
 import { loadCache, saveCache } from '../../utils/swrCache';
 
@@ -539,7 +540,8 @@ const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> = ({
   const themeColors = useThemeColors();
   const detailStyles = useMemo(() => createDetailStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
-  const { playSong, currentSong } = usePlayer();
+  const { playSong } = usePlayerControls();
+  const { currentSong } = usePlayerState();
   const [saveOpen, setSaveOpen] = useState(false);
 
   if (!content) return null;
@@ -1305,7 +1307,7 @@ const PostCard: React.FC<PostCardProps> = ({
   const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const isOwner = currentUserId === post.ownerId;
   const [menuOpen, setMenuOpen] = useState(false);
-  const { playSong } = usePlayer();
+  const { playSong } = usePlayerControls();
 
   const visBadge = (() => {
     if (post.visibility === 'PRIVATE') return { icon: '🔒', label: tr('screens.discover.private', 'Riêng tư') };
@@ -2111,23 +2113,27 @@ export const DiscoverScreen = () => {
             </Pressable>
           </View>
         ) : (
-          posts.map(post => (
-            <PostCard
-              key={post.id}
-              post={post}
-              currentUserId={currentUserId}
-              ownerInfo={getOwnerInfo(post)}
-              contentInfo={getContentInfo(post)}
-              likeBusy={!!likePendingIds[post.id]}
-              onOpenContent={setOpenedContent}
-              onLike={handleLike}
-              onComment={openComments}
-              onShare={handleShare}
-              onDelete={handleDelete}
-              onEdit={setEditingPost}
-              onViewProfile={id => navigation.navigate('ArtistProfile', { artistId: id })}
-            />
-          ))
+          <FlashList
+            data={posts}
+            keyExtractor={(post) => post.id}
+            drawDistance={500}
+            renderItem={({ item: post }) => (
+              <PostCard
+                post={post}
+                currentUserId={currentUserId}
+                ownerInfo={getOwnerInfo(post)}
+                contentInfo={getContentInfo(post)}
+                likeBusy={!!likePendingIds[post.id]}
+                onOpenContent={setOpenedContent}
+                onLike={handleLike}
+                onComment={openComments}
+                onShare={handleShare}
+                onDelete={handleDelete}
+                onEdit={setEditingPost}
+                onViewProfile={id => navigation.navigate('ArtistProfile', { artistId: id })}
+              />
+            )}
+          />
         )}
       </ScrollView>
 

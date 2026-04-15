@@ -14,7 +14,7 @@ import { RetryState } from '../../components/RetryState';
 import { SectionSkeleton } from '../../components/SkeletonLoader';
 import { VoiceSearchButton } from '../../components/VoiceSearchButton';
 import { ColorScheme, useThemeColors } from '../../config/colors';
-import { usePlayer } from '../../context/PlayerContext';
+import { usePlayerControls } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { useVoiceSearch } from '../../hooks/useVoiceSearch';
 import {
@@ -61,7 +61,7 @@ const scoreByQuery = (query: string, ...fields: Array<string | undefined>): numb
 export const SearchScreen = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
-    const { playSong } = usePlayer();
+    const { playSong } = usePlayerControls();
     const { t } = useTranslation();
     const themeColors = useThemeColors();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);

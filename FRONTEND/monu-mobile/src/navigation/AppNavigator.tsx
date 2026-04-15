@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { NavigationContainer, LinkingOptions, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -8,10 +8,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS }                 from '../config/colors';
 import { AppIcon, AppIconName }   from '../config/appIcons';
 import { useAuth }                from '../context/AuthContext';
-import { usePlayer }              from '../context/PlayerContext';
+import { usePlayerState }         from '../context/PlayerContext';
 import { UploadProvider }         from '../context/UploadContext';
 import { useTheme }               from '../context/ThemeContext';
 import { useTranslation }         from '../context/LocalizationContext';
+import { useLibraryData }         from '../hooks/useLibraryData';
 
 import { MiniPlayer }             from '../components/MiniPlayer';
 import { FullPlayerModal }        from '../components/FullPlayerModal';
@@ -133,6 +134,7 @@ const linking: LinkingOptions<any> = {
 
 const MainTabNavigator = () => {
     const insets = useSafeAreaInsets();
+    const { prefetch: prefetchLibrary } = useLibraryData();
     const TAB_BAR_BASE = 58;
     const tabBarHeight = TAB_BAR_BASE + insets.bottom;
 
@@ -167,17 +169,31 @@ const MainTabNavigator = () => {
                 };
             }}
         >
-            <Tab.Screen name="Home"     component={HomeScreen}     />
-            <Tab.Screen name="Discover" component={DiscoverScreen} />
-            <Tab.Screen name="Create"   component={CreateScreen}   />
-            <Tab.Screen name="Library"  component={LibraryScreen}  />
-            <Tab.Screen name="Premium"  component={PremiumScreen}  />
+                        <Tab.Screen name="Home"     component={HomeScreen}     />
+                        <Tab.Screen name="Discover" component={DiscoverScreen} />
+                        <Tab.Screen name="Create"   component={CreateScreen}   />
+                        <Tab.Screen
+                            name="Library"
+                            component={LibraryScreen}
+                            options={{
+                                tabBarButton: (props: React.ComponentProps<typeof Pressable>) => (
+                                    <Pressable
+                                        {...props}
+                                        onPress={(event) => {
+                                            void prefetchLibrary();
+                                            props.onPress?.(event);
+                                        }}
+                                    />
+                                ),
+                            }}
+                        />
+                        <Tab.Screen name="Premium"  component={PremiumScreen}  />
         </Tab.Navigator>
     );
 };
 
 const GlobalOverlays = ({ routeName }: { routeName: string | null }) => {
-    const { pendingAd, dismissAd, currentSong, adNotice } = usePlayer();
+    const { pendingAd, dismissAd, currentSong, adNotice } = usePlayerState();
     const allowAdNotice = routeName != null && (
       routeName === 'MainTabs'
       || routeName === 'Search'

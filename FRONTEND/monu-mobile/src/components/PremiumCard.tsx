@@ -8,7 +8,7 @@ import {
     Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS } from "../config/colors"; // giả sử bạn đã có file này
+import { type ColorScheme, useThemeColors } from "../config/colors";
 
 function capitalize(text: string): string {
     if (!text) return "";
@@ -94,6 +94,8 @@ export default function PremiumCard({
                                         onBuy,
                                         isFree = false,
                                     }: PremiumCardProps) {
+    const themeColors = useThemeColors();
+    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
     const [flipped, setFlipped] = useState<boolean>(false);
 
     const flipAnim = useRef(new Animated.Value(0)).current;
@@ -198,7 +200,7 @@ export default function PremiumCard({
                     pointerEvents={flipped ? "none" : "auto"}
                 >
                     <LinearGradient
-                        colors={[COLORS.premiumCardFrom, COLORS.premiumCardTo]}
+                        colors={[themeColors.premiumCardFrom, themeColors.premiumCardTo]}
                         style={styles.gradient}
                     >
                         <Animated.View
@@ -215,9 +217,15 @@ export default function PremiumCard({
                         )}
 
                         {!isFreePlan && (
-                            <Pressable style={styles.buyBtn} onPress={onBuy}>
+                            <Pressable
+                                style={styles.buyBtn}
+                                onPress={(e) => {
+                                    e.stopPropagation();
+                                    onBuy();
+                                }}
+                            >
                                 <LinearGradient
-                                    colors={[COLORS.accent, COLORS.accentAlt]}
+                                    colors={[themeColors.accent, themeColors.accentAlt]}
                                     style={styles.buyGradient}
                                 >
                                     <Text style={styles.buyText}>Mua ngay</Text>
@@ -243,7 +251,7 @@ export default function PremiumCard({
                     pointerEvents={flipped ? "auto" : "none"}
                 >
                     <LinearGradient
-                        colors={[COLORS.premiumCardFrom, COLORS.premiumCardTo]}
+                        colors={[themeColors.premiumCardFrom, themeColors.premiumCardTo]}
                         style={styles.gradient}
                     >
                         <Text style={styles.featureTitle}>Tính năng</Text>
@@ -286,7 +294,7 @@ export default function PremiumCard({
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ColorScheme) => StyleSheet.create({
     wrapper: {
         marginBottom: 24,
     },
@@ -294,13 +302,13 @@ const styles = StyleSheet.create({
         borderRadius: 26,
         overflow: "hidden",
         borderWidth: 1,
-        borderColor: COLORS.premiumBorder,
-        shadowColor: COLORS.premiumGlow,
+        borderColor: c.premiumBorder,
+        shadowColor: c.premiumGlow,
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.6,
         shadowRadius: 20,
         elevation: Platform.OS === "android" ? 12 : 0,
-        backgroundColor: COLORS.premiumCardFrom, // fallback
+        backgroundColor: c.premiumCardFrom, // fallback
     },
     shimmerContainer: {
         ...StyleSheet.absoluteFillObject,
@@ -328,23 +336,23 @@ const styles = StyleSheet.create({
         width: 220,
         height: 220,
         borderRadius: 110,
-        backgroundColor: COLORS.premiumGlowSoft,
+        backgroundColor: c.premiumGlowSoft,
         top: -80,
         right: -60,
     },
     plan: {
-        color: COLORS.white,
+        color: c.white,
         fontSize: 22,
         fontWeight: "800",
     },
     price: {
-        color: COLORS.white,
+        color: c.white,
         fontSize: 36,
         fontWeight: "800",
         marginTop: 8,
     },
     duration: {
-        color: COLORS.glass60,
+        color: c.glass60,
         fontSize: 16,
         marginTop: 4,
         marginBottom: 24,
@@ -359,12 +367,12 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     buyText: {
-        color: COLORS.white,
+        color: c.white,
         fontWeight: "800",
         fontSize: 16,
     },
     featureTitle: {
-        color: COLORS.white,
+        color: c.white,
         fontSize: 20,
         fontWeight: "700",
         marginBottom: 20,
@@ -383,15 +391,15 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.borderSubtle,
+        borderBottomColor: c.borderSubtle,
     },
     cellHighlight: {
-        backgroundColor: COLORS.glass06,
+        backgroundColor: c.glass06,
         borderRadius: 8,
         paddingHorizontal: 8,
     },
     featureLabel: {
-        color: COLORS.glass85,
+        color: c.glass85,
         fontSize: 14,
         flex: 1,
     },
@@ -402,14 +410,14 @@ const styles = StyleSheet.create({
         textAlign: "right",
     },
     iconYes: {
-        color: COLORS.success,
+        color: c.success,
     },
     iconNo: {
-        color: COLORS.error,
+        color: c.error,
     },
     hint: {
         marginTop: 16,
-        color: COLORS.glass40,
+        color: c.glass40,
         fontSize: 12,
         fontStyle: "italic",
     },

@@ -19,12 +19,90 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
 import themeUtils from '../config/themeUtils';
 import type { AlbumStats } from '../hooks/useHomeStats';
+import type { ThemeColors } from '../config/themes';
 
 interface AlbumCardProps {
   album: AlbumStats;
   onPress?: () => void;
   style?: ViewStyle;
 }
+
+const getStyles = (colors: ThemeColors) => StyleSheet.create({
+  container: {
+    marginBottom: 12,
+    ...themeUtils.shadowPresets.md,
+  },
+  card: {
+    borderRadius: themeUtils.borderRadius.lg,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderColor: colors.accentBorder25,
+    borderWidth: 0.5,
+  },
+  gradient: {
+    padding: themeUtils.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  albumArtContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: themeUtils.borderRadius.md,
+    backgroundColor: colors.surfaceMid,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: themeUtils.spacing.md,
+    borderColor: colors.accentBorder25,
+    borderWidth: 0.5,
+    ...themeUtils.shadowPresets.sm,
+  },
+  albumArtIcon: {
+    opacity: 0.6,
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: themeUtils.fontSize.lg,
+    fontWeight: '800',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  artist: {
+    fontSize: themeUtils.fontSize.sm,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginBottom: themeUtils.spacing.md,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: themeUtils.spacing.md,
+  },
+  stat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statText: {
+    fontSize: themeUtils.fontSize.xs,
+    color: colors.muted,
+  },
+  statValue: {
+    fontSize: themeUtils.fontSize.xs,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+});
+
+const albumCardStyleCache = new WeakMap<ThemeColors, ReturnType<typeof getStyles>>();
+const useCardStyles = (colors: ThemeColors) => {
+  const cached = albumCardStyleCache.get(colors);
+  if (cached) return cached;
+
+  const styles = getStyles(colors);
+  albumCardStyleCache.set(colors, styles);
+  return styles;
+};
 
 export const AlbumCard: React.FC<AlbumCardProps> = ({
   album,
@@ -33,73 +111,7 @@ export const AlbumCard: React.FC<AlbumCardProps> = ({
 }) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
-
-  const styles = StyleSheet.create({
-    container: {
-      marginBottom: 12,
-      ...themeUtils.shadowPresets.md,
-    },
-    card: {
-      borderRadius: themeUtils.borderRadius.lg,
-      overflow: 'hidden',
-      backgroundColor: colors.surface,
-      borderColor: colors.accentBorder25,
-      borderWidth: 0.5,
-    },
-    gradient: {
-      padding: themeUtils.spacing.md,
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    albumArtContainer: {
-      width: 80,
-      height: 80,
-      borderRadius: themeUtils.borderRadius.md,
-      backgroundColor: colors.surfaceMid,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: themeUtils.spacing.md,
-      borderColor: colors.accentBorder25,
-      borderWidth: 0.5,
-      ...themeUtils.shadowPresets.sm,
-    },
-    albumArtIcon: {
-      opacity: 0.6,
-    },
-    contentContainer: {
-      flex: 1,
-    },
-    title: {
-      fontSize: themeUtils.fontSize.lg,
-      fontWeight: '800',
-      color: colors.text,
-      marginBottom: 4,
-    },
-    artist: {
-      fontSize: themeUtils.fontSize.sm,
-      fontWeight: '500',
-      color: colors.textSecondary,
-      marginBottom: themeUtils.spacing.md,
-    },
-    statsRow: {
-      flexDirection: 'row',
-      gap: themeUtils.spacing.md,
-    },
-    stat: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    statText: {
-      fontSize: themeUtils.fontSize.xs,
-      color: colors.muted,
-    },
-    statValue: {
-      fontSize: themeUtils.fontSize.xs,
-      fontWeight: '600',
-      color: colors.accent,
-    },
-  });
+  const styles = useCardStyles(colors);
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;

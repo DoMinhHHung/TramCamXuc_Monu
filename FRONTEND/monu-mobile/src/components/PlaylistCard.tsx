@@ -19,12 +19,77 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
 import themeUtils from '../config/themeUtils';
 import type { PlaylistStats } from '../hooks/useHomeStats';
+import { createCachedThemeStyles } from '../utils/cardStyles';
 
 interface PlaylistCardProps {
   playlist: PlaylistStats;
   onPress?: () => void;
   style?: ViewStyle;
 }
+
+const getStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
+  container: {
+    marginBottom: 12,
+    ...themeUtils.shadowPresets.md,
+  },
+  card: {
+    borderRadius: themeUtils.borderRadius.lg,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    borderColor: colors.accentBorder25,
+    borderWidth: 0.5,
+  },
+  gradient: {
+    padding: themeUtils.spacing.md,
+    justifyContent: 'space-between',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: themeUtils.spacing.md,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: themeUtils.borderRadius.md,
+    backgroundColor: `rgba(255, 255, 255, 0.1)`,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: themeUtils.spacing.md,
+  },
+  headerText: {
+    flex: 1,
+  },
+  title: {
+    fontSize: themeUtils.fontSize.lg,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  description: {
+    fontSize: themeUtils.fontSize.xs,
+    color: colors.textSecondary,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: themeUtils.spacing.md,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: themeUtils.fontSize.md,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  statLabel: {
+    fontSize: themeUtils.fontSize.xs,
+    color: colors.muted,
+    marginTop: 2,
+  },
+});
+
+const useCardStyles = createCachedThemeStyles(getStyles);
 
 export const PlaylistCard: React.FC<PlaylistCardProps> = ({
   playlist,
@@ -33,68 +98,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
 }) => {
   const { colors } = useTheme();
   const { t } = useTranslation();
-
-  const styles = StyleSheet.create({
-    container: {
-      marginBottom: 12,
-      ...themeUtils.shadowPresets.md,
-    },
-    card: {
-      borderRadius: themeUtils.borderRadius.lg,
-      overflow: 'hidden',
-      backgroundColor: colors.surface,
-      borderColor: colors.accentBorder25,
-      borderWidth: 0.5,
-    },
-    gradient: {
-      padding: themeUtils.spacing.md,
-      justifyContent: 'space-between',
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: themeUtils.spacing.md,
-    },
-    iconContainer: {
-      width: 48,
-      height: 48,
-      borderRadius: themeUtils.borderRadius.md,
-      backgroundColor: `rgba(255, 255, 255, 0.1)`,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginRight: themeUtils.spacing.md,
-    },
-    headerText: {
-      flex: 1,
-    },
-    title: {
-      fontSize: themeUtils.fontSize.lg,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 4,
-    },
-    description: {
-      fontSize: themeUtils.fontSize.xs,
-      color: colors.textSecondary,
-    },
-    statsContainer: {
-      flexDirection: 'row',
-      gap: themeUtils.spacing.md,
-    },
-    statItem: {
-      alignItems: 'center',
-    },
-    statValue: {
-      fontSize: themeUtils.fontSize.md,
-      fontWeight: '600',
-      color: colors.accent,
-    },
-    statLabel: {
-      fontSize: themeUtils.fontSize.xs,
-      color: colors.muted,
-      marginTop: 2,
-    },
-  });
+  const styles = useCardStyles(colors);
 
   return (
     <Pressable

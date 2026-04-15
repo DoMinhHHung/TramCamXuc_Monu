@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config/colors';
-import { usePlayer } from '../context/PlayerContext';
+import { usePlayerControls, usePlayerState } from '../context/PlayerContext';
 import { addSongToPlaylist, createPlaylist, getMyPlaylists, isSoundCloudExternalSong, Playlist, Song } from '../services/music';
 
 // ─── Kiểu dùng chung ─────────────────────────────────────────────────────────
@@ -196,7 +196,8 @@ export const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> =
                                                                                       onClose,
                                                                                   }) => {
     const insets = useSafeAreaInsets();
-    const { playSong, currentSong } = usePlayer();
+    const { playSong } = usePlayerControls();
+    const { currentSong } = usePlayerState();
     const [saveModalOpen, setSaveModalOpen] = useState(false);
 
     if (!content) return null;

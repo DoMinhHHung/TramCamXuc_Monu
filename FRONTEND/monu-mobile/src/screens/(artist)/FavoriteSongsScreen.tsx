@@ -13,7 +13,7 @@ import { COLORS } from '../../config/colors';
 import { BackButton } from '../../components/BackButton';
 import { getMyHearts, unheartSong, HeartResponse } from '../../services/social';
 import { getSongsByIds, Song } from '../../services/music';
-import { usePlayer } from '../../context/PlayerContext';
+import { usePlayerControls } from '../../context/PlayerContext';
 
 interface FavoriteSongItem extends HeartResponse {
     songDetail?: Song;
@@ -22,7 +22,7 @@ interface FavoriteSongItem extends HeartResponse {
 export const FavoriteSongsScreen = () => {
     const navigation = useNavigation<any>();
     const insets     = useSafeAreaInsets();
-    const { playSong } = usePlayer();
+    const { playSong } = usePlayerControls();
     const [items, setItems]           = useState<FavoriteSongItem[]>([]);
     const [loading, setLoading]       = useState(true);
     const [refreshing, setRefreshing] = useState(false);
