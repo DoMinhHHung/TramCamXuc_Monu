@@ -341,8 +341,6 @@
       "limitTitle": "Giới hạn",
       "maxGenres": "Tối đa {max} thể loại.",
       "minGenres": "Vui lòng chọn ít nhất {min} thể loại.",
-      "skipGenresMessage": "Bạn sẽ không nhận được gợi ý nhạc phù hợp.",
-      "skipStep": "Bỏ qua bước này",
       "maxArtists": "Tối đa {max} nghệ sĩ.",
       "minArtists": "Vui lòng chọn ít nhất {min} nghệ sĩ.",
       "loadingArtists": "Đang tải nghệ sĩ...",

@@ -45,13 +45,18 @@ public class ArtistController {
     @GetMapping
     public ApiResponse<Page<ArtistResponse>> searchArtists(
             @RequestParam(required = false) String stageName,
+            @RequestParam(required = false) String keyword,
             @RequestParam(required = false) ArtistStatus status,
             @RequestParam(defaultValue = "1")  int page,
             @RequestParam(defaultValue = "20") int size) {
 
+        final String q = (stageName != null && !stageName.isBlank()) ? stageName : keyword;
+        final int safeSize = Math.max(1, size);
+        final int pageIndex = Math.max(0, page - 1);
+
         return ApiResponse.<Page<ArtistResponse>>builder()
-                .result(artistService.searchArtists(stageName, status,
-                        PageRequest.of(page - 1, size, Sort.by("stageName").ascending())))
+                .result(artistService.searchArtists(q, status,
+                        PageRequest.of(pageIndex, safeSize, Sort.by("stageName").ascending())))
                 .build();
     }
 

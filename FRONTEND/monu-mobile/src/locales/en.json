@@ -322,8 +322,6 @@
       "limitTitle": "Limit",
       "maxGenres": "Maximum {max} genres.",
       "minGenres": "Please select at least {min} genres.",
-      "skipGenresMessage": "You will not receive personalized music suggestions.",
-      "skipStep": "Skip this step",
       "maxArtists": "Maximum {max} artists.",
       "minArtists": "Please select at least {min} artists.",
       "loadingArtists": "Loading artists...",
