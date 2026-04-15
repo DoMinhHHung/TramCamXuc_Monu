@@ -4,7 +4,9 @@ import iuh.fit.se.musicservice.dto.request.SongCreateRequest;
 import iuh.fit.se.musicservice.dto.request.SongUpdateRequest;
 import iuh.fit.se.musicservice.dto.response.ApiResponse;
 import iuh.fit.se.musicservice.dto.response.SongResponse;
+import iuh.fit.se.musicservice.dto.response.WaveformDataResponse;
 import iuh.fit.se.musicservice.service.SongService;
+import iuh.fit.se.musicservice.service.WaveformService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
@@ -24,6 +26,7 @@ import java.util.UUID;
 public class SongController {
 
     private final SongService songService;
+    private final WaveformService waveformService;
 
     // ===================== PUBLIC =====================
 
@@ -174,6 +177,25 @@ public class SongController {
         return ApiResponse.<String>builder()
                 .result(songService.getDownloadUrl(songId))
                 .message("Link hợp lệ trong 5 phút.")
+                .build();
+    }
+
+    @GetMapping("/{songId}/waveform")
+    public ApiResponse<List<Float>> getWaveformData(@PathVariable UUID songId) {
+        return ApiResponse.<List<Float>>builder()
+                .result(waveformService.getWaveformData(songId))
+                .build();
+    }
+
+    /**
+     * Lấy complete waveform data với metadata (peak, RMS) và format URLs.
+     * GET /songs/{songId}/waveform/data
+     */
+    @GetMapping("/{songId}/waveform/data")
+    @Cacheable(value = "songWaveformComplete", key = "#songId.toString()")
+    public ApiResponse<WaveformDataResponse> getWaveformDataComplete(@PathVariable UUID songId) {
+        return ApiResponse.<WaveformDataResponse>builder()
+                .result(waveformService.getWaveformDataComplete(songId))
                 .build();
     }
 
