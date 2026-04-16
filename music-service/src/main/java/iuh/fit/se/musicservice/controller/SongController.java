@@ -53,7 +53,7 @@ public class SongController {
      * GET /songs/trending
      */
     @GetMapping("/trending")
-    @Cacheable(value = "trendingSongs", key = "#page + '-' + #size", unless = "#result.content.isEmpty()")
+        @Cacheable(value = "trendingSongs", key = "#page + '-' + #size", unless = "#result == null || #result.result == null || #result.result.content.isEmpty()")
     public ApiResponse<Page<SongResponse>> getTrending(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {

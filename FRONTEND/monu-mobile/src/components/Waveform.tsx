@@ -3,14 +3,9 @@ import {
     View, StyleSheet, Animated, GestureResponderEvent,
     Dimensions, Image, ActivityIndicator, Pressable,
 } from 'react-native';
-import { COLORS, type ColorScheme, useThemeColors } from '../../config/colors';
+import { COLORS, type ColorScheme, useThemeColors } from '../config/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-
-/**
- * Interactive Waveform Component
- * Displays waveform visualization and allows seeking by tapping
- */
 
 interface WaveformProps {
     /** Waveform image URL (PNG/SVG) */

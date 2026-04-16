@@ -24,6 +24,7 @@ import { Waveform } from './Waveform';
 import { useWaveformData } from '../services/waveform';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+const THUMB_RADIUS = 8;
 
 const formatTime = (seconds: number): string => {
     if (!seconds || isNaN(seconds)) return '0:00';
