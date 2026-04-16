@@ -139,6 +139,8 @@ public class WaveformServiceImpl implements WaveformService {
                     .formatUrls(urlsBuilder.build())
                     .build();
 
+        } catch (AppException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Failed to get complete waveform data for song: {}", songId, e);
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
