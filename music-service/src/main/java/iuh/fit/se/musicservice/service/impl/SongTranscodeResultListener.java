@@ -48,13 +48,8 @@ public class SongTranscodeResultListener {
 
                 if ((song.getWaveformUrl() == null || song.getWaveformUrl().isBlank())
                         && song.getRawFileKey() != null && !song.getRawFileKey().isBlank()) {
-                    try {
-                        String waveformUrl = waveformService.generateAndSaveWaveform(songId, song.getRawFileKey());
-                        song.setWaveformUrl(waveformUrl);
-                        log.info("Waveform generated on transcode success for song {} at {}", songId, waveformUrl);
-                    } catch (Exception waveformErr) {
-                        log.warn("Failed to generate waveform after transcode success for song {}", songId, waveformErr);
-                    }
+                    waveformService.generateAndSaveWaveformAsync(songId, song.getRawFileKey());
+                    log.debug("Triggered async waveform generation for song {}", songId);
                 }
 
                 if (song.getAiVisibilityTarget() != null) {

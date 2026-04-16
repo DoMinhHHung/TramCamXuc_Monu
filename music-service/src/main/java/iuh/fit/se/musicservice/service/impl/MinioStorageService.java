@@ -253,6 +253,22 @@ public class MinioStorageService {
         }
     }
 
+    public byte[] readPublicObject(String objectKey) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(publicBucket)
+                            .object(objectKey)
+                            .build())
+                    .transferTo(baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            log.error("Failed to read public object: {}", objectKey, e);
+            throw new RuntimeException("MinIO read public failed: " + objectKey, e);
+        }
+    }
+
     /**
      * Check xem object có tồn tại trong raw bucket không.
      */
@@ -266,6 +282,46 @@ public class MinioStorageService {
             return true;
         } catch (Exception e) {
             log.debug("Object does not exist: {}", objectKey);
+            return false;
+        }
+    }
+
+    /**
+     * Upload bytes vào public bucket (dùng cho waveform, cover, thumbnail — client cần download trực tiếp).
+     */
+    public void uploadPublicBytes(String objectKey, byte[] data, String contentType) {
+        if (data == null || data.length == 0) {
+            throw new IllegalArgumentException("uploadPublicBytes: data is empty for key=" + objectKey);
+        }
+        log.info("Uploading {} bytes to public-songs bucket, key={}", data.length, objectKey);
+        try (InputStream is = new ByteArrayInputStream(data)) {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(publicBucket)
+                            .object(objectKey)
+                            .stream(is, data.length, -1)
+                            .contentType(contentType)
+                            .build());
+        } catch (Exception e) {
+            log.error("Failed to upload public bytes. key={}, size={}", objectKey, data.length, e);
+            throw new RuntimeException("MinIO uploadPublicBytes failed: " + objectKey, e);
+        }
+        log.info("Successfully uploaded public bytes. key={}", objectKey);
+    }
+
+    /**
+     * Check xem object có tồn tại trong public bucket không.
+     */
+    public boolean publicObjectExists(String objectKey) {
+        try {
+            minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(publicBucket)
+                            .object(objectKey)
+                            .build());
+            return true;
+        } catch (Exception e) {
+            log.debug("Object does not exist in public bucket: {}", objectKey);
             return false;
         }
     }

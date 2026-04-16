@@ -11,11 +11,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
+import javax.sound.sampled.AudioFormat;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -35,7 +38,8 @@ public class WaveformServiceImpl implements WaveformService {
     private final MinioStorageService storageService;
     private final ObjectMapper objectMapper;
     private final WaveformProperties waveformProps;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final WaveformFormatGenerator waveformFormatGenerator;
 
     // ──────────────────────────────────────────────────────────────────────────
     // PUBLIC METHODS
@@ -58,12 +62,16 @@ public class WaveformServiceImpl implements WaveformService {
 
             // Extract waveform data
             List<Float> waveformData = extractWaveformFromAudio(audioData);
+            if (waveformData.isEmpty()) {
+                log.warn("Waveform extraction failed for song {}", songId);
+                return null;
+            }
 
             // Generate and save formats
             if (waveformProps.isAsyncProcessing()) {
-                generateFormatsAsync(songId, waveformData);
+                waveformFormatGenerator.generateAsync(songId, waveformData);
             } else {
-                generateFormatsSync(songId, waveformData);
+                generateFormatsInternal(songId, waveformData);
             }
 
             // Clear cache
@@ -77,6 +85,22 @@ public class WaveformServiceImpl implements WaveformService {
         } catch (Exception e) {
             log.error("Failed to generate waveform for song: {}", songId, e);
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+    }
+
+    /**
+     * Non-blocking async wrapper dùng cho RabbitMQ listeners.
+     * Không block consumer thread, WaveformBackfillJob sẽ handle nếu fail.
+     */
+    @Async("waveformTaskExecutor")
+    public void generateAndSaveWaveformAsync(UUID songId, String rawFileKey) {
+        try {
+            log.info("Starting async waveform generation for song: {}", songId);
+            generateAndSaveWaveform(songId, rawFileKey);
+            log.info("Async waveform generation completed for song: {}", songId);
+        } catch (Exception e) {
+            log.warn("Async waveform generation failed for song: {}, will be retried by WaveformBackfillJob", 
+                    songId, e);
         }
     }
 
@@ -132,11 +156,11 @@ public class WaveformServiceImpl implements WaveformService {
         try {
             String waveformJsonKey = String.format("waveforms/%s%s", songId, WaveformFormat.JSON.fileSuffix);
 
-            if (!storageService.objectExists(waveformJsonKey)) {
+            if (!storageService.publicObjectExists(waveformJsonKey)) {
                 throw new AppException(ErrorCode.SONG_NOT_FOUND);
             }
 
-            byte[] jsonData = storageService.readRawObject(waveformJsonKey);
+            byte[] jsonData = storageService.readPublicObject(waveformJsonKey);
             return objectMapper.readValue(jsonData,
                     objectMapper.getTypeFactory().constructCollectionType(List.class, Float.class));
         } catch (AppException e) {
@@ -151,7 +175,7 @@ public class WaveformServiceImpl implements WaveformService {
     public String getWaveformUrl(UUID songId, WaveformFormat format) {
         try {
             String key = String.format("waveforms/%s%s", songId, format.fileSuffix);
-            if (storageService.objectExists(key)) {
+            if (storageService.publicObjectExists(key)) {
                 return storageService.getPublicUrl(key);
             }
             return null;
@@ -177,12 +201,13 @@ public class WaveformServiceImpl implements WaveformService {
 
     @Override
     public void clearWaveformCache(UUID songId) {
-        String keyPrefix = waveformProps.getCacheKeyPrefix();
         try {
-            if (waveformProps.isCacheEnabled()) {
-                redisTemplate.delete(keyPrefix + songId);
-                log.debug("Cleared waveform cache for song: {}", songId);
-            }
+            String cacheKey = waveformProps.getCacheKeyPrefix() + songId;
+            stringRedisTemplate.delete(cacheKey);
+            // Xóa cả Spring Cache keys (format khác):
+            stringRedisTemplate.delete("waveformData::" + songId);
+            stringRedisTemplate.delete("waveformRawData::" + songId);
+            log.debug("Cleared waveform cache for song: {}", songId);
         } catch (Exception e) {
             log.warn("Failed to clear waveform cache for song: {}", songId, e);
         }
@@ -192,16 +217,7 @@ public class WaveformServiceImpl implements WaveformService {
     // PRIVATE METHODS
     // ──────────────────────────────────────────────────────────────────────────
 
-    @Async
-    private void generateFormatsAsync(UUID songId, List<Float> waveformData) {
-        try {
-            generateFormatsSync(songId, waveformData);
-        } catch (Exception e) {
-            log.error("Async waveform generation failed for song: {}", songId, e);
-        }
-    }
-
-    private void generateFormatsSync(UUID songId, List<Float> waveformData) {
+    public void generateFormatsInternal(UUID songId, List<Float> waveformData) {
         String[] enabledFormats = waveformProps.getEnabledFormats().split(",");
 
         for (String format : enabledFormats) {
@@ -222,62 +238,74 @@ public class WaveformServiceImpl implements WaveformService {
     private void generateAndSavePng(UUID songId, List<Float> waveformData) throws IOException {
         String key = String.format("waveforms/%s%s", songId, WaveformFormat.PNG.fileSuffix);
         byte[] pngData = generateWaveformPng(waveformData);
-        storageService.uploadRawBytes(key, pngData, WaveformFormat.PNG.mimeType);
+        storageService.uploadPublicBytes(key, pngData, WaveformFormat.PNG.mimeType);
     }
 
     private void generateAndSaveSvg(UUID songId, List<Float> waveformData) throws IOException {
         String key = String.format("waveforms/%s%s", songId, WaveformFormat.SVG.fileSuffix);
         byte[] svgData = generateWaveformSvg(waveformData);
-        storageService.uploadRawBytes(key, svgData, WaveformFormat.SVG.mimeType);
+        storageService.uploadPublicBytes(key, svgData, WaveformFormat.SVG.mimeType);
     }
 
     private void generateAndSaveJson(UUID songId, List<Float> waveformData) throws IOException {
         String key = String.format("waveforms/%s%s", songId, WaveformFormat.JSON.fileSuffix);
         byte[] jsonData = objectMapper.writeValueAsBytes(waveformData);
-        storageService.uploadRawBytes(key, jsonData, WaveformFormat.JSON.mimeType);
+        storageService.uploadPublicBytes(key, jsonData, WaveformFormat.JSON.mimeType);
     }
 
     private List<Float> extractWaveformFromAudio(byte[] audioData) {
         List<Float> waveformData = new ArrayList<>();
         int samples = waveformProps.getSamples();
 
-        try {
-            int sampleCount = audioData.length / 2;
-            int samplesPerPoint = Math.max(1, sampleCount / samples);
+        try (InputStream is = new ByteArrayInputStream(audioData)) {
+            // mp3spi tự register AudioFileFormat cho MP3
+            AudioInputStream pcmStream = AudioSystem.getAudioInputStream(is);
+            AudioFormat sourceFormat = pcmStream.getFormat();
+
+            // Convert sang PCM signed 16-bit
+            AudioFormat targetFormat = new AudioFormat(
+                    AudioFormat.Encoding.PCM_SIGNED,
+                    sourceFormat.getSampleRate(),
+                    16,
+                    sourceFormat.getChannels(),
+                    sourceFormat.getChannels() * 2,
+                    sourceFormat.getSampleRate(),
+                    false
+            );
+            AudioInputStream convertedStream = AudioSystem.getAudioInputStream(targetFormat, pcmStream);
+
+            byte[] buffer = convertedStream.readAllBytes();
+
+            int bytesPerSample = 2; // 16-bit = 2 bytes
+            int totalSamples = buffer.length / bytesPerSample;
+            int samplesPerPoint = Math.max(1, totalSamples / samples);
             float maxAmplitude = 0;
             float[] peaks = new float[samples];
 
-            // Find peaks
             for (int i = 0; i < samples; i++) {
-                int startPos = i * samplesPerPoint * 2;
+                int startByte = i * samplesPerPoint * bytesPerSample;
                 float peak = 0;
-
-                for (int j = 0; j < samplesPerPoint && (startPos + j * 2 + 1) < audioData.length; j++) {
-                    short sample = ByteBuffer.wrap(audioData, startPos + j * 2, 2)
-                            .order(ByteOrder.LITTLE_ENDIAN)
-                            .getShort();
+                for (int j = 0; j < samplesPerPoint; j++) {
+                    int pos = startByte + j * bytesPerSample;
+                    if (pos + 1 >= buffer.length) break;
+                    short sample = ByteBuffer.wrap(buffer, pos, 2)
+                            .order(ByteOrder.LITTLE_ENDIAN).getShort();
                     peak = Math.max(peak, Math.abs(sample) / 32768.0f);
                 }
-
                 peaks[i] = peak;
                 maxAmplitude = Math.max(maxAmplitude, peak);
             }
 
-            // Normalize
             if (maxAmplitude == 0) maxAmplitude = 1;
             for (float peak : peaks) {
                 waveformData.add(Math.min(100, (peak / maxAmplitude) * 100));
             }
-
-            log.debug("Extracted {} waveform points", waveformData.size());
             return waveformData;
 
         } catch (Exception e) {
-            log.warn("Error extracting waveform, returning fallback", e);
-            for (int i = 0; i < samples; i++) {
-                waveformData.add((float) (Math.random() * 30));
-            }
-            return waveformData;
+            log.error("Failed to decode audio for waveform, song data may be invalid", e);
+            // KHÔNG return random data — trả về empty để caller biết fail
+            return Collections.emptyList();
         }
     }
 

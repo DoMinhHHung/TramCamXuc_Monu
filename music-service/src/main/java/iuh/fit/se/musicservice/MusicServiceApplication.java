@@ -18,6 +18,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableFeignClients(basePackages = "iuh.fit.se.musicservice.client")
 public class MusicServiceApplication {
     public static void main(String[] args) {
+        System.setProperty("java.awt.headless", "true");
         SpringApplication.run(MusicServiceApplication.class, args);
     }
 }

@@ -77,6 +77,15 @@ spring:
     redis:
       time-to-live: 600000
 
+  task:
+    execution:
+      pool:
+        core-size: 3
+        max-size: 6
+        queue-capacity: 50
+        thread-name-prefix: async-
+      thread-name-prefix: async-
+
 eureka:
   client:
     registry-fetch-interval-seconds: 5
