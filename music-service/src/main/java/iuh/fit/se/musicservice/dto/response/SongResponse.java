@@ -18,7 +18,6 @@ public class SongResponse {
     private String title;
     private String slug;
     private String thumbnailUrl;
-    private String waveformUrl;
     private Integer durationSeconds;
     private Long playCount;
 
@@ -44,7 +43,6 @@ public class SongResponse {
 
     private String sourceType;
     private String soundcloudPermalink;
-    private String soundcloudWaveformUrl;
     private String soundcloudUsername;
 
     private LocalDateTime createdAt;

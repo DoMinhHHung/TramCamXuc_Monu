@@ -221,13 +221,4 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
                         AND s.deletedAt IS NULL
                         """)
         Optional<Song> findBySoundcloudId(@Param("soundcloudId") String soundcloudId);
-
-        @Query("""
-                        SELECT s FROM Song s
-                        WHERE s.transcodeStatus = 'COMPLETED'
-                          AND s.deletedAt IS NULL
-                          AND (s.waveformUrl IS NULL OR s.waveformUrl = '')
-                          AND s.rawFileKey IS NOT NULL
-                        """)
-        List<Song> findCompletedSongsMissingWaveform();
 }

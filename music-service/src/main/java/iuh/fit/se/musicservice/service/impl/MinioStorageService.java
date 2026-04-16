@@ -287,7 +287,7 @@ public class MinioStorageService {
     }
 
     /**
-     * Upload bytes vào public bucket (dùng cho waveform, cover, thumbnail — client cần download trực tiếp).
+     * Upload bytes vào public bucket (dùng cho cover, thumbnail — client cần download trực tiếp).
      */
     public void uploadPublicBytes(String objectKey, byte[] data, String contentType) {
         if (data == null || data.length == 0) {

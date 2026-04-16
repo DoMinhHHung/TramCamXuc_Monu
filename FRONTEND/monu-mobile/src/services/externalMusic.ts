@@ -28,7 +28,6 @@ export interface SoundCloudTrack {
     thumbnailUrl?: string;
     permalink: string;
     streamUrl: string;
-    waveformUrl?: string;
     genre?: string;
     durationSeconds: number;
     playbackCount: number;

@@ -14,7 +14,6 @@ public class SoundCloudTrackResult {
     private String thumbnailUrl;
     private String permalink;
     private String streamUrl;
-    private String waveformUrl;
     private String genre;
     private int durationSeconds;
     private long playbackCount;

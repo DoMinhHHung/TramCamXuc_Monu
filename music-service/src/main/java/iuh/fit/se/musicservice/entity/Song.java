@@ -73,9 +73,6 @@ public class Song extends BaseEntity {
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
-    @Column(name = "waveform_url", length = 500)
-    private String waveformUrl;
-
     // ── Status ────────────────────────────────────────────────────────────────
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -126,9 +123,6 @@ public class Song extends BaseEntity {
 
     @Column(name = "soundcloud_permalink", length = 500)
     private String soundcloudPermalink;
-
-    @Column(name = "soundcloud_waveform_url", length = 500)
-    private String soundcloudWaveformUrl;
 
     @Column(name = "soundcloud_username", length = 200)
     private String soundcloudUsername;

@@ -20,8 +20,6 @@ import { SongActionSheet } from './SongActionSheet';
 import { AppIcon } from '../config/appIcons';
 import { HeartButton } from './HeartButton';
 import { ReportReasonSheet } from './ReportReasonSheet';
-import { Waveform } from './Waveform';
-import { useWaveformData } from '../services/waveform';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const THUMB_RADIUS = 8;
@@ -229,9 +227,6 @@ export const FullPlayerModal = () => {
     const hasLyrics = !!currentSong?.lyricUrl;
     const currentTimeMs = currentTime * 1000;
 
-    // Waveform data
-    const { data: waveformData, loading: waveformLoading } = useWaveformData(currentSong?.id, isFullScreen);
-
     const NETWORK_LABEL: Record<string, string> = {
         high: '📶 Mạng tốt', medium: '📶 Mạng trung bình', low: '📶 Mạng yếu', offline: '📴 Ngoại tuyến',
     };
@@ -434,20 +429,13 @@ export const FullPlayerModal = () => {
                                 )}
                             </View>
 
-                            {/* Seek bar with waveform */}
+                            {/* Seek bar */}
                             <View style={styles.progressSection}>
-                                <Waveform
-                                    waveformImageUrl={
-                                        currentSong.waveformUrl || currentSong.soundcloudWaveformUrl
-                                    }
-                                    amplitudes={waveformData?.amplitudes}
-                                    progress={progress}
-                                    currentTime={currentTime}
-                                    duration={duration}
-                                    onSeek={seekTo}
-                                    loading={waveformLoading}
-                                    variant="compact"
-                                />
+                                <View style={styles.seekTouchArea}>
+                                    <View style={styles.seekTrack}>
+                                        <View style={[styles.seekFill, { width: `${progress * 100}%` as any }]} />
+                                    </View>
+                                </View>
                                 <View style={styles.timeRow}>
                                     <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
                                     <Text style={styles.timeText}>{formatTime(duration)}</Text>
@@ -616,21 +604,9 @@ export const FullPlayerModal = () => {
                                     </Pressable>
                                 </View>
 
-                                {/* Progress bar with mini waveform */}
+                                {/* Progress bar */}
                                 <View style={styles.lyricProgress}>
-                                    {waveformData?.amplitudes && currentSong.waveformUrl ? (
-                                        <Waveform
-                                            waveformImageUrl={currentSong.waveformUrl || currentSong.soundcloudWaveformUrl}
-                                            amplitudes={waveformData.amplitudes}
-                                            progress={progress}
-                                            currentTime={currentTime}
-                                            duration={duration}
-                                            onSeek={seekTo}
-                                            variant="full"
-                                        />
-                                    ) : (
-                                        <View style={[styles.lyricProgressFill, { width: `${progress * 100}%` as any }]} />
-                                    )}
+                                    <View style={[styles.lyricProgressFill, { width: `${progress * 100}%` as any }]} />
                                 </View>
 
                                 {/* Lyrics content */}

@@ -217,7 +217,7 @@ export const AdPlayerModal = ({ ad, songId, onFinished }: AdPlayerModalProps) =>
 
                 {/* Content */}
                 <View style={styles.content}>
-                    {/* Ad status (no waveform) */}
+                    {/* Ad status */}
                     <View style={styles.adStatusRow}>
                         <View style={styles.pulseDot} />
                         <Text style={styles.adStatusText}>Đang phát quảng cáo</Text>

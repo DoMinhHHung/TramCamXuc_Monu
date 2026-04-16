@@ -156,7 +156,7 @@ const FEATURE_ORDER: string[] = [
 ];
 
 const FEATURE_STYLE: Record<string, { icon: string; color: string }> = {
-    quality: { icon: 'waveform', color: '#A78BFA' },
+    quality: { icon: 'equalizer', color: '#A78BFA' },
     no_ads: { icon: 'music-off', color: '#FF6B6B' },
     offline: { icon: 'download-circle', color: '#4ECDC4' },
     download: { icon: 'download', color: '#60A5FA' },

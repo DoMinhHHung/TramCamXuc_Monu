@@ -38,7 +38,6 @@ export interface Song {
   sourceType?: 'LOCAL' | 'JAMENDO' | 'SOUNDCLOUD' | 'AI';
   soundcloudId?: string;
   soundcloudPermalink?: string;
-  soundcloudWaveformUrl?: string;
   soundcloudUsername?: string;
 }
 

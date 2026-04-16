@@ -22,7 +22,6 @@ import iuh.fit.se.musicservice.repository.GenreRepository;
 import iuh.fit.se.musicservice.repository.ArtistRepository;
 import iuh.fit.se.musicservice.repository.SongRepository;
 import iuh.fit.se.musicservice.service.SongService;
-import iuh.fit.se.musicservice.service.WaveformService;
 import iuh.fit.se.musicservice.util.RestPage;
 import iuh.fit.se.musicservice.util.SlugUtils;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +60,6 @@ public class SongServiceImpl implements SongService {
     private final SubscriptionCacheWarmupService subscriptionCacheWarmupService;
     private final SoundCloudService soundCloudService;
     private final SongReportRepository songReportRepository;
-    private final WaveformService waveformService;
 
     // ── Cache constants (recommendation-service internal) ──────────────────────
     private static final String   CACHE_BATCH_PREFIX  = "rec:songs:batch:";
@@ -211,17 +209,6 @@ public class SongServiceImpl implements SongService {
         song.setTranscodeStatus(TranscodeStatus.PROCESSING);
         songRepository.save(song);
 
-        try {
-            String waveformUrl = waveformService.generateAndSaveWaveform(song.getId(), song.getRawFileKey());
-            song.setWaveformUrl(waveformUrl);
-            songRepository.save(song);
-            log.info("Waveform generated for song: {} at {}", songId, waveformUrl);
-        } catch (Exception e) {
-            log.warn("Failed to generate waveform for song {}, continuing with upload", songId, e);
-            // Continue even if waveform generation fails - not critical
-        }
-
-        // Gửi yêu cầu transcode sang transcode-service
         Map<String, Object> message = Map.of(
                 "songId", song.getId().toString(),
                 "rawFileKey", song.getRawFileKey(),
@@ -286,12 +273,6 @@ public class SongServiceImpl implements SongService {
         song.setDeleteReason("Deleted by artist");
         song.setDeletedBy(userId);
         songRepository.save(song);
-
-        try {
-            waveformService.deleteWaveformData(songId);
-        } catch (Exception e) {
-            log.warn("Failed to delete waveform data for song {}", songId, e);
-        }
 
         log.info("Song {} soft-deleted by artist {}", songId, userId);
     }

@@ -178,8 +178,6 @@ public List<SoundCloudTrackResult> searchTracks(String query, int limit) {
                 }
                 track.setThumbnailUrl(artworkUrl);
 
-                track.setWaveformUrl((String) item.get("waveform_url"));
-
                 // Stream URL trả về proxy của backend để frontend không cần gắn Authorization header.
                 track.setStreamUrl(buildProxyStreamUrl(numericId));
 
