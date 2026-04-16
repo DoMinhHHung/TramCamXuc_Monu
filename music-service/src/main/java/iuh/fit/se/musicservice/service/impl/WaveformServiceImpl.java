@@ -39,7 +39,6 @@ public class WaveformServiceImpl implements WaveformService {
     private final ObjectMapper objectMapper;
     private final WaveformProperties waveformProps;
     private final StringRedisTemplate stringRedisTemplate;
-    private final WaveformFormatGenerator waveformFormatGenerator;
 
     // ──────────────────────────────────────────────────────────────────────────
     // PUBLIC METHODS
@@ -68,11 +67,7 @@ public class WaveformServiceImpl implements WaveformService {
             }
 
             // Generate and save formats
-            if (waveformProps.isAsyncProcessing()) {
-                waveformFormatGenerator.generateAsync(songId, waveformData);
-            } else {
-                generateFormatsInternal(songId, waveformData);
-            }
+            generateFormatsInternal(songId, waveformData);
 
             // Clear cache
             clearWaveformCache(songId);
