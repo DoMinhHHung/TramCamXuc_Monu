@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.UUID;
 
-@FeignClient(name = "payment-service", path = "/api/internal/subscriptions", configuration = InternalFeignConfig.class)
+@FeignClient(name = "payment-service",  contextId = "paymentSubscriptionClient", path = "/api/internal/subscriptions", configuration = InternalFeignConfig.class)
 public interface PaymentInternalClient {
 
     @GetMapping("/{userId}/status")
