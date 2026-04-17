@@ -1,5 +1,6 @@
-const BASE = '/api';
+const BASE = process.env.NEXT_PUBLIC_API_URL || '/api';
 const responseCache = new Map<string, { expiresAt: number; data: unknown }>();
+const inFlightRequests = new Map<string, Promise<unknown>>();
 
 function accessToken(): string | null {
     return typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
@@ -93,11 +94,18 @@ export async function apiFetch<T>(path: string, init?: ApiFetchInit): Promise<T>
     const method = (init?.method ?? 'GET').toUpperCase();
     const cacheable = method === 'GET' && !init?.body && (init?.ttlMs ?? 0) > 0;
     const cacheKey = cacheable ? `${method}:${path}` : null;
+    
+    // Check cache first
     if (cacheable && cacheKey) {
         const hit = responseCache.get(cacheKey);
         if (hit && hit.expiresAt > Date.now()) {
             return hit.data as T;
         }
+    }
+
+    // Deduplicate in-flight requests for GET requests
+    if (method === 'GET' && cacheKey && inFlightRequests.has(cacheKey)) {
+        return inFlightRequests.get(cacheKey) as Promise<T>;
     }
 
     const doFetch = (): Promise<Response> =>
@@ -110,53 +118,65 @@ export async function apiFetch<T>(path: string, init?: ApiFetchInit): Promise<T>
             },
         });
 
-    let res = await doFetch().catch(() => {
-        throw new ApiError('Không thể kết nối tới server', 0);
-    });
+    // Create promise and store in inFlight
+    const fetchPromise = (async () => {
+        let res = await doFetch().catch(() => {
+            throw new ApiError('Không thể kết nối tới server', 0);
+        });
 
-    const canRefresh = !path.startsWith('/auth/');
-    if (res.status === 401 && canRefresh) {
-        const refreshed = await tryRefreshAndStoreTokens();
-        if (refreshed) {
-            res = await doFetch().catch(() => {
+        const canRefresh = !path.startsWith('/auth/');
+        if (res.status === 401 && canRefresh) {
+            const refreshed = await tryRefreshAndStoreTokens();
+            if (refreshed) {
+                res = await doFetch().catch(() => {
+                    redirectToLogin();
+                    throw new ApiError('Phiên đăng nhập hết hạn', 401);
+                });
+            } else {
                 redirectToLogin();
                 throw new ApiError('Phiên đăng nhập hết hạn', 401);
-            });
-        } else {
-            redirectToLogin();
-            throw new ApiError('Phiên đăng nhập hết hạn', 401);
+            }
+            if (res.status === 401) {
+                redirectToLogin();
+                throw new ApiError('Phiên đăng nhập hết hạn', 401);
+            }
         }
-        if (res.status === 401) {
-            redirectToLogin();
-            throw new ApiError('Phiên đăng nhập hết hạn', 401);
+
+        let data: Record<string, unknown> | null = null;
+        try {
+            data = (await res.json()) as Record<string, unknown>;
+        } catch {
+            // Non-JSON response
         }
-    }
 
-    let data: Record<string, unknown> | null = null;
-    try {
-        data = (await res.json()) as Record<string, unknown>;
-    } catch {
-        // Non-JSON response
-    }
-
-    if (!res.ok) {
-        const msg =
-            (data && typeof data.message === 'string' && data.message) ||
-            httpStatusMsg(res.status);
-        throw new ApiError(msg, res.status, data?.code as number | undefined);
-    }
-
-    if (!data) throw new ApiError('Phản hồi rỗng từ server', res.status);
-
-    if (typeof data.code === 'number') {
-        if (data.code !== 1000) {
-            throw new ApiError(
-                (data.message as string) ?? `Error code ${data.code}`,
-                res.status,
-                data.code,
-            );
+        if (!res.ok) {
+            const msg =
+                (data && typeof data.message === 'string' && data.message) ||
+                httpStatusMsg(res.status);
+            throw new ApiError(msg, res.status, data?.code as number | undefined);
         }
-        const parsed = (data.result ?? data) as T;
+
+        if (!data) throw new ApiError('Phản hồi rỗng từ server', res.status);
+
+        if (typeof data.code === 'number') {
+            if (data.code !== 1000) {
+                throw new ApiError(
+                    (data.message as string) ?? `Error code ${data.code}`,
+                    res.status,
+                    data.code,
+                );
+            }
+            const parsed = (data.result ?? data) as T;
+            if (cacheable && cacheKey) {
+                responseCache.set(cacheKey, {
+                    expiresAt: Date.now() + (init?.ttlMs ?? 0),
+                    data: parsed,
+                });
+            }
+            return parsed;
+        }
+
+        const parsed = data as T;
         if (cacheable && cacheKey) {
             responseCache.set(cacheKey, {
                 expiresAt: Date.now() + (init?.ttlMs ?? 0),
@@ -164,14 +184,17 @@ export async function apiFetch<T>(path: string, init?: ApiFetchInit): Promise<T>
             });
         }
         return parsed;
+    })().finally(() => {
+        // Remove from in-flight when complete
+        if (cacheKey) {
+            inFlightRequests.delete(cacheKey);
+        }
+    });
+
+    // Store in-flight request for deduplication
+    if (cacheKey) {
+        inFlightRequests.set(cacheKey, fetchPromise);
     }
 
-    const parsed = data as T;
-    if (cacheable && cacheKey) {
-        responseCache.set(cacheKey, {
-            expiresAt: Date.now() + (init?.ttlMs ?? 0),
-            data: parsed,
-        });
-    }
-    return parsed;
+    return fetchPromise as Promise<T>;
 }

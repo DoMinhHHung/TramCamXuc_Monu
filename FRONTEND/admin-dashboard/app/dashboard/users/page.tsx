@@ -91,7 +91,15 @@ function Avatar({ user }: { user: User }) {
     return (
         <div className="size-7 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-white/[0.06] flex items-center justify-center text-[11px] text-zinc-500 dark:text-zinc-400 shrink-0 overflow-hidden">
             {user.avatarUrl
-                ? <img src={user.avatarUrl} alt="" className="size-full object-cover" />
+                ? (
+                    <img 
+                        src={`${user.avatarUrl}?w=32&h=32&q=75`}
+                        alt={user.fullName} 
+                        className="size-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                    />
+                )
                 : (user.fullName?.[0] ?? '?').toUpperCase()
             }
         </div>

@@ -15,16 +15,20 @@ import {
     SpeakerHigh,
     Warning,
     ChartBar,
+    MusicNotesPlus,
+    Microphone,
 } from '@phosphor-icons/react';
 import { useTheme } from '@/lib/theme';
+import { LogoIcon } from '@/components/logo-icon';
 
 const NAV = [
     { href: '/dashboard',           label: 'Tổng quan',     icon: SquaresFour, exact: true  },
     { href: '/dashboard/users',     label: 'Người dùng',   icon: Users,       exact: false },
-    { href: '/dashboard/music',     label: 'Nhạc & Album',        icon: MusicNote,   exact: false },
-    { href: '/dashboard/payments',  label: 'Gói cước',     icon: CreditCard,  exact: false },
+    { href: '/dashboard/music',     label: 'Quản lý âm nhạc',        icon: MusicNote,   exact: false },
+    { href: '/dashboard/artists',   label: 'Quản lý nghệ sĩ',      icon: Microphone, exact: false },
+    { href: '/dashboard/payments',  label: 'Quản lý gói cước',     icon: CreditCard,  exact: false },
     { href: '/dashboard/ads',       label: 'Quảng cáo',   icon: SpeakerHigh, exact: false },
-    { href: '/dashboard/reports',   label: 'Báo cáo',     icon: Warning,     exact: false },
+    { href: '/dashboard/reports',   label: 'Quản lý báo cáo',     icon: Warning,     exact: false },
     { href: '/dashboard/analytics', label: 'Thống kê',    icon: ChartBar,    exact: false },
 ];
 
@@ -32,10 +36,12 @@ const NAV = [
 const SEGMENT_LABELS: Record<string, string> = {
     dashboard:  'Trang chủ',
     users:      'Người dùng',
-    music:      'Nhạc & Album',
-    payments:   'Gói cước',
+    music:      'Quản lý âm nhạc',
+    albums:     'Album',
+    artists:    'Quản lý nghệ sĩ',
+    payments:   'Quản lý gói cước',
     ads:        'Quảng cáo',
-    reports:    'Báo cáo',
+    reports:    'Quản lý báo cáo',
     analytics:  'Thống kê',
 };
 
@@ -44,17 +50,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const pathname = usePathname();
     const { theme, toggle } = useTheme();
     const [open, setOpen] = useState(false);
-    const [authenticated] = useState<boolean>(() =>
-        typeof window !== 'undefined' && Boolean(localStorage.getItem('access_token')),
-    );
+    const [mounted, setMounted] = useState(false);
+    const [authenticated, setAuthenticated] = useState(false);
 
     useEffect(() => {
-        if (!authenticated) router.replace('/login');
-    }, [router, authenticated]);
+        setMounted(true);
+        setAuthenticated(Boolean(localStorage.getItem('access_token')));
+    }, []);
+
+    useEffect(() => {
+        if (mounted && !authenticated) router.replace('/login');
+    }, [router, mounted, authenticated]);
 
     const logout = () => { localStorage.clear(); router.replace('/login'); };
     const isActive = (href: string, exact: boolean) =>
         exact ? pathname === href : pathname.startsWith(href);
+
+    if (!mounted) return <div className="min-h-screen bg-background" />;
 
     if (!authenticated) return <div className="min-h-screen bg-background" />;
 
@@ -67,34 +79,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* ── Sidebar ───────────────────────────────────────── */}
             <aside className={`
                 fixed inset-y-0 left-0 z-50 w-56 flex flex-col
-                bg-zinc-50 dark:bg-[#0f0f0f]
-                border-r border-zinc-200 dark:border-white/[0.06]
-                transition-transform duration-200 ease-out
+                bg-white dark:bg-[#0a0a0a]
+                border-r border-slate-200 dark:border-slate-800
+                transition-transform duration-300 ease-out
                 ${open ? 'translate-x-0' : '-translate-x-full'}
                 lg:translate-x-0
             `}>
 
                 {/* Brand */}
-                <div className="h-14 flex items-center px-5 border-b border-zinc-200 dark:border-white/[0.06] shrink-0 gap-3">
-                    <div className="size-7 bg-zinc-900 dark:bg-white flex items-center justify-center shrink-0">
-                        <MusicNote size={14} weight="fill" className="text-white dark:text-black" />
-                    </div>
-                    <div>
-                        <p className="text-[12px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-none">
-                            Music Admin
-                        </p>
-                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5 font-mono">
-                            v0.1.0
-                        </p>
+                <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-slate-800 shrink-0 gap-3 bg-white dark:bg-slate-950">
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                            <LogoIcon size={40} />
+                            <div className="min-w-0">
+                                <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-none">
+                                    Phazel Sound
+                                </p>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-mono">
+                                    Bảng quản trị
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 {/* Nav */}
-                <nav className="flex-1 px-2.5 py-3 space-y-0.5 overflow-y-auto">
-                    {/* Label section */}
-                    <p className="text-[9px] font-semibold tracking-[0.15em] text-zinc-400 dark:text-zinc-600 px-2.5 pt-1 pb-2 uppercase">
-                        Menu
-                    </p>
+                <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
                     {NAV.map(({ href, label, icon: Icon, exact }) => {
                         const active = isActive(href, exact);
                         return (
@@ -103,55 +113,55 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 href={href}
                                 onClick={() => setOpen(false)}
                                 className={`
-                                    flex items-center gap-2.5 px-2.5 h-9 text-[13px] rounded-md transition-all
+                                    flex items-center gap-3 px-4 h-10 text-[13px] rounded-full transition-all duration-200 font-medium
                                     ${active
-                                        ? 'bg-zinc-900 dark:bg-white text-white dark:text-black font-semibold'
-                                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.06] font-medium'
+                                        ? 'bg-gradient-to-r from-yellow-400 via-pink-500 to-blue-500 text-white shadow-lg shadow-pink-500/30 dark:shadow-pink-500/20'
+                                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
                                     }
                                 `}
                             >
                                 <Icon
-                                    size={15}
+                                    size={18}
                                     weight={active ? 'fill' : 'regular'}
                                     className={active ? '' : 'opacity-70'}
                                 />
-                                {label}
+                                <span className="truncate">{label}</span>
                             </Link>
                         );
                     })}
                 </nav>
 
                 {/* Bottom */}
-                <div className="px-2.5 py-3 border-t border-zinc-200 dark:border-white/[0.06] shrink-0 space-y-0.5">
+                <div className="px-3 py-4 border-t border-slate-200 dark:border-slate-800 shrink-0 space-y-2">
                     <button
                         onClick={toggle}
-                        className="flex items-center gap-2.5 px-2.5 h-9 text-[13px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.06] w-full rounded-md transition-all"
+                        className="flex items-center gap-3 px-4 h-10 text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60 w-full rounded-full transition-all duration-200"
                     >
                         {isDark
-                            ? <Sun size={15} weight="regular" className="opacity-70" />
-                            : <Moon size={15} weight="regular" className="opacity-70" />}
-                        {isDark ? 'Chế độ sáng' : 'Chế độ tối'}
+                            ? <Sun size={18} weight="regular" className="opacity-70" />
+                            : <Moon size={18} weight="regular" className="opacity-70" />}
+                        <span className="truncate">{isDark ? 'Chế độ sáng' : 'Chế độ tối'}</span>
                     </button>
                     <button
                         onClick={logout}
-                        className="flex items-center gap-2.5 px-2.5 h-9 text-[13px] font-medium text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-400/[0.06] w-full rounded-md transition-all"
+                        className="flex items-center gap-3 px-4 h-10 text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 w-full rounded-full transition-all duration-200"
                     >
-                        <SignOut size={15} weight="regular" className="opacity-70" />
-                        Đăng xuất
+                        <SignOut size={18} weight="regular" className="opacity-70" />
+                        <span className="truncate">Đăng xuất</span>
                     </button>
 
-                    {/* User pill */}
-                    <div className="mt-2 pt-2 border-t border-zinc-200 dark:border-white/[0.06] px-2.5 pb-1">
-                        <div className="flex items-center gap-2">
-                            <div className="size-6 bg-zinc-900 dark:bg-white rounded-full flex items-center justify-center shrink-0">
-                                <span className="text-[9px] font-bold text-white dark:text-black">A</span>
+                    {/* User profile section */}
+                    <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                        <div className="flex items-center gap-3 p-3 rounded-full bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 hover:from-slate-150 dark:hover:from-slate-700 transition-all duration-200 cursor-pointer">
+                            <div className="size-9 bg-gradient-to-br from-yellow-400 via-pink-500 to-blue-500 rounded-full flex items-center justify-center shrink-0 text-white font-bold text-sm">
+                                Q
                             </div>
-                            <div className="min-w-0">
-                                <p className="text-[11px] font-semibold text-zinc-800 dark:text-zinc-200 truncate leading-none">
-                                    Admin
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[11px] font-bold text-slate-900 dark:text-slate-200 truncate leading-none">
+                                    Quản trị viên
                                 </p>
-                                <p className="text-[9px] text-zinc-400 dark:text-zinc-500 mt-0.5 font-mono">
-                                    ROLE_ADMIN
+                                <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                                    Administrator
                                 </p>
                             </div>
                         </div>
@@ -171,7 +181,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex-1 lg:ml-56 flex flex-col min-h-screen">
 
                 {/* Top header */}
-                <header className="h-14 border-b border-zinc-200 dark:border-white/[0.06] flex items-center px-5 gap-4 shrink-0 bg-white dark:bg-[#0a0a0a] sticky top-0 z-30">
+                <header className="h-14 border-b border-slate-200 dark:border-slate-800 flex items-center px-5 gap-4 shrink-0 bg-white dark:bg-slate-950 sticky top-0 z-30 shadow-sm dark:shadow-lg dark:shadow-slate-900/20">
 
                     {/* Mobile menu toggle */}
                     <button
@@ -182,18 +192,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </button>
 
                     {/* Breadcrumb */}
-                    <div className="flex items-center gap-1.5 text-[12px] min-w-0">
+                    <div className="flex items-center gap-2 text-[12px] min-w-0">
                         {segments.map((seg, i) => {
                             const isLast = i === segments.length - 1;
                             return (
-                                <span key={seg} className="flex items-center gap-1.5 min-w-0">
+                                <span key={seg} className="flex items-center gap-2 min-w-0">
                                     {i > 0 && (
-                                        <span className="text-zinc-300 dark:text-zinc-700 select-none">/</span>
+                                        <span className="text-slate-300 dark:text-slate-600 select-none">›</span>
                                     )}
                                     <span className={
                                         isLast
-                                            ? 'font-semibold text-zinc-900 dark:text-white truncate'
-                                            : 'text-zinc-400 dark:text-zinc-500 truncate'
+                                            ? 'font-bold bg-gradient-to-r from-yellow-500 via-pink-500 to-blue-500 bg-clip-text text-transparent truncate'
+                                            : 'text-slate-500 dark:text-slate-400 truncate'
                                     }>
                                         {SEGMENT_LABELS[seg] ?? seg}
                                     </span>
@@ -207,21 +217,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         {/* Theme toggle (desktop) */}
                         <button
                             onClick={toggle}
-                            className="hidden lg:flex size-8 items-center justify-center rounded-md text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-all"
+                            className="hidden lg:flex size-9 items-center justify-center rounded-full text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition-all duration-200"
                         >
-                            {isDark ? <Sun size={15} /> : <Moon size={15} />}
+                            {isDark ? <Sun size={18} /> : <Moon size={18} />}
                         </button>
 
                         {/* Status indicator */}
-                        <div className="flex items-center gap-1.5 px-2.5 h-7 bg-emerald-50 dark:bg-emerald-400/10 border border-emerald-200 dark:border-emerald-400/20 rounded-full">
-                            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[10px] font-medium text-emerald-700 dark:text-emerald-400">Online</span>
+                        <div className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/40 border border-emerald-200 dark:border-emerald-800/60 rounded-full shadow-sm dark:shadow-emerald-950/20">
+                            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Hoạt động</span>
                         </div>
                     </div>
                 </header>
 
                 {/* Page content */}
-                <main className="flex-1 p-5 lg:p-7 bg-white dark:bg-[#0a0a0a]">
+                <main className="flex-1 p-5 lg:p-7 bg-slate-50 dark:bg-slate-950">
                     {children}
                 </main>
             </div>

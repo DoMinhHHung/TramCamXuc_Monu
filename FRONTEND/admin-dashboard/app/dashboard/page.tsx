@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
+import React from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
 import {
     Users, CreditCard, SpeakerHigh, TrendUp,
@@ -50,7 +51,7 @@ async function cachedFetch<T>(path: string, ttl = CACHE_TTL_MS): Promise<T> {
 }
 
 // ─── Revenue Chart ─────────────────────────────────────────────────────────────
-function RevenueStockChart({ data }: { data: RevenuePoint[] }) {
+const RevenueStockChart = React.memo(function RevenueStockChart({ data }: { data: RevenuePoint[] }) {
     if (!data.length) return (
         <div className="h-[180px] flex items-center justify-center text-[11px] text-zinc-500">
             Không có dữ liệu doanh thu
@@ -106,13 +107,13 @@ function RevenueStockChart({ data }: { data: RevenuePoint[] }) {
                         {p.date.slice(5)}
                     </text>
                 );
-            })}
+            }            )}
         </svg>
     );
-}
+});
 
 // ─── Ad Click Bar Chart ────────────────────────────────────────────────────────
-function AdClicksChart({ ads }: { ads: Ad[] }) {
+const AdClicksChart = React.memo(function AdClicksChart({ ads }: { ads: Ad[] }) {
     const top5 = [...ads]
         .sort((a, b) => (b.totalClicks ?? 0) - (a.totalClicks ?? 0))
         .slice(0, 5);
@@ -165,9 +166,9 @@ function AdClicksChart({ ads }: { ads: Ad[] }) {
             })}
         </div>
     );
-}
+});
 
-// ─── Stat Card ─────────────────────────────────────────────────────────────────
+// ─── Stat Card ─�����──────────────────────────────────────��────────────────────────
 function StatCard({ label, value, sub, icon: Icon, color, bg, loading, badge }: {
     label: string; value: string; sub?: string; icon: React.ElementType;
     color: string; bg: string; loading: boolean; badge?: string;
@@ -280,7 +281,7 @@ export default function DashboardPage() {
 
     // ── Load all stats in parallel ──────────────────────────────────────────────
     useEffect(() => {
-        // Parallel fetch để tránh waterfall
+        // Parallel fetch để tránh waterfall - include revenue in initial load
         Promise.all([
             // Users
             cachedFetch<PageResult<object>>('/users?page=1&size=1', 30_000)
@@ -299,30 +300,57 @@ export default function DashboardPage() {
                 .then(r => setAds(r.content ?? []))
                 .catch((e: Error) => setErrorAds(e.message))
                 .finally(() => setLoadingAds(false)),
-        ]);
 
-        loadRevenue(window_);
+            // Revenue — moved here to load in parallel instead of separate effect
+            (async () => {
+                const to = new Date();
+                const from = new Date(to);
+                from.setDate(to.getDate() - 29);
+                const fromStr = from.toISOString().slice(0, 10);
+                const toStr = to.toISOString().slice(0, 10);
+                try {
+                    const rows = await apiFetch<RevenuePoint[]>(
+                        `/admin/subscriptions/stats?from=${fromStr}&to=${toStr}`
+                    );
+                    setRevenue(Array.isArray(rows) ? rows : []);
+                    setErrorRevenue(null);
+                } catch (e) {
+                    setRevenue([]);
+                    setErrorRevenue(e instanceof ApiError ? e.message : 'Không tải được doanh thu');
+                } finally {
+                    setLoadingRevenue(false);
+                }
+            })(),
+        ]);
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Re-fetch revenue khi đổi window
-    useEffect(() => { loadRevenue(window_); }, [window_, loadRevenue]);
+    // Re-fetch revenue khi đổi window (only when window changes, not initial load)
+    useEffect(() => { 
+        if (window_ !== '1M') loadRevenue(window_);
+    }, [window_, loadRevenue]);
 
-    // Realtime refresh
+    // Realtime refresh - only on window change to avoid unnecessary reloads
     useEffect(() => {
-        const close = openAdminRealtime(() => loadRevenue(window_));
+        const close = openAdminRealtime(() => {
+            // Only reload revenue, other stats are cached
+            loadRevenue(window_);
+        });
         return () => close();
     }, [loadRevenue, window_]);
 
     // ── Derived stats ──────────────────────────────────────────────────────────
-    const totalImpressions = ads.reduce((s, a) => s + (a.totalImpressions ?? 0), 0);
-    const totalClicks      = ads.reduce((s, a) => s + (a.totalClicks ?? 0), 0);
-    const activeAds        = ads.filter(a => a.status === 'ACTIVE').length;
-    const totalRevenue     = useMemo(() => revenue.reduce((s, x) => s + Number(x.total ?? 0), 0), [revenue]);
-    const avgCtr           = totalImpressions > 0
-        ? ((totalClicks / totalImpressions) * 100).toFixed(2)
-        : '0.00';
+    const { totalImpressions, totalClicks, activeAds, avgCtr, estimatedAdRevenue } = useMemo(() => {
+        const impressions = ads.reduce((s, a) => s + (a.totalImpressions ?? 0), 0);
+        const clicks = ads.reduce((s, a) => s + (a.totalClicks ?? 0), 0);
+        const active = ads.filter(a => a.status === 'ACTIVE').length;
+        const ctr = impressions > 0
+            ? ((clicks / impressions) * 100).toFixed(2)
+            : '0.00';
+        const adRevenue = ads.reduce((s, a) => s + (a.estimatedRevenueVnd ?? 0), 0);
+        return { totalImpressions: impressions, totalClicks: clicks, activeAds: active, avgCtr: ctr, estimatedAdRevenue: adRevenue };
+    }, [ads]);
 
-    const estimatedAdRevenue = ads.reduce((s, a) => s + (a.estimatedRevenueVnd ?? 0), 0);
+    const totalRevenue = useMemo(() => revenue.reduce((s, x) => s + Number(x.total ?? 0), 0), [revenue]);
 
     return (
         <div className="space-y-6">
@@ -330,7 +358,7 @@ export default function DashboardPage() {
             <div>
                 <h1 className="text-sm font-semibold text-zinc-900 dark:text-white">Overview</h1>
                 <p className="text-[11px] text-zinc-400 dark:text-zinc-600 mt-0.5">
-                    Tổng quan hệ thống và doanh thu payment theo dạng biểu đồ chứng khoán.
+                    Tổng quan hệ thống.
                 </p>
             </div>
 

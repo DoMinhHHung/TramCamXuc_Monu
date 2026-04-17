@@ -1,13 +1,11 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { useAnalyticsStore } from '@/store/analyticsStore';
+import { apiFetch, ApiError } from '@/lib/api';
 import {
     TrendUp, TrendDown, CreditCard, SpeakerHigh, MusicNote,
     Users, Queue, Playlist, Disc, Warning,
 } from '@phosphor-icons/react';
-
-const BASE = '/api';
-const token = () => (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Plan {
@@ -241,49 +239,48 @@ export default function AnalyticsPage() {
     }, [from, to, fetchAnalytics]);
 
     useEffect(() => {
-        const access = token();
-        const authInit: RequestInit | undefined = access
-            ? { headers: { Authorization: `Bearer ${access}` } }
-            : undefined;
-
-        fetch(`${BASE}/admin/subscriptions/plans?page=0&size=100`, authInit)
-            .then((r) => r.json())
-            .then((d) => setPlans(d?.result?.content ?? []))
-            .catch((e: unknown) => setErrorPlans(e instanceof Error ? e.message : 'Không tải được plans'))
-            .finally(() => setLoadingPlans(false));
-
-        fetch(`${BASE}/users?page=1&size=1`, authInit)
-            .then((r) => r.json())
-            .then((d) => setTotalUsers(d?.result?.totalElements ?? 0))
-            .catch(() => setTotalUsers(0))
-            .finally(() => setLoadingUsers(false));
-
-        fetch(`${BASE}/admin/ads?page=1&size=50`, authInit)
-            .then((r) => r.json())
-            .then((d) => {
-                const list = d?.result?.content ?? [];
-                setTotalAds(list.length);
-                setActiveAds(list.filter((x: { status?: string }) => x.status === 'ACTIVE').length);
-            })
-            .catch(() => {
-                setTotalAds(0);
-                setActiveAds(0);
-            });
-
+        // Use centralized apiFetch with caching and deduplication
         Promise.all([
-            fetch(`${BASE}/songs?page=1&size=1`, authInit).then((r) => r.json()),
-            fetch(`${BASE}/albums?page=1&size=1`, authInit).then((r) => r.json()),
-            fetch(`${BASE}/artists?page=1&size=1`, authInit).then((r) => r.json()),
-        ])
-            .then(([songsRes, albumsRes, artistsRes]) => {
-                setMusicStats({
-                    songs: songsRes?.result?.totalElements ?? 0,
-                    albums: albumsRes?.result?.totalElements ?? 0,
-                    artists: artistsRes?.result?.totalElements ?? 0,
-                });
-            })
-            .catch(() => setMusicStats({ songs: 0, albums: 0, artists: 0 }))
-            .finally(() => setLoadingMusic(false));
+            // Plans
+            apiFetch<PageResult<Plan>>('/admin/subscriptions/plans?page=0&size=100', { ttlMs: 60_000 })
+                .then((d) => setPlans(d?.content ?? []))
+                .catch((e) => setErrorPlans(e instanceof ApiError ? e.message : 'Không tải được plans'))
+                .finally(() => setLoadingPlans(false)),
+
+            // Users count
+            apiFetch<PageResult<object>>('/users?page=1&size=1', { ttlMs: 30_000 })
+                .then((d) => setTotalUsers(d?.totalElements ?? 0))
+                .catch(() => setTotalUsers(0))
+                .finally(() => setLoadingUsers(false)),
+
+            // Ads
+            apiFetch<PageResult<{ status?: string }>>('/admin/ads?page=1&size=50', { ttlMs: 30_000 })
+                .then((d) => {
+                    const list = d?.content ?? [];
+                    setTotalAds(list.length);
+                    setActiveAds(list.filter((x) => x.status === 'ACTIVE').length);
+                })
+                .catch(() => {
+                    setTotalAds(0);
+                    setActiveAds(0);
+                }),
+
+            // Music stats
+            Promise.all([
+                apiFetch<PageResult<object>>('/songs?page=1&size=1', { ttlMs: 30_000 }),
+                apiFetch<PageResult<object>>('/albums?page=1&size=1', { ttlMs: 30_000 }),
+                apiFetch<PageResult<object>>('/artists?page=1&size=1', { ttlMs: 30_000 }),
+            ])
+                .then(([songsRes, albumsRes, artistsRes]) => {
+                    setMusicStats({
+                        songs: songsRes?.totalElements ?? 0,
+                        albums: albumsRes?.totalElements ?? 0,
+                        artists: artistsRes?.totalElements ?? 0,
+                    });
+                })
+                .catch(() => setMusicStats({ songs: 0, albums: 0, artists: 0 }))
+                .finally(() => setLoadingMusic(false)),
+        ]);
     }, []);
 
     // Users, music, ads vẫn giữ nguyên logic cũ (nếu cần tối ưu tiếp sẽ refactor tiếp)

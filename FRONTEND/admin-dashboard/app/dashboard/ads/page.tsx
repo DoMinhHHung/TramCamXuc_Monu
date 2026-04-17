@@ -53,7 +53,7 @@ interface AdStats {
 interface PageResult { content: Ad[]; totalElements: number; totalPages: number }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const STATUS_LABEL: Record<AdStatus, string> = { ACTIVE: 'Active', PAUSED: 'Paused', ARCHIVED: 'Archived' };
+const STATUS_LABEL: Record<AdStatus, string> = { ACTIVE: 'Hoạt động', PAUSED: 'Tạm dừng', ARCHIVED: 'Đã lưu trữ' };
 const STATUS_CLS: Record<AdStatus, string> = {
     ACTIVE:   'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-400/10 border-emerald-200 dark:border-emerald-400/20',
     PAUSED:   'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-400/10 border-amber-200 dark:border-amber-400/20',
@@ -192,7 +192,7 @@ function AdModal({ ad, onClose, onSave }: {
 
                 <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
                     <div className="grid grid-cols-2 gap-3">
-                        <Field label="Advertiser *">
+                        <Field label="Nhà quảng cáo *">
                             <input value={form.advertiserName} onChange={e => set('advertiserName', e.target.value)} placeholder="Grab, Shopee..." className={inputCls} />
                         </Field>
                         <Field label="Tiêu đề *">
@@ -202,15 +202,15 @@ function AdModal({ ad, onClose, onSave }: {
                     <Field label="Mô tả">
                         <input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Mô tả ngắn..." className={inputCls} />
                     </Field>
-                    <Field label="Target URL *">
+                    <Field label="Đường dẫn *">
                         <input value={form.targetUrl} onChange={e => set('targetUrl', e.target.value)} placeholder="https://..." className={inputCls} />
                     </Field>
 
                     <div className="grid grid-cols-3 gap-3">
-                        <Field label="CPM (VNĐ)">
+                        <Field label="Chi phí/1K lần (VNĐ)">
                             <input type="number" value={form.cpmVnd} onChange={e => set('cpmVnd', e.target.value)} min="0" className={inputCls} />
                         </Field>
-                        <Field label="Budget (VNĐ)">
+                        <Field label="Ngân sách (VNĐ)">
                             <input type="number" value={form.budgetVnd} onChange={e => set('budgetVnd', e.target.value)} min="0" className={inputCls} />
                         </Field>
                         <Field label="Thời lượng (s)">
@@ -230,9 +230,9 @@ function AdModal({ ad, onClose, onSave }: {
                     {ad && (
                         <Field label="Trạng thái">
                             <select value={form.status} onChange={e => set('status', e.target.value as AdStatus)} className={inputCls}>
-                                <option value="ACTIVE">Active</option>
-                                <option value="PAUSED">Paused</option>
-                                <option value="ARCHIVED">Archived</option>
+                                <option value="ACTIVE">Hoạt động</option>
+                                <option value="PAUSED">Tạm dừng</option>
+                                <option value="ARCHIVED">Đã lưu trữ</option>
                             </select>
                         </Field>
                     )}
@@ -313,10 +313,10 @@ function StatsModal({ adId, onClose }: { adId: string; onClose: () => void }) {
                                 {/* Stats grid */}
                                 <div className="grid grid-cols-2 gap-3">
                                     {[
-                                        { label: 'Impressions', value: stats.totalImpressions.toLocaleString(), color: 'text-blue-600 dark:text-blue-400' },
-                                        { label: 'Clicks', value: stats.totalClicks.toLocaleString(), color: 'text-purple-600 dark:text-purple-400' },
-                                        { label: 'CTR', value: stats.ctr.toFixed(2) + '%', color: 'text-amber-600 dark:text-amber-400' },
-                                        { label: 'Revenue Est.', value: fmtVnd(stats.estimatedRevenueVnd), color: 'text-emerald-600 dark:text-emerald-400' },
+                                        { label: 'Lượt hiển thị', value: stats.totalImpressions.toLocaleString(), color: 'text-blue-600 dark:text-blue-400' },
+                                        { label: 'Lượt click', value: stats.totalClicks.toLocaleString(), color: 'text-purple-600 dark:text-purple-400' },
+                                        { label: 'Tỷ lệ click', value: stats.ctr.toFixed(2) + '%', color: 'text-amber-600 dark:text-amber-400' },
+                                        { label: 'Doanh thu ước', value: fmtVnd(stats.estimatedRevenueVnd), color: 'text-emerald-600 dark:text-emerald-400' },
                                     ].map(s => (
                                         <div key={s.label} className="border border-zinc-100 dark:border-white/[0.06] p-3">
                                             <p className="text-[10px] text-zinc-400 dark:text-zinc-600">{s.label}</p>
@@ -329,7 +329,7 @@ function StatsModal({ adId, onClose }: { adId: string; onClose: () => void }) {
                                 {stats.budgetVnd > 0 && (
                                     <div className="pt-2.5 border-t border-zinc-100 dark:border-white/[0.06]">
                                         <div className="flex justify-between text-[10px] mb-1.5">
-                                            <span className="text-zinc-400 dark:text-zinc-600">Budget used</span>
+                                            <span className="text-zinc-400 dark:text-zinc-600">Ngân sách đã sử dụng</span>
                                             <span className="text-zinc-600 dark:text-zinc-400 font-medium">{Math.min(100, Number(stats.budgetUsedPercent)).toFixed(1)}%</span>
                                         </div>
                                         <div className="h-1.5 bg-zinc-100 dark:bg-white/[0.06] overflow-hidden">
