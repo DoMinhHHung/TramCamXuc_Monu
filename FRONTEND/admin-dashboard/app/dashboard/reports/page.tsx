@@ -459,7 +459,7 @@ export default function ReportsPage() {
         setLoading(true);
         try {
             const q = status !== 'ALL' ? `&status=${status}` : '';
-            const res = await fetch(`${BASE}/admin/reports?page=${p - 1}&size=20${q}`, {
+            const res = await fetch(`${BASE}/admin/reports?page=${p}&size=20${q}`, {
                 headers: { Authorization: `Bearer ${token()}` },
             });
             if (!res.ok) { notify(`HTTP ${res.status}`, 'err'); return; }
