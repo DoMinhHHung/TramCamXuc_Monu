@@ -1010,7 +1010,6 @@ export const PremiumScreen = () => {
                     </Animated.View>
 
                     <Text style={styles.heroTitle}>{t('navigation.headerPremium', 'MONU · Plus')}</Text>
-                    <Text style={styles.heroSubtitle}>{t('premium.heroSubtitle', '')}</Text>
 
                     {isActive ? (
                         <View style={styles.activeBadge}>

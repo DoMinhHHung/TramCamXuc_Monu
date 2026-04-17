@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Fontisto, AntDesign, FontAwesome } from '@expo/vector-icons';
+import { Entypo, AntDesign, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
@@ -137,9 +137,9 @@ const TabBar = ({
   const themeColors = useThemeColors();
   const tabStyles = useMemo(() => getTabStyles(themeColors), [themeColors]);
   const tabs: { key: Tab; label: string; icon: string | React.ReactNode }[] = [
-    { key: 'playlists', label: tr('screens.library.tabPlaylists', 'Playlists'), icon: <Fontisto name="play-list" color={themeColors.accent} size={14} /> },
-    { key: 'songs', label: tr('screens.library.tabSongs', 'Songs'), icon: '🎵' },
-    { key: 'albums', label: tr('screens.library.tabAlbums', 'Albums'), icon: '💿' },
+    { key: 'playlists', label: tr('screens.library.tabPlaylists', 'Playlists'), icon: <MaterialCommunityIcons name="playlist-music" color={themeColors.accent} size={20} /> },
+    { key: 'songs', label: tr('screens.library.tabSongs', 'Songs'), icon: <Entypo name="music" color={themeColors.accent} size={20} /> },
+    { key: 'albums', label: tr('screens.library.tabAlbums', 'Albums'), icon: <MaterialCommunityIcons name="album" color={themeColors.accent} size={20} /> },
   ];
 
   return (
@@ -1794,7 +1794,7 @@ export const LibraryScreen = () => {
 
       {playlists.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}><Fontisto name="play-list" color={themeColors.accent} size={14} /></Text>
+          <Text style={styles.emptyEmoji}>    <MaterialCommunityIcons name="playlist-music" color={themeColors.accent} size={40} /></Text>
           <Text style={styles.emptyTitle}>{t('screens.library.noPlaylists', 'No playlists yet')}</Text>
           <Text style={styles.emptySub}>{t('screens.library.noPlaylistsHint', 'Create playlists to organize your favorite songs')}</Text>
         </View>
@@ -1805,7 +1805,7 @@ export const LibraryScreen = () => {
           onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug })}
         >
           <View style={styles.listItemThumb}>
-            <Text style={{ fontSize: 22 }}><Fontisto name="play-list" color={themeColors.accent} size={14} /></Text>
+            <Text style={{ fontSize: 22 }}><MaterialCommunityIcons name="playlist-music" color={themeColors.accent} size={20} /></Text>
           </View>
           <View style={styles.listItemInfo}>
             <Text style={styles.listItemTitle} numberOfLines={1}>{p.name}</Text>
@@ -1836,7 +1836,7 @@ export const LibraryScreen = () => {
   const renderSongs = () => (
     songs.length === 0 ? (
       <View style={styles.empty}>
-        <Text style={styles.emptyEmoji}>🎵</Text>
+        <Text style={styles.emptyEmoji}><Entypo name="music" color={themeColors.accent} size={40} /></Text>
         <Text style={styles.emptyTitle}>{t('screens.library.noSongs', 'No songs yet')}</Text>
         <Text style={styles.emptySub}>{t('screens.library.noSongsHint', 'Upload songs in the Create tab')}</Text>
       </View>
@@ -1912,7 +1912,7 @@ export const LibraryScreen = () => {
       {canCreateAlbum ? (
         albums.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>💿</Text>
+            <Text style={styles.emptyEmoji}><MaterialCommunityIcons name="album" color={themeColors.accent} size={40} /></Text>
             <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
             <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
           </View>
@@ -1929,7 +1929,7 @@ export const LibraryScreen = () => {
         ))
       ) : (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>💿</Text>
+          <Text style={styles.emptyEmoji}><MaterialCommunityIcons name="album" color={themeColors.accent} size={40} /></Text>
           <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
           <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
         </View>
@@ -2130,7 +2130,12 @@ export const LibraryScreen = () => {
 const getMainLibraryStyles = (c: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg },
 
-  header: { paddingHorizontal: 20, paddingBottom: 18, paddingTop: 2 },
+  header: {
+    paddingHorizontal: 20,
+    paddingBottom: 18,
+    paddingTop: 2,
+    alignItems: 'center',
+  },
   headerTitle: {
     color: c.accent,
     fontSize: 22,
@@ -2138,8 +2143,9 @@ const getMainLibraryStyles = (c: ColorScheme) => StyleSheet.create({
     fontStyle: 'italic',
     letterSpacing: 2,
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
-  headerSub: { color: c.glass40, fontSize: 13, marginTop: 4 },
+  headerSub: { color: c.glass40, fontSize: 13, marginTop: 4, textAlign: 'center' },
 
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
   refreshIndicator: { marginBottom: 12 },

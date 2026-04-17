@@ -29,6 +29,12 @@ interface Report {
 
 interface PageResult { content: Report[]; totalElements: number; totalPages: number }
 
+interface PublicUserProfile {
+    id: string;
+    fullName?: string | null;
+    avatarUrl?: string | null;
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 const REASON_LABEL: Record<ReportReason, string> = {
     COPYRIGHT_VIOLATION: 'Vi phạm bản quyền',
@@ -330,11 +336,17 @@ function ActionModal({ report, action, onClose, onConfirm }: {
 }
 
 // ─── Report Row ───────────────────────────────────────────────────────────────
-function ReportRow({ report, onAction }: {
+function ReportRow({ report, reporterName, onAction }: {
     report: Report;
+    reporterName?: string | null;
     onAction: (report: Report, action: 'confirm' | 'dismiss') => void;
 }) {
     const [expanded, setExpanded] = useState(false);
+    const reporterDisplay = reporterName?.trim()
+        ? reporterName
+        : report.reporterId
+            ? report.reporterId.substring(0, 8) + '…'
+            : 'Ẩn danh';
 
     return (
         <div className="border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-zinc-950">
@@ -381,7 +393,7 @@ function ReportRow({ report, onAction }: {
                         <div>
                             <p className="text-[10px] text-zinc-400 dark:text-zinc-600 mb-0.5">Người báo cáo</p>
                             <p className="text-zinc-700 dark:text-zinc-300 font-mono text-[10px]">
-                                {report.reporterId ? report.reporterId.substring(0, 8) + '…' : 'Ẩn danh'}
+                                {reporterDisplay}
                             </p>
                         </div>
                         {report.description && (
@@ -440,6 +452,7 @@ const STATUS_OPTIONS: Array<{ value: ReportStatus | 'ALL'; label: string }> = [
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ReportsPage() {
     const [reports,    setReports]    = useState<Report[]>([]);
+    const [reporterNames, setReporterNames] = useState<Record<string, string>>({});
     const [total,      setTotal]      = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [page,       setPage]       = useState(1);
@@ -463,7 +476,8 @@ export default function ReportsPage() {
                 headers: { Authorization: `Bearer ${token()}` },
             });
             if (!res.ok) { notify(`HTTP ${res.status}`, 'err'); return; }
-            const data = await res.json();
+            const raw = await res.json();
+            const data = (raw?.result ?? raw) as PageResult;
             setReports(data.content ?? []);
             setTotal(data.totalElements ?? 0);
             setTotalPages(data.totalPages ?? 1);
@@ -472,6 +486,51 @@ export default function ReportsPage() {
     }, []);
 
     useEffect(() => { load(page, statusFilter); }, [page, statusFilter, load]);
+
+    useEffect(() => {
+        const reporterIds = Array.from(new Set(
+            reports
+                .map((r) => r.reporterId)
+                .filter((id): id is string => Boolean(id))
+                .filter((id) => !(id in reporterNames)),
+        ));
+
+        if (reporterIds.length === 0) return;
+
+        let cancelled = false;
+        const resolveNames = async () => {
+            const entries = await Promise.all(
+                reporterIds.map(async (id) => {
+                    try {
+                        const accessToken = token();
+                        const res = await fetch(`${BASE}/users/public/${encodeURIComponent(id)}`, {
+                            headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+                        });
+                        if (!res.ok) return [id, ''] as const;
+                        const raw = await res.json();
+                        const profile = (raw?.result ?? raw) as PublicUserProfile;
+                        return [id, profile?.fullName?.trim() ?? ''] as const;
+                    } catch {
+                        return [id, ''] as const;
+                    }
+                }),
+            );
+
+            if (cancelled) return;
+            setReporterNames((prev) => {
+                const next = { ...prev };
+                entries.forEach(([id, fullName]) => {
+                    next[id] = fullName;
+                });
+                return next;
+            });
+        };
+
+        void resolveNames();
+        return () => {
+            cancelled = true;
+        };
+    }, [reports, reporterNames]);
 
     const handleAction = async (adminNote: string, deleteReason: string) => {
         if (!actionModal) return;
@@ -551,6 +610,7 @@ export default function ReportsPage() {
                             <ReportRow
                                 key={report.id}
                                 report={report}
+                                reporterName={report.reporterId ? reporterNames[report.reporterId] : null}
                                 onAction={(r, a) => setActionModal({ report: r, action: a })}
                             />
                         ))

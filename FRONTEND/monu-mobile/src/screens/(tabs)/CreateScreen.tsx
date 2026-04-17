@@ -828,20 +828,24 @@ export const CreateScreen = () => {
                   ) : (
                       <Text style={styles.cardDesc}>
                         {t('screens.create.upgradePremiumPrefix', 'Upgrade to')}{' '}
-                        <Text style={{ color: themeColors.accent }}>{t('navigation.premium', 'Premium')}</Text>
+                        <Text
+                          style={{ color: themeColors.accent, textDecorationLine: 'underline', fontWeight: '700' }}
+                          onPress={() => navigation.navigate('Premium')}
+                        >
+                          {t('navigation.premium', 'Monu Plus')}
+                        </Text>
                         {' '}{t('screens.create.upgradePremiumSuffix', 'to unlock this feature.')}
                       </Text>
                   )}
                 </View>
             )}
 
-            {/* ── Artist nhưng hết sub ─────────────────────────────── */}
             {isArtist && !hasActiveSub && (
                 <View style={styles.card}>
                   <Text style={styles.cardTitle}>{t('screens.create.renewSubscription', 'Renew subscription')}</Text>
                   <Text style={styles.cardDesc}>
                     {t('screens.create.subscriptionExpiredMessagePrefix', 'Your subscription has expired. Go to')}{' '}
-                    <Text style={{ color: themeColors.accent }}>{t('navigation.premium', 'Premium')}</Text>
+                    <Text style={{ color: themeColors.accent }}>{t('navigation.premium', 'Monu Plus')}</Text>
                     {' '}{t('screens.create.subscriptionExpiredMessageSuffix', 'to renew and continue uploading music.')}
                   </Text>
                 </View>
@@ -886,7 +890,6 @@ export const CreateScreen = () => {
                 </View>
             )}
 
-            {/* ── Upload form (chỉ khi canUpload) ─────────────────── */}
             {canUpload && (!showAiMusicSection || createTab === 'upload') && (
                 <View style={styles.card}>
                   <Text style={styles.cardTitle}>{t('screens.create.publishNewSong', 'Publish new song')}</Text>

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import {
     Animated, Pressable, StyleSheet, Text, View,
 } from 'react-native';
+import { Entypo } from '@expo/vector-icons';
 import { useThemeColors } from '../config/colors';
 import { VoiceSearchState } from '../hooks/useVoiceSearch';
 
@@ -59,9 +60,11 @@ export const VoiceSearchButton = ({
                 isRecording  && styles.btnRecording,
                 isProcessing && styles.btnProcessing,
             ]}>
-                <Text style={styles.icon}>
-                    {isProcessing ? '⏳' : '🎤'}
-                </Text>
+                {isProcessing ? (
+                    <Text style={styles.icon}>⏳</Text>
+                ) : (
+                    <Entypo name="mic" size={24} color="#E5E5E5" />
+                )}
             </View>
         </Pressable>
     );

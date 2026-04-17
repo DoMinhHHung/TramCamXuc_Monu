@@ -180,6 +180,7 @@ export const HomeScreen = () => {
   const [reportSheetOpen, setReportSheetOpen] = useState(false);
   const [reportSongId, setReportSongId] = useState<string | null>(null);
   const [qrModal, setQrModal] = useState<{ title: string; qr?: string } | null>(null);
+  const [headerAvatarFailed, setHeaderAvatarFailed] = useState(false);
 
   const topArtistsScrollRef = useRef<ScrollView | null>(null);
   const topArtistsPausedRef = useRef(false);
@@ -464,6 +465,12 @@ export const HomeScreen = () => {
     })()
     : undefined;
 
+  const headerAvatarUrl = authSession?.profile?.avatarUrl?.trim() || null;
+
+  useEffect(() => {
+    setHeaderAvatarFailed(false);
+  }, [headerAvatarUrl]);
+
 
   return (
     <LinearGradient
@@ -497,8 +504,18 @@ export const HomeScreen = () => {
       >
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={handleOpenProfile}>
-              <MaterialIcons name="person" size={26} color={themeColors.accent} />
+            <TouchableOpacity onPress={handleOpenProfile} accessibilityLabel="Open profile">
+              {headerAvatarUrl && !headerAvatarFailed ? (
+                <Image
+                  source={{ uri: headerAvatarUrl }}
+                  style={styles.headerAvatarImage}
+                  onError={() => setHeaderAvatarFailed(true)}
+                />
+              ) : (
+                <View style={styles.headerAvatarFallback}>
+                  <MaterialIcons name="person" size={20} color={themeColors.accent} />
+                </View>
+              )}
             </TouchableOpacity>
             <Text style={styles.logoText}>{t('navigation.headerHome')}</Text>
           </View>
@@ -704,7 +721,7 @@ export const HomeScreen = () => {
         {/* ... remaining legacy sections ... */}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎶 {t('screens.home.expandedSections')}</Text>
+          <Text style={styles.sectionTitle}>    <MaterialCommunityIcons name="music-box-multiple" color={themeColors.accent} size={30} /> {t('screens.home.expandedSections')}</Text>
         </View>
 
         {genres.map((genre) => {
@@ -896,6 +913,24 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: 22,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 15 },
+  headerAvatarImage: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: colors.accentBorder25,
+    backgroundColor: colors.surfaceMid,
+  },
+  headerAvatarFallback: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.accentBorder25,
+    backgroundColor: colors.surfaceMid,
+  },
   logoText: {
     fontSize: 22,
     fontWeight: '900',

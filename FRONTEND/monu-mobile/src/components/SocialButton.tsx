@@ -16,11 +16,11 @@ interface SocialButtonProps {
 
 const providerConfig: Record<SocialProvider, { defaultLabel: string; icon: string }> = {
   google: {
-    defaultLabel: 'Tiếp tục bằng Google',
+    defaultLabel: 'Google',
     icon: 'G',
   },
   facebook: {
-    defaultLabel: 'Tiếp tục bằng Facebook',
+    defaultLabel: 'Facebook',
     icon: 'f',
   },
 };
@@ -31,45 +31,73 @@ export const SocialButton = ({ provider, variant, label, onPress, disabled = fal
   const config = providerConfig[resolvedProvider];
 
   const dynamicStyles = StyleSheet.create({
-    button: {
-      width: '100%',
-      minHeight: 54,
-      borderRadius: 999,
-      marginTop: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      flexDirection: 'row',
-      paddingHorizontal: 16,
-    },
-    iconWrap: {
-      width: 24,
-      height: 24,
-      borderRadius: 12,
-      backgroundColor: colors.bg,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 10,
-    },
-    icon: {
-      color: colors.text,
-      fontSize: 13,
-      fontWeight: '800',
-    },
-    text: {
-      color: colors.text,
-      fontWeight: '700',
-      fontSize: 15,
-    },
-    pressed: {
-      opacity: 0.85,
-    },
-    disabled: {
-      opacity: 0.5,
-    },
-  });
+  button: {
+    width: '100%',
+    minHeight: 56,
+    borderRadius: 999,
+    marginTop: 14,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    paddingHorizontal: 18,
+
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+
+    elevation: 3,
+  },
+
+  iconWrap: {
+    position: 'absolute',
+    left: 18,
+
+    width: 30,
+    height: 30,
+    borderRadius: 999,
+
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    // nhẹ nhàng thôi cho nổi icon
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+
+  icon: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+
+  text: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    color: colors.text,
+    paddingLeft: 48,
+  },
+
+  pressed: {
+    transform: [{ scale: 0.97 }],
+    opacity: 0.9,
+  },
+
+  disabled: {
+    opacity: 0.45,
+  },
+});
 
   return (
     <Pressable

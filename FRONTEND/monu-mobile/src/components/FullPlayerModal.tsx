@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
     ActivityIndicator, Animated, Dimensions, FlatList, Image,
     Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
-    Pressable, ScrollView, StyleSheet, Text, View, Alert, Linking,
+    Pressable, ScrollView, StyleSheet, Text, View, Alert, Linking, useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '../context/LocalizationContext';
@@ -198,6 +198,7 @@ const lyricStyles = StyleSheet.create({
 
 export const FullPlayerModal = () => {
     const insets = useSafeAreaInsets();
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
     const { t } = useTranslation();
     const themeColors = useThemeColors();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
@@ -206,6 +207,9 @@ export const FullPlayerModal = () => {
     const [reportSheetOpen, setReportSheetOpen] = useState(false);
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
     const [shareQr, setShareQr] = useState<string | null>(null);
+    const [seekTrackWidth, setSeekTrackWidth] = useState(0);
+    const [isSeeking, setIsSeeking] = useState(false);
+    const [localSeekRatio, setLocalSeekRatio] = useState<number | null>(null);
 
     // Lyrics state
     const [activePage, setActivePage] = useState(0);
@@ -226,10 +230,39 @@ export const FullPlayerModal = () => {
 
     const hasLyrics = !!currentSong?.lyricUrl;
     const currentTimeMs = currentTime * 1000;
+    const isCompact = windowHeight < 780;
+    const isVeryCompact = windowHeight < 700;
+    const artworkSize = useMemo(() => {
+        if (isVeryCompact) return Math.min(190, windowWidth - 72);
+        if (isCompact) return Math.min(224, windowWidth - 72);
+        return Math.min(260, windowWidth - 72);
+    }, [isCompact, isVeryCompact, windowWidth]);
 
     const NETWORK_LABEL: Record<string, string> = {
-        high: '📶 Mạng tốt', medium: '📶 Mạng trung bình', low: '📶 Mạng yếu', offline: '📴 Ngoại tuyến',
+        high: 'Mạng tốt', medium: 'Mạng trung bình', low: 'Mạng yếu', offline: 'Ngoại tuyến',
     };
+
+    const networkQuality = useMemo(() => {
+        if (networkTier === 'high') return 'good';
+        if (networkTier === 'medium') return 'medium';
+        if (networkTier === 'low') return 'bad';
+        return 'offline';
+    }, [networkTier]);
+
+    const getColor = (quality: string) => {
+        switch (quality) {
+            case 'good':
+                return '#22C55E'; // xanh
+            case 'medium':
+                return '#F59E0B'; // vang
+            case 'bad':
+                return '#EF4444'; // do
+            default:
+                return '#9CA3AF'; // xam
+        }
+    };
+
+    const networkColor = getColor(networkQuality);
 
     // Fetch lyrics when song changes
     useEffect(() => {
@@ -287,6 +320,24 @@ export const FullPlayerModal = () => {
     ).current;
 
     const progress = duration > 0 ? currentTime / duration : 0;
+    const displayedProgress = localSeekRatio ?? progress;
+
+    const ratioFromLocationX = useCallback((locationX: number) => {
+        if (seekTrackWidth <= 0 || duration <= 0) return;
+        const clampedX = Math.max(0, Math.min(locationX, seekTrackWidth));
+        return clampedX / seekTrackWidth;
+    }, [duration, seekTrackWidth]);
+
+    const updateLocalSeekFromLocationX = useCallback((locationX: number) => {
+        const ratio = ratioFromLocationX(locationX);
+        if (ratio == null) return;
+        setLocalSeekRatio(ratio);
+    }, [ratioFromLocationX]);
+
+    const commitSeek = useCallback(() => {
+        if (localSeekRatio == null || duration <= 0) return;
+        seekTo(localSeekRatio * duration);
+    }, [duration, localSeekRatio, seekTo]);
 
     const looksLikeSoundCloud = !!currentSong?.soundcloudId || !!currentSong?.soundcloudPermalink;
     const isSoundCloudTrack = currentSong?.sourceType === 'SOUNDCLOUD' || looksLikeSoundCloud;
@@ -400,18 +451,26 @@ export const FullPlayerModal = () => {
                         {/* ── Page 1: Player ─────────────────────────── */}
                         <View style={{ width: SCREEN_W, paddingHorizontal: 24 }}>
                             {/* Artwork */}
-                            <View style={styles.artworkSection}>
+                            <View style={[styles.artworkSection, isCompact && { marginBottom: 14 }]}>
                                 {currentSong.thumbnailUrl
-                                    ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.artwork} />
-                                    : <View style={[styles.artwork, styles.artworkPlaceholder]}>
+                                    ? <Image source={{ uri: currentSong.thumbnailUrl }} style={[styles.artwork, { width: artworkSize, height: artworkSize }]} />
+                                    : <View style={[styles.artwork, styles.artworkPlaceholder, { width: artworkSize, height: artworkSize }]}>
                                         <AppIcon name="musicNote" size={64} color={COLORS.glass35} />
                                     </View>
                                 }
                             </View>
 
                             {/* Song info */}
-                            <View style={styles.songInfo}>
-                                <Text style={styles.songTitle} numberOfLines={2}>{currentSong.title}</Text>
+                            <View style={[styles.songInfo, isCompact && { marginBottom: 14 }]}>
+                                <Text
+                                    style={[
+                                        styles.songTitle,
+                                        isCompact && { fontSize: isVeryCompact ? 18 : 20, marginBottom: 2 },
+                                    ]}
+                                    numberOfLines={2}
+                                >
+                                    {currentSong.title}
+                                </Text>
                                 <View style={styles.songMetaRow}>
                                     <Text style={styles.artistName} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
                                     <View style={styles.heartWrap}>
@@ -430,20 +489,49 @@ export const FullPlayerModal = () => {
                             </View>
 
                             {/* Seek bar */}
-                            <View style={styles.progressSection}>
+                            <View style={[styles.progressSection, isCompact && { marginBottom: 14 }]}>
                                 <View style={styles.seekTouchArea}>
-                                    <View style={styles.seekTrack}>
-                                        <View style={[styles.seekFill, { width: `${progress * 100}%` as any }]} />
+                                    <View
+                                        style={styles.seekTrack}
+                                        onLayout={(e) => setSeekTrackWidth(e.nativeEvent.layout.width)}
+                                        onStartShouldSetResponder={() => true}
+                                        onMoveShouldSetResponder={() => true}
+                                        onResponderGrant={(e) => {
+                                            setIsSeeking(true);
+                                            updateLocalSeekFromLocationX(e.nativeEvent.locationX);
+                                        }}
+                                        onResponderMove={(e) => {
+                                            updateLocalSeekFromLocationX(e.nativeEvent.locationX);
+                                        }}
+                                        onResponderRelease={() => {
+                                            commitSeek();
+                                            setIsSeeking(false);
+                                            setLocalSeekRatio(null);
+                                        }}
+                                        onResponderTerminate={() => {
+                                            commitSeek();
+                                            setIsSeeking(false);
+                                            setLocalSeekRatio(null);
+                                        }}
+                                    >
+                                        <View style={[styles.seekFill, { width: `${displayedProgress * 100}%` as any }]} />
+                                        <View
+                                            style={[
+                                                styles.seekThumb,
+                                                isSeeking && styles.seekThumbActive,
+                                                { left: `${displayedProgress * 100}%` as any },
+                                            ]}
+                                        />
                                     </View>
                                 </View>
                                 <View style={styles.timeRow}>
-                                    <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+                                    <Text style={styles.timeText}>{formatTime(displayedProgress * duration)}</Text>
                                     <Text style={styles.timeText}>{formatTime(duration)}</Text>
                                 </View>
                             </View>
 
                             {/* Controls */}
-                            <View style={styles.controls}>
+                            <View style={[styles.controls, isCompact && { marginBottom: 6 }]}>
                                 <Pressable style={styles.sideBtn} onPress={toggleShuffle} hitSlop={8}>
                                     <AppIcon
                                       name="shuffle"
@@ -477,7 +565,7 @@ export const FullPlayerModal = () => {
                             </View>
 
                             {/* Mode label */}
-                            <View style={styles.modeLabels}>
+                            <View style={[styles.modeLabels, isCompact && { marginBottom: 10 }]}>
                                 {isShuffled && (
                                     <Text style={styles.modeLabelText}><AppIcon name="shuffle" color="#34D399" size={13} /> Phát ngẫu nhiên</Text>
                                 )}
@@ -491,7 +579,7 @@ export const FullPlayerModal = () => {
 
                             {/* Quality selector */}
                             {!isExternalTrack && (
-                                <View style={styles.qualitySection}>
+                                <View style={[styles.qualitySection, isCompact && { marginBottom: 8 }]}>
                                     <View style={styles.qualityHeader}>
                                         <Text style={styles.qualityLabel}>Chất lượng âm thanh</Text>
                                         <Pressable
@@ -535,12 +623,25 @@ export const FullPlayerModal = () => {
                                     <Text style={styles.qualityHint}>
                                         {'Đang phát: '}
                                         <Text style={{ color: COLORS.accent }}>{selectedQuality}kbps</Text>
-                                        {autoQuality
-                                            ? `  •  ${NETWORK_LABEL[networkTier] ?? networkTier}`
-                                            : maxQuality < 320
-                                                ? '  •  Nâng cấp Premium để mở chất lượng cao hơn'
-                                                : '  •  Chất lượng tối đa'}
                                     </Text>
+                                    {autoQuality ? (
+                                        <View style={styles.networkHintRow}>
+                                            <MaterialIcons
+                                                name={networkTier === 'offline' ? 'signal-cellular-off' : 'network-check'}
+                                                size={13}
+                                                color={networkColor}
+                                            />
+                                            <Text style={[styles.networkHintText, { color: networkColor }]}>
+                                                {NETWORK_LABEL[networkTier] ?? networkTier}
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        <Text style={styles.qualityHint}>
+                                            {maxQuality < 320
+                                                ? 'Nâng cấp Premium để mở chất lượng cao hơn'
+                                                : 'Chất lượng tối đa'}
+                                        </Text>
+                                    )}
                                 </View>
                             )}
 
@@ -562,7 +663,7 @@ export const FullPlayerModal = () => {
                                 </Text>
                             </View>
 
-                            <View style={{ height: insets.bottom + 16 }} />
+                            <View style={{ height: insets.bottom + (isCompact ? 8 : 16) }} />
 
                             {currentSong.sourceType === 'SOUNDCLOUD' && currentSong.soundcloudPermalink && (
                                 <Pressable
@@ -753,7 +854,7 @@ export const FullPlayerModal = () => {
 const createStyles = (c: ColorScheme) => StyleSheet.create({
     root:               { flex: 1, backgroundColor: c.bg },
     header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 20 },
-    chevronBtn:         { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+    chevronBtn:         { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
     headerTitle:        { color: c.glass50, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
     moreBtn:            { color: c.white, fontSize: 30, lineHeight: 30 },
 
@@ -770,9 +871,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     songMetaRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
     artistName:         { color: c.glass60, fontSize: 14, fontWeight: '600', flex: 1 },
     heartWrap:          {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
         backgroundColor: c.glass07,
         borderWidth: 1,
         borderColor: c.glass12,
@@ -799,10 +900,10 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     genreChip:          { backgroundColor: c.glass06, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: c.glass10 },
     genreText:          { color: c.glass60, fontSize: 11, fontWeight: '700' },
 
-    progressSection:    { marginBottom: 20 },
-    seekTouchArea:      { height: 56, justifyContent: 'center' },
+    progressSection:    { marginBottom: 18 },
+    seekTouchArea:      { height: 48, justifyContent: 'center' },
     seekTrack:          { height: 3, backgroundColor: c.glass12, borderRadius: 2 },
-    seekTrackActive:    { height: 5 },
+    seekTrackActive:    { height: 3 },
     seekFill:           { height: 3, backgroundColor: c.white, borderRadius: 2 },
     seekThumb:          { position: 'absolute', top: '50%', marginTop: -THUMB_RADIUS, width: THUMB_RADIUS * 2, height: THUMB_RADIUS * 2, borderRadius: THUMB_RADIUS, backgroundColor: c.white, shadowColor: c.white, shadowOpacity: 0, shadowRadius: 6 },
     seekThumbActive:    { width: THUMB_RADIUS * 2.8, height: THUMB_RADIUS * 2.8, marginTop: -(THUMB_RADIUS * 1.4), borderRadius: THUMB_RADIUS * 1.4, shadowOpacity: 0.4 },
@@ -812,19 +913,19 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 8 },
     sideBtn:            { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
     playBtn:            {
-        width: 64, height: 64, borderRadius: 32,
+        width: 54, height: 54, borderRadius: 32,
         backgroundColor: c.white,
         alignItems: 'center', justifyContent: 'center',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3, shadowRadius: 10, elevation: 8,
     },
 
     modeDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: c.accent, marginTop: 2, alignSelf: 'center' },
-    modeLabels:         { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 14, minHeight: 16 },
+    modeLabels:         { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 14, minHeight: 14 },
     modeLabelText:      { color: c.glass45, fontSize: 11, fontWeight: '700' },
 
-    qualitySection:         { marginBottom: 14 },
-    qualityHeader:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+    qualitySection:         { marginBottom: 12 },
+    qualityHeader:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
     qualityLabel:           { color: c.glass35, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
     autoBtn:                { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: c.glass12, backgroundColor: c.glass06 },
     autoBtnActive:          { borderColor: c.accent, backgroundColor: c.accentFill20 },
@@ -838,6 +939,8 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     qualityBtnTextActive:   { color: c.white, fontWeight: '800' },
     qualityBtnTextLocked:   { color: c.glass20 },
     qualityHint:            { color: c.glass35, fontSize: 11, lineHeight: 16 },
+    networkHintRow:         { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    networkHintText:        { fontSize: 11, fontWeight: '600' },
 
     lyricHint:          { alignItems: 'center', marginBottom: 8 },
     lyricHintText:      { color: c.glass35, fontSize: 11, fontWeight: '600' },

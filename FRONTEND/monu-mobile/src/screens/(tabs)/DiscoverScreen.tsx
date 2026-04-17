@@ -70,6 +70,7 @@ import { apiClient } from '../../services/api';
 import { usePlayerControls, usePlayerState } from '../../context/PlayerContext';
 import { notifyFeedUpdated, subscribeFeedUpdates } from '../../services/feedEvents';
 import { loadCache, saveCache } from '../../utils/swrCache';
+import { Entypo } from '@expo/vector-icons';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -2050,12 +2051,11 @@ export const DiscoverScreen = () => {
         >
           <View style={styles.headerRow}>
             <Text style={styles.headerTitle}>{t('navigation.headerDiscover', 'MONU · Khám phá')}</Text>
+          </View>
+          <Text style={styles.headerSub}>
             <View style={styles.liveBadge}>
               <Text style={styles.liveBadgeText}>LIVE</Text>
             </View>
-          </View>
-          <Text style={styles.headerSub}>
-            {t('screens.discover.communityLabel', 'Cộng đồng âm nhạc')} · {posts.length} {t('screens.discover.posts', 'bài đăng')}
           </Text>
 
           {/* Feed tabs */}
@@ -2091,9 +2091,6 @@ export const DiscoverScreen = () => {
               {t('screens.discover.composerPlaceholder', 'Bạn đang nghĩ gì về âm nhạc?')}
             </Text>
           </Pressable>
-          <Pressable style={styles.composerIconBtn} onPress={() => setComposeOpen(true)}>
-            <Text style={{ fontSize: 18 }}>🎵</Text>
-          </Pressable>
         </View>
 
         <View style={styles.feedDivider} />
@@ -2105,7 +2102,7 @@ export const DiscoverScreen = () => {
           </View>
         ) : posts.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyEmoji}>🎵</Text>
+            <Text style={styles.emptyEmoji}><Entypo name="music" color={themeColors.accent} size={40} /></Text>
             <Text style={styles.emptyTitle}>{t('screens.discover.noPosts', 'Chưa có bài đăng')}</Text>
             <Text style={styles.emptySub}>{t('screens.discover.beFirstToShare', 'Hãy là người đầu tiên!')}</Text>
             <Pressable style={styles.emptyBtn} onPress={() => setComposeOpen(true)}>
@@ -2220,8 +2217,8 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   avatar: { alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: C.white, fontWeight: '700' },
-  header: { paddingHorizontal: 20, paddingBottom: 18, paddingTop: 2 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  header: { paddingHorizontal: 20, paddingBottom: 18, paddingTop: 2, alignItems: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   headerTitle: {
     color: C.accent,
     fontSize: 22,
@@ -2232,13 +2229,13 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   },
   liveBadge: { backgroundColor: C.error, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   liveBadgeText: { color: C.white, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  headerSub: { color: C.muted, fontSize: 13, marginTop: 4 },
-  tabBar: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 18, padding: 4, marginTop: 14, borderWidth: 1, borderColor: C.glass10 },
+  headerSub: { color: C.muted, fontSize: 13, marginTop: 4, textAlign: 'center' },
+  tabBar: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 18, padding: 4, marginTop: 14, borderWidth: 1, borderColor: C.glass10, alignSelf: 'stretch' },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 14 },
   tabActive: { backgroundColor: C.accentFill20, borderWidth: 1, borderColor: C.accentBorder25 },
   tabText: { color: C.muted, fontSize: 13, fontWeight: '700' },
   tabTextActive: { color: C.accent },
-  tabHint: { color: C.muted, fontSize: 11, marginTop: 6 },
+  tabHint: { color: C.muted, fontSize: 11, marginTop: 6, textAlign: 'center' },
   composerBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10, marginTop: 2 },
   composerInput: { flex: 1, backgroundColor: C.surface, borderRadius: 24, paddingHorizontal: 16, paddingVertical: 11, borderWidth: 1, borderColor: C.glass10 },
   composerPlaceholder: { color: C.muted, fontSize: 14 },
