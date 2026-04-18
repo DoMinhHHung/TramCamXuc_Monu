@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { NavigationContainer, LinkingOptions, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -6,6 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS }                 from '../config/colors';
+import { MAIN_TAB_BAR_BASE_HEIGHT, MINI_PLAYER_HEIGHT } from '../config/design';
 import { AppIcon, AppIconName }   from '../config/appIcons';
 import { useAuth }                from '../context/AuthContext';
 import { usePlayerState }         from '../context/PlayerContext';
@@ -132,11 +133,13 @@ const linking: LinkingOptions<any> = {
     config: { screens: { MainTabs: 'home' } },
 };
 
+/** Leaf routes of `MainTabNavigator` — global overlays sit above the tab bar only on these screens. */
+const MAIN_TAB_LEAF_ROUTE_NAMES = new Set<string>(['Home', 'Discover', 'Create', 'Library', 'Premium']);
+
 const MainTabNavigator = () => {
     const insets = useSafeAreaInsets();
     const { prefetch: prefetchLibrary } = useLibraryData();
-    const TAB_BAR_BASE = 58;
-    const tabBarHeight = TAB_BAR_BASE + insets.bottom;
+    const tabBarHeight = MAIN_TAB_BAR_BASE_HEIGHT + insets.bottom;
 
     return (
         <Tab.Navigator
@@ -193,9 +196,24 @@ const MainTabNavigator = () => {
 };
 
 const GlobalOverlays = ({ routeName }: { routeName: string | null }) => {
-    const { pendingAd, dismissAd, currentSong, adNotice } = usePlayerState();
+    const insets = useSafeAreaInsets();
+    const { pendingAd, dismissAd, currentSong, adNotice, setChromeBottomInset } = usePlayerState();
+    const overMainTabLeaf = routeName != null && MAIN_TAB_LEAF_ROUTE_NAMES.has(routeName);
+    const miniPlayerBottomInset = overMainTabLeaf
+        ? MAIN_TAB_BAR_BASE_HEIGHT + insets.bottom
+        : Math.max(insets.bottom, 8) + 8;
+
+    useEffect(() => {
+        setChromeBottomInset(
+            currentSong ? miniPlayerBottomInset + MINI_PLAYER_HEIGHT + 12 : 0,
+        );
+    }, [currentSong, miniPlayerBottomInset, setChromeBottomInset]);
+
+    useEffect(() => () => setChromeBottomInset(0), [setChromeBottomInset]);
+
     const allowAdNotice = routeName != null && (
       routeName === 'MainTabs'
+      || MAIN_TAB_LEAF_ROUTE_NAMES.has(routeName)
       || routeName === 'Search'
       || routeName === 'PlaylistDetail'
       || routeName === 'AlbumDetail'
@@ -207,7 +225,7 @@ const GlobalOverlays = ({ routeName }: { routeName: string | null }) => {
         <>
             <AdNoticeBanner notice={adNotice} enabled={allowAdNotice} />
             <StreamingStatusBanner />
-            <MiniPlayer />
+            <MiniPlayer bottomInset={miniPlayerBottomInset} />
             <UploadProgressBanner />
             <FullPlayerModal />
             <AdPlayerModal ad={pendingAd} songId={currentSong?.id} onFinished={dismissAd} />

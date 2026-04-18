@@ -109,6 +109,8 @@ interface PlayerContextValue {
     isPlayingAd: boolean;
     adNotice: AdNotice | null;
     dismissAd: () => void;
+    chromeBottomInset: number;
+    setChromeBottomInset: (px: number) => void;
 }
 
 export interface PlayerStateValue {
@@ -120,6 +122,8 @@ export interface PlayerStateValue {
     isPlayingAd: boolean;
     adNotice: AdNotice | null;
     dismissAd: () => void;
+    chromeBottomInset: number;
+    setChromeBottomInset: (px: number) => void;
 }
 
 export interface PlayerStatusValue {
@@ -210,6 +214,10 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const [pendingAd, setPendingAd] = useState<AdDelivery | null>(null);
     const [isPlayingAd, setIsPlayingAd] = useState(false);
     const [adNotice, setAdNotice] = useState<AdNotice | null>(null);
+    const [chromeBottomInset, setChromeBottomInsetState] = useState(0);
+    const setChromeBottomInset = useCallback((px: number) => {
+        setChromeBottomInsetState((prev) => (prev === px ? prev : px));
+    }, []);
     const noAdsRef = useRef(false);
     const checkingAdRef = useRef(false);
     const adEventsSinceResetRef = useRef(0);
@@ -700,7 +708,9 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         isPlayingAd,
         adNotice,
         dismissAd,
-    }), [currentSong, queue, isFullScreen, setFullScreen, pendingAd, isPlayingAd, adNotice, dismissAd]);
+        chromeBottomInset,
+        setChromeBottomInset,
+    }), [currentSong, queue, isFullScreen, setFullScreen, pendingAd, isPlayingAd, adNotice, dismissAd, chromeBottomInset, setChromeBottomInset]);
 
     const statusValue = React.useMemo<PlayerStatusValue>(() => ({
         isPlaying: status.playing ?? false,

@@ -28,6 +28,12 @@ export const SPACING = {
   section: scale(32),
 } as const;
 
+/** Bottom tab bar content height (excluding safe-area); must match `tabBarStyle.height` math in AppNavigator. */
+export const MAIN_TAB_BAR_BASE_HEIGHT = 58;
+
+/** Mini player bar height — keep in sync with `MiniPlayer` layout. */
+export const MINI_PLAYER_HEIGHT = 68;
+
 // ── Border Radius ─────────────────────────────────────────────────────────────
 /** Unified border-radius scale. */
 export const RADIUS = {

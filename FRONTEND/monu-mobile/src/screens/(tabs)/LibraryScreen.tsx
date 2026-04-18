@@ -92,7 +92,7 @@ type LibraryCachePayload = {
 type ArtistProfile = {
   id: string;
   stageName?: string;
-  status?: 'ACTIVE' | 'PENDING' | 'BANNED' | 'REJECTED';
+  status?: 'ACTIVE' | 'PENDING' | 'BANNED';
 };
 
 const getSongStatusLabel = (song: Song, c: ColorScheme): { label: string; color: string; pulse: boolean } => {
@@ -893,7 +893,7 @@ const ShareToDiscoveryModal = ({ visible, item, onClose, onPost }: ShareToDiscov
 
   React.useEffect(() => {
     if (item && visible) {
-      const typeLabel = item.type === 'playlist' ? 'Playlist' : item.type === 'album' ? 'Album' : 'Bài hát';
+      const typeLabel = item.type === 'playlist' ? 'danh sách phát' : item.type === 'album' ? 'album' : 'bài hát';
       setTitle(`Chia sẻ ${typeLabel}: ${item.title}`);
       setCaption('');
       setVisibility('PUBLIC');
@@ -2004,7 +2004,7 @@ export const LibraryScreen = () => {
       >
         <View style={modalStyles.overlay}>
           <View style={modalStyles.card}>
-            <Text style={modalStyles.title}>Sửa tên playlist</Text>
+            <Text style={modalStyles.title}>Sửa tên danh sách phát</Text>
             <Text style={modalStyles.title}>{t('screens.library.editPlaylistName', 'Edit playlist name')}</Text>
             <TextInput
               style={modalStyles.input}

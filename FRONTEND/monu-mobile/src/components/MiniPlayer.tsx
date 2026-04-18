@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
     Animated, PanResponder, Pressable,
     StyleSheet, Text, View, Image,
@@ -8,21 +8,33 @@ import { usePlayerControls, usePlayerState, usePlayerStatus } from '../context/P
 import { useThemeColors, ColorScheme } from '../config/colors';
 import { Fold } from 'react-native-animated-spinkit';
 import { AppIcon } from '../config/appIcons';
-import { RADIUS, SHADOW } from '../config/design';
+import { MINI_PLAYER_HEIGHT, RADIUS, SHADOW } from '../config/design';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const MINI_HEIGHT     = 68;
 const SWIPE_THRESHOLD = 60;
 
-export const MiniPlayer = () => {
+export type MiniPlayerProps = {
+    /** Distance from screen bottom (tab bar + safe area on main tabs; safe area + margin on stack screens). */
+    bottomInset: number;
+};
+
+export const MiniPlayer = ({ bottomInset }: MiniPlayerProps) => {
     const { currentSong, setFullScreen } = usePlayerState();
     const { isPlaying, isLoaded, currentTime, duration } = usePlayerStatus();
     const { togglePlay, playNext, stopPlayer, repeatMode, isShuffled } = usePlayerControls();
 
-    const insets = useSafeAreaInsets();
-    const TAB_BAR_BASE = 58;
-    const tabBarHeight = TAB_BAR_BASE + insets.bottom;
+    const bottomInsetRef = useRef(bottomInset);
+    bottomInsetRef.current = bottomInset;
+
+    const bottomAnim = useRef(new Animated.Value(bottomInset)).current;
+    useEffect(() => {
+        Animated.spring(bottomAnim, {
+            toValue: bottomInset,
+            useNativeDriver: false,
+            friction: 9,
+            tension: 68,
+        }).start();
+    }, [bottomInset, bottomAnim]);
 
     const themeColors = useThemeColors();
     const styles = useMemo(() => getStyles(themeColors), [themeColors]);
@@ -57,7 +69,7 @@ export const MiniPlayer = () => {
                     Animated.parallel([
                         swipedLeft
                             ? Animated.timing(translateX, { toValue: -500, duration: 220, useNativeDriver: true })
-                            : Animated.timing(translateY, { toValue: MINI_HEIGHT + tabBarHeight + 40, duration: 200, useNativeDriver: true }),
+                            : Animated.timing(translateY, { toValue: MINI_PLAYER_HEIGHT + bottomInsetRef.current + 40, duration: 200, useNativeDriver: true }),
                         Animated.timing(dragOpacity, { toValue: 0.2, duration: 180, useNativeDriver: true }),
                     ]).start(() => {
                         translateY.setValue(0);
@@ -90,7 +102,7 @@ export const MiniPlayer = () => {
         <Animated.View
             style={[
                 styles.container,
-                { bottom: tabBarHeight },
+                { bottom: bottomAnim },
                 { opacity: dragOpacity, transform: [{ translateY }, { translateX }] },
             ]}
             {...panResponder.panHandlers}
@@ -107,11 +119,17 @@ export const MiniPlayer = () => {
                     ]}
                 />
             </View>
-            {/* Glass surface */}
+            {/* Solid-tint surface (was glass08 → surface, too faint over tabs) */}
             <LinearGradient
-                colors={[themeColors.glass08, themeColors.surface]}
+                colors={[themeColors.surfaceLow, themeColors.surface]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFillObject}
+            />
+            <LinearGradient
+                colors={[themeColors.glass12, 'rgba(255,255,255,0)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
                 style={StyleSheet.absoluteFillObject}
             />
 
@@ -186,10 +204,12 @@ export const MiniPlayer = () => {
 const getStyles = (colors: ColorScheme) => StyleSheet.create({
     container: {
         position: 'absolute', left: 10, right: 10,
-        height: MINI_HEIGHT,
-        backgroundColor: 'transparent',
+        height: MINI_PLAYER_HEIGHT,
+        backgroundColor: colors.surface,
         borderRadius: RADIUS.lg ?? RADIUS.md,
         overflow: 'hidden',
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.borderSubtle,
         ...SHADOW.lg,
     },
     progressTrack:        { height: 2, backgroundColor: colors.glass12 },
@@ -207,7 +227,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: colors.glass08,
+        backgroundColor: colors.glass15,
         alignItems: 'center',
         justifyContent: 'center',
         marginLeft: 4,

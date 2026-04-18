@@ -20,8 +20,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AntDesign, FontAwesome, Fontisto, MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { ThemeName, ThemeColors, THEMES } from '../config/themes';
-import { useTheme } from '../context/ThemeContext';
+import { useThemeColors, type ColorScheme } from '../config/colors';
 import { MOOD_EMOJIS, MUSIC_EMOJIS } from '../config/emojis';
 import { useAuth } from '../context/AuthContext';
 import { usePlayerControls, usePlayerState, usePlayerStatus } from '../context/PlayerContext';
@@ -107,7 +106,7 @@ export const HomeScreen = () => {
   const { width: windowWidth } = useWindowDimensions();
   const { startDownload, isDownloaded, getJobStatus } = useDownload();
   const { t } = useTranslation();
-  const { colors: themeColors, theme: currentThemeName } = useTheme();
+  const palette = useThemeColors();
   const headerPadTop = insets.top + (windowWidth < 360 ? 8 : 12);
   const headerPadH = windowWidth < 360 ? 14 : 20;
   const greetingFontSize = windowWidth < 340 ? 16 : windowWidth < 400 ? 19 : 22;
@@ -170,7 +169,7 @@ export const HomeScreen = () => {
 
   const [pullRefreshing, setPullRefreshing] = useState(false);
 
-  const styles = useMemo(() => getStyles(themeColors), [themeColors]);
+  const styles = useMemo(() => getStyles(palette), [palette]);
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
@@ -413,14 +412,14 @@ export const HomeScreen = () => {
       {
         from: 5,
         to: 10,
-        greeting: `Chào buổi sáng, ${name}! ☀️`,
+        greeting: `Chào buổi sáng, ${name}!`,
         suggest: 'Khởi động ngày mới với Monu',
         emoji: '☀️',
       },
       {
         from: 10,
         to: 13,
-        greeting: `Chào ${name}! 🌤`,
+        greeting: `Chào ${name}!`,
         suggest: 'Buổi trưa vui vẻ',
         emoji: '🌤',
       },
@@ -457,6 +456,8 @@ export const HomeScreen = () => {
   };
 
   const homeGreeting = getContextualGreeting();
+  const streakDays = homeStats?.currentStreakDays ?? 0;
+  const streakIsZero = streakDays === 0;
 
   const updatedLabel = rec.lastUpdatedAt
     ? (() => {
@@ -474,7 +475,7 @@ export const HomeScreen = () => {
 
   return (
     <LinearGradient
-      colors={[themeColors.gradViolet || '#1a0533', themeColors.bg]}
+      colors={[palette.gradViolet || '#1a0533', palette.bg]}
       style={styles.root}
     >
       <StatusBar style="light" />
@@ -513,14 +514,14 @@ export const HomeScreen = () => {
                 />
               ) : (
                 <View style={styles.headerAvatarFallback}>
-                  <MaterialIcons name="person" size={20} color={themeColors.accent} />
+                  <MaterialIcons name="person" size={20} color={palette.accent} />
                 </View>
               )}
             </TouchableOpacity>
             <Text style={styles.logoText}>{t('navigation.headerHome')}</Text>
           </View>
           <TouchableOpacity style={styles.headerSearchBtn} onPress={handleOpenSearch}>
-            <Ionicons name="search" size={24} color={themeColors.accent} />
+            <Ionicons name="search" size={24} color={palette.accent} />
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -537,7 +538,7 @@ export const HomeScreen = () => {
           <RefreshControl
             refreshing={pullRefreshing}
             onRefresh={handleRefresh}
-            tintColor={themeColors.accent}
+            tintColor={palette.accent}
           />
         )}
       >
@@ -549,18 +550,22 @@ export const HomeScreen = () => {
         {/* ── 1. STREAK BANNER ─────────────────────────────────────────── */}
         <View style={styles.sectionContainer}>
           <LinearGradient
-            colors={[themeColors.cardTrendingFrom || '#1a1040', themeColors.cardTrendingTo || '#2D1B69']}
+            colors={[palette.cardTrendingFrom || '#1a1040', palette.cardTrendingTo || '#2D1B69']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.streakCard}
           >
             <View style={styles.streakContent}>
               <View style={styles.streakLabelRow}>
-                <MaterialCommunityIcons name="fire" size={18} color={themeColors.accent} />
+                <MaterialCommunityIcons name="fire" size={18} color="#FF3B30" />
                 <Text style={styles.streakLabel}>{t('screens.home.streakLabel')}</Text>
               </View>
-              <Text style={styles.streakValue}>{t('screens.home.streakValue', { days: homeStats?.currentStreakDays ?? 0 })}</Text>
-              <Text style={styles.streakSub}>{t('screens.home.streakSub')}</Text>
+              <Text style={styles.streakValue}>
+                {streakIsZero ? t('screens.home.streakValueZero') : t('screens.home.streakValue', { days: streakDays })}
+              </Text>
+              <Text style={styles.streakSub}>
+                {streakIsZero ? t('screens.home.streakSubZero') : t('screens.home.streakSub')}
+              </Text>
             </View>
             <TouchableOpacity style={styles.streakBtn} onPress={handleOpenInsights}>
               <Text style={styles.streakBtnText}>{t('screens.home.streakDetail')}</Text>
@@ -599,7 +604,7 @@ export const HomeScreen = () => {
             style={styles.discoveryCard}
             onPress={handleOpenSearch}
           >
-             <MaterialCommunityIcons name="auto-fix" size={32} color={themeColors.accent} />
+             <MaterialCommunityIcons name="auto-fix" size={32} color={palette.accent} />
              <Text style={styles.discoveryTitle}>{t('screens.home.discoveryNew')}</Text>
              <Text style={styles.discoverySub}>{t('screens.home.discoverySub')}</Text>
           </TouchableOpacity>
@@ -721,7 +726,7 @@ export const HomeScreen = () => {
         {/* ... remaining legacy sections ... */}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>    <MaterialCommunityIcons name="music-box-multiple" color={themeColors.accent} size={30} /> {t('screens.home.expandedSections')}</Text>
+          <Text style={styles.sectionTitle}>    <MaterialCommunityIcons name="music-box-multiple" color={palette.accent} size={30} /> {t('screens.home.expandedSections')}</Text>
         </View>
 
         {genres.map((genre) => {
@@ -785,7 +790,7 @@ export const HomeScreen = () => {
             },
           },
           {
-            icon: <AntDesign name="appstore-add" size={20} color={themeColors.text} />,
+            icon: <AntDesign name="appstore-add" size={20} color={palette.text} />,
             label: 'Thêm vào playlist',
             disabled: isSoundCloudExternalSong(selectedSong),
             sublabel: isSoundCloudExternalSong(selectedSong)
@@ -807,10 +812,10 @@ export const HomeScreen = () => {
           },
           {
             icon: isDownloaded(selectedSong?.id ?? '')
-              ? <AntDesign name="check-circle" size={20} color={themeColors.success} />
+              ? <AntDesign name="check-circle" size={20} color={palette.success} />
               : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
-                ? <Text style={{ fontSize: 18, color: themeColors.text }}>⏳</Text>
-                : <AntDesign name="download" size={20} color={themeColors.text} />,
+                ? <Text style={{ fontSize: 18, color: palette.text }}>⏳</Text>
+                : <AntDesign name="download" size={20} color={palette.text} />,
             label: isDownloaded(selectedSong?.id ?? '')
               ? 'Đã tải xuống'
               : getJobStatus(selectedSong?.id ?? '').state === 'downloading'
@@ -830,7 +835,7 @@ export const HomeScreen = () => {
             ]
             : []),
           {
-            icon: <AntDesign name="flag" size={20} color={themeColors.error} />,
+            icon: <AntDesign name="flag" size={20} color={palette.error} />,
             label: 'Báo cáo bài hát',
             separator: true,
             destructive: true,
@@ -896,7 +901,7 @@ export const HomeScreen = () => {
   );
 };
 
-const getStyles = (colors: ThemeColors) => StyleSheet.create({
+const getStyles = (colors: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   stickyHeader: {
     position: 'absolute',
@@ -943,7 +948,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.glass08,
     borderWidth: 1,
-    borderColor: colors.glass12,
+    borderColor: colors.border,
   },
   heroSection: { paddingHorizontal: 24, marginTop: 24, marginBottom: 30 },
   overline: {

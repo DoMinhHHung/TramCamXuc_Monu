@@ -33,8 +33,8 @@ export const SystemSettingsScreen = () => {
     const insets = useSafeAreaInsets();
     const { theme, setTheme, followSystem } = useTheme();
     const { language, setLanguage, t } = useTranslation();
-    const { colors: themeColors } = useTheme();
-    const styles = useMemo(() => createStyles(themeColors), [themeColors]);
+    const palette = useThemeColors();
+    const styles = useMemo(() => createStyles(palette), [palette]);
     const deviceColorScheme = useColorScheme();
 
     const THEME_OPTIONS: { id: ThemeName; label: string; emoji: string }[] = useMemo(() => [
@@ -93,7 +93,7 @@ export const SystemSettingsScreen = () => {
                                 <Text style={styles.themeLabel}>{themeOption.label}</Text>
                                 {theme === themeOption.id && (
                                     <View style={styles.checkmark}>
-                                        <MaterialIcons name="check-circle" color={themeColors.accent} size={20} />
+                                        <MaterialIcons name="check-circle" color={palette.accent} size={20} />
                                     </View>
                                 )}
                             </Pressable>
@@ -116,10 +116,10 @@ export const SystemSettingsScreen = () => {
                                 else setTheme(theme);
                             }}
                             trackColor={{
-                                false: themeColors.glass15,
-                                true: themeColors.accentBorder40,
+                                false: palette.glass15,
+                                true: palette.accentBorder25,
                             }}
-                            thumbColor={followSystem ? themeColors.accent : themeColors.glass25}
+                            thumbColor={followSystem ? palette.accent : palette.glass15}
                         />
                     </View>
                 </View>
@@ -146,7 +146,7 @@ export const SystemSettingsScreen = () => {
                                     <Text style={styles.languageCode}>({lang.code})</Text>
                                 </View>
                                 {language === lang.code && (
-                                    <MaterialIcons name="check-circle" color={themeColors.accent} size={24} />
+                                    <MaterialIcons name="check-circle" color={palette.accent} size={24} />
                                 )}
                             </Pressable>
                         ))}
@@ -209,7 +209,7 @@ export const SystemSettingsScreen = () => {
     );
 };
 
-const createStyles = (colors: ThemeColors) => StyleSheet.create({
+const createStyles = (colors: ColorScheme) => StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
     header: {
         flexDirection: 'row',

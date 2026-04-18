@@ -12,6 +12,7 @@ import { ConfirmModal } from '../../components/ConfirmModal';
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useAuth } from '../../context/AuthContext';
 import { useDownload } from '../../context/DownloadContext';
+import { usePlayerState } from '../../context/PlayerContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { getMyPlaylists } from '../../services/music';
 import { getMyHearts } from '../../services/social';
@@ -34,7 +35,17 @@ export const ProfileScreen = () => {
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
+    const { chromeBottomInset } = usePlayerState();
     const { downloadedSongs, storageUsed, deleteDownload } = useDownload();
+
+    const scrollBottomPad = useMemo(
+        () => (chromeBottomInset > 0 ? chromeBottomInset + 10 : insets.bottom + 20),
+        [chromeBottomInset, insets.bottom],
+    );
+    const downloadsSheetBottomPad = useMemo(
+        () => (chromeBottomInset > 0 ? chromeBottomInset + 16 : 36 + Math.max(insets.bottom, 8)),
+        [chromeBottomInset, insets.bottom],
+    );
 
     const [menuOpen,    setMenuOpen]    = useState(false);
     const [logoutOpen,  setLogoutOpen]  = useState(false);
@@ -159,7 +170,10 @@ export const ProfileScreen = () => {
     return (
         <View style={styles.root}>
             <StatusBar style="light" />
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: scrollBottomPad }}
+            >
 
                 {/* Hero */}
                 <LinearGradient
@@ -240,7 +254,7 @@ export const ProfileScreen = () => {
                     ) : (
                         /* No artist profile */
                         <View style={styles.artistCard}>
-                            <Text style={styles.artistNoProfileTitle}>🎤 {t('screens.profile.noArtistProfileTitle', 'You do not have an Artist profile')}</Text>
+                            <Text style={styles.artistNoProfileTitle}>{t('screens.profile.noArtistProfileTitle', 'You do not have an Artist profile')}</Text>
                             <Text style={styles.artistNoProfileDesc}>
                                 {t('screens.profile.noArtistProfileDesc', 'Register to upload music, create albums, and share your music with thousands of listeners.')}
                             </Text>
@@ -311,7 +325,6 @@ export const ProfileScreen = () => {
                     ))}
                 </View>
 
-                <View style={{ height: insets.bottom + 20 }} />
             </ScrollView>
 
             {/* Dropdown menu */}
@@ -344,7 +357,7 @@ export const ProfileScreen = () => {
                     style={{ flex: 1, backgroundColor: themeColors.scrim }}
                     onPress={() => setDownloadsOpen(false)}
                 />
-                <View style={styles.dlSheet}>
+                <View style={[styles.dlSheet, { paddingBottom: downloadsSheetBottomPad }]}>
                     <View style={styles.dlHandle} />
                     <Text style={styles.dlTitle}>
                         {t('screens.library.downloads', 'Downloads')} · {downloadedSongs.length} {t('screens.profile.songsSuffix', 'songs')}
@@ -557,7 +570,6 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         padding: 20,
-        paddingBottom: 36,
         borderWidth: 1,
         borderBottomWidth: 0,
         borderColor: c.border,
