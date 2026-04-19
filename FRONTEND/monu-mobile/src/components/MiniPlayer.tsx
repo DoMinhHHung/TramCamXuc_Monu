@@ -14,7 +14,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 const SWIPE_THRESHOLD = 60;
 
 export type MiniPlayerProps = {
-    /** Distance from screen bottom (tab bar + safe area on main tabs; safe area + margin on stack screens). */
     bottomInset: number;
 };
 
@@ -63,9 +62,7 @@ export const MiniPlayer = ({ bottomInset }: MiniPlayerProps) => {
                 const swipedLeft = gs.dx < -SWIPE_THRESHOLD;
 
                 if (swipedDown || swipedLeft) {
-                    if (swipedDown) {
-                        haptic.medium();
-                    }
+                    if (swipedDown) haptic.medium();
                     Animated.parallel([
                         swipedLeft
                             ? Animated.timing(translateX, { toValue: -500, duration: 220, useNativeDriver: true })
@@ -92,12 +89,6 @@ export const MiniPlayer = ({ bottomInset }: MiniPlayerProps) => {
 
     if (!currentSong) return null;
 
-    // Progress color reflects repeat mode; shuffle is conveyed via icon.
-    const progressColor =
-        repeatMode === 'one' ? themeColors.accent :
-            repeatMode === 'all' ? themeColors.success :
-                themeColors.accent;
-
     return (
         <Animated.View
             style={[
@@ -107,10 +98,14 @@ export const MiniPlayer = ({ bottomInset }: MiniPlayerProps) => {
             ]}
             {...panResponder.panHandlers}
         >
-            {/* Progress bar */}
+            <LinearGradient
+                colors={['rgba(26, 26, 32, 0.96)', 'rgba(10, 10, 12, 0.98)']}
+                style={StyleSheet.absoluteFillObject}
+            />
+
             <View style={styles.progressTrack}>
                 <LinearGradient
-                    colors={[progressColor, themeColors.accentAlt]}
+                    colors={[themeColors.accent, themeColors.success]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                     style={[
@@ -119,22 +114,8 @@ export const MiniPlayer = ({ bottomInset }: MiniPlayerProps) => {
                     ]}
                 />
             </View>
-            {/* Solid-tint surface (was glass08 → surface, too faint over tabs) */}
-            <LinearGradient
-                colors={[themeColors.surfaceLow, themeColors.surface]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-            />
-            <LinearGradient
-                colors={[themeColors.glass12, 'rgba(255,255,255,0)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
-            />
 
             <Pressable style={styles.content} onPress={() => setFullScreen(true)} accessible={false}>
-                {/* Thumbnail */}
                 {currentSong.thumbnailUrl
                     ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.thumbnail} />
                     : <View style={[styles.thumbnail, styles.thumbnailPlaceholder]}>
@@ -142,24 +123,16 @@ export const MiniPlayer = ({ bottomInset }: MiniPlayerProps) => {
                     </View>
                 }
 
-                {/* Song info */}
                 <View style={styles.info}>
                     <Text style={styles.title} numberOfLines={1}>{currentSong.title}</Text>
                     <View style={styles.metaRow}>
                         <Text style={styles.artist} numberOfLines={1}>{currentSong.primaryArtist?.stageName ?? ''}</Text>
-                        {isShuffled && (
-                            <AppIcon name="shuffle" size={11} color={themeColors.accent} />
-                        )}
-                        {repeatMode === 'one' && (
-                            <AppIcon name="repeatOne" size={11} color={themeColors.accent} />
-                        )}
-                        {repeatMode === 'all' && (
-                            <AppIcon name="repeat" size={11} color={themeColors.accent} />
-                        )}
+                        {isShuffled && <AppIcon name="shuffle" size={11} color={themeColors.accent} />}
+                        {repeatMode === 'one' && <AppIcon name="repeatOne" size={11} color={themeColors.accent} />}
+                        {repeatMode === 'all' && <AppIcon name="repeat" size={11} color={themeColors.accent} />}
                     </View>
                 </View>
 
-                {/* Controls */}
                 <View style={styles.controls}>
                     <Pressable
                         style={styles.iconBtn}
@@ -195,7 +168,6 @@ export const MiniPlayer = ({ bottomInset }: MiniPlayerProps) => {
                 </View>
             </Pressable>
 
-            {/* Drag handle */}
             <View style={styles.swipeHandle} />
         </Animated.View>
     );
@@ -203,34 +175,30 @@ export const MiniPlayer = ({ bottomInset }: MiniPlayerProps) => {
 
 const getStyles = (colors: ColorScheme) => StyleSheet.create({
     container: {
-        position: 'absolute', left: 10, right: 10,
-        height: MINI_PLAYER_HEIGHT,
-        backgroundColor: colors.surface,
-        borderRadius: RADIUS.lg ?? RADIUS.md,
+        position: 'absolute', left: 12, right: 12,
+        height: MINI_PLAYER_HEIGHT + 4,
+        borderRadius: 24,
         overflow: 'hidden',
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: colors.borderSubtle,
-        ...SHADOW.lg,
     },
-    progressTrack:        { height: 2, backgroundColor: colors.glass12 },
-    progressFill:         { height: 2 },
+    progressTrack:        { height: 3, backgroundColor: 'rgba(255,255,255,0.1)' },
+    progressFill:         { height: 3 },
     content:              { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 12 },
-    thumbnail:            { width: 44, height: 44, borderRadius: RADIUS.sm, backgroundColor: colors.surfaceLow },
+    thumbnail:            { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.surfaceLow },
     thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
     info:                 { flex: 1 },
-    metaRow:              { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
-    title:                { color: colors.text,   fontSize: 13, fontWeight: '700', lineHeight: 17 },
-    artist:               { color: colors.glass60 ?? colors.muted,  fontSize: 11, fontWeight: '500' },
-    controls:             { flexDirection: 'row', alignItems: 'center', gap: 2 },
+    metaRow:              { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+    title:                { color: colors.text, fontSize: 14, fontWeight: '800', fontFamily: 'Plus Jakarta Sans', letterSpacing: -0.2 },
+    artist:               { color: colors.textSecondary, fontSize: 12, fontWeight: '500', fontFamily: 'Inter' },
+    controls:             { flexDirection: 'row', alignItems: 'center', gap: 4 },
     iconBtn:              { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
     stopBtn: {
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: colors.glass15,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         alignItems: 'center',
         justifyContent: 'center',
         marginLeft: 4,
     },
-    swipeHandle:          {position: 'absolute', top: 7, alignSelf: 'center',width: 42, height: 4, borderRadius: 2,backgroundColor: colors.glass25,   },
+    swipeHandle:          { position: 'absolute', top: 6, alignSelf: 'center', width: 32, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)' },
 });

@@ -28,18 +28,18 @@ const THEME_STORAGE_KEY = 'monu_app_theme';
  * Determine initial theme based on stored preference or device settings
  */
 const getInitialTheme = (systemDarkMode: boolean | null): ThemeName => {
-  // Default product theme: classical.
+  // Default product theme: neonPulse.
   // If follow-system is enabled we only switch between dark + a non-light fallback.
   if (systemDarkMode === true) return 'dark';
-  if (systemDarkMode === false) return 'classic';
-  return 'classic';
+  if (systemDarkMode === false) return 'neonPulse';
+  return 'neonPulse';
 };
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const systemColorScheme = useColorScheme();
   const systemDarkMode = systemColorScheme === 'dark';
   
-  const [theme, setThemeState] = useState<ThemeName>('classic');
+  const [theme, setThemeState] = useState<ThemeName>('neonPulse');
   const [followSystem, setFollowSystemState] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -57,16 +57,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // Use device appearance
           const initialTheme = getInitialTheme(systemDarkMode);
           setThemeState(initialTheme);
-        } else if (savedTheme && (savedTheme === 'dark' || savedTheme === 'classic' || savedTheme === 'sunset' || savedTheme === 'ocean' || savedTheme === 'neonGen' || savedTheme === 'neonCurator')) {
+        } else if (savedTheme && (savedTheme === 'dark' || savedTheme === 'classic' || savedTheme === 'sunset' || savedTheme === 'ocean' || savedTheme === 'neonGen' || savedTheme === 'neonCurator' || savedTheme === 'neonPulse')) {
           setThemeState(savedTheme as any);
         } else {
           // Default
-          setThemeState('classic');
-          await AsyncStorage.setItem(THEME_STORAGE_KEY, 'classic');
+          setThemeState('neonPulse');
+          await AsyncStorage.setItem(THEME_STORAGE_KEY, 'neonPulse');
         }
       } catch (error) {
         console.warn('[Theme] Failed to load saved theme:', error);
-        setThemeState('classic');
+        setThemeState('neonPulse');
       } finally {
         setIsLoading(false);
       }
@@ -78,7 +78,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Update theme if system appearance changes and followSystem is true
   useEffect(() => {
     if (followSystem && systemDarkMode !== null) {
-      const newTheme: ThemeName = systemDarkMode ? 'dark' : 'classic';
+      const newTheme: ThemeName = systemDarkMode ? 'dark' : 'neonPulse';
       setThemeState(newTheme);
     }
   }, [systemDarkMode, followSystem]);
@@ -89,7 +89,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setFollowSystemState(true);
         AsyncStorage.setItem(THEME_STORAGE_KEY + '_follow_system', 'true');
         // Apply current system theme
-        const systemTheme: ThemeName = systemDarkMode ? 'dark' : 'classic';
+        const systemTheme: ThemeName = systemDarkMode ? 'dark' : 'neonPulse';
         setThemeState(systemTheme);
       } else {
         setFollowSystemState(false);
@@ -107,7 +107,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   const colors = THEMES[theme];
-  const availableThemes: ThemeName[] = ['dark', 'classic', 'sunset', 'ocean', 'neonGen'];
+  const availableThemes: ThemeName[] = ['dark', 'classic', 'sunset', 'ocean', 'neonGen', 'neonCurator', 'neonPulse'];
 
   return (
     <ThemeContext.Provider

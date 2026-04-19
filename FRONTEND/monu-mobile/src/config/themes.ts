@@ -398,9 +398,65 @@ export const neonCuratorTheme: ThemeColors = {
 };
 
 /**
+ * Neon Pulse theme – Spotify x SoundCloud Hybrid
+ * Deep dark background with electric orange and vibrant accents for high energy
+ */
+export const neonPulseTheme: ThemeColors = {
+  // Primary app colors
+  bg: '#0A0A0C', 
+  surface: '#121216',
+  surfaceLow: '#0D0D10',
+  surfaceMid: '#18181D',
+  surfaceDim: '#202026',
+
+  // Text colors
+  text: '#FFFFFF',
+  textSecondary: '#A0A0A0',
+  muted: '#6B6B6B',
+
+  // Accent/brand colors – Electric Orange
+  accent: '#FF4500',
+  accentFill20: 'rgba(255, 69, 0, 0.20)',
+  accentFill35: 'rgba(255, 69, 0, 0.35)',
+  accentBorder25: 'rgba(255, 69, 0, 0.25)',
+  accentBorder35: 'rgba(255, 69, 0, 0.35)',
+
+  // Borders and dividers
+  border: '#1E1E24',
+  divider: '#141418',
+
+  // Status colors
+  success: '#1DB954',
+  error: '#FF0033',
+  warning: '#FFB800',
+  info: '#00E5FF',
+
+  // Gradients
+  gradViolet: '#110502',
+  gradPurple: '#220803',
+  gradIndigo: '#1A0E0B',
+  gradNavy: '#0F121C',
+  gradDark: '#0A0A0C',
+
+  // Card gradients
+  cardHealingFrom: '#4A1208',
+  cardTrendingFrom: '#FF4500', 
+  cardTrendingTo: '#B32D00',
+  cardAcousticFrom: '#0A2616',  
+  cardAcousticTo: '#103F25',
+  cardLofiFrom: '#061D2B',
+  cardLofiTo: '#0B344D',
+
+  // Legacy
+  white: '#FFFFFF',
+  accentTint8: 'rgba(255, 69, 0, 0.08)',
+  accentLowTint: 'rgba(255, 69, 0, 0.12)',
+};
+
+/**
  * Theme variants exported for selection
  */
-export type ThemeName = 'dark' | 'classic' | 'sunset' | 'ocean' | 'neonGen' | 'neonCurator';
+export type ThemeName = 'dark' | 'classic' | 'sunset' | 'ocean' | 'neonGen' | 'neonCurator' | 'neonPulse';
 
 export const THEMES: Record<ThemeName, ThemeColors> = {
   dark: darkTheme,
@@ -409,6 +465,7 @@ export const THEMES: Record<ThemeName, ThemeColors> = {
   ocean: oceanTheme,
   neonGen: neonGenTheme,
   neonCurator: neonCuratorTheme,
+  neonPulse: neonPulseTheme,
 };
 
 /**
@@ -422,6 +479,7 @@ export const getThemeName = (theme: ThemeName): string => {
     ocean: 'Ocean',
     neonGen: 'Neon Gen Z',
     neonCurator: 'Neon Curator',
+    neonPulse: 'Neon Pulse',
   };
   return names[theme];
 };

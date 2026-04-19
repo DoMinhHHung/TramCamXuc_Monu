@@ -33,6 +33,10 @@ public class Comment {
     private String parentId;
 
     private String content;
+
+    private String authorDisplayName;
+    private String authorAvatarUrl;
+
     private int likeCount;
     private boolean edited;
 

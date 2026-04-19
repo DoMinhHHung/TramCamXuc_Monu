@@ -25,47 +25,8 @@ import { AnimatedDecorIcon }      from '../components/AnimatedDecorIcon';
 
 import { HomeScreen }             from '../screens/HomeScreen';
 import { WelcomeScreen }          from '../screens/(auth)/WelcomeScreen';
-import { LoginOptionsScreen }     from '../screens/(auth)/LoginOptionsScreen';
-import { RegisterOptionsScreen }  from '../screens/(auth)/RegisterOptionsScreen';
-import { LoginScreen }            from '../screens/(auth)/LoginScreen';
-import RegisterScreen             from '../screens/(auth)/RegisterScreen';
-import VerifyOtpScreen            from '../screens/(auth)/VerifyOtpScreen';
-import ForgotPasswordScreen       from '../screens/(auth)/ForgotPasswordScreen';
-import ResetPasswordScreen        from '../screens/(auth)/ResetPasswordScreen';
 import { SelectGenresScreen }     from '../screens/(onBoard)/SelectGenresScreen';
 import { SelectArtistsScreen }    from '../screens/(onBoard)/SelectArtistsScreen';
-import { CreateScreen }           from '../screens/(tabs)/CreateScreen';
-import { LibraryScreen }          from '../screens/(tabs)/LibraryScreen';
-import { PremiumScreen }          from '../screens/(tabs)/PremiumScreen';
-import { ProfileScreen }          from '../screens/(tabs)/ProfileScreen';
-import { SearchScreen }           from '../screens/(tabs)/SearchScreen';
-import { DiscoverScreen }         from '../screens/(tabs)/DiscoverScreen';
-import { EditFavoritesScreen }    from '../screens/(settings)/EditFavoritesScreen';
-import { HistoryScreen }          from '../screens/(settings)/HistoryScreen';
-import { SettingsScreen }         from '../screens/SettingsScreen';
-import { PersonalSettingsScreen } from '../screens/(settings)/PersonalSettingsScreen';
-import { SystemSettingsScreen }   from '../screens/(settings)/SystemSettingsScreen';
-import { AccountSettingsScreen }  from '../screens/(settings)/AccountSettingsScreen';
-import { EditProfileScreen }      from '../screens/(settings)/EditProfileScreen';
-import { UpdateAvatarScreen }     from '../screens/(settings)/UpdateAvatarScreen';
-import { DeleteAccountScreen }    from '../screens/(settings)/DeleteAccountScreen';
-import { InsightsScreen }         from '../screens/InsightsScreen';
-import { PlaylistDetailScreen }   from '../screens/PlaylistDetailScreen';
-import { AlbumDetailScreen }      from '../screens/AlbumDetailScreen';
-import { GenreDetailScreen }      from '../screens/GenreDetailScreen';
-import { MyPostsScreen }          from '../screens/MyPostsScreen';
-import { ContentManagementScreen } from '../screens/(settings)/ContentManagementScreen';
-
-// ─── Artist screens ───────────────────────────────────────────────────────────
-import { ArtistProfileScreen }    from '../screens/(artist)/ArtistProfileScreen';
-import { RegisterArtistScreen }   from '../screens/(artist)/RegisterArtistScreen';
-import { ArtistTermsScreen }      from '../screens/(artist)/ArtistTermsScreen';
-import { FavoriteSongsScreen }    from '../screens/(artist)/FavoriteSongsScreen';
-import { FollowedArtistsScreen, FollowingScreen }  from '../screens/(artist)/FollowedArtistsScreen';
-import { FollowersScreen }       from '../screens/(artist)/FollowersScreen';
-import { ArtistDiscoveryScreen }  from '../screens/(artist)/ArtistDiscoveryScreen';
-import { AlbumAddSongScreen }     from '../screens/(artist)/AlbumAddSongScreen';
-import { EditSongScreen }         from '../screens/EditSongScreen';
 
 export type RootStackParamList = {
     Welcome:         undefined;
@@ -133,7 +94,6 @@ const linking: LinkingOptions<any> = {
     config: { screens: { MainTabs: 'home' } },
 };
 
-/** Leaf routes of `MainTabNavigator` — global overlays sit above the tab bar only on these screens. */
 const MAIN_TAB_LEAF_ROUTE_NAMES = new Set<string>(['Home', 'Discover', 'Create', 'Library', 'Premium']);
 
 const MainTabNavigator = () => {
@@ -143,6 +103,7 @@ const MainTabNavigator = () => {
 
     return (
         <Tab.Navigator
+            lazy
             screenOptions={({ route }: any) => {
                 const meta     = tabMeta[route.name as keyof MainTabParamList];
                 const isCreate = route.name === 'Create';
@@ -172,12 +133,12 @@ const MainTabNavigator = () => {
                 };
             }}
         >
-                        <Tab.Screen name="Home"     component={HomeScreen}     />
-                        <Tab.Screen name="Discover" component={DiscoverScreen} />
-                        <Tab.Screen name="Create"   component={CreateScreen}   />
+                        <Tab.Screen name="Home"     component={HomeScreen} />
+                        <Tab.Screen name="Discover" getComponent={() => require('../screens/(tabs)/DiscoverScreen').DiscoverScreen} />
+                        <Tab.Screen name="Create"   getComponent={() => require('../screens/(tabs)/CreateScreen').CreateScreen} />
                         <Tab.Screen
                             name="Library"
-                            component={LibraryScreen}
+                            getComponent={() => require('../screens/(tabs)/LibraryScreen').LibraryScreen}
                             options={{
                                 tabBarButton: (props: React.ComponentProps<typeof Pressable>) => (
                                     <Pressable
@@ -190,7 +151,7 @@ const MainTabNavigator = () => {
                                 ),
                             }}
                         />
-                        <Tab.Screen name="Premium"  component={PremiumScreen}  />
+                        <Tab.Screen name="Premium" getComponent={() => require('../screens/(tabs)/PremiumScreen').PremiumScreen} />
         </Tab.Navigator>
     );
 };
@@ -261,7 +222,10 @@ export const AppNavigator = () => {
               onReady={() => setRouteName(navigationRef.getCurrentRoute()?.name ?? null)}
               onStateChange={() => setRouteName(navigationRef.getCurrentRoute()?.name ?? null)}
             >
-                <Stack.Navigator initialRouteName="Welcome" screenOptions={{ headerShown: false }}>
+                <Stack.Navigator
+                    initialRouteName="Welcome"
+                    screenOptions={{ headerShown: false, animation: 'slide_from_right', freezeOnBlur: true }}
+                >
                     {authSession ? (
                         needsOnboarding ? (
                             <>
@@ -270,46 +234,46 @@ export const AppNavigator = () => {
                             </>
                         ) : (
                             <>
-                                <Stack.Screen name="MainTabs"       component={MainTabNavigator}    />
-                                <Stack.Screen name="Search"         component={SearchScreen}        />
-                                <Stack.Screen name="EditFavorites"  component={EditFavoritesScreen} />
-                                <Stack.Screen name="History"        component={HistoryScreen}       />
-                                <Stack.Screen name="Settings"         component={SettingsScreen}         />
-                                <Stack.Screen name="PersonalSettings" component={PersonalSettingsScreen} />
-                                <Stack.Screen name="SystemSettings"   component={SystemSettingsScreen}   />
-                                <Stack.Screen name="AccountSettings"  component={AccountSettingsScreen}  />
-                                <Stack.Screen name="EditProfile"      component={EditProfileScreen}      />
-                                <Stack.Screen name="UpdateAvatar"     component={UpdateAvatarScreen}     />
-                                <Stack.Screen name="DeleteAccount"    component={DeleteAccountScreen}    />
-                                <Stack.Screen name="Insights"       component={InsightsScreen}      />
-                                <Stack.Screen name="Profile"        component={ProfileScreen}       />
-                                <Stack.Screen name="PlaylistDetail" component={PlaylistDetailScreen}/>
-                                <Stack.Screen name="AlbumDetail"    component={AlbumDetailScreen}   />
-                                <Stack.Screen name="GenreDetail"    component={GenreDetailScreen}   />
-                                <Stack.Screen name="MyPosts"        component={MyPostsScreen}       />
-                                <Stack.Screen name="ContentManagement" component={ContentManagementScreen} />
-                                <Stack.Screen name="ArtistProfile"   component={ArtistProfileScreen}   />
-                                <Stack.Screen name="RegisterArtist"  component={RegisterArtistScreen}  />
-                                <Stack.Screen name="ArtistTerms"     component={ArtistTermsScreen}     />
-                                <Stack.Screen name="FavoriteSongs"    component={FavoriteSongsScreen}    />
-                                <Stack.Screen name="Following"        component={FollowingScreen}        />
-                                <Stack.Screen name="Followers"        component={FollowersScreen}        />
-                                <Stack.Screen name="FollowedArtists"  component={FollowedArtistsScreen}  />
-                                <Stack.Screen name="ArtistDiscovery"  component={ArtistDiscoveryScreen}  />
-                                <Stack.Screen name="AlbumAddSong"     component={AlbumAddSongScreen}     />
-                                <Stack.Screen name="EditSong"         component={EditSongScreen}         />
+                                <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+                                <Stack.Screen name="Search" getComponent={() => require('../screens/(tabs)/SearchScreen').SearchScreen} />
+                                <Stack.Screen name="EditFavorites" getComponent={() => require('../screens/(settings)/EditFavoritesScreen').EditFavoritesScreen} />
+                                <Stack.Screen name="History" getComponent={() => require('../screens/(settings)/HistoryScreen').HistoryScreen} />
+                                <Stack.Screen name="Settings" getComponent={() => require('../screens/SettingsScreen').SettingsScreen} />
+                                <Stack.Screen name="PersonalSettings" getComponent={() => require('../screens/(settings)/PersonalSettingsScreen').PersonalSettingsScreen} />
+                                <Stack.Screen name="SystemSettings" getComponent={() => require('../screens/(settings)/SystemSettingsScreen').SystemSettingsScreen} />
+                                <Stack.Screen name="AccountSettings" getComponent={() => require('../screens/(settings)/AccountSettingsScreen').AccountSettingsScreen} />
+                                <Stack.Screen name="EditProfile" getComponent={() => require('../screens/(settings)/EditProfileScreen').EditProfileScreen} />
+                                <Stack.Screen name="UpdateAvatar" getComponent={() => require('../screens/(settings)/UpdateAvatarScreen').UpdateAvatarScreen} />
+                                <Stack.Screen name="DeleteAccount" getComponent={() => require('../screens/(settings)/DeleteAccountScreen').DeleteAccountScreen} />
+                                <Stack.Screen name="Insights" getComponent={() => require('../screens/InsightsScreen').InsightsScreen} />
+                                <Stack.Screen name="Profile" getComponent={() => require('../screens/(tabs)/ProfileScreen').ProfileScreen} />
+                                <Stack.Screen name="PlaylistDetail" getComponent={() => require('../screens/PlaylistDetailScreen').PlaylistDetailScreen} />
+                                <Stack.Screen name="AlbumDetail" getComponent={() => require('../screens/AlbumDetailScreen').AlbumDetailScreen} />
+                                <Stack.Screen name="GenreDetail" getComponent={() => require('../screens/GenreDetailScreen').GenreDetailScreen} />
+                                <Stack.Screen name="MyPosts" getComponent={() => require('../screens/MyPostsScreen').MyPostsScreen} />
+                                <Stack.Screen name="ContentManagement" getComponent={() => require('../screens/(settings)/ContentManagementScreen').ContentManagementScreen} />
+                                <Stack.Screen name="ArtistProfile" getComponent={() => require('../screens/(artist)/ArtistProfileScreen').ArtistProfileScreen} />
+                                <Stack.Screen name="RegisterArtist" getComponent={() => require('../screens/(artist)/RegisterArtistScreen').RegisterArtistScreen} />
+                                <Stack.Screen name="ArtistTerms" getComponent={() => require('../screens/(artist)/ArtistTermsScreen').ArtistTermsScreen} />
+                                <Stack.Screen name="FavoriteSongs" getComponent={() => require('../screens/(artist)/FavoriteSongsScreen').FavoriteSongsScreen} />
+                                <Stack.Screen name="Following" getComponent={() => require('../screens/(artist)/FollowedArtistsScreen').FollowingScreen} />
+                                <Stack.Screen name="Followers" getComponent={() => require('../screens/(artist)/FollowersScreen').FollowersScreen} />
+                                <Stack.Screen name="FollowedArtists" getComponent={() => require('../screens/(artist)/FollowedArtistsScreen').FollowedArtistsScreen} />
+                                <Stack.Screen name="ArtistDiscovery" getComponent={() => require('../screens/(artist)/ArtistDiscoveryScreen').ArtistDiscoveryScreen} />
+                                <Stack.Screen name="AlbumAddSong" getComponent={() => require('../screens/(artist)/AlbumAddSongScreen').AlbumAddSongScreen} />
+                                <Stack.Screen name="EditSong" getComponent={() => require('../screens/EditSongScreen').EditSongScreen} />
                             </>
                         )
                     ) : (
                         <>
-                            <Stack.Screen name="Welcome"         component={WelcomeScreen}         />
-                            <Stack.Screen name="RegisterOptions" component={RegisterOptionsScreen} />
-                            <Stack.Screen name="LoginOptions"    component={LoginOptionsScreen}    />
-                            <Stack.Screen name="Login"           component={LoginScreen}           />
-                            <Stack.Screen name="Register"        component={RegisterScreen}        />
-                            <Stack.Screen name="VerifyOtp"       component={VerifyOtpScreen}       />
-                            <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen}  />
-                            <Stack.Screen name="ResetPassword"   component={ResetPasswordScreen}   />
+                            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+                            <Stack.Screen name="RegisterOptions" getComponent={() => require('../screens/(auth)/RegisterOptionsScreen').RegisterOptionsScreen} />
+                            <Stack.Screen name="LoginOptions" getComponent={() => require('../screens/(auth)/LoginOptionsScreen').LoginOptionsScreen} />
+                            <Stack.Screen name="Login" getComponent={() => require('../screens/(auth)/LoginScreen').LoginScreen} />
+                            <Stack.Screen name="Register" getComponent={() => require('../screens/(auth)/RegisterScreen').default} />
+                            <Stack.Screen name="VerifyOtp" getComponent={() => require('../screens/(auth)/VerifyOtpScreen').default} />
+                            <Stack.Screen name="ForgotPassword" getComponent={() => require('../screens/(auth)/ForgotPasswordScreen').default} />
+                            <Stack.Screen name="ResetPassword" getComponent={() => require('../screens/(auth)/ResetPasswordScreen').default} />
                         </>
                     )}
                 </Stack.Navigator>

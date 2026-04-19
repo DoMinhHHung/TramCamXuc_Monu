@@ -57,6 +57,7 @@ import {
 import { apiClient } from '../../services/api';
 import { AddToPlaylistSheet } from '../../components/AddToPlaylistSheet';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
+import { MonuBrandHeaderTitle } from '../../components/MonuBrandHeaderTitle';
 import { Toast, useToast } from '../../components/Toast';
 import { getMySubscription } from '../../services/payment';
 import { fetchWithRetry, loadCache, saveCache } from '../../utils/swrCache';
@@ -171,26 +172,27 @@ const getTabStyles = (c: ColorScheme) => StyleSheet.create({
   bar: {
     flexDirection: 'row',
     marginHorizontal: 20,
-    marginBottom: 18,
-    backgroundColor: c.surface,
-    borderRadius: 18,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: c.glass10,
+    marginBottom: 20,
+    backgroundColor: c.surfaceLow,
+    borderRadius: 999,
+    padding: 6,
+    borderWidth: 0,
   },
   tab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 14,
-    gap: 5,
+    paddingVertical: 12,
+    borderRadius: 999,
+    gap: 6,
   },
   tabActive: {
-    backgroundColor: c.accentFill20,
-    borderWidth: 1,
-    borderColor: c.accentBorder25,
+    backgroundColor: c.surface,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 2,
   },
   icon: { fontSize: 13 },
   label: { color: c.glass45, fontSize: 13, fontWeight: '600' },
@@ -349,10 +351,9 @@ const SongRow = ({
 
 const getSongRowStyles = (c: ColorScheme) => StyleSheet.create({
   rowOuter: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: c.glass06,
+    borderBottomWidth: 0,
   },
   rowMain: {
     flexDirection: 'row',
@@ -506,11 +507,10 @@ const AlbumCard = ({
 const getAlbumCardStyles = (c: ColorScheme) => StyleSheet.create({
   card: {
     marginHorizontal: 20,
-    marginBottom: 10,
-    backgroundColor: c.surface,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: c.glass10,
+    marginBottom: 16,
+    backgroundColor: c.surfaceLow,
+    borderRadius: 24,
+    borderWidth: 0,
     overflow: 'visible',
   },
   main: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 12 },
@@ -1965,7 +1965,9 @@ export const LibraryScreen = () => {
           colors={[themeColors.gradSlate, themeColors.bg]}
           style={[styles.header, { paddingTop: insets.top + 18 }]}
         >
-          <Text style={styles.headerTitle}>{t('navigation.headerLibrary', 'MONU · Thư viện')}</Text>
+          <MonuBrandHeaderTitle layout="hero" accentColor={themeColors.accent}>
+            {t('navigation.headerLibrary', 'MONU · Thư viện')}
+          </MonuBrandHeaderTitle>
           <Text style={styles.headerSub}>
             {playlists.length} {t('screens.library.tabPlaylists', 'playlists')} · {songs.length} {t('screens.library.tabSongs', 'songs')} · {albums.length} {t('screens.library.tabAlbums', 'albums')}
           </Text>
@@ -2135,15 +2137,6 @@ const getMainLibraryStyles = (c: ColorScheme) => StyleSheet.create({
     paddingBottom: 18,
     paddingTop: 2,
     alignItems: 'center',
-  },
-  headerTitle: {
-    color: c.accent,
-    fontSize: 22,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    textAlign: 'center',
   },
   headerSub: { color: c.glass40, fontSize: 13, marginTop: 4, textAlign: 'center' },
 

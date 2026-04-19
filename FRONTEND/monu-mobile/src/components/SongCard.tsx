@@ -97,20 +97,20 @@ export const SongCard = ({
 };
 
 const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
-  listCard:            { marginBottom: 12, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
-  listCardActive:      { borderColor: colors.accentBorder35 },
+  listCard:            { marginBottom: 12, borderRadius: 24, overflow: 'hidden' },
+  listCardActive:      { backgroundColor: colors.surfaceVariant },
   listCardGradient:    { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 14 },
   mainArea:            { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
-  listIconWrap:        { width: 56, height: 56, borderRadius: 12, backgroundColor: colors.surfaceMid, alignItems: 'center', justifyContent: 'center', marginRight: 14, overflow: 'hidden' },
-  listIconWrapActive:  { borderWidth: 2, borderColor: colors.accent },
-  thumbPlaceholder:    { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
-  songThumbnail:       { width: 56, height: 56, borderRadius: 12 },
-  playingOverlay:      { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
+  listIconWrap:        { width: 64, height: 64, borderRadius: 20, backgroundColor: colors.surfaceMid, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  listIconWrapActive:  {  }, // No hard border for active, we use background color shift
+  thumbPlaceholder:    { width: 64, height: 64, alignItems: 'center', justifyContent: 'center' },
+  songThumbnail:       { width: 64, height: 64, borderRadius: 20 },
+  playingOverlay:      { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
   listInfo:            { flex: 1 },
-  listTitle:           { color: colors.text, fontWeight: '800', fontSize: 16, letterSpacing: -0.2 },
-  listTitleActive:     { color: colors.accent },
-  listSubtitle:        { color: colors.textSecondary, fontSize: 13, marginTop: 4, fontWeight: '500' },
+  listTitle:           { color: colors.text, fontWeight: '800', fontSize: 18, letterSpacing: -0.3, fontFamily: 'Plus Jakarta Sans', marginBottom: 2 },
+  listTitleActive:     { color: colors.success }, // Neon green (Spotify vibe) for active playback text
+  listSubtitle:        { color: colors.textSecondary, fontSize: 14, fontWeight: '500', fontFamily: 'Inter' },
   rightMeta:           { alignItems: 'flex-end', gap: 6 },
-  listDuration:        { color: colors.textSecondary, fontSize: 12 },
-  moreBtn:             { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLow, borderWidth: 1, borderColor: colors.divider },
+  listDuration:        { color: colors.muted, fontSize: 12, fontFamily: 'Inter' },
+  moreBtn:             { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMid }, // removed border
 });

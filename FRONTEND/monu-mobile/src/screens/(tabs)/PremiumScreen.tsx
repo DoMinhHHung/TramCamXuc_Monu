@@ -22,6 +22,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { RetryState } from '../../components/RetryState';
+import { MonuBrandHeaderTitle } from '../../components/MonuBrandHeaderTitle';
 import {
     cancelMySubscription,
     cancelPaymentLink,
@@ -1009,7 +1010,9 @@ export const PremiumScreen = () => {
                         </LinearGradient>
                     </Animated.View>
 
-                    <Text style={styles.heroTitle}>{t('navigation.headerPremium', 'MONU · Plus')}</Text>
+                    <MonuBrandHeaderTitle layout="hero" accentColor={themeColors.accent} style={styles.heroTitleWrap}>
+                        {t('navigation.headerPremium', 'MONU · Plus')}
+                    </MonuBrandHeaderTitle>
 
                     {isActive ? (
                         <View style={styles.activeBadge}>
@@ -1284,15 +1287,7 @@ const createPremiumStyles = (colors: ColorScheme) => StyleSheet.create({
         width: 124,
         height: 44,
     },
-    heroTitle: {
-        color: colors.accent,
-        fontSize: 23,
-        fontWeight: '900',
-        fontStyle: 'italic',
-        letterSpacing: 2,
-        marginBottom: 8,
-        textTransform: 'uppercase',
-    },
+    heroTitleWrap: { marginBottom: 8 },
     heroSubtitle: {
         color: colors.glass50,
         fontSize: 15,

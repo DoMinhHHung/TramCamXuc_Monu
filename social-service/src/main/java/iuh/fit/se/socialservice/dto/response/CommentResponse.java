@@ -11,6 +11,10 @@ import java.util.UUID;
 public class CommentResponse {
     private String id;
     private UUID userId;
+
+    private String displayName;
+    private String avatarUrl;
+
     private UUID songId;
     private String parentId;
     private String content;

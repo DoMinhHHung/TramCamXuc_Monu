@@ -18,6 +18,7 @@ import { getMyPlaylists } from '../../services/music';
 import { getMyHearts } from '../../services/social';
 import { apiClient } from '../../services/api';
 import { BackButton } from '../../components/BackButton';
+import { MonuBrandHeaderTitle } from '../../components/MonuBrandHeaderTitle';
 import { useNavigation } from '@react-navigation/native';
 import { AntDesign, FontAwesome, Fontisto, Feather } from '@expo/vector-icons';
 
@@ -182,11 +183,22 @@ export const ProfileScreen = () => {
                     style={[styles.hero, { paddingTop: insets.top + 12 }]}
                 >
                     <View style={styles.topBar}>
-                        <BackButton onPress={() => navigation.goBack()} />
-                        <Text style={styles.topBarTitle}>{t('navigation.headerProfile', 'MONU · Cá nhân')}</Text>
-                        <Pressable onPress={() => setMenuOpen(p => !p)} style={styles.gearBtn}>
-                            <Text style={styles.gearIcon}><Feather name="settings" color={themeColors.white} size={24} /></Text>
-                        </Pressable>
+                        <View style={styles.topBarSide}>
+                            <BackButton onPress={() => navigation.goBack()} />
+                        </View>
+                        <MonuBrandHeaderTitle
+                            accentColor={themeColors.accent}
+                            layout="shrink"
+                            textAlign="center"
+                            style={styles.topBarTitleWrap}
+                        >
+                            {t('navigation.headerProfile', 'MONU · Cá nhân')}
+                        </MonuBrandHeaderTitle>
+                        <View style={[styles.topBarSide, styles.topBarSideRight]}>
+                            <Pressable onPress={() => setMenuOpen(p => !p)} style={styles.gearBtn}>
+                                <Text style={styles.gearIcon}><Feather name="settings" color={themeColors.white} size={24} /></Text>
+                            </Pressable>
+                        </View>
                     </View>
 
                     {/* Avatar */}
@@ -435,24 +447,21 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     topBar: {
         width: '100%',
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 24,
     },
-    topBarTitle: {
-        color: c.accent,
-        fontSize: 22,
-        fontWeight: '900',
-        fontStyle: 'italic',
-        letterSpacing: 2,
-        textTransform: 'uppercase',
+    topBarSide: {
+        width: 44,
+        justifyContent: 'center',
     },
+    topBarSideRight: { alignItems: 'flex-end' },
+    topBarTitleWrap: { marginHorizontal: 4 },
     gearBtn:     { padding: 8 },
     gearIcon:    { fontSize: 22 },
 
     avatarWrap: { position: 'relative', marginBottom: 16 },
     avatar: {
-        width: 100, height: 100, borderRadius: 50,
+        width: 120, height: 120, borderRadius: 60,
         backgroundColor: c.surface,
     },
     avatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
@@ -470,8 +479,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
 
     editBtn: {
         paddingHorizontal: 22, paddingVertical: 10,
-        borderRadius: 999, borderWidth: 1,
-        borderColor: c.glass20, backgroundColor: c.glass07,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        marginTop: 6,
     },
     editBtnText: { color: c.text, fontWeight: '600', fontSize: 14 },
 
@@ -481,14 +491,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
         color: c.text, fontSize: 16, fontWeight: '700', marginBottom: 10,
     },
 
-    // Artist card
     artistCard: {
-        backgroundColor: c.surface,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: c.glass10,
-        padding: 16,
-        gap: 8,
+        backgroundColor: c.surfaceLow,
+        borderRadius: 24,
+        borderWidth: 0,
+        padding: 20,
+        gap: 12,
     },
     artistCardTop: {
         flexDirection: 'row',
@@ -524,12 +532,11 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     statsRow: {
         flexDirection: 'row',
         marginHorizontal: 20,
-        marginTop: 20,
-        borderRadius: 16,
+        marginTop: 16,
+        borderRadius: 24,
         overflow: 'hidden',
-        backgroundColor: c.surface,
-        borderWidth: 1,
-        borderColor: c.border,
+        backgroundColor: c.surfaceLow,
+        borderWidth: 0,
     },
     statItem:  { flex: 1, alignItems: 'center', paddingVertical: 16 },
     statVal:   { color: c.text, fontSize: 20, fontWeight: '800' },
@@ -538,9 +545,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     // Menu
     menuCard: {
         marginHorizontal: 20, marginTop: 16,
-        borderRadius: 16, overflow: 'hidden',
-        backgroundColor: c.surface,
-        borderWidth: 1, borderColor: c.border,
+        borderRadius: 24, overflow: 'hidden',
+        backgroundColor: c.surfaceLow,
+        borderWidth: 0,
     },
     menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
     menuIconWrap: {

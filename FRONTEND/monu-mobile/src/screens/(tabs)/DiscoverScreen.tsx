@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,7 @@ import { FontAwesome, Ionicons, AntDesign } from '@expo/vector-icons';
 
 import { useThemeColors, ColorScheme, COLORS } from '../../config/colors';
 import { SectionSkeleton } from '../../components/SkeletonLoader';
+import { MonuBrandHeaderTitle } from '../../components/MonuBrandHeaderTitle';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import {
@@ -1052,12 +1053,15 @@ const EditPostModal = ({ visible, post, onClose, onSave }: EditPostModalProps) =
 
 // ─── Comment Sheet ─────────────────────────────────────────────────────────────
 
+type CommentAuthorProfile = { displayName: string; avatarUrl?: string };
+
 interface CommentSheetProps {
   visible: boolean;
   post: FeedPost | null;
   comments: Comment[];
   currentUserId: string | null;
   myDisplayName: string | null;
+  myAvatarUrl?: string | null;
   onClose: () => void;
   onSendComment: (content: string, parentId?: string) => Promise<void>;
   onLikeComment: (c: Comment) => Promise<void>;
@@ -1066,7 +1070,7 @@ interface CommentSheetProps {
 }
 
 const CommentSheet: React.FC<CommentSheetProps> = ({
-  visible, post, comments, currentUserId, myDisplayName,
+  visible, post, comments, currentUserId, myDisplayName, myAvatarUrl,
   onClose, onSendComment, onLikeComment, onDeleteComment, onEditComment,
 }) => {
   const themeColors = useThemeColors();
@@ -1081,31 +1085,76 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
   const [replies, setReplies] = useState<Record<string, Comment[]>>({});
   const [expandedR, setExpandedR] = useState<Record<string, boolean>>({});
   const [loadingR, setLoadingR] = useState<Record<string, boolean>>({});
-  const [authorCache, setAuthorCache] = useState<Record<string, string>>({});
+  const [authorProfiles, setAuthorProfiles] = useState<Record<string, CommentAuthorProfile>>({});
+  const authorResolvedRef = useRef<Set<string>>(new Set());
+
+  const allCommentRows = useMemo(() => {
+    const rows: Comment[] = [...comments];
+    for (const arr of Object.values(replies)) rows.push(...(arr ?? []));
+    return rows;
+  }, [comments, replies]);
 
   useEffect(() => {
-    const missing = comments.filter(c => c.userId && !authorCache[c.userId] && c.userId !== currentUserId);
+    if (!post) return;
+
+    const fromApi: Record<string, CommentAuthorProfile> = {};
+    for (const c of allCommentRows) {
+      const uid = c.userId != null ? String(c.userId) : '';
+      if (!uid || uid === String(currentUserId)) continue;
+      const dn = c.displayName?.trim();
+      if (dn) {
+        authorResolvedRef.current.add(uid);
+        fromApi[uid] = { displayName: dn, avatarUrl: c.avatarUrl ?? undefined };
+      }
+    }
+    if (Object.keys(fromApi).length) {
+      setAuthorProfiles((prev) => ({ ...prev, ...fromApi }));
+    }
+
+    const missing = allCommentRows.filter((c) => {
+      if (!c.userId || String(c.userId) === String(currentUserId)) return false;
+      return !authorResolvedRef.current.has(String(c.userId));
+    });
     if (!missing.length) return;
-    const ids = [...new Set(missing.map(c => c.userId))];
-    Promise.allSettled(
+    const ids = [...new Set(missing.map((c) => String(c.userId!)))];
+    void Promise.allSettled(
       ids.map(async (id) => {
         const a = await getArtistByUserId(id);
-        if (a?.stageName) return { id, name: a.stageName };
+        if (a?.stageName) {
+          return { id, profile: { displayName: a.stageName, avatarUrl: a.avatarUrl ?? undefined } satisfies CommentAuthorProfile };
+        }
         const pub = await getPublicUserProfile(id);
-        return { id, name: pub?.fullName?.trim() || id.slice(0, 8) };
+        return {
+          id,
+          profile: {
+            displayName: pub?.fullName?.trim() || id.slice(0, 8),
+            avatarUrl: pub?.avatarUrl ?? undefined,
+          } satisfies CommentAuthorProfile,
+        };
       }),
     ).then((results) => {
-      const updates: Record<string, string> = {};
-      results.forEach((r) => {
-        if (r.status === 'fulfilled' && r.value) updates[r.value.id] = r.value.name;
-      });
-      setAuthorCache((prev) => ({ ...prev, ...updates }));
+      const next: Record<string, CommentAuthorProfile> = {};
+      for (const r of results) {
+        if (r.status !== 'fulfilled' || !r.value) continue;
+        authorResolvedRef.current.add(r.value.id);
+        next[r.value.id] = r.value.profile;
+      }
+      if (Object.keys(next).length) setAuthorProfiles((prev) => ({ ...prev, ...next }));
     });
-  }, [comments, currentUserId]);
+  }, [post, allCommentRows, currentUserId]);
 
-  const getDisplayName = (userId: string) => {
-    if (userId === currentUserId) return myDisplayName || 'Bạn';
-    return authorCache[userId] || userId.slice(0, 8);
+  const getDisplayName = (userId: string, row?: Comment) => {
+    if (String(userId) === String(currentUserId)) return myDisplayName || 'Bạn';
+    const inline = row?.displayName?.trim();
+    if (inline) return inline;
+    return authorProfiles[userId]?.displayName ?? userId.slice(0, 8);
+  };
+
+  const getAuthorAvatarUrl = (userId: string, row?: Comment) => {
+    if (String(userId) === String(currentUserId)) return myAvatarUrl ?? undefined;
+    const inline = row?.avatarUrl?.trim();
+    if (inline) return inline;
+    return authorProfiles[userId]?.avatarUrl;
   };
 
   const loadReplies = async (parentId: string) => {
@@ -1138,7 +1187,7 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
 
   const renderComment = (comment: Comment, depth = 0): React.ReactNode => {
     const isOwn = comment.userId === currentUserId;
-    const name = getDisplayName(comment.userId);
+    const name = getDisplayName(comment.userId, comment);
     const childReplies = replies[comment.id] ?? [];
     const isExpanded = expandedR[comment.id];
     const isLoadingR = loadingR[comment.id];
@@ -1147,7 +1196,12 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
     return (
       <View key={`${comment.id}-${depth}`} style={{ marginLeft: ml }}>
         <View style={depth === 0 ? commentStyles.row : commentStyles.replyRow}>
-          <Avatar id={comment.userId} displayName={name} size={depth === 0 ? 34 : 28} />
+          <Avatar
+            id={comment.userId}
+            displayName={name}
+            avatarUrl={getAuthorAvatarUrl(comment.userId, comment)}
+            size={depth === 0 ? 34 : 28}
+          />
           <View style={{ flex: 1, gap: 4 }}>
             {editingId === comment.id ? (
               <View style={{ gap: 6 }}>
@@ -1245,7 +1299,7 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
           {replyingTo && (
             <View style={commentStyles.replyBar}>
               <Text style={commentStyles.replyBarText}>
-                Đang trả lời {getDisplayName(replyingTo.userId)}
+                Đang trả lời {getDisplayName(replyingTo.userId, replyingTo)}
               </Text>
               <Pressable onPress={() => { setReplyingTo(null); setText(''); }} hitSlop={8}>
                 <Text style={commentStyles.replyBarCancel}>Huỷ</Text>
@@ -1254,14 +1308,14 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
           )}
 
           <View style={commentStyles.inputBar}>
-            <Avatar id={currentUserId ?? 'anon'} displayName={myDisplayName ?? 'Bạn'} size={32} />
+            <Avatar id={currentUserId ?? 'anon'} displayName={myDisplayName ?? 'Bạn'} avatarUrl={myAvatarUrl ?? undefined} size={32} />
             <View style={commentStyles.inputWrap}>
               <TextInput
                 ref={inputRef}
                 style={commentStyles.input}
                 value={text}
                 onChangeText={setText}
-                placeholder={replyingTo ? `Trả lời ${getDisplayName(replyingTo.userId)}...` : 'Viết bình luận...'}
+                placeholder={replyingTo ? `Trả lời ${getDisplayName(replyingTo.userId, replyingTo)}...` : 'Viết bình luận...'}
                 placeholderTextColor={COLORS.glass30}
                 multiline
                 maxLength={500}
@@ -1556,37 +1610,77 @@ export const DiscoverScreen = () => {
     const ids = [...new Set(toFetch.map(p => p.ownerId))];
     if (!ids.length) return;
 
-    const artistResults = await Promise.allSettled(ids.map(id => getArtistByUserId(id)));
     const updates: Record<string, OwnerInfo> = {};
+    const embeddedResolvedIds: string[] = [];
+    const needArtistLookup: string[] = [];
 
-    for (let i = 0; i < ids.length; i++) {
-      const id = ids[i];
-      const ar = artistResults[i];
-      if (ar.status === 'fulfilled' && ar.value) {
-        const v = ar.value;
-        updates[id] = { displayName: v.stageName || id, artistId: v.id, avatarUrl: v.avatarUrl };
-        continue;
-      }
+    for (const id of ids) {
       const sample = newPosts.find(p => p.ownerId === id);
       const embedded = sample?.ownerDisplayName?.trim();
       const embeddedAvatar = sample?.ownerAvatarUrl ?? undefined;
       if (embedded) {
-        updates[id] = { displayName: embedded, artistId: null, avatarUrl: embeddedAvatar };
+        embeddedResolvedIds.push(id);
+        updates[id] = { displayName: embedded, artistId: null, avatarUrl: embeddedAvatar ?? undefined };
         continue;
       }
-      const pub = await getPublicUserProfile(id);
-      if (pub?.fullName?.trim()) {
-        updates[id] = { displayName: pub.fullName.trim(), artistId: null, avatarUrl: pub.avatarUrl ?? undefined };
-      } else {
+      needArtistLookup.push(id);
+    }
+
+    const artistResults = await Promise.allSettled(needArtistLookup.map(id => getArtistByUserId(id)));
+    const needPublicProfile: string[] = [];
+
+    for (let i = 0; i < needArtistLookup.length; i++) {
+      const id = needArtistLookup[i];
+      const ar = artistResults[i];
+      if (ar.status === 'fulfilled' && ar.value) {
+        const v = ar.value;
         updates[id] = {
-          displayName: id === currentUserId ? (myDisplayName ?? `User ${id.slice(0, 6)}`) : `User ${id.slice(0, 6)}`,
-          artistId: null,
+          displayName: v.stageName || id,
+          artistId: v.id,
+          avatarUrl: v.avatarUrl ?? undefined,
         };
+        continue;
+      }
+      needPublicProfile.push(id);
+    }
+
+    if (needPublicProfile.length) {
+      const pubResults = await Promise.allSettled(
+        needPublicProfile.map(async (id) => {
+          const pub = await getPublicUserProfile(id);
+          return { id, pub };
+        }),
+      );
+      for (const r of pubResults) {
+        if (r.status !== 'fulfilled') continue;
+        const { id, pub } = r.value;
+        if (pub?.fullName?.trim()) {
+          updates[id] = { displayName: pub.fullName.trim(), artistId: null, avatarUrl: pub.avatarUrl ?? undefined };
+        } else {
+          const sid = String(id);
+          const isMe = sid === String(currentUserId);
+          updates[id] = {
+            displayName: isMe ? (myDisplayName ?? `User ${sid.slice(0, 6)}`) : `User ${sid.slice(0, 6)}`,
+            artistId: null,
+          };
+        }
       }
     }
 
     ownerCacheRef.current = { ...ownerCacheRef.current, ...updates };
     setOwnerCache(p => ({ ...p, ...updates }));
+
+    if (embeddedResolvedIds.length) {
+      void Promise.allSettled(embeddedResolvedIds.map(async (id) => {
+        const a = await getArtistByUserId(id);
+        if (!a?.id) return;
+        const cur = ownerCacheRef.current[id];
+        if (!cur) return;
+        const merged: OwnerInfo = { ...cur, artistId: a.id };
+        ownerCacheRef.current[id] = merged;
+        setOwnerCache(p => ({ ...p, [id]: merged }));
+      }));
+    }
   }, [currentUserId, myDisplayName]);
 
   // Fetch content for each post
@@ -1682,12 +1776,24 @@ export const DiscoverScreen = () => {
     }
   }, [contentCache, currentUserId]);
 
-  const getOwnerInfo = useCallback((post: FeedPost): OwnerInfo =>
-    ownerCache[post.ownerId] ?? {
-      displayName: post.ownerId === currentUserId ? myDisplayName ?? `User ${post.ownerId.slice(0, 6)}` : `User ${post.ownerId.slice(0, 6)}`,
-      artistId: null,
-    }
-    , [ownerCache, currentUserId, myDisplayName]);
+  const getOwnerInfo = useCallback(
+    (post: FeedPost): OwnerInfo => {
+      const cached = ownerCache[post.ownerId];
+      if (cached) return cached;
+      const embeddedName = post.ownerDisplayName?.trim();
+      const embeddedAvatar = post.ownerAvatarUrl ?? undefined;
+      const oid = String(post.ownerId);
+      const isMe = oid === String(currentUserId);
+      return {
+        displayName:
+          embeddedName
+          ?? (isMe ? (myDisplayName ?? `User ${oid.slice(0, 6)}`) : `User ${oid.slice(0, 6)}`),
+        artistId: null,
+        avatarUrl: embeddedAvatar ?? undefined,
+      };
+    },
+    [ownerCache, currentUserId, myDisplayName],
+  );
 
   const getContentInfo = useCallback((post: FeedPost): PostContentInfo | null => {
     if (!post.contentId) return null;
@@ -2050,7 +2156,9 @@ export const DiscoverScreen = () => {
           style={[styles.header, { paddingTop: insets.top + 16 }]}
         >
           <View style={styles.headerRow}>
-            <Text style={styles.headerTitle}>{t('navigation.headerDiscover', 'MONU · Khám phá')}</Text>
+            <MonuBrandHeaderTitle layout="hero" accentColor={themeColors.accent} textAlign="center">
+              {t('navigation.headerDiscover', 'MONU · Khám phá')}
+            </MonuBrandHeaderTitle>
           </View>
           <Text style={styles.headerSub}>
             <View style={styles.liveBadge}>
@@ -2158,6 +2266,7 @@ export const DiscoverScreen = () => {
         comments={comments}
         currentUserId={currentUserId}
         myDisplayName={myDisplayName}
+        myAvatarUrl={myAvatarUrl}
         onClose={() => setCommentPost(null)}
         onSendComment={async (content, parentId) => {
           if (!commentPost) return;
@@ -2218,15 +2327,7 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   avatar: { alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: C.white, fontWeight: '700' },
   header: { paddingHorizontal: 20, paddingBottom: 18, paddingTop: 2, alignItems: 'center' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  headerTitle: {
-    color: C.accent,
-    fontSize: 22,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
+  headerRow: { width: '100%', alignItems: 'center' },
   liveBadge: { backgroundColor: C.error, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   liveBadgeText: { color: C.white, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   headerSub: { color: C.muted, fontSize: 13, marginTop: 4, textAlign: 'center' },
@@ -2249,7 +2350,7 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   emptyBtn: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 24, paddingVertical: 12 },
   emptyBtnText: { color: C.white, fontWeight: '700' },
   // Post card
-  postCard: { backgroundColor: C.bg, borderBottomWidth: 8, borderBottomColor: C.surface, paddingVertical: 14 },
+  postCard: { backgroundColor: C.bg, marginBottom: 16, paddingVertical: 14, borderRadius: 24, paddingHorizontal: 4 },
   postHeader: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, marginBottom: 10, gap: 10 },
   postMeta: { flex: 1 },
   postOwner: { color: C.white, fontWeight: '800', fontSize: 14, lineHeight: 18 },
@@ -2264,27 +2365,27 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   menuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 12, gap: 10 },
   menuItemText: { color: C.text, fontSize: 14, fontWeight: '500' },
   menuDivider: { height: 1, backgroundColor: C.divider },
-  postContent: { paddingHorizontal: 16, marginBottom: 10 },
-  postTitle: { color: C.text, fontSize: 15, fontWeight: '700', lineHeight: 21, marginBottom: 4 },
+  postContent: { paddingHorizontal: 16, marginBottom: 14 },
+  postTitle: { color: C.text, fontSize: 16, fontWeight: '800', lineHeight: 22, marginBottom: 6, fontFamily: 'Plus Jakarta Sans' },
   postCaption: { color: C.textSecondary, fontSize: 14, lineHeight: 20 },
-  contentCard: { marginTop: 10, borderRadius: 18, backgroundColor: C.surface, borderWidth: 1, borderColor: C.glass10, padding: 12, gap: 10 },
-  contentHeader: { flexDirection: 'row', gap: 10 },
-  contentCover: { width: 72, height: 72, borderRadius: 14, backgroundColor: C.glass06 },
+  contentCard: { marginTop: 12, borderRadius: 24, backgroundColor: C.surfaceLow || C.surface, padding: 16, gap: 12 },
+  contentHeader: { flexDirection: 'row', gap: 12 },
+  contentCover: { width: 88, height: 88, borderRadius: 16, backgroundColor: C.glass06 },
   contentMeta: { flex: 1, gap: 3, justifyContent: 'center' },
   contentTitle: { color: C.text, fontSize: 15, fontWeight: '700' },
   contentSub: { color: C.textSecondary, fontSize: 12 },
   contentBadge: { color: C.accent, fontSize: 12, fontWeight: '700' },
   contentOwner: { color: C.muted, fontSize: 11 },
   contentTracks: { gap: 6 },
-  trackRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6, paddingVertical: 6, backgroundColor: C.surfaceLow, borderRadius: 10 },
-  trackTitle: { color: C.text, fontSize: 14, fontWeight: '600' },
+  trackRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingVertical: 8, backgroundColor: 'transparent', borderRadius: 10 },
+  trackTitle: { color: C.text, fontSize: 14, fontWeight: '700' },
   trackArtist: { color: C.muted, fontSize: 12, marginTop: 2 },
-  trackPlay: { color: C.accent, fontSize: 14, fontWeight: '800' },
-  trackMore: { color: C.accent, fontSize: 12, marginLeft: 6, paddingVertical: 4, fontWeight: '600' },
-  postStats: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8 },
+  trackPlay: { color: C.accent, fontSize: 16, fontWeight: '800' },
+  trackMore: { color: C.accent, fontSize: 12, marginLeft: 6, paddingVertical: 4, fontWeight: '700' },
+  postStats: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10 },
   likeDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
   statText: { color: C.muted, fontSize: 12 },
-  postDivider: { height: 1, backgroundColor: C.divider, marginHorizontal: 16, marginBottom: 4 },
+  postDivider: { height: 1, backgroundColor: 'transparent', marginHorizontal: 16, marginBottom: 4 },
   // ─── Actions ───
   postActions: { flexDirection: 'row', paddingHorizontal: 8, paddingBottom: 4 },
   actionBtn: {
@@ -2292,16 +2393,18 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    gap: 5,
-    borderRadius: 14,
+    paddingVertical: 12,
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: C.glass06,
+    marginHorizontal: 4,
   },
   likeWrap: {},
-  likeWrapActive: {},
-  likeEmoji: { fontSize: 20, color: '#FF4081' },
+  likeWrapActive: { backgroundColor: 'rgba(255, 85, 0, 0.15)' },
+  likeEmoji: { fontSize: 20, color: '#FF5500' },
   actionIcon: { color: C.muted, fontSize: 18 },
-  actionLabel: { color: C.muted, fontSize: 13, fontWeight: '500' },
-  labelLiked: { color: '#FF4081', fontWeight: '700' },
+  actionLabel: { color: C.muted, fontSize: 13, fontWeight: '600' },
+  labelLiked: { color: '#FF5500', fontWeight: '800' },
 });
 
 // ─── Detail modal styles ───────────────────────────────────────────────────────

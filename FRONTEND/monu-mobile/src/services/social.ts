@@ -22,6 +22,8 @@ export interface FeedPost {
 export interface Comment {
   id: string;
   userId: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
   songId?: string;
   parentId?: string;
   content: string;

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator, Animated, Dimensions, FlatList, Image,
+    ActivityIndicator, Animated, Easing, Image,
     Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
     Pressable, ScrollView, StyleSheet, Text, View, Alert, Linking, useWindowDimensions,
 } from 'react-native';
@@ -20,9 +20,10 @@ import { SongActionSheet } from './SongActionSheet';
 import { AppIcon } from '../config/appIcons';
 import { HeartButton } from './HeartButton';
 import { ReportReasonSheet } from './ReportReasonSheet';
+import { moderateScale } from '../utils/responsive';
 
-const { width: SCREEN_W } = Dimensions.get('window');
 const THUMB_RADIUS = 8;
+const THUMB_VISUAL = THUMB_RADIUS + 1;
 
 const formatTime = (seconds: number): string => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -211,6 +212,13 @@ export const FullPlayerModal = () => {
     const [isSeeking, setIsSeeking] = useState(false);
     const [localSeekRatio, setLocalSeekRatio] = useState<number | null>(null);
 
+    const seekTrackRef = useRef<View>(null);
+    /** Vị trí track theo màn hình — dùng với `pageX` để seek mượt, không phụ thuộc `locationX` trong view. */
+    const seekGeom = useRef({ x: 0, w: 0 });
+    const seekWidthAnim = useRef(new Animated.Value(1)).current;
+    const visProgress = useRef(new Animated.Value(0)).current;
+    const thumbCenterOffset = useRef(new Animated.Value(THUMB_VISUAL)).current;
+
     // Lyrics state
     const [activePage, setActivePage] = useState(0);
     const [lyricData, setLyricData] = useState<LyricResponse | null>(null);
@@ -232,11 +240,17 @@ export const FullPlayerModal = () => {
     const currentTimeMs = currentTime * 1000;
     const isCompact = windowHeight < 780;
     const isVeryCompact = windowHeight < 700;
+    const isNarrow = windowWidth < 360;
+    const playerPadH = useMemo(
+        () => Math.max(14, Math.min(moderateScale(22), Math.round(windowWidth * 0.055))),
+        [windowWidth],
+    );
     const artworkSize = useMemo(() => {
-        if (isVeryCompact) return Math.min(190, windowWidth - 72);
-        if (isCompact) return Math.min(224, windowWidth - 72);
-        return Math.min(260, windowWidth - 72);
-    }, [isCompact, isVeryCompact, windowWidth]);
+        const cap = windowWidth - playerPadH * 2 - 24;
+        if (isVeryCompact) return Math.min(190, cap);
+        if (isCompact) return Math.min(224, cap);
+        return Math.min(260, cap);
+    }, [isCompact, isVeryCompact, windowWidth, playerPadH]);
 
     const NETWORK_LABEL: Record<string, string> = {
         high: 'Mạng tốt', medium: 'Mạng trung bình', low: 'Mạng yếu', offline: 'Ngoại tuyến',
@@ -320,19 +334,49 @@ export const FullPlayerModal = () => {
     ).current;
 
     const progress = duration > 0 ? currentTime / duration : 0;
-    const displayedProgress = localSeekRatio ?? progress;
 
-    const ratioFromLocationX = useCallback((locationX: number) => {
-        if (seekTrackWidth <= 0 || duration <= 0) return;
-        const clampedX = Math.max(0, Math.min(locationX, seekTrackWidth));
-        return clampedX / seekTrackWidth;
-    }, [duration, seekTrackWidth]);
+    useEffect(() => {
+        seekWidthAnim.setValue(Math.max(1, seekTrackWidth));
+    }, [seekTrackWidth, seekWidthAnim]);
 
-    const updateLocalSeekFromLocationX = useCallback((locationX: number) => {
-        const ratio = ratioFromLocationX(locationX);
-        if (ratio == null) return;
-        setLocalSeekRatio(ratio);
-    }, [ratioFromLocationX]);
+    /** Sync thanh progress mượt với `currentTime` (expo-audio cập nhật theo chu kỳ). */
+    useEffect(() => {
+        if (isSeeking) return;
+        const p = duration > 0 ? currentTime / duration : 0;
+        const clamped = Math.max(0, Math.min(1, p));
+        Animated.timing(visProgress, {
+            toValue: clamped,
+            duration: 200,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: false,
+        }).start();
+    }, [currentTime, duration, isSeeking, visProgress]);
+
+    /** Khi mở full player / đổi bài: nhảy tức thì tới progress hiện tại (tránh lệch với animation theo `currentTime`). */
+    useEffect(() => {
+        if (!isFullScreen) return;
+        const p = duration > 0 ? currentTime / duration : 0;
+        visProgress.setValue(Math.max(0, Math.min(1, p)));
+    }, [isFullScreen, currentSong?.id, duration, visProgress]);
+
+    const syncSeekGeomFromLayout = useCallback(() => {
+        seekTrackRef.current?.measureInWindow((sx, _sy, sw) => {
+            const w = sw > 0 ? sw : seekTrackWidth;
+            seekGeom.current = { x: sx, w };
+        });
+    }, [seekTrackWidth]);
+
+    const applySeekFromPageX = useCallback(
+        (pageX: number) => {
+            const { x, w } = seekGeom.current;
+            const effW = w > 0 ? w : seekTrackWidth;
+            if (effW <= 0 || duration <= 0) return;
+            const ratio = Math.max(0, Math.min(1, (pageX - x) / effW));
+            visProgress.setValue(ratio);
+            setLocalSeekRatio(ratio);
+        },
+        [duration, seekTrackWidth, visProgress],
+    );
 
     const commitSeek = useCallback(() => {
         if (localSeekRatio == null || duration <= 0) return;
@@ -370,15 +414,17 @@ export const FullPlayerModal = () => {
         })();
     };
 
+    const pageWidth = Math.max(1, windowWidth);
+
     const handlePageScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+        const page = Math.round(e.nativeEvent.contentOffset.x / pageWidth);
         setActivePage(page);
-    }, []);
+    }, [pageWidth]);
 
     const goToPage = useCallback((page: number) => {
-        pagerRef.current?.scrollTo({ x: page * SCREEN_W, animated: true });
+        pagerRef.current?.scrollTo({ x: page * pageWidth, animated: true });
         setActivePage(page);
-    }, []);
+    }, [pageWidth]);
 
     if (!currentSong) return null;
 
@@ -406,31 +452,53 @@ export const FullPlayerModal = () => {
                 {/* Clean dark background — không gradient nặng */}
                 <View style={[styles.root, { paddingTop: insets.top }]}>
                     {/* Header */}
-                    <View style={styles.header}>
+                    <View style={[styles.header, isNarrow && { paddingHorizontal: 12 }]}>
                         <Pressable onPress={() => setFullScreen(false)} hitSlop={12} style={styles.chevronBtn}>
                             <AppIcon name="chevronDown" size={28} color={COLORS.glass60} />
                         </Pressable>
 
-                        {/* Page indicators */}
-                        {showLyricsTab ? (
-                            <View style={styles.pageIndicator}>
-                                <Pressable onPress={() => goToPage(0)} hitSlop={4}>
-                                    <Text style={[
-                                        styles.pageIndicatorText,
-                                        activePage === 0 && styles.pageIndicatorActive,
-                                    ]}>Đang phát</Text>
-                                </Pressable>
-                                <View style={styles.pageDot} />
-                                <Pressable onPress={() => goToPage(1)} hitSlop={4}>
-                                    <Text style={[
-                                        styles.pageIndicatorText,
-                                        activePage === 1 && styles.pageIndicatorActive,
-                                    ]}>Lời nhạc</Text>
-                                </Pressable>
-                            </View>
-                        ) : (
-                            <Text style={styles.headerTitle}>Đang phát</Text>
-                        )}
+                        <View style={styles.headerCenter}>
+                            {showLyricsTab ? (
+                                <View style={styles.pageIndicator}>
+                                    <Pressable onPress={() => goToPage(0)} hitSlop={4}>
+                                        <Text
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.85}
+                                            style={[
+                                                styles.pageIndicatorText,
+                                                activePage === 0 && styles.pageIndicatorActive,
+                                            ]}
+                                        >
+                                            Đang phát
+                                        </Text>
+                                    </Pressable>
+                                    <View style={styles.pageDot} />
+                                    <Pressable onPress={() => goToPage(1)} hitSlop={4}>
+                                        <Text
+                                            numberOfLines={1}
+                                            adjustsFontSizeToFit
+                                            minimumFontScale={0.85}
+                                            style={[
+                                                styles.pageIndicatorText,
+                                                activePage === 1 && styles.pageIndicatorActive,
+                                            ]}
+                                        >
+                                            Lời nhạc
+                                        </Text>
+                                    </Pressable>
+                                </View>
+                            ) : (
+                                <Text
+                                    style={styles.headerTitle}
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.8}
+                                >
+                                    Đang phát
+                                </Text>
+                            )}
+                        </View>
 
                         <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}>
                             <AppIcon name="more" size={22} color={COLORS.white} />
@@ -449,9 +517,14 @@ export const FullPlayerModal = () => {
                         bounces={false}
                     >
                         {/* ── Page 1: Player ─────────────────────────── */}
-                        <View style={{ width: SCREEN_W, paddingHorizontal: 24 }}>
+                        <View style={{ width: pageWidth, paddingHorizontal: playerPadH }}>
                             {/* Artwork */}
                             <View style={[styles.artworkSection, isCompact && { marginBottom: 14 }]}>
+                                {currentSong.thumbnailUrl && (
+                                    <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', zIndex: -1  }]}>
+                                        <Image source={{ uri: currentSong.thumbnailUrl }} style={{ width: artworkSize, height: artworkSize, opacity: 0.6 }} blurRadius={80} />
+                                    </View>
+                                )}
                                 {currentSong.thumbnailUrl
                                     ? <Image source={{ uri: currentSong.thumbnailUrl }} style={[styles.artwork, { width: artworkSize, height: artworkSize }]} />
                                     : <View style={[styles.artwork, styles.artworkPlaceholder, { width: artworkSize, height: artworkSize }]}>
@@ -466,8 +539,11 @@ export const FullPlayerModal = () => {
                                     style={[
                                         styles.songTitle,
                                         isCompact && { fontSize: isVeryCompact ? 18 : 20, marginBottom: 2 },
+                                        isNarrow && { fontSize: isVeryCompact ? 17 : 19 },
                                     ]}
                                     numberOfLines={2}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.82}
                                 >
                                     {currentSong.title}
                                 </Text>
@@ -492,16 +568,30 @@ export const FullPlayerModal = () => {
                             <View style={[styles.progressSection, isCompact && { marginBottom: 14 }]}>
                                 <View style={styles.seekTouchArea}>
                                     <View
+                                        ref={seekTrackRef}
                                         style={styles.seekTrack}
-                                        onLayout={(e) => setSeekTrackWidth(e.nativeEvent.layout.width)}
+                                        onLayout={(e) => {
+                                            const w = e.nativeEvent.layout.width;
+                                            setSeekTrackWidth(w);
+                                            requestAnimationFrame(() => syncSeekGeomFromLayout());
+                                        }}
                                         onStartShouldSetResponder={() => true}
                                         onMoveShouldSetResponder={() => true}
                                         onResponderGrant={(e) => {
                                             setIsSeeking(true);
-                                            updateLocalSeekFromLocationX(e.nativeEvent.locationX);
+                                            const pageX = e.nativeEvent.pageX;
+                                            seekTrackRef.current?.measureInWindow((sx, _sy, sw) => {
+                                                const w = sw > 0 ? sw : seekTrackWidth;
+                                                seekGeom.current = { x: sx, w };
+                                                if (w > 0 && duration > 0) {
+                                                    const ratio = Math.max(0, Math.min(1, (pageX - sx) / w));
+                                                    visProgress.setValue(ratio);
+                                                    setLocalSeekRatio(ratio);
+                                                }
+                                            });
                                         }}
                                         onResponderMove={(e) => {
-                                            updateLocalSeekFromLocationX(e.nativeEvent.locationX);
+                                            applySeekFromPageX(e.nativeEvent.pageX);
                                         }}
                                         onResponderRelease={() => {
                                             commitSeek();
@@ -514,48 +604,74 @@ export const FullPlayerModal = () => {
                                             setLocalSeekRatio(null);
                                         }}
                                     >
-                                        <View style={[styles.seekFill, { width: `${displayedProgress * 100}%` as any }]} />
-                                        <View
+                                        <Animated.View
+                                            style={[
+                                                styles.seekFill,
+                                                { width: Animated.multiply(visProgress, seekWidthAnim) },
+                                            ]}
+                                        />
+                                        <Animated.View
                                             style={[
                                                 styles.seekThumb,
                                                 isSeeking && styles.seekThumbActive,
-                                                { left: `${displayedProgress * 100}%` as any },
+                                                {
+                                                    left: 0,
+                                                    transform: [
+                                                        {
+                                                            translateX: Animated.subtract(
+                                                                Animated.multiply(visProgress, seekWidthAnim),
+                                                                thumbCenterOffset,
+                                                            ),
+                                                        },
+                                                    ],
+                                                },
                                             ]}
                                         />
                                     </View>
                                 </View>
                                 <View style={styles.timeRow}>
-                                    <Text style={styles.timeText}>{formatTime(displayedProgress * duration)}</Text>
+                                    <Text style={styles.timeText}>
+                                        {formatTime(
+                                            isSeeking && localSeekRatio != null
+                                                ? localSeekRatio * duration
+                                                : currentTime,
+                                        )}
+                                    </Text>
                                     <Text style={styles.timeText}>{formatTime(duration)}</Text>
                                 </View>
                             </View>
 
                             {/* Controls */}
-                            <View style={[styles.controls, isCompact && { marginBottom: 6 }]}>
+                            <View style={[
+                                styles.controls,
+                                isCompact && { marginBottom: 6 },
+                                isNarrow && { paddingHorizontal: 2 },
+                            ]}
+                            >
                                 <Pressable style={styles.sideBtn} onPress={toggleShuffle} hitSlop={8}>
                                     <AppIcon
                                       name="shuffle"
                                       color={isShuffled ? COLORS.accent : COLORS.glass40}
-                                      size={22}
+                                      size={isNarrow ? 20 : 22}
                                     />
                                     {isShuffled && <View style={styles.modeDot} />}
                                 </Pressable>
 
                                 <Pressable style={styles.sideBtn} onPress={playPrev}>
-                                    <AppIcon name="skipPrev" color={COLORS.glass80} size={32} />
+                                    <AppIcon name="skipPrev" color={COLORS.glass80} size={isNarrow ? 28 : 32} />
                                 </Pressable>
 
-                                <Pressable style={styles.playBtn} onPress={togglePlay}>
+                                <Pressable style={[styles.playBtn, isNarrow && { width: 50, height: 50 }]} onPress={togglePlay}>
                                     {!isLoaded
                                         ? <ActivityIndicator color={COLORS.bg} size="small" />
                                         : isPlaying
-                                            ? <AppIcon name="pause" size={32} color={COLORS.bg} />
-                                            : <AppIcon name="play" size={34} color={COLORS.bg} />
+                                            ? <AppIcon name="pause" size={isNarrow ? 28 : 32} color={COLORS.bg} />
+                                            : <AppIcon name="play" size={isNarrow ? 30 : 34} color={COLORS.bg} />
                                     }
                                 </Pressable>
 
                                 <Pressable style={styles.sideBtn} onPress={playNext}>
-                                    <AppIcon name="skipNext" color={COLORS.glass80} size={32} />
+                                    <AppIcon name="skipNext" color={COLORS.glass80} size={isNarrow ? 28 : 32} />
                                 </Pressable>
 
                                 <Pressable style={styles.sideBtn} onPress={cycleRepeatMode} hitSlop={8}>
@@ -592,7 +708,7 @@ export const FullPlayerModal = () => {
                                             </Text>
                                         </Pressable>
                                     </View>
-                                    <View style={styles.qualityRow}>
+                                    <View style={[styles.qualityRow, isNarrow && { flexWrap: 'wrap', justifyContent: 'center' }]}>
                                         {QUALITY_OPTIONS.map(opt => {
                                             const isSelected  = selectedQuality === opt.value;
                                             const isAvailable = opt.value <= maxQuality;
@@ -684,7 +800,7 @@ export const FullPlayerModal = () => {
 
                         {/* ── Page 2: Lyrics ─────────────────────────── */}
                         {showLyricsTab && (
-                            <View style={{ width: SCREEN_W }}>
+                            <View style={{ width: pageWidth }}>
                                 {/* Mini player bar on lyrics page */}
                                 <View style={styles.lyricMiniBar}>
                                     {currentSong.thumbnailUrl
@@ -707,7 +823,17 @@ export const FullPlayerModal = () => {
 
                                 {/* Progress bar */}
                                 <View style={styles.lyricProgress}>
-                                    <View style={[styles.lyricProgressFill, { width: `${progress * 100}%` as any }]} />
+                                    <Animated.View
+                                        style={[
+                                            styles.lyricProgressFill,
+                                            {
+                                                width: visProgress.interpolate({
+                                                    inputRange: [0, 1],
+                                                    outputRange: ['0%', '100%'],
+                                                }),
+                                            },
+                                        ]}
+                                    />
                                 </View>
 
                                 {/* Lyrics content */}
@@ -854,11 +980,12 @@ export const FullPlayerModal = () => {
 const createStyles = (c: ColorScheme) => StyleSheet.create({
     root:               { flex: 1, backgroundColor: c.bg },
     header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 20 },
+    headerCenter:       { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
     chevronBtn:         { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-    headerTitle:        { color: c.glass50, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
+    headerTitle:        { color: c.glass50, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', textAlign: 'center' },
     moreBtn:            { color: c.white, fontSize: 30, lineHeight: 30 },
 
-    pageIndicator:      { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    pageIndicator:      { flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%', justifyContent: 'center' },
     pageIndicatorText:  { color: c.glass35, fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
     pageIndicatorActive: { color: c.white },
     pageDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: c.glass20 },
@@ -902,12 +1029,12 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
 
     progressSection:    { marginBottom: 18 },
     seekTouchArea:      { height: 48, justifyContent: 'center' },
-    seekTrack:          { height: 3, backgroundColor: c.glass12, borderRadius: 2 },
-    seekTrackActive:    { height: 3 },
-    seekFill:           { height: 3, backgroundColor: c.white, borderRadius: 2 },
-    seekThumb:          { position: 'absolute', top: '50%', marginTop: -THUMB_RADIUS, width: THUMB_RADIUS * 2, height: THUMB_RADIUS * 2, borderRadius: THUMB_RADIUS, backgroundColor: c.white, shadowColor: c.white, shadowOpacity: 0, shadowRadius: 6 },
-    seekThumbActive:    { width: THUMB_RADIUS * 2.8, height: THUMB_RADIUS * 2.8, marginTop: -(THUMB_RADIUS * 1.4), borderRadius: THUMB_RADIUS * 1.4, shadowOpacity: 0.4 },
-    timeRow:            { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+    seekTrack:          { height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2 },
+    seekTrackActive:    { height: 4 },
+    seekFill:           { height: 4, backgroundColor: c.accent, borderRadius: 2, shadowColor: c.accent, shadowOpacity: 0.5, shadowRadius: 8 },
+    seekThumb:          { position: 'absolute', top: '50%', marginTop: -(THUMB_RADIUS + 1), width: (THUMB_RADIUS + 1) * 2, height: (THUMB_RADIUS + 1) * 2, borderRadius: THUMB_RADIUS + 1, backgroundColor: c.accent, shadowColor: c.accent, shadowOpacity: 0.8, shadowRadius: 10 },
+    seekThumbActive:    { width: THUMB_RADIUS * 3, height: THUMB_RADIUS * 3, marginTop: -(THUMB_RADIUS * 1.5), borderRadius: THUMB_RADIUS * 1.5, shadowOpacity: 1, shadowColor: c.white, backgroundColor: c.white },
+    timeRow:            { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
     timeText:           { color: c.glass45, fontSize: 11, fontWeight: '600' },
 
     controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 8 },
