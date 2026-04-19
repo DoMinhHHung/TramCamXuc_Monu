@@ -9,6 +9,7 @@ import { ThemeColors } from '../config/themes';
 import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { BackButton } from '../components/BackButton';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type SettingsNav = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
@@ -18,6 +19,7 @@ type HubTarget = 'PersonalSettings' | 'SystemSettings' | 'AccountSettings';
 export const SettingsScreen = () => {
     const navigation = useNavigation<SettingsNav>();
     const insets = useSafeAreaInsets();
+    const { padH } = useResponsiveLayout();
     const { t } = useTranslation();
     const { colors: themeColors } = useTheme();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
@@ -54,13 +56,15 @@ export const SettingsScreen = () => {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
             >
-                <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+                <View style={[styles.header, { paddingTop: insets.top + 12, paddingHorizontal: padH }]}>
                     <BackButton onPress={() => navigation.goBack()} />
-                    <Text style={styles.headerTitle}>{t('screens.settings.title') || 'Cài đặt'}</Text>
+                    <Text style={styles.headerTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
+                        {t('screens.settings.title') || 'Cài đặt'}
+                    </Text>
                     <View style={{ width: 40 }} />
                 </View>
 
-                <View style={styles.list}>
+                <View style={[styles.list, { paddingHorizontal: padH }]}>
                     {hubs.map((h) => (
                         <Pressable
                             key={h.target}
@@ -87,7 +91,6 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 12,
         paddingBottom: 20,
     },
     headerTitle: {
@@ -97,7 +100,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
         textAlign: 'center',
         flex: 1,
     },
-    list: { paddingHorizontal: 16, gap: 12 },
+    list: { gap: 12 },
     row: {
         flexDirection: 'row',
         alignItems: 'center',

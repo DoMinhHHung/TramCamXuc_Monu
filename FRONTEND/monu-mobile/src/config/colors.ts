@@ -10,69 +10,43 @@ import { useTheme } from '../context/ThemeContext';
 export const COLORS = {
 
   // ── Backgrounds ────────────────────────────────────────────────────────────
-  /** Nền chính của app */
-  bg:         '#0D0D14',
-  /** Surface card nổi (modal, list card) */
-  surface:    '#1E1A38',
-  /** Surface thấp hơn (gradient end của card) */
-  surfaceLow: '#16132A',
-  /** Surface disabled / flat */
-  surfaceMid: '#2A2A3A',
-  /** Surface tối nhất (inactive) */
-  surfaceDim: '#333333',
-  /** Surface variant cho design mới */
-  surfaceVariant: '#2D1B69',
+  bg:         '#0A0A0C',
+  surface:    '#121216',
+  surfaceLow: '#0D0D10',
+  surfaceMid: '#18181D',
+  surfaceDim: '#202026',
+  surfaceVariant: '#2A2A35',
 
   // ── Gradient stops ─────────────────────────────────────────────────────────
-  /** WelcomeScreen hero top */
-  backgroundStart: '#1a0533',
-  /** HomeScreen / ProfileScreen hero */
-  backgroundEnd: '#2D1B69',
-  /** WelcomeScreen hero top (v2) */
-  gradViolet: '#1a0533',
-  /** HomeScreen / ProfileScreen hero (v2) */
-  gradPurple: '#2D1B69',
-  /** Auth screens (Login, ForgotPassword, VerifyOtp, ResetPassword) */
-  gradIndigo: '#1a0f3d',
-  /** Register, SelectGenres, CreateScreen */
-  gradNavy:   '#0f1a3d',
-  /** Library, Search, EditFavorites header */
-  gradSlate:  '#16102E',
+  backgroundStart: '#110502',
+  backgroundEnd: '#0A0A0C',
+  gradViolet: '#110502',
+  gradPurple: '#220803',
+  gradIndigo: '#1A0E0B',
+  gradNavy:   '#0F121C',
+  gradSlate:  '#15151A',
 
   // ── Streak Banner ──────────────────────────────────────────────────────────
-  streakFrom: '#1a1040',
-  streakTo: '#2D1B69',
+  streakFrom: '#1A0E0B',
+  streakTo: '#0A0A0C',
 
   // ── Accent ─────────────────────────────────────────────────────────────────
-  /** Primary accent – lavender (buttons, links, active state) */
-  accent:     '#C084FC',
-  /** Gradient end cho accent button */
-  accentAlt:  '#8B5CF6',
-  /** Button fill sâu hơn */
-  accentDim:  '#7C3AED',
-  /** Sâu nhất – shadow / glow */
-  accentDeep: '#6D28D9',
+  accent:     '#FF5500',
+  accentAlt:  '#FF7733',
+  accentDim:  '#CC4400',
+  accentDeep: '#993300',
 
   // ── Accent transparent layers ──────────────────────────────────────────────
-  /** Email badge, cellFilled background */
-  accentFill20:   'rgba(109,40,217,0.20)',
-  /** Count badge, section badge background */
-  accentFill25:   'rgba(109,40,217,0.25)',
-  /** Featured banner gradient start */
-  accentFill90:   'rgba(109,40,217,0.90)',
-  /** Featured banner gradient end */
-  accentFill95:   'rgba(76,29,149,0.95)',
-  /** Ring trang trí (WelcomeScreen outer) */
-  accentBorder12: 'rgba(139,92,246,0.12)',
-  /** Genre chip border */
-  accentBorder25: 'rgba(139,92,246,0.25)',
-  /** Badge border, count badge border */
-  accentBorder30: 'rgba(139,92,246,0.30)',
-  accentBorder35: 'rgba(139,92,246,0.35)',
-  /** Logo ring, icon wrap border */
-  accentBorder40: 'rgba(139,92,246,0.40)',
-  /** Logo ring WelcomeScreen, active OTP cell */
-  accentBorder50: 'rgba(139,92,246,0.50)',
+  accentFill20:   'rgba(255,85,0,0.20)',
+  accentFill25:   'rgba(255,85,0,0.25)',
+  accentFill90:   'rgba(255,85,0,0.90)',
+  accentFill95:   'rgba(204,68,0,0.95)',
+  accentBorder12: 'rgba(255,85,0,0.12)',
+  accentBorder25: 'rgba(255,85,0,0.25)',
+  accentBorder30: 'rgba(255,85,0,0.30)',
+  accentBorder35: 'rgba(255,85,0,0.35)',
+  accentBorder40: 'rgba(255,85,0,0.40)',
+  accentBorder50: 'rgba(255,85,0,0.50)',
 
   // ── White glass layers ─────────────────────────────────────────────────────
   glass03: 'rgba(255,255,255,0.03)',
@@ -99,66 +73,65 @@ export const COLORS = {
   glass90: 'rgba(255,255,255,0.90)',
 
   // ── Borders ────────────────────────────────────────────────────────────────
-  border:       '#2A2640',
+  border:       '#1E1E24',
   borderSubtle: 'rgba(255,255,255,0.06)',
   borderLight:  'rgba(255,255,255,0.10)',
 
   // ── Text ──────────────────────────────────────────────────────────────────
   white: '#FFFFFF',
-  text:  '#F3F0FF',
-  textSecondary: '#B9B3D1',
-  muted: '#7B7591',
+  text:  '#F5F5F5',
+  textSecondary: '#A0A0A0',
+  muted: '#6B6B6B',
 
   // ── Semantic ──────────────────────────────────────────────────────────────
-  error:         '#EF4444',
-  errorDim:      'rgba(239,68,68,0.15)',
-  success:       '#22C55E',
-  successAlt:    '#10B981',
-  warningMid:    '#FBBF24',
-  warning:       '#F59E0B',
-  warningDim:    'rgba(245,158,11,0.15)',
-  warningBorder: 'rgba(245,158,11,0.40)',
-  info:          '#3B82F6',
+  error:         '#FF0033',
+  errorDim:      'rgba(255,0,51,0.15)',
+  success:       '#1DB954',
+  successAlt:    '#1AA34A',
+  warningMid:    '#FFB800',
+  warning:       '#E6A600',
+  warningDim:    'rgba(230,166,0,0.15)',
+  warningBorder: 'rgba(230,166,0,0.40)',
+  info:          '#00E5FF',
 
   // ── Misc ──────────────────────────────────────────────────────────────────
-  /** Modal / overlay backdrop */
   scrim: 'rgba(0,0,0,0.70)',
 
   // ── HomeScreen quick-action card gradients ────────────────────────────────
-  cardHealingFrom:  '#1a1040',
-  cardHealingTo:    '#2D1B69',
-  cardTrendingFrom: '#1a0a0a',
-  cardTrendingTo:   '#6B1A1A',
-  cardAcousticFrom: '#0a1a0a',
-  cardAcousticTo:   '#1A4A1A',
-  cardLofiFrom:     '#0a0a1a',
-  cardLofiTo:       '#1A2A5A',
+  cardHealingFrom:  '#4A1208',
+  cardHealingTo:    '#2A0A05',
+  cardTrendingFrom: '#FF5500',
+  cardTrendingTo:   '#B33B00',
+  cardAcousticFrom: '#0A2616',
+  cardAcousticTo:   '#103F25',
+  cardLofiFrom:     '#061D2B',
+  cardLofiTo:       '#0B344D',
 
   // ── SearchScreen category card gradients ─────────────────────────────────
-  catPopFrom:     '#1a0a2e',
-  catPopTo:       '#3D1A6B',
-  catRnbFrom:     '#0a1a2e',
-  catRnbTo:       '#1A3D6B',
-  catHipHopFrom:  '#1a0a0a',
-  catHipHopTo:    '#6B1A2E',
-  catEdmFrom:     '#0a1a0a',
-  catEdmTo:       '#1A6B3D',
-  catAcousticFrom: '#1a1a0a',
-  catAcousticTo:   '#4A4A10',
-  catChillFrom:   '#0a0a1a',
-  catChillTo:     '#1A1A6B',
-  catIndieFrom:   '#0a1a10',
-  catIndieTo:     '#1A5A30',
-  catClassicFrom: '#1a100a',
-  catClassicTo:   '#5A300A',
+  catPopFrom:     '#4A1208',
+  catPopTo:       '#2A0A05',
+  catRnbFrom:     '#0A2616',
+  catRnbTo:       '#103F25',
+  catHipHopFrom:  '#FF5500',
+  catHipHopTo:    '#B33B00',
+  catEdmFrom:     '#061D2B',
+  catEdmTo:       '#0B344D',
+  catAcousticFrom: '#2B2B06',
+  catAcousticTo:   '#4D4D0B',
+  catChillFrom:   '#1B062B',
+  catChillTo:     '#2D0B4D',
+  catIndieFrom:   '#062B1B',
+  catIndieTo:     '#0B4D2D',
+  catClassicFrom: '#2B1206',
+  catClassicTo:   '#4D210B',
 
   // ── Premium UI ──────────────────────────────────────────────────────────────
-  premiumGlow: '#C084FC',
-  premiumGlowSoft: 'rgba(192,132,252,0.35)',
-  premiumCardFrom: '#1A1040',
-  premiumCardTo: '#2D1B69',
+  premiumGlow: '#FF5500',
+  premiumGlowSoft: 'rgba(255,85,0,0.35)',
+  premiumCardFrom: '#2A0A05',
+  premiumCardTo: '#1A0E0B',
   premiumShine: 'rgba(255,255,255,0.15)',
-  premiumBorder: 'rgba(192,132,252,0.35)',
+  premiumBorder: 'rgba(255,85,0,0.35)',
 
 } as const;
 

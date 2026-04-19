@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useTranslation } from '../../context/LocalizationContext';
 import { BackButton } from '../../components/BackButton';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'AccountSettings'>;
@@ -15,6 +16,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'AccountSettings'>;
 export const AccountSettingsScreen = () => {
     const navigation = useNavigation<Nav>();
     const insets = useSafeAreaInsets();
+    const { padH } = useResponsiveLayout();
     const { t } = useTranslation();
     const themeColors = useThemeColors();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
@@ -46,15 +48,15 @@ export const AccountSettingsScreen = () => {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
             >
-                <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+                <View style={[styles.header, { paddingTop: insets.top + 12, paddingHorizontal: padH }]}>
                     <BackButton onPress={() => navigation.goBack()} />
-                    <Text style={styles.headerTitle}>
+                    <Text style={styles.headerTitle} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85}>
                         {t('screens.settings.account.title', 'Cài đặt tài khoản')}
                     </Text>
                     <View style={{ width: 40 }} />
                 </View>
 
-                <View style={styles.card}>
+                <View style={[styles.card, { marginHorizontal: padH }]}>
                     {rows.map((item, i) => (
                         <Pressable
                             key={i}
@@ -92,7 +94,6 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 12,
         paddingBottom: 16,
     },
     headerTitle: {
@@ -103,7 +104,6 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
         flex: 1,
     },
     card: {
-        marginHorizontal: 16,
         borderRadius: 16,
         overflow: 'hidden',
         backgroundColor: c.surface,

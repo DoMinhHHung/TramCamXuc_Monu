@@ -1,5 +1,6 @@
 .env
 error.log
+.cursor
 build.yml
 .github\workflows\build.yml
 __pycache__

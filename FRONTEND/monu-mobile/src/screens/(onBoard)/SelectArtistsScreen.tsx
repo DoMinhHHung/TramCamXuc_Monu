@@ -242,9 +242,7 @@ export const SelectArtistsScreen = ({ route }: { route: { params: { selectedGenr
           <View style={styles.stepDot} />
           <View style={styles.stepDotActive} />
         </View>
-        <Text style={styles.emoji}>{ONBOARDING_EMOJIS.artist}</Text>
         <Text style={styles.title}>{t('onboarding.selectArtistsTitle')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding.selectArtistsSubtitle')}</Text>
       </LinearGradient>
 
       <View style={styles.chrome}>

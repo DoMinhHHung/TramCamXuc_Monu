@@ -115,8 +115,7 @@ export const INTERACTION_EMOJIS = {
 export const ONBOARDING_EMOJIS = {
   /** Music note – welcome to Monu's music platform */
   welcome: '🎵' as const,
-  /** Microphone – artist/creator focus */
-  artist: '🎤' as const,
+
   /** Genres representation */
   genre: '🎸' as const,
 } as const;

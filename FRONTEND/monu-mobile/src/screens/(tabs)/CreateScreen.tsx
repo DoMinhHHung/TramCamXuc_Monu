@@ -38,6 +38,7 @@ import { getMySubscription } from '../../services/payment';
 import type { Song } from '../../services/music';
 import { usePlayerControls, usePlayerState, usePlayerStatus } from '../../context/PlayerContext';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
+import { MonuBrandHeaderTitle } from '../../components/MonuBrandHeaderTitle';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -702,7 +703,9 @@ export const CreateScreen = () => {
             <AnimatedDecorIcon intensity="medium">
               <Text style={styles.heroEmoji}>🎼</Text>
             </AnimatedDecorIcon>
-            <Text style={styles.heroTitle}>{t('navigation.headerCreate')}</Text>
+            <MonuBrandHeaderTitle layout="hero" accentColor={themeColors.accent} style={styles.heroTitleWrap}>
+              {t('navigation.headerCreate')}
+            </MonuBrandHeaderTitle>
             <Text style={styles.heroSub}>
               {canUpload
                   ? `${t('screens.create.greetingPrefix', 'Hello')}, ${artistProfile?.stageName} 👋`
@@ -1401,15 +1404,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     alignItems: 'center',
   },
   heroEmoji: { fontSize: 52, marginBottom: 12 },
-  heroTitle: {
-    color: colors.accent,
-    fontSize: 22,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    letterSpacing: 2,
-    marginBottom: 6,
-    textTransform: 'uppercase',
-  },
+  heroTitleWrap: { marginBottom: 6 },
   heroSub: {
     color: colors.glass50,
     fontSize: 14,
@@ -1500,17 +1495,11 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
 
   // ── Card ────────────────────────────────────────────────────────────────
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.glass12,
-    padding: 18,
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    elevation: 6,
+    backgroundColor: colors.surfaceLow,
+    borderRadius: 24,
+    borderWidth: 0,
+    padding: 20,
+    gap: 12,
   },
   cardTitle: {
     color: colors.white,
@@ -1540,12 +1529,11 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     marginTop: 4,
   },
   input: {
-    borderWidth: 1,
-    borderColor: colors.glass15,
-    backgroundColor: colors.surfaceLow,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderWidth: 0,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     color: colors.white,
     fontSize: 15,
   },
@@ -1583,15 +1571,12 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
 
   // ── File picker ──────────────────────────────────────────────────────────
   filePicker: {
-    borderWidth: 1.5,
-    borderColor: colors.glass15,
-    borderStyle: 'dashed',
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 0,
+    borderRadius: 18,
     overflow: 'hidden',
   },
   filePickerSelected: {
-    borderStyle: 'solid',
-    borderColor: colors.accentBorder35,
     backgroundColor: colors.accentFill20,
   },
   filePickerEmpty: {
@@ -1648,14 +1633,12 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   genreChip: {
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.glass20,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    backgroundColor: colors.surfaceLow,
+    borderWidth: 0,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
   },
   genreChipActive: {
-    borderColor: colors.accent,
     backgroundColor: colors.accentFill20,
   },
   genreText: {
@@ -1714,9 +1697,9 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
 
   // ── Shared ───────────────────────────────────────────────────────────────
   primaryBtn: {
-    backgroundColor: colors.accentDim,
-    borderRadius: 14,
-    minHeight: 50,
+    backgroundColor: colors.accent,
+    borderRadius: 999,
+    minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1736,14 +1719,14 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     marginTop: 4,
   },
   secondaryBtn: {
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.glass20,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 0,
+    backgroundColor: colors.surface,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: 48,
     flexGrow: 1,
   },
   secondaryBtnText: {

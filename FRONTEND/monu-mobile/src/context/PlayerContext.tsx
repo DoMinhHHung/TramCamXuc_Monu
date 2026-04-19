@@ -351,14 +351,44 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         }
     }, [networkTier, player]);
 
-    // ── Audio session ──────────────────────────────────────────────────────────
     useEffect(() => {
-        setAudioModeAsync({
+        void setAudioModeAsync({
             playsInSilentMode: true,
-            staysActiveInBackground: true,
-            shouldDuckAndroid: true,
-        } as any).catch(() => { });
+            shouldPlayInBackground: true,
+            allowsRecording: false,
+            interruptionMode: 'duckOthers',
+            shouldRouteThroughEarpiece: false,
+        }).catch(() => { });
     }, []);
+
+    // Android: media session + foreground service (AudioControlsService) khi gắn lock screen.
+    useEffect(() => {
+        if (!currentSong || isPlayingAd) {
+            try {
+                player.clearLockScreenControls();
+            } catch {
+                /* noop */
+            }
+            return;
+        }
+        try {
+            player.setActiveForLockScreen(true, {
+                title: currentSong.title,
+                artist: currentSong.primaryArtist?.stageName ?? '',
+                albumTitle: 'Monu',
+                artworkUrl: currentSong.thumbnailUrl ?? undefined,
+            });
+        } catch {
+            /* noop */
+        }
+        return () => {
+            try {
+                player.clearLockScreenControls();
+            } catch {
+                /* noop */
+            }
+        };
+    }, [currentSong, isPlayingAd, player]);
 
     // ── Autoplay + seek sau khi HLS load: 2 frame defer để native gắn segment rồi mới play ─
     useEffect(() => {

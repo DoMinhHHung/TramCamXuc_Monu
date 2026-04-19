@@ -30,87 +30,72 @@ interface ArtistCardEnhancedProps {
 
 const getStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
-    marginBottom: 12,
-    ...themeUtils.shadowPresets.md,
+    marginBottom: 16,
   },
   card: {
-    borderRadius: themeUtils.borderRadius.lg,
+    borderRadius: themeUtils.borderRadius.full,
     overflow: 'hidden',
-    backgroundColor: colors.surface,
-    borderColor: colors.accentBorder25,
-    borderWidth: 0.5,
-  },
-  gradient: {
+    backgroundColor: colors.surfaceVariant,
     padding: themeUtils.spacing.md,
-  },
-  header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: themeUtils.spacing.md,
+    justifyContent: 'space-between',
   },
   avatarContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: colors.surfaceMid,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: themeUtils.spacing.md,
-    borderColor: colors.accent,
-    borderWidth: 2,
   },
-  headerContent: {
+  infoContainer: {
     flex: 1,
+    justifyContent: 'center',
   },
   artistName: {
-    fontSize: themeUtils.fontSize.lg,
-    fontWeight: '600',
+    fontSize: themeUtils.fontSize.xl,
+    fontWeight: '800',
+    fontFamily: 'Plus Jakarta Sans',
     color: colors.text,
-    marginBottom: 2,
+    marginBottom: 4,
+    letterSpacing: -0.5,
   },
   followerText: {
     fontSize: themeUtils.fontSize.sm,
     color: colors.textSecondary,
+    fontFamily: 'Inter',
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  statsGroup: {
-    flexDirection: 'row',
-    gap: themeUtils.spacing.lg,
-  },
-  statItem: {
-    alignItems: 'center',
+    gap: 12,
   },
   statValue: {
-    fontSize: themeUtils.fontSize.md,
-    fontWeight: '600',
-    color: colors.accent,
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: themeUtils.fontSize.xs,
-    color: colors.muted,
+    fontSize: themeUtils.fontSize.sm,
+    fontWeight: '700',
+    color: colors.success, // Spotify Green for active play count
   },
   followButton: {
-    paddingHorizontal: themeUtils.spacing.md,
+    paddingHorizontal: themeUtils.spacing.lg,
     paddingVertical: themeUtils.spacing.sm,
     borderRadius: themeUtils.borderRadius.full,
-    borderWidth: 1.5,
-    borderColor: colors.accent,
+    backgroundColor: colors.accent, // Electric orange for primary action
     justifyContent: 'center',
     alignItems: 'center',
   },
   followButtonFollowing: {
-    backgroundColor: colors.accentFill20,
+    backgroundColor: colors.surfaceMid,
   },
   followButtonText: {
     fontSize: themeUtils.fontSize.xs,
-    fontWeight: '600',
-    color: colors.accent,
+    fontWeight: '800',
+    color: colors.bg, // Black text on neon orange background
   },
+  followButtonTextFollowing: {
+    color: colors.text,
+  }
 });
 
 const useCardStyles = createCachedThemeStyles(getStyles);
@@ -141,49 +126,35 @@ export const ArtistCardEnhanced: React.FC<ArtistCardEnhancedProps> = ({
     <Pressable
       onPress={onPress}
       style={[styles.container, style]}
-      android_ripple={{ color: colors.accentFill20 }}
     >
       <View style={styles.card}>
-        <LinearGradient
-          colors={[colors.surface, colors.surfaceLow]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradient}
-        >
-          <View style={styles.header}>
-            <View style={styles.avatarContainer}>
-              <MaterialCommunityIcons
-                name="account-music"
-                size={32}
-                color={colors.accent}
-              />
-            </View>
-            <View style={styles.headerContent}>
-              <Text style={styles.artistName} numberOfLines={1}>{artist.name}</Text>
-              <Text style={styles.followerText}>
-                {formatNumber(artist.followerCount)} followers
-              </Text>
-            </View>
-          </View>
+        <View style={styles.avatarContainer}>
+          <MaterialCommunityIcons
+            name="account-music"
+            size={36}
+            color={colors.accent}
+          />
+        </View>
 
+        <View style={styles.infoContainer}>
+          <Text style={styles.artistName} numberOfLines={1}>{artist.name}</Text>
           <View style={styles.statsContainer}>
-            <View style={styles.statsGroup}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{formatNumber(artist.playCount)}</Text>
-                <Text style={styles.statLabel}>plays</Text>
-              </View>
-            </View>
-
-            <Pressable
-              style={[styles.followButton, isFollowing && styles.followButtonFollowing]}
-              onPress={handleFollowPress}
-            >
-              <Text style={styles.followButtonText}>
-                {isFollowing ? t('screens.artist.unfollowArtist') : t('screens.artist.followArtist')}
-              </Text>
-            </Pressable>
+            <Text style={styles.followerText}>
+              {formatNumber(artist.followerCount)} followers
+            </Text>
+            <Text style={styles.followerText}>•</Text>
+            <Text style={styles.statValue}>{formatNumber(artist.playCount)} plays</Text>
           </View>
-        </LinearGradient>
+        </View>
+
+        <Pressable
+          style={[styles.followButton, isFollowing && styles.followButtonFollowing]}
+          onPress={handleFollowPress}
+        >
+          <Text style={[styles.followButtonText, isFollowing && styles.followButtonTextFollowing]}>
+            {isFollowing ? t('screens.artist.unfollowArtist') : t('screens.artist.followArtist')}
+          </Text>
+        </Pressable>
       </View>
     </Pressable>
   );

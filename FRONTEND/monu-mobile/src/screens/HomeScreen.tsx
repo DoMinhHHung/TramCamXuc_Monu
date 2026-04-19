@@ -54,10 +54,12 @@ import { useRecommendations } from '../hooks/useRecommendations';
 import { useExternalMusicSections } from '../hooks/useExternalMusicSections';
 import { AlbumCard } from '../components/AlbumCard';
 import { ArtistCardEnhanced } from '../components/ArtistCardEnhanced';
+import { MonuBrandHeaderTitle } from '../components/MonuBrandHeaderTitle';
 import { StreakBanner } from '../components/StreakBanner';
 import { ContinueListeningSection } from '../components/ContinueListeningSection';
 import { ReportReasonSheet } from '../components/ReportReasonSheet';
 import { openInSpotify, soundCloudTrackToSong } from '../services/externalMusic';
+import { moderateScale } from '../utils/responsive';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const TOP_ARTIST_CARD_STEP = 292;
@@ -503,7 +505,7 @@ export const HomeScreen = () => {
           },
         ]}
       >
-        <View style={styles.headerContent}>
+        <View style={[styles.headerContent, { paddingHorizontal: windowWidth < 360 ? 14 : 22 }]}>
           <View style={styles.headerLeft}>
             <TouchableOpacity onPress={handleOpenProfile} accessibilityLabel="Open profile">
               {headerAvatarUrl && !headerAvatarFailed ? (
@@ -518,7 +520,9 @@ export const HomeScreen = () => {
                 </View>
               )}
             </TouchableOpacity>
-            <Text style={styles.logoText}>{t('navigation.headerHome')}</Text>
+            <MonuBrandHeaderTitle accentColor={palette.accent} layout="shrink">
+              {t('navigation.headerHome')}
+            </MonuBrandHeaderTitle>
           </View>
           <TouchableOpacity style={styles.headerSearchBtn} onPress={handleOpenSearch}>
             <Ionicons name="search" size={24} color={palette.accent} />
@@ -544,7 +548,23 @@ export const HomeScreen = () => {
       >
         {/* ── PERSONALIZED GREETING ─────────────────────────────────────── */}
         <View style={styles.heroSection}>
-          <Text style={styles.greetingText}>{homeGreeting.greeting}</Text>
+          <Text
+            style={[
+              styles.greetingText,
+              {
+                fontSize:
+                  windowWidth < 340 ? moderateScale(22) : windowWidth < 400 ? moderateScale(26) : moderateScale(30),
+                lineHeight:
+                  windowWidth < 340 ? moderateScale(28) : windowWidth < 400 ? moderateScale(32) : moderateScale(36),
+              },
+            ]}
+            numberOfLines={3}
+            adjustsFontSizeToFit
+            minimumFontScale={0.72}
+            maxFontSizeMultiplier={1.2}
+          >
+            {homeGreeting.greeting}
+          </Text>
         </View>
 
         {/* ── 1. STREAK BANNER ─────────────────────────────────────────── */}
@@ -577,37 +597,19 @@ export const HomeScreen = () => {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t('screens.home.recommendForYou')}</Text>
         </View>
-        <View style={styles.featuredGrid}>
-          <TouchableOpacity 
-            style={styles.featuredMainCard}
-            onPress={() => {
-              const topSongs = legacyTrendingSongs.slice(0, 10);
-              if (topSongs.length > 0) playSong(topSongs[0], topSongs);
-            }}
-          >
-            <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=800' }} 
-              style={StyleSheet.absoluteFill} 
-            />
-            <LinearGradient colors={['transparent', 'rgba(22,19,42,0.9)']} style={styles.cardOverlay}>
-              <View style={styles.badge}><Text style={styles.badgeText}>{t('screens.home.dailyMix')}</Text></View>
-              <Text style={styles.cardMainTitle}>{t('screens.home.topHits')}</Text>
-              <Text style={styles.cardSub}>{t('screens.home.yourMusicGu')}</Text>
-              
-              <View style={styles.playBadge}>
-                <Ionicons name="play" size={16} color="#1a0533" />
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.discoveryCard}
-            onPress={handleOpenSearch}
-          >
-             <MaterialCommunityIcons name="auto-fix" size={32} color={palette.accent} />
-             <Text style={styles.discoveryTitle}>{t('screens.home.discoveryNew')}</Text>
-             <Text style={styles.discoverySub}>{t('screens.home.discoverySub')}</Text>
-          </TouchableOpacity>
+        <View style={styles.quickPicksGrid}>
+           {legacyTrendingSongs.slice(0, 5).map((song) => (
+               <TouchableOpacity key={song.id} style={styles.quickPickItem} onPress={() => playSong(song, legacyTrendingSongs)}>
+                   <Image source={{ uri: song.thumbnailUrl }} style={styles.quickPickImg} />
+                   <Text style={styles.quickPickTitle} numberOfLines={2}>{song.title}</Text>
+               </TouchableOpacity>
+           ))}
+           <TouchableOpacity style={styles.quickPickItem} onPress={handleOpenSearch}>
+               <View style={[styles.quickPickImg, { backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center'}]}>
+                   <MaterialCommunityIcons name="auto-fix" size={24} color={palette.bg} />
+               </View>
+               <Text style={styles.quickPickTitle} numberOfLines={2}>{t('screens.home.discoveryNew')}</Text>
+           </TouchableOpacity>
         </View>
 
         {/* ── 4. NGHỆ SĨ YÊU THÍCH (CIRCLES) ───────────────────────────── */}
@@ -917,7 +919,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 22,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 15 },
+  headerLeft: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerAvatarImage: {
     width: 34,
     height: 34,
@@ -936,13 +938,6 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     borderColor: colors.accentBorder25,
     backgroundColor: colors.surfaceMid,
   },
-  logoText: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: colors.accent,
-    letterSpacing: 5,
-    fontStyle: 'italic',
-  },
   headerSearchBtn: {
     padding: 10,
     borderRadius: 999,
@@ -959,11 +954,9 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     marginBottom: 4,
   },
   greetingText: {
-    fontSize: 36,
     fontWeight: '900',
     color: colors.white,
     letterSpacing: -0.8,
-    lineHeight: 42,
   },
   sectionContainer: { paddingHorizontal: 20, marginBottom: 30 },
   streakCard: {
@@ -1002,65 +995,25 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   sectionTitle: { fontSize: 23, fontWeight: '800', color: colors.white, letterSpacing: -0.4 },
   seeAllText: { color: colors.accent, fontSize: 13, fontWeight: '700', letterSpacing: 1 },
-  featuredGrid: {
+  quickPicksGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 20,
-    gap: 14,
-    height: 252,
+    gap: 12,
     marginBottom: 30,
   },
-  featuredMainCard: {
-    flex: 2,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.glass08,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 18,
-  },
-  cardOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'flex-end', padding: 18 },
-  badge: {
-    backgroundColor: colors.accent,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    marginBottom: 8,
-  },
-  badgeText: { color: '#14051f', fontSize: 9, fontWeight: '900', letterSpacing: 0.6 },
-  cardMainTitle: { fontSize: 26, fontWeight: '900', color: colors.white, lineHeight: 30 },
-  cardSub: { color: colors.textSecondary, fontSize: 12 },
-  playBadge: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.accent,
+  quickPickItem: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    minWidth: '45%',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    overflow: 'hidden',
   },
-  discoveryCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: colors.glass12,
-    justifyContent: 'center',
-  },
-  discoveryTitle: { fontSize: 17, fontWeight: '800', color: colors.white, marginTop: 12, lineHeight: 20 },
-  discoverySub: { fontSize: 11, color: colors.textSecondary, marginTop: 4, lineHeight: 15 },
+  quickPickImg: { width: 56, height: 56, backgroundColor: 'rgba(255,255,255,0.1)' },
+  quickPickTitle: { color: colors.white, flex: 1, fontSize: 13, fontWeight: '700', marginLeft: 10, paddingRight: 8, fontFamily: 'Plus Jakarta Sans' },
   artistList: { paddingLeft: 20, paddingRight: 10, gap: 16 },
   artistCircleCard: { alignItems: 'center', width: 96 },
   artistImageWrap: {

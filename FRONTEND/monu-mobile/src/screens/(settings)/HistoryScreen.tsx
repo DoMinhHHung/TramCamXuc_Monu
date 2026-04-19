@@ -23,6 +23,7 @@ import { useTranslation } from '../../context/LocalizationContext';
 import { getSongsByIds } from '../../services/music';
 import { getMyListenHistory } from '../../services/social';
 import { clearListenHistory, getListenHistory, ListenHistoryItem } from '../../utils/listenHistory';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 
 const timeAgo = (ms: number, t: (key: string, params?: any) => string): string => {
   const mins = Math.max(1, Math.floor((Date.now() - ms) / 60000));
@@ -35,6 +36,7 @@ const timeAgo = (ms: number, t: (key: string, params?: any) => string): string =
 export const HistoryScreen = () => {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { padH } = useResponsiveLayout();
   const { playSong } = usePlayerControls();
   const { t } = useTranslation();
   const themeColors = useThemeColors();
@@ -100,7 +102,7 @@ export const HistoryScreen = () => {
       <StatusBar style="light" />
       <LinearGradient
         colors={[themeColors.gradNavy, themeColors.bg]}
-        style={[styles.header, { paddingTop: insets.top + 12 }]}
+        style={[styles.header, { paddingTop: insets.top + 12, paddingHorizontal: padH }]}
       >
         <View style={styles.headerTop}>
           <BackButton onPress={() => navigation.goBack()} />
@@ -114,7 +116,9 @@ export const HistoryScreen = () => {
             <View style={{ width: 48 }} />
           )}
         </View>
-        <Text style={styles.title}>{t('screens.history.title')}</Text>
+        <Text style={styles.title} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.82}>
+          {t('screens.history.title')}
+        </Text>
         <Text style={styles.sub}>{`${items.length} ${t('screens.history.listenedCountSuffix')}`}</Text>
       </LinearGradient>
 
@@ -142,7 +146,7 @@ export const HistoryScreen = () => {
           data={items}
           keyExtractor={(item, index) => `${item.song.id}-${index}`}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={themeColors.accent} />}
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={{ paddingBottom: 32, paddingHorizontal: padH }}
           renderItem={({ item }) => (
             <Pressable style={styles.row} onPress={() => playSong(item.song, items.map((x) => x.song))}>
               {item.song.thumbnailUrl ? (
@@ -168,7 +172,7 @@ export const HistoryScreen = () => {
 
 const createStyles = (colors: ColorScheme) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: 20, paddingBottom: 20 },
+  header: { paddingBottom: 20 },
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { color: colors.white, fontSize: 22, fontWeight: '800', marginTop: 16, marginBottom: 4 },
   sub: { color: colors.glass50, fontSize: 13 },

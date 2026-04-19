@@ -1,5 +1,8 @@
 package iuh.fit.se.socialservice.service.impl;
 
+import iuh.fit.se.socialservice.client.IdentityPublicProfileClient;
+import iuh.fit.se.socialservice.client.dto.PublicProfileEnvelope;
+import iuh.fit.se.socialservice.client.dto.PublicProfilePayload;
 import iuh.fit.se.socialservice.document.Comment;
 import iuh.fit.se.socialservice.document.CommentLike;
 import iuh.fit.se.socialservice.document.FeedPost;
@@ -31,9 +34,10 @@ public class CommentServiceImpl implements CommentService {
 
     private static final Duration EDIT_WINDOW = Duration.ofMinutes(15);
 
-    private final CommentRepository     commentRepository;
-    private final CommentLikeRepository commentLikeRepository;
-    private final MongoTemplate         mongoTemplate;
+    private final CommentRepository             commentRepository;
+    private final CommentLikeRepository       commentLikeRepository;
+    private final MongoTemplate                 mongoTemplate;
+    private final IdentityPublicProfileClient identityPublicProfileClient;
 
     @Override
     public CommentResponse addComment(UUID userId, UUID songId, String parentId, String content) {
@@ -42,16 +46,15 @@ public class CommentServiceImpl implements CommentService {
                     .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
         }
 
-        Comment comment = Comment.builder()
+        Comment.CommentBuilder b = Comment.builder()
                 .userId(userId)
                 .songId(songId)
                 .parentId(parentId)
                 .content(content)
                 .likeCount(0)
-                .edited(false)
-                .build();
-
-        comment = commentRepository.save(comment);
+                .edited(false);
+        applyAuthorSnapshot(b, userId);
+        Comment comment = commentRepository.save(b.build());
         return toResponse(comment, userId);
     }
 
@@ -159,14 +162,14 @@ public class CommentServiceImpl implements CommentService {
             commentRepository.findById(parentId)
                     .orElseThrow(() -> new AppException(ErrorCode.COMMENT_NOT_FOUND));
         }
-        Comment comment = Comment.builder()
+        Comment.CommentBuilder b = Comment.builder()
                 .userId(userId)
                 .postId(postId)   // ← dùng postId thay vì songId
                 .parentId(parentId)
                 .content(content)
-                .likeCount(0).edited(false)
-                .build();
-        comment = commentRepository.save(comment);
+                .likeCount(0).edited(false);
+        applyAuthorSnapshot(b, userId);
+        Comment comment = commentRepository.save(b.build());
 
         // Tăng commentCount trên FeedPost (atomic)
         mongoTemplate.updateFirst(
@@ -199,6 +202,8 @@ public class CommentServiceImpl implements CommentService {
         return CommentResponse.builder()
                 .id(comment.getId())
                 .userId(comment.getUserId())
+                .displayName(comment.getAuthorDisplayName())
+                .avatarUrl(comment.getAuthorAvatarUrl())
                 .songId(comment.getSongId())
                 .parentId(comment.getParentId())
                 .content(comment.getContent())
@@ -209,5 +214,26 @@ public class CommentServiceImpl implements CommentService {
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
                 .build();
+    }
+
+    private void applyAuthorSnapshot(Comment.CommentBuilder builder, UUID userId) {
+        try {
+            PublicProfileEnvelope env = identityPublicProfileClient.getPublicProfile(userId.toString());
+            if (env == null || env.getResult() == null) {
+                return;
+            }
+            PublicProfilePayload r = env.getResult();
+            if (r.getFullName() != null) {
+                String name = r.getFullName().trim();
+                if (!name.isEmpty()) {
+                    builder.authorDisplayName(name);
+                }
+            }
+            if (r.getAvatarUrl() != null && !r.getAvatarUrl().isBlank()) {
+                builder.authorAvatarUrl(r.getAvatarUrl().trim());
+            }
+        } catch (Exception ex) {
+            log.warn("Could not resolve author profile for user {}: {}", userId, ex.toString());
+        }
     }
 }

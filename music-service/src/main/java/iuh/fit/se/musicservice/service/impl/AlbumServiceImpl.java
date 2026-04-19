@@ -333,7 +333,6 @@ public class AlbumServiceImpl implements AlbumService {
                 .filter(n -> n.getAlbumId().equals(albumId))
                 .orElseThrow(() -> new AppException(ErrorCode.ALBUM_SONG_NOT_FOUND));
 
-        // Không thay đổi gì nếu kéo về cùng vị trí
         if (Objects.equals(dragged.getPrevId(), request.getPrevId())
                 && Objects.equals(dragged.getNextId(), request.getNextId())) {
             return withSongs(album);
@@ -342,18 +341,15 @@ public class AlbumServiceImpl implements AlbumService {
         UUID oldPrev = dragged.getPrevId();
         UUID oldNext = dragged.getNextId();
 
-        // Bước 1: Tách dragged ra khỏi vị trí cũ
         if (oldPrev != null) {
             albumSongRepository.updateNextId(oldPrev, oldNext);
         } else {
-            // dragged là head cũ → head mới = oldNext
             albumRepository.updateHead(albumId, oldNext);
         }
         if (oldNext != null) {
             albumSongRepository.updatePrevId(oldNext, oldPrev);
         }
 
-        // Bước 2: Chèn vào vị trí mới
         UUID newPrev = request.getPrevId();
         UUID newNext = request.getNextId();
 
@@ -364,7 +360,6 @@ public class AlbumServiceImpl implements AlbumService {
         if (newPrev != null) {
             albumSongRepository.updateNextId(newPrev, dragged.getId());
         } else {
-            // dragged là head mới
             albumRepository.updateHead(albumId, dragged.getId());
         }
         if (newNext != null) {
