@@ -29,17 +29,19 @@ export function MonuBrandHeaderTitle({
 }: MonuBrandHeaderTitleProps) {
   const { width } = useWindowDimensions();
   const fontSize =
-    width < 330 ? moderateScale(14) : width < 360 ? moderateScale(16) : moderateScale(20);
-  const letterSpacing = width < 335 ? 0.5 : width < 380 ? 1.5 : 2.5;
+    width < 300 ? moderateScale(12) : width < 330 ? moderateScale(14) : width < 360 ? moderateScale(15) : moderateScale(20);
+  const letterSpacing = width < 320 ? 0 : width < 335 ? 0.3 : width < 380 ? 1.2 : 2.5;
   const align = textAlign ?? (layout === 'hero' ? 'center' : 'left');
+  const isShrink = layout === 'shrink';
 
   return (
     <View style={[layout === 'hero' ? styles.hero : styles.shrink, style]}>
       <Text
         style={[styles.text, { color: accentColor, fontSize, letterSpacing, textAlign: align }]}
-        numberOfLines={2}
+        numberOfLines={isShrink ? 1 : 2}
+        ellipsizeMode="tail"
         adjustsFontSizeToFit
-        minimumFontScale={0.65}
+        minimumFontScale={isShrink ? 0.5 : 0.65}
         maxFontSizeMultiplier={1.25}
       >
         {children}

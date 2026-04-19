@@ -226,7 +226,8 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     // ── Player ─────────────────────────────────────────────────────────────────
     const shouldAutoPlayRef = useRef(false);
     const pendingSeekRef = useRef<number | null>(null);
-    const player = useAudioPlayer(null);
+    // keepAudioSessionActive: required for background playback (Spotify-style) on iOS/Android
+    const player = useAudioPlayer(null, { keepAudioSessionActive: true });
     const status = useAudioPlayerStatus(player);
 
     /** Tránh stale `status` trong effect chỉ phụ thuộc networkTier */
@@ -356,18 +357,16 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             playsInSilentMode: true,
             shouldPlayInBackground: true,
             allowsRecording: false,
-            interruptionMode: 'duckOthers',
+            interruptionMode: 'doNotMix',
             shouldRouteThroughEarpiece: false,
         }).catch(() => { });
     }, []);
 
-    // Android: media session + foreground service (AudioControlsService) khi gắn lock screen.
     useEffect(() => {
         if (!currentSong || isPlayingAd) {
             try {
                 player.clearLockScreenControls();
             } catch {
-                /* noop */
             }
             return;
         }
