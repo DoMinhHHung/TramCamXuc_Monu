@@ -186,14 +186,15 @@ export const ProfileScreen = () => {
                         <View style={styles.topBarSide}>
                             <BackButton onPress={() => navigation.goBack()} />
                         </View>
-                        <MonuBrandHeaderTitle
-                            accentColor={themeColors.accent}
-                            layout="shrink"
-                            textAlign="center"
-                            style={styles.topBarTitleWrap}
-                        >
-                            {t('navigation.headerProfile', 'MONU · Cá nhân')}
-                        </MonuBrandHeaderTitle>
+                        <View style={styles.topBarTitleWrap}>
+                            <MonuBrandHeaderTitle
+                                accentColor={themeColors.accent}
+                                layout="shrink"
+                                textAlign="center"
+                            >
+                                {t('navigation.headerProfile', 'MONU · Cá nhân')}
+                            </MonuBrandHeaderTitle>
+                        </View>
                         <View style={[styles.topBarSide, styles.topBarSideRight]}>
                             <Pressable onPress={() => setMenuOpen(p => !p)} style={styles.gearBtn}>
                                 <Text style={styles.gearIcon}><Feather name="settings" color={themeColors.white} size={24} /></Text>
@@ -452,10 +453,11 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     },
     topBarSide: {
         width: 44,
+        flexShrink: 0,
         justifyContent: 'center',
     },
     topBarSideRight: { alignItems: 'flex-end' },
-    topBarTitleWrap: { marginHorizontal: 4 },
+    topBarTitleWrap: { flex: 1, minWidth: 0, marginHorizontal: 2, alignItems: 'center', justifyContent: 'center' },
     gearBtn:     { padding: 8 },
     gearIcon:    { fontSize: 22 },
 

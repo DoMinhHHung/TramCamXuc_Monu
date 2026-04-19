@@ -944,6 +944,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     backgroundColor: colors.glass08,
     borderWidth: 1,
     borderColor: colors.border,
+    flexShrink: 0,
   },
   heroSection: { paddingHorizontal: 24, marginTop: 24, marginBottom: 30 },
   overline: {

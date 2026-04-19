@@ -516,8 +516,16 @@ export const FullPlayerModal = () => {
                         style={{ flex: 1 }}
                         bounces={false}
                     >
-                        {/* ── Page 1: Player ─────────────────────────── */}
-                        <View style={{ width: pageWidth, paddingHorizontal: playerPadH }}>
+                        <ScrollView
+                            style={{ width: pageWidth, flex: 1 }}
+                            contentContainerStyle={{
+                                paddingHorizontal: playerPadH,
+                                paddingBottom: insets.bottom + (isCompact ? 20 : 32),
+                            }}
+                            showsVerticalScrollIndicator={false}
+                            nestedScrollEnabled
+                            keyboardShouldPersistTaps="handled"
+                        >
                             {/* Artwork */}
                             <View style={[styles.artworkSection, isCompact && { marginBottom: 14 }]}>
                                 {currentSong.thumbnailUrl && (
@@ -779,15 +787,13 @@ export const FullPlayerModal = () => {
                                 </Text>
                             </View>
 
-                            <View style={{ height: insets.bottom + (isCompact ? 8 : 16) }} />
-
                             {currentSong.sourceType === 'SOUNDCLOUD' && currentSong.soundcloudPermalink && (
                                 <Pressable
                                     style={styles.scAttribution}
                                     onPress={() => Linking.openURL(currentSong.soundcloudPermalink!)}
                                 >
                                     <FontAwesome name="soundcloud" size={14} color="#FF5500" />
-                                    <Text style={styles.scAttributionText}>
+                                    <Text style={styles.scAttributionText} numberOfLines={2} ellipsizeMode="tail">
                                         {' '}Provided by SoundCloud{' '}
                                         <Text style={{ fontWeight: '700' }}>
                                             {currentSong.soundcloudUsername ?? 'SoundCloud'}
@@ -796,7 +802,7 @@ export const FullPlayerModal = () => {
                                     <MaterialIcons name="open-in-new" size={14} color="#FF5500" style={{ marginLeft: 4 }} />
                                 </Pressable>
                             )}
-                        </View>
+                        </ScrollView>
 
                         {/* ── Page 2: Lyrics ─────────────────────────── */}
                         {showLyricsTab && (
@@ -845,7 +851,7 @@ export const FullPlayerModal = () => {
                                     onSeek={seekTo}
                                 />
 
-                                <View style={{ height: insets.bottom + 16 }} />
+                                <View style={{ height: insets.bottom + 24 }} />
                             </View>
                         )}
                     </ScrollView>

@@ -185,7 +185,7 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     content:              { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 12 },
     thumbnail:            { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.surfaceLow },
     thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-    info:                 { flex: 1 },
+    info:                 { flex: 1, minWidth: 0 },
     metaRow:              { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
     title:                { color: colors.text, fontSize: 14, fontWeight: '800', fontFamily: 'Plus Jakarta Sans', letterSpacing: -0.2 },
     artist:               { color: colors.textSecondary, fontSize: 12, fontWeight: '500', fontFamily: 'Inter' },
