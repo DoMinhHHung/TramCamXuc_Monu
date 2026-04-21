@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { apiFetch, ApiError } from '@/lib/api';
+import { SearchInput } from '@/components/ui/search-input';
+import { INPUT_STYLES, TYPOGRAPHY, TABLE_STYLES } from '@/lib/styles/constants';
 import {
     Plus, PencilSimple, Trash, ToggleLeft, ToggleRight,
     ArrowClockwise, X, Check, Warning, CaretDown, CaretUp,
@@ -94,15 +96,10 @@ const fmtDays = (d: number) => {
 };
 
 // ─── UI primitives ────────────────────────────────────────────────────────────
-const inputCls = `w-full h-8 bg-white dark:bg-black border border-zinc-200 dark:border-white/10
-  text-zinc-900 dark:text-white text-[11px] px-3 outline-none
-  focus:border-zinc-400 dark:focus:border-white/30
-  placeholder:text-zinc-400 dark:placeholder:text-zinc-700 transition-colors`;
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div>
-            <label className="text-[10px] font-medium tracking-widest text-zinc-500 dark:text-zinc-600 block mb-1.5">
+            <label className={TYPOGRAPHY.label}>
                 {label.toUpperCase()}
             </label>
             {children}
@@ -538,6 +535,7 @@ function FeatureSummary({ features }: { features: PlanFeatures }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function PaymentsPage() {
     const [plans,      setPlans]      = useState<Plan[]>([]);
+    const [planSearch, setPlanSearch] = useState('');
     const [total,      setTotal]      = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [page,       setPage]       = useState(1);
@@ -558,7 +556,11 @@ export default function PaymentsPage() {
         setLoading(true);
         try {
             // payment-service uses Spring 0-indexed Pageable (unlike identity-service which adjusts internally)
-            const res = await apiFetch<PageResult>(`/admin/subscriptions/plans?page=${p - 1}&size=10`);
+            let endpoint = `/admin/subscriptions/plans?page=${p - 1}&size=10`;
+            if (planSearch) {
+                endpoint += `&search=${encodeURIComponent(planSearch)}`;
+            }
+            const res = await apiFetch<PageResult>(endpoint, { ttlMs: 0 });
             setPlans(res.content ?? []);
             setTotal(res.totalElements ?? 0);
             setTotalPages(res.totalPages ?? 1);
@@ -572,7 +574,7 @@ export default function PaymentsPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [planSearch]);
 
     useEffect(() => { load(page); }, [page, load]);
 
@@ -648,7 +650,7 @@ export default function PaymentsPage() {
             {/* Header */}
             <div className="flex items-start justify-between mb-5 gap-3 flex-wrap">
                 <div>
-                    <h1 className="text-sm font-semibold text-zinc-900 dark:text-white">Subscription Plans</h1>
+                    <h1 className="text-sm font-semibold text-zinc-900 dark:text-white">Quản lý gói cước</h1>
                     <p className="text-[11px] text-zinc-400 dark:text-zinc-600 mt-0.5">
                         {loading ? '···' : `${total.toLocaleString()} gói đăng ký`}
                     </p>
@@ -663,13 +665,25 @@ export default function PaymentsPage() {
                 </div>
             </div>
 
+            {/* Search */}
+            <div className="mb-4 max-w-sm">
+                <SearchInput
+                    value={planSearch}
+                    onChange={setPlanSearch}
+                    onSearch={() => {setPage(1); load(1);}}
+                    placeholder="Tìm kiếm gói cước theo tên..."
+                    label="Tìm kiếm"
+                    clearable={true}
+                />
+            </div>
+
             {/* Table */}
-            <div className="border border-zinc-200 dark:border-white/[0.08] overflow-x-auto">
+            <div className={TABLE_STYLES.container + ' overflow-x-auto'}>
                 <table className="w-full text-[11px] min-w-[640px]">
                     <thead>
                     <tr className="border-b border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-zinc-950">
                         {['Tên gói','Giá','Thời hạn','Chi tiết gói cước','Trạng thái',''].map(h => (
-                            <th key={h} className="text-left px-4 py-2.5 text-[10px] tracking-widest text-zinc-400 dark:text-zinc-600 font-medium">
+                            <th key={h} className={TABLE_STYLES.headerCell}>
                                 {h.toUpperCase()}
                             </th>
                         ))}

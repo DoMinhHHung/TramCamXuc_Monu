@@ -1,6 +1,8 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { SearchInput } from '@/components/ui/search-input';
+import { INPUT_STYLES, TYPOGRAPHY } from '@/lib/styles/constants';
 import {
     Plus, PencilSimple, Archive, ArrowClockwise,
     X, Check, Warning, Eye, ChartBar, Funnel, CaretDown,
@@ -120,15 +122,10 @@ function Select<T extends string>({ value, onChange, options }: {
 }
 
 // ─── Field ────────────────────────────────────────────────────────────────────
-const inputCls = `w-full h-8 bg-white dark:bg-black border border-zinc-200 dark:border-white/10
-  text-zinc-900 dark:text-white text-[11px] px-3
-  outline-none focus:border-zinc-400 dark:focus:border-white/30
-  placeholder:text-zinc-400 dark:placeholder:text-zinc-700 transition-colors`;
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div>
-            <label className="text-[10px] font-medium tracking-widest text-zinc-500 dark:text-zinc-600 block mb-1.5">{label.toUpperCase()}</label>
+            <label className={TYPOGRAPHY.label}>{label.toUpperCase()}</label>
             {children}
         </div>
     );
@@ -382,6 +379,7 @@ const STATUS_OPTIONS: Array<{ value: AdStatus | 'ALL'; label: string }> = [
 
 export default function AdsPage() {
     const [ads,        setAds]        = useState<Ad[]>([]);
+    const [adSearch,   setAdSearch]   = useState('');
     const [total,      setTotal]      = useState(0);
     const [totalPages, setTotalPages] = useState(1);
     const [page,       setPage]       = useState(1);
@@ -407,7 +405,10 @@ export default function AdsPage() {
         setLoading(true);
         try {
             const q = status !== 'ALL' ? `&status=${status}` : '';
-            const url = `/admin/ads?page=${p - 1}&size=10${q}`;
+            let url = `/admin/ads?page=${p - 1}&size=10${q}`;
+            if (adSearch) {
+                url += `&search=${encodeURIComponent(adSearch)}`;
+            }
             const res = await fetch(`${BASE}${url}`, {
                 headers: { Authorization: `Bearer ${token()}` },
             });
@@ -425,7 +426,7 @@ export default function AdsPage() {
             setTotalPages(data.totalPages ?? 1);
         } catch (e: unknown) { notify((e as Error).message, 'err'); }
         finally { setLoading(false); }
-    }, []);
+    }, [adSearch]);
 
     useEffect(() => { load(page, statusFilter); }, [page, statusFilter, load]);
 
@@ -532,7 +533,33 @@ export default function AdsPage() {
                 </div>
             </div>
 
-            {/* Filter */}
+            {/* Filter & Search */}
+            <div className="mb-4 flex gap-4 flex-wrap items-end">
+                <div className="flex-1 max-w-sm">
+                    <SearchInput
+                        value={adSearch}
+                        onChange={setAdSearch}
+                        onSearch={() => { setPage(1); load(1, statusFilter); }}
+                        placeholder="Tìm kiếm quảng cáo..."
+                        label="Tìm kiếm"
+                        clearable={true}
+                    />
+                </div>
+                <Button
+                    variant={showFilter ? 'default' : 'outline'}
+                    size="sm" className="gap-1.5"
+                    onClick={() => setShowFilter(p => !p)}
+                >
+                    <Funnel size={12} />
+                    Lọc
+                    {statusFilter !== 'ALL' && <span className="size-4 bg-white dark:bg-black text-[9px] font-bold text-black dark:text-white flex items-center justify-center">!</span>}
+                </Button>
+                <Button variant="outline" size="icon-sm" disabled={loading} onClick={() => load(page, statusFilter)}>
+                    <ArrowClockwise size={12} className={loading ? 'animate-spin' : ''} />
+                </Button>
+            </div>
+
+            {/* Status Filter */}
             {showFilter && (
                 <div className="mb-4 p-3 border border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-zinc-950 flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-150">
                     <span className="text-[10px] text-zinc-500 dark:text-zinc-600 tracking-wider">STATUS</span>

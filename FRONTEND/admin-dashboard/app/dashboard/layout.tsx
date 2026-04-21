@@ -23,11 +23,11 @@ import { LogoIcon } from '@/components/logo-icon';
 
 const NAV = [
     { href: '/dashboard',           label: 'Tổng quan',     icon: SquaresFour, exact: true  },
-    { href: '/dashboard/users',     label: 'Người dùng',   icon: Users,       exact: false },
+    { href: '/dashboard/users',     label: 'Quản lý người dùng',   icon: Users,       exact: false },
     { href: '/dashboard/music',     label: 'Quản lý âm nhạc',        icon: MusicNote,   exact: false },
     { href: '/dashboard/artists',   label: 'Quản lý nghệ sĩ',      icon: Microphone, exact: false },
     { href: '/dashboard/payments',  label: 'Quản lý gói cước',     icon: CreditCard,  exact: false },
-    { href: '/dashboard/ads',       label: 'Quảng cáo',   icon: SpeakerHigh, exact: false },
+    { href: '/dashboard/ads',       label: 'Quản lý quảng cáo',   icon: SpeakerHigh, exact: false },
     { href: '/dashboard/reports',   label: 'Quản lý báo cáo',     icon: Warning,     exact: false },
     { href: '/dashboard/analytics', label: 'Thống kê',    icon: ChartBar,    exact: false },
 ];
@@ -35,7 +35,7 @@ const NAV = [
 // Map segment → tên đẹp hơn cho breadcrumb
 const SEGMENT_LABELS: Record<string, string> = {
     dashboard:  'Trang chủ',
-    users:      'QUản lý người dùng',
+    users:      'Quản lý người dùng',
     music:      'Quản lý âm nhạc',
     albums:     'Album',
     artists:    'Quản lý nghệ sĩ',

@@ -1,6 +1,8 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { SortDropdown } from '@/components/ui/sort-dropdown';
+import { TYPOGRAPHY, TABLE_STYLES } from '@/lib/styles/constants';
 import {
     ArrowClockwise, Check, Warning, X, Play, Pause, Stop,
     SpeakerHigh, MusicNote, Funnel, CaretDown,
@@ -449,6 +451,13 @@ const STATUS_OPTIONS: Array<{ value: ReportStatus | 'ALL'; label: string }> = [
     { value: 'DISMISSED', label: 'Bác bỏ'    },
 ];
 
+// ─── Sort options ──────────────────────────────────────────────────────────────
+const SORT_OPTIONS: Array<{ value: string; label: string }> = [
+    { value: 'createdAt', label: 'Ngày tạo' },
+    { value: 'status', label: 'Trạng thái' },
+    { value: 'reason', label: 'Lý do báo cáo' },
+];
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function ReportsPage() {
     const [reports,    setReports]    = useState<Report[]>([]);
@@ -458,6 +467,8 @@ export default function ReportsPage() {
     const [page,       setPage]       = useState(1);
     const [loading,    setLoading]    = useState(true);
     const [statusFilter, setStatusFilter] = useState<ReportStatus | 'ALL'>('PENDING');
+    const [sortField, setSortField] = useState('createdAt');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [actionModal, setActionModal] = useState<{ report: Report; action: 'confirm'|'dismiss' } | null>(null);
     const [toast, setToast] = useState<{ msg: string; type: 'ok'|'err' } | null>(null);
     const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -472,7 +483,8 @@ export default function ReportsPage() {
         setLoading(true);
         try {
             const q = status !== 'ALL' ? `&status=${status}` : '';
-            const res = await fetch(`${BASE}/admin/reports?page=${p}&size=20${q}`, {
+            const sortParam = `&sort=${sortField},${sortOrder === 'desc' ? 'desc' : 'asc'}`;
+            const res = await fetch(`${BASE}/admin/reports?page=${p}&size=20${q}${sortParam}`, {
                 headers: { Authorization: `Bearer ${token()}` },
             });
             if (!res.ok) { notify(`HTTP ${res.status}`, 'err'); return; }
@@ -483,7 +495,7 @@ export default function ReportsPage() {
             setTotalPages(data.totalPages ?? 1);
         } catch (e: unknown) { notify((e as Error).message, 'err'); }
         finally { setLoading(false); }
-    }, []);
+    }, [sortField, sortOrder]);
 
     useEffect(() => { load(page, statusFilter); }, [page, statusFilter, load]);
 
@@ -570,6 +582,18 @@ export default function ReportsPage() {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <SortDropdown
+                        value={sortField}
+                        order={sortOrder}
+                        onSortChange={(field, order) => {
+                            setSortField(field);
+                            setSortOrder(order);
+                            setPage(1);
+                        }}
+                        options={SORT_OPTIONS}
+                        label="Sắp xếp"
+                        disabled={loading}
+                    />
                     <Select value={statusFilter} onChange={v => { setStatusFilter(v); setPage(1); }} options={STATUS_OPTIONS} />
                     <Button variant="outline" size="icon-sm" disabled={loading} onClick={() => load(page, statusFilter)}>
                         <ArrowClockwise size={12} className={loading ? 'animate-spin' : ''} />
