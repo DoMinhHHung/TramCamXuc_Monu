@@ -35,12 +35,12 @@ const NAV = [
 // Map segment → tên đẹp hơn cho breadcrumb
 const SEGMENT_LABELS: Record<string, string> = {
     dashboard:  'Trang chủ',
-    users:      'Người dùng',
+    users:      'QUản lý người dùng',
     music:      'Quản lý âm nhạc',
     albums:     'Album',
     artists:    'Quản lý nghệ sĩ',
     payments:   'Quản lý gói cước',
-    ads:        'Quảng cáo',
+    ads:        'Quản lý quảng cáo',
     reports:    'Quản lý báo cáo',
     analytics:  'Thống kê',
 };

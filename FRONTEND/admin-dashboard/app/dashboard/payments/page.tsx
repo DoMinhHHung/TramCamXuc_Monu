@@ -24,7 +24,7 @@ interface Plan {
 
 /** Known feature keys from payment-service / PaymentDataSeeder */
 interface PlanFeatures {
-    quality?:           string;    // "128kbps" | "256kbps" | "320kbps" | "lossless"
+    quality?:           string;    // "128kbps" | "256kbps" | "320kbps"
     no_ads?:            boolean;
     offline?:           boolean;
     download?:          boolean;
@@ -87,7 +87,7 @@ const fmtVnd = (n: number) =>
         : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(n);
 
 const fmtDays = (d: number) => {
-    if (d >= 36500) return 'Tidak terbatas';
+    if (d >= 36500) return 'Vinh viễn';
     if (d >= 365)   return `${Math.round(d / 365)} năm`;
     if (d >= 30)    return `${Math.round(d / 30)} tháng`;
     return `${d} ngày`;
@@ -668,7 +668,7 @@ export default function PaymentsPage() {
                 <table className="w-full text-[11px] min-w-[640px]">
                     <thead>
                     <tr className="border-b border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-zinc-950">
-                        {['Tên gói','Giá','Thời hạn','Features','Trạng thái',''].map(h => (
+                        {['Tên gói','Giá','Thời hạn','Chi tiết gói cước','Trạng thái',''].map(h => (
                             <th key={h} className="text-left px-4 py-2.5 text-[10px] tracking-widest text-zinc-400 dark:text-zinc-600 font-medium">
                                 {h.toUpperCase()}
                             </th>
