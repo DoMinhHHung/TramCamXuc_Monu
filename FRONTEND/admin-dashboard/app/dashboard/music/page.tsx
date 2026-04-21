@@ -128,8 +128,8 @@ export default function MusicPage() {
     const fetchGenres = async () => {
         setLoadingGenres(true);
         try {
-            const query = genreSearch ? `?search=${encodeURIComponent(genreSearch)}` : '';
-            const res = await apiFetch<Genre[]>(`/genres${query}`, { ttlMs: 60_000 });
+            // Backend /genres does not support search params — filter on client instead.
+            const res = await apiFetch<Genre[]>(`/genres`, { ttlMs: 60_000 });
             setGenres(Array.isArray(res) ? res : []);
             setGenreError(null);
         } catch (e) {
@@ -143,6 +143,23 @@ export default function MusicPage() {
         if (tab === 'genres') fetchGenres();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab]);
+
+    useEffect(() => {
+        if (tab !== 'genres') return;
+        if (genreSearch.trim() !== '') return;
+        void fetchGenres();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [genreSearch, tab]);
+
+    const filteredGenres = useMemo(() => {
+        const q = genreSearch.trim().toLowerCase();
+        if (!q) return genres;
+        return genres.filter((g) => {
+            const name = (g.name ?? '').toLowerCase();
+            const desc = (g.description ?? '').toLowerCase();
+            return name.includes(q) || desc.includes(q);
+        });
+    }, [genres, genreSearch]);
 
     const handleGenreEdit = (genre: Genre) => {
         const next = { name: genre.name, description: genre.description ?? '' };
@@ -249,7 +266,8 @@ export default function MusicPage() {
         try {
             let endpoint = `/admin/songs?status=PUBLIC&page=${page}&size=${SONG_PAGE_SIZE}&showDeleted=false`;
             if (songSearch) {
-                endpoint += `&search=${encodeURIComponent(songSearch)}`;
+                // Backend expects `keyword`, not `search`
+                endpoint += `&keyword=${encodeURIComponent(songSearch)}`;
             }
             const result = await apiFetch<PageResult<Song>>(
                 endpoint,
@@ -264,6 +282,18 @@ export default function MusicPage() {
             setLoadingSongs(false);
         }
     }, [songsPage, songSearch]);
+
+    const handleSongSearch = useCallback(() => {
+        setSongsPage(1);
+        void loadSongs(1);
+    }, [loadSongs]);
+
+    useEffect(() => {
+        if (tab !== 'songs') return;
+        if (songSearch.trim() !== '') return;
+        setSongsPage(1);
+        void loadSongs(1);
+    }, [songSearch, tab, loadSongs]);
 
     const loadTopSongs = useCallback(async () => {
         setLoadingTopSongs(true);
@@ -502,7 +532,7 @@ export default function MusicPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {genres.map(g => (
+                                                {filteredGenres.map(g => (
                                                     <tr key={g.id} className={TABLE_STYLES.row}>
                                                         <td className={TABLE_STYLES.bodyCell}>{g.name}</td>
                                                         <td className={TABLE_STYLES.bodyCell}>{g.description}</td>
@@ -580,7 +610,7 @@ export default function MusicPage() {
                         <SearchInput
                             value={songSearch}
                             onChange={setSongSearch}
-                            onSearch={loadSongs}
+                            onSearch={handleSongSearch}
                             placeholder="Tìm kiếm bài hát theo tên..."
                             label="Tìm kiếm"
                             clearable={true}

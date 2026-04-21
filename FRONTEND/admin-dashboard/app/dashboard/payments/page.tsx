@@ -11,6 +11,8 @@ import {
     VinylRecord, MagicWand, StackSimple, Sparkle,
 } from '@phosphor-icons/react';
 
+const inputCls = INPUT_STYLES.base;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Plan {
     id: string;

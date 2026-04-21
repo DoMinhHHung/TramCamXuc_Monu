@@ -11,6 +11,7 @@ import {
 
 const BASE = '/api';
 const token = () => (typeof window !== 'undefined' ? localStorage.getItem('access_token') : null);
+const inputCls = INPUT_STYLES.base;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AdStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
@@ -226,7 +227,7 @@ function AdModal({ ad, onClose, onSave }: {
 
                     {ad && (
                         <Field label="Trạng thái">
-                            <select value={form.status} onChange={e => set('status', e.target.value as AdStatus)} className={inputCls}>
+                            <select value={form.status} onChange={e => set('status', e.target.value as AdStatus)} className={INPUT_STYLES.select}>
                                 <option value="ACTIVE">Hoạt động</option>
                                 <option value="PAUSED">Tạm dừng</option>
                                 <option value="ARCHIVED">Đã lưu trữ</option>
