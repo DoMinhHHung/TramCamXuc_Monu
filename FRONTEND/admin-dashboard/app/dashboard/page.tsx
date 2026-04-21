@@ -356,7 +356,7 @@ export default function DashboardPage() {
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-sm font-semibold text-zinc-900 dark:text-white">Overview</h1>
+                <h1 className="text-sm font-semibold text-zinc-900 dark:text-white">Tổng quan</h1>
                 <p className="text-[11px] text-zinc-400 dark:text-zinc-600 mt-0.5">
                     Tổng quan hệ thống.
                 </p>

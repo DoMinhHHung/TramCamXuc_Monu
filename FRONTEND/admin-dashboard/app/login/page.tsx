@@ -4,6 +4,56 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeSlash, LockKey } from '@phosphor-icons/react';
 
+function normalizeRole(value: unknown): string {
+    if (typeof value !== 'string') return '';
+    const upper = value.trim().toUpperCase();
+    return upper.startsWith('ROLE_') ? upper.slice(5) : upper;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+    try {
+        const parts = token.split('.');
+        if (parts.length < 2) return null;
+        const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+        const json = atob(padded);
+        return JSON.parse(json) as Record<string, unknown>;
+    } catch {
+        return null;
+    }
+}
+
+function extractRoles(input: unknown): string[] {
+    if (!input) return [];
+    if (Array.isArray(input)) {
+        return input
+            .map(normalizeRole)
+            .filter(Boolean);
+    }
+    return [normalizeRole(input)].filter(Boolean);
+}
+
+function isAdminUser(profileResult: Record<string, unknown> | undefined, accessToken: string): boolean {
+    const profileRoles = [
+        ...extractRoles(profileResult?.role),
+        ...extractRoles(profileResult?.roles),
+        ...extractRoles((profileResult?.authorities as unknown[] | undefined)?.map((a) =>
+            typeof a === 'string' ? a : (a as { authority?: unknown })?.authority,
+        )),
+    ];
+
+    if (profileRoles.includes('ADMIN')) return true;
+
+    const payload = decodeJwtPayload(accessToken);
+    const tokenRoles = [
+        ...extractRoles(payload?.role),
+        ...extractRoles(payload?.roles),
+        ...extractRoles(payload?.authorities),
+    ];
+
+    return tokenRoles.includes('ADMIN');
+}
+
 export default function LoginPage() {
     const router = useRouter();
     const [email, setEmail] = useState('');
@@ -25,9 +75,19 @@ export default function LoginPage() {
 
             const data = await res.json();
             if (data.code === 1000 && data.result?.authenticated) {
-                localStorage.setItem('access_token', data.result.accessToken);
-                localStorage.setItem('refresh_token', data.result.refreshToken);
-                router.push('/dashboard');
+                const infoRes = await fetch('/api/users/myInfo', {
+                    headers: { 'Authorization': `Bearer ${data.result.accessToken}` }
+                });
+                const infoData = await infoRes.json();
+                const profileResult = (infoData?.result ?? {}) as Record<string, unknown>;
+
+                if (isAdminUser(profileResult, data.result.accessToken)) {
+                    localStorage.setItem('access_token', data.result.accessToken);
+                    localStorage.setItem('refresh_token', data.result.refreshToken);
+                    router.push('/dashboard');
+                } else {
+                    setError('Bạn không có quyền truy cập Admin Dashboard');
+                }
             } else {
                 setError(data.message ?? 'Sai email hoặc mật khẩu');
             }
@@ -99,9 +159,9 @@ export default function LoginPage() {
                     <Button type="submit" disabled={loading} className="w-full h-9 mt-1">
                         {loading ? (
                             <span className="flex items-center gap-2">
-                <span className="size-3 border border-white/30 border-t-white animate-spin" />
-                Đang đăng nhập...
-              </span>
+                                <span className="size-3 border border-white/30 border-t-white animate-spin" />
+                                Đang đăng nhập...
+                            </span>
                         ) : (
                             'ĐĂNG NHẬP'
                         )}
