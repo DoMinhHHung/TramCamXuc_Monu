@@ -2,7 +2,7 @@ name: CD — Deploy to GCE
 
 on:
   push:
-    branches: [main]
+    branches: [base]
 
 jobs:
   deploy:
@@ -21,7 +21,7 @@ jobs:
             cd ~/TramCamXuc_Monu
 
             echo "==> Pull code mới nhất"
-            git pull origin main
+            git pull origin base
 
             echo "==> Build và restart services"
             docker compose up -d --build
