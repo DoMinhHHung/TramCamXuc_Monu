@@ -1,0 +1,33 @@
+name: CD — Deploy to GCE
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: SSH vào GCE và deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.GCE_HOST }}
+          username: ${{ secrets.GCE_USER }}
+          key: ${{ secrets.GCE_SSH_KEY }}
+          script: |
+            set -e
+            cd ~/TramCamXuc_Monu
+
+            echo "==> Pull code mới nhất"
+            git pull origin main
+
+            echo "==> Build và restart services"
+            docker compose up -d --build
+
+            echo "==> Dọn image cũ"
+            docker image prune -f
+
+            echo "==> Trạng thái containers"
+            docker compose ps
