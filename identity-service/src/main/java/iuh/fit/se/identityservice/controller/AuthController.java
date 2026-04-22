@@ -61,8 +61,15 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(@RequestBody RefreshRequest request) {
-        authService.logout(request);
+    public ApiResponse<Void> logout(
+            @RequestBody RefreshRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader
+    ) {
+        String accessToken = null;
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            accessToken = authorizationHeader.substring(7);
+        }
+        authService.logout(request, accessToken);
         return ApiResponse.<Void>builder().message("Logged out").build();
     }
 }

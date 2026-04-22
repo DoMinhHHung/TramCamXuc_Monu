@@ -395,7 +395,7 @@ export const SearchScreen = () => {
     const renderArtistItem = ({ item }: { item: Artist }) => (
         <Pressable style={styles.resultRow} onPress={() => handleArtistPress(item)}>
             <View style={[styles.resultIndex, styles.artistIconWrap]}>
-                <Text style={{ fontSize: 18 }}><MaterialIcons name="settings-voice" color="#000" size={24} /></Text>
+                <MaterialIcons name="settings-voice" color="#000" size={20} />
             </View>
             <View style={styles.resultInfo}>
                 <Text style={styles.resultTitle} numberOfLines={1}>{item.stageName}</Text>
@@ -596,7 +596,7 @@ export const SearchScreen = () => {
                                         style={styles.historyRow}
                                         onPress={() => handleHistoryItemPress(item)}
                                     >
-                                        <Text style={styles.historyIcon}><Octicons name="history" color="#fff" size={24} /></Text>
+                                        <Octicons name="history" color={themeColors.muted} size={18} style={styles.historyIcon} />
                                         <Text style={styles.historyText} numberOfLines={1}>{item}</Text>
                                         <Pressable
                                             style={styles.historyRemoveBtn}
@@ -821,7 +821,7 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
         borderBottomWidth: 1, borderBottomColor: colors.glass06,
         gap: 12,
     },
-    historyIcon: { fontSize: 15, opacity: 0.5 },
+    historyIcon: { opacity: 0.5 },
     historyText: { flex: 1, color: colors.glass70, fontSize: 14 },
     historyRemoveBtn: { padding: 4 },
     historyRemoveIcon: { color: colors.glass30, fontSize: 14 },

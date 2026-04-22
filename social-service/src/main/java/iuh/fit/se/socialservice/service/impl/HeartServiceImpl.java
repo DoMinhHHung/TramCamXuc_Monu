@@ -12,7 +12,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -57,6 +61,21 @@ public class HeartServiceImpl implements HeartService {
     public Page<HeartResponse> getUserHearts(UUID userId, Pageable pageable) {
         return heartRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable)
                 .map(h -> toResponse(h, heartRepository.countBySongId(h.getSongId())));
+    }
+
+    @Override
+    public List<UUID> getUserHeartedSongIds(UUID userId) {
+        return heartRepository.findByUserId(userId).stream()
+                .map(Heart::getSongId)
+                .toList();
+    }
+
+    @Override
+    public Map<UUID, Boolean> checkHeartedBatch(UUID userId, List<UUID> songIds) {
+        Set<UUID> hearted = heartRepository.findByUserId(userId).stream()
+                .map(Heart::getSongId)
+                .collect(Collectors.toSet());
+        return songIds.stream().collect(Collectors.toMap(id -> id, hearted::contains));
     }
 
     private HeartResponse toResponse(Heart heart, long total) {

@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator, Animated, Easing, Image,
+    ActivityIndicator, Animated, Easing,
     Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
     Pressable, ScrollView, StyleSheet, Text, View, Alert, Linking, useWindowDimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '../context/LocalizationContext';
 import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
@@ -21,6 +22,7 @@ import { AppIcon } from '../config/appIcons';
 import { HeartButton } from './HeartButton';
 import { ReportReasonSheet } from './ReportReasonSheet';
 import { moderateScale } from '../utils/responsive';
+import { SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../config/design';
 
 const THUMB_RADIUS = 8;
 const THUMB_VISUAL = THUMB_RADIUS + 1;
@@ -39,10 +41,22 @@ const QUALITY_OPTIONS: Array<{ value: AudioQuality; label: string }> = [
     { value: 320, label: '320k' },
 ];
 
-const RepeatIcon = ({ mode }: { mode: RepeatMode }) => {
-    if (mode === 'one') return <AppIcon name="repeatOne" color="#fff" size={22} />;
-    if (mode === 'all') return <AppIcon name="repeat" color="#fff" size={22} />;
-    return <AppIcon name="repeat" color={COLORS.glass35} size={22} />;
+const NETWORK_LABEL: Record<string, string> = {
+    high: 'Mạng tốt', medium: 'Mạng trung bình', low: 'Mạng yếu', offline: 'Ngoại tuyến',
+};
+
+const NETWORK_COLOR: Record<string, string> = {
+    good: '#22C55E',
+    medium: '#F59E0B',
+    bad: '#EF4444',
+    offline: '#9CA3AF',
+};
+
+// RepeatIcon nhận thêm themeColors để dùng đúng accent color theo theme
+const RepeatIcon = ({ mode, accentColor, mutedColor }: { mode: RepeatMode; accentColor: string; mutedColor: string }) => {
+    if (mode === 'one') return <AppIcon name="repeatOne" color={accentColor} size={22} />;
+    if (mode === 'all') return <AppIcon name="repeat" color={accentColor} size={22} />;
+    return <AppIcon name="repeat" color={mutedColor} size={22} />;
 };
 
 // ─── Lyric Viewer ──────────────────────────────────────────────────────────────
@@ -59,6 +73,8 @@ const LyricViewer = React.memo(({ lyricData, loading, error, currentTimeMs, onSe
     const scrollRef = useRef<ScrollView>(null);
     const lineHeights = useRef<number[]>([]);
     const lastActiveIdx = useRef(-1);
+    const colors = useThemeColors();
+    const lStyles = useMemo(() => getLyricStyles(colors), [colors]);
 
     const isSynced = lyricData?.format === 'LRC' || lyricData?.format === 'SRT';
     const lines = lyricData?.lines ?? [];
@@ -81,27 +97,27 @@ const LyricViewer = React.memo(({ lyricData, loading, error, currentTimeMs, onSe
 
     if (loading) {
         return (
-            <View style={lyricStyles.center}>
-                <ActivityIndicator color={COLORS.accent} size="large" />
-                <Text style={lyricStyles.loadingText}>Đang tải lời bài hát...</Text>
+            <View style={lStyles.center}>
+                <ActivityIndicator color={colors.accent} size="large" />
+                <Text style={lStyles.loadingText}>Đang tải lời bài hát...</Text>
             </View>
         );
     }
 
     if (error) {
         return (
-            <View style={lyricStyles.center}>
-                <AppIcon name="emojiNotePad" size={48} color={COLORS.glass60} style={lyricStyles.noLyricIcon} />
-                <Text style={lyricStyles.noLyricText}>{error}</Text>
+            <View style={lStyles.center}>
+                <AppIcon name="emojiNotePad" size={48} color={colors.muted} style={lStyles.noLyricIcon} />
+                <Text style={lStyles.noLyricText}>{error}</Text>
             </View>
         );
     }
 
     if (!lyricData || lines.length === 0) {
         return (
-            <View style={lyricStyles.center}>
-                <AppIcon name="emojiMusic" size={48} color={COLORS.glass60} style={lyricStyles.noLyricIcon} />
-                <Text style={lyricStyles.noLyricText}>Chưa có lời bài hát</Text>
+            <View style={lStyles.center}>
+                <AppIcon name="emojiMusic" size={48} color={colors.muted} style={lStyles.noLyricIcon} />
+                <Text style={lStyles.noLyricText}>Chưa có lời bài hát</Text>
             </View>
         );
     }
@@ -109,11 +125,11 @@ const LyricViewer = React.memo(({ lyricData, loading, error, currentTimeMs, onSe
     return (
         <ScrollView
             ref={scrollRef}
-            style={lyricStyles.scrollView}
-            contentContainerStyle={lyricStyles.scrollContent}
+            style={lStyles.scrollView}
+            contentContainerStyle={lStyles.scrollContent}
             showsVerticalScrollIndicator={false}
         >
-            <View style={lyricStyles.spacerTop} />
+            <View style={lStyles.spacerTop} />
             {lines.map((line, idx) => {
                 const isActive = idx === activeIndex;
                 const isPast = isSynced && activeIndex >= 0 && idx < activeIndex;
@@ -128,13 +144,14 @@ const LyricViewer = React.memo(({ lyricData, loading, error, currentTimeMs, onSe
                         onLayout={e => {
                             lineHeights.current[idx] = e.nativeEvent.layout.height;
                         }}
+                        hitSlop={4}
                     >
                         <Text
                             style={[
-                                lyricStyles.line,
-                                isActive && lyricStyles.lineActive,
-                                isPast && lyricStyles.linePast,
-                                !isSynced && lyricStyles.lineUnsyced,
+                                lStyles.line,
+                                isActive && lStyles.lineActive,
+                                isPast && lStyles.linePast,
+                                !isSynced && lStyles.lineUnsynced,
                             ]}
                         >
                             {line.text}
@@ -142,7 +159,7 @@ const LyricViewer = React.memo(({ lyricData, loading, error, currentTimeMs, onSe
                     </Pressable>
                 );
             })}
-            <View style={lyricStyles.spacerBottom} />
+            <View style={lStyles.spacerBottom} />
         </ScrollView>
     );
 });
@@ -158,40 +175,40 @@ function findActiveLineIndex(lines: LyricLine[], currentTimeMs: number): number 
     return active;
 }
 
-const lyricStyles = StyleSheet.create({
+const getLyricStyles = (c: ReturnType<typeof useThemeColors>) => StyleSheet.create({
     center: {
-        flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32,
+        flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.section,
     },
     loadingText: {
-        color: COLORS.glass50, fontSize: 14, marginTop: 12,
+        color: c.textSecondary, fontSize: FONT_SIZE.body_sm, marginTop: SPACING.md,
     },
-    noLyricIcon: { marginBottom: 12 },
-    noLyricText: { color: COLORS.glass40, fontSize: 15, textAlign: 'center' },
+    noLyricIcon: { marginBottom: SPACING.md },
+    noLyricText: { color: c.muted, fontSize: FONT_SIZE.body, textAlign: 'center' },
     scrollView: { flex: 1 },
-    scrollContent: { paddingHorizontal: 24 },
-    spacerTop: { height: 40 },
+    scrollContent: { paddingHorizontal: SPACING.xxl },
+    spacerTop: { height: SPACING.xxl },
     spacerBottom: { height: 200 },
     line: {
-        color: COLORS.glass35,
-        fontSize: 18,
-        lineHeight: 32,
-        fontWeight: '600',
-        paddingVertical: 6,
+        color: c.muted,
+        fontSize: moderateScale(17),
+        lineHeight: moderateScale(30),
+        fontWeight: FONT_WEIGHT.semibold,
+        paddingVertical: SPACING.sm,
         textAlign: 'center',
     },
     lineActive: {
-        color: COLORS.white,
-        fontSize: 22,
-        fontWeight: '800',
+        color: c.text,
+        fontSize: moderateScale(21),
+        fontWeight: FONT_WEIGHT.extrabold,
         transform: [{ scale: 1.02 }],
     },
     linePast: {
-        color: COLORS.glass25,
+        color: c.glass25,
     },
-    lineUnsyced: {
-        color: COLORS.glass70,
-        fontSize: 16,
-        lineHeight: 28,
+    lineUnsynced: {
+        color: c.textSecondary,
+        fontSize: moderateScale(15),
+        lineHeight: moderateScale(26),
     },
 });
 
@@ -252,10 +269,6 @@ export const FullPlayerModal = () => {
         return Math.min(260, cap);
     }, [isCompact, isVeryCompact, windowWidth, playerPadH]);
 
-    const NETWORK_LABEL: Record<string, string> = {
-        high: 'Mạng tốt', medium: 'Mạng trung bình', low: 'Mạng yếu', offline: 'Ngoại tuyến',
-    };
-
     const networkQuality = useMemo(() => {
         if (networkTier === 'high') return 'good';
         if (networkTier === 'medium') return 'medium';
@@ -263,20 +276,7 @@ export const FullPlayerModal = () => {
         return 'offline';
     }, [networkTier]);
 
-    const getColor = (quality: string) => {
-        switch (quality) {
-            case 'good':
-                return '#22C55E'; // xanh
-            case 'medium':
-                return '#F59E0B'; // vang
-            case 'bad':
-                return '#EF4444'; // do
-            default:
-                return '#9CA3AF'; // xam
-        }
-    };
-
-    const networkColor = getColor(networkQuality);
+    const networkColor = NETWORK_COLOR[networkQuality] ?? NETWORK_COLOR.offline;
 
     // Fetch lyrics when song changes
     useEffect(() => {
@@ -452,15 +452,21 @@ export const FullPlayerModal = () => {
                 {/* Clean dark background — không gradient nặng */}
                 <View style={[styles.root, { paddingTop: insets.top }]}>
                     {/* Header */}
-                    <View style={[styles.header, isNarrow && { paddingHorizontal: 12 }]}>
-                        <Pressable onPress={() => setFullScreen(false)} hitSlop={12} style={styles.chevronBtn}>
-                            <AppIcon name="chevronDown" size={28} color={COLORS.glass60} />
+                    <View style={[styles.header, isNarrow && { paddingHorizontal: SPACING.md }]}>
+                        <Pressable
+                            onPress={() => setFullScreen(false)}
+                            hitSlop={12}
+                            style={styles.chevronBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel="Thu nhỏ player"
+                        >
+                            <AppIcon name="chevronDown" size={28} color={themeColors.muted} />
                         </Pressable>
 
                         <View style={styles.headerCenter}>
                             {showLyricsTab ? (
                                 <View style={styles.pageIndicator}>
-                                    <Pressable onPress={() => goToPage(0)} hitSlop={4}>
+                                    <Pressable onPress={() => goToPage(0)} hitSlop={10}>
                                         <Text
                                             numberOfLines={1}
                                             adjustsFontSizeToFit
@@ -474,7 +480,7 @@ export const FullPlayerModal = () => {
                                         </Text>
                                     </Pressable>
                                     <View style={styles.pageDot} />
-                                    <Pressable onPress={() => goToPage(1)} hitSlop={4}>
+                                    <Pressable onPress={() => goToPage(1)} hitSlop={10}>
                                         <Text
                                             numberOfLines={1}
                                             adjustsFontSizeToFit
@@ -500,8 +506,14 @@ export const FullPlayerModal = () => {
                             )}
                         </View>
 
-                        <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}>
-                            <AppIcon name="more" size={22} color={COLORS.white} />
+                        <Pressable
+                            onPress={() => setMenuOpen(true)}
+                            hitSlop={12}
+                            style={styles.moreBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel="Thêm tùy chọn"
+                        >
+                            <AppIcon name="more" size={22} color={themeColors.text} />
                         </Pressable>
                     </View>
 
@@ -530,13 +542,13 @@ export const FullPlayerModal = () => {
                             <View style={[styles.artworkSection, isCompact && { marginBottom: 14 }]}>
                                 {currentSong.thumbnailUrl && (
                                     <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', zIndex: -1  }]}>
-                                        <Image source={{ uri: currentSong.thumbnailUrl }} style={{ width: artworkSize, height: artworkSize, opacity: 0.6 }} blurRadius={80} />
+                                        <Image source={{ uri: currentSong.thumbnailUrl }} style={{ width: artworkSize, height: artworkSize, opacity: 0.6 }} contentFit="cover" cachePolicy="memory-disk" blurRadius={80} />
                                     </View>
                                 )}
                                 {currentSong.thumbnailUrl
-                                    ? <Image source={{ uri: currentSong.thumbnailUrl }} style={[styles.artwork, { width: artworkSize, height: artworkSize }]} />
+                                    ? <Image source={{ uri: currentSong.thumbnailUrl }} style={[styles.artwork, { width: artworkSize, height: artworkSize }]} contentFit="cover" cachePolicy="memory-disk" />
                                     : <View style={[styles.artwork, styles.artworkPlaceholder, { width: artworkSize, height: artworkSize }]}>
-                                        <AppIcon name="musicNote" size={64} color={COLORS.glass35} />
+                                        <AppIcon name="musicNote" size={64} color={themeColors.muted} />
                                     </View>
                                 }
                             </View>
@@ -659,31 +671,36 @@ export const FullPlayerModal = () => {
                                 <Pressable style={styles.sideBtn} onPress={toggleShuffle} hitSlop={8}>
                                     <AppIcon
                                       name="shuffle"
-                                      color={isShuffled ? COLORS.accent : COLORS.glass40}
+                                      color={isShuffled ? themeColors.accent : themeColors.muted}
                                       size={isNarrow ? 20 : 22}
                                     />
                                     {isShuffled && <View style={styles.modeDot} />}
                                 </Pressable>
 
-                                <Pressable style={styles.sideBtn} onPress={playPrev}>
-                                    <AppIcon name="skipPrev" color={COLORS.glass80} size={isNarrow ? 28 : 32} />
+                                <Pressable style={styles.sideBtn} onPress={playPrev} hitSlop={8} accessibilityRole="button" accessibilityLabel="Bài trước">
+                                    <AppIcon name="skipPrev" color={themeColors.text} size={isNarrow ? 28 : 32} />
                                 </Pressable>
 
-                                <Pressable style={[styles.playBtn, isNarrow && { width: 50, height: 50 }]} onPress={togglePlay}>
+                                <Pressable
+                                    style={[styles.playBtn, isNarrow && { width: 52, height: 52 }]}
+                                    onPress={togglePlay}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={isPlaying ? 'Tạm dừng' : 'Phát'}
+                                >
                                     {!isLoaded
-                                        ? <ActivityIndicator color={COLORS.bg} size="small" />
+                                        ? <ActivityIndicator color={themeColors.bg} size="small" />
                                         : isPlaying
-                                            ? <AppIcon name="pause" size={isNarrow ? 28 : 32} color={COLORS.bg} />
-                                            : <AppIcon name="play" size={isNarrow ? 30 : 34} color={COLORS.bg} />
+                                            ? <AppIcon name="pause" size={isNarrow ? 28 : 32} color={themeColors.bg} />
+                                            : <AppIcon name="play" size={isNarrow ? 30 : 34} color={themeColors.bg} />
                                     }
                                 </Pressable>
 
-                                <Pressable style={styles.sideBtn} onPress={playNext}>
-                                    <AppIcon name="skipNext" color={COLORS.glass80} size={isNarrow ? 28 : 32} />
+                                <Pressable style={styles.sideBtn} onPress={playNext} hitSlop={8} accessibilityRole="button" accessibilityLabel="Bài tiếp theo">
+                                    <AppIcon name="skipNext" color={themeColors.text} size={isNarrow ? 28 : 32} />
                                 </Pressable>
 
-                                <Pressable style={styles.sideBtn} onPress={cycleRepeatMode} hitSlop={8}>
-                                    <RepeatIcon mode={repeatMode} />
+                                <Pressable style={styles.sideBtn} onPress={cycleRepeatMode} hitSlop={8} accessibilityRole="button">
+                                    <RepeatIcon mode={repeatMode} accentColor={themeColors.accent} mutedColor={themeColors.muted} />
                                     {repeatMode !== 'none' && <View style={styles.modeDot} />}
                                 </Pressable>
                             </View>
@@ -691,13 +708,22 @@ export const FullPlayerModal = () => {
                             {/* Mode label */}
                             <View style={[styles.modeLabels, isCompact && { marginBottom: 10 }]}>
                                 {isShuffled && (
-                                    <Text style={styles.modeLabelText}><AppIcon name="shuffle" color="#34D399" size={13} /> Phát ngẫu nhiên</Text>
+                                    <View style={styles.modeLabelRow}>
+                                        <AppIcon name="shuffle" color="#34D399" size={13} />
+                                        <Text style={styles.modeLabelText}> Phát ngẫu nhiên</Text>
+                                    </View>
                                 )}
                                 {repeatMode === 'one' && (
-                                    <Text style={styles.modeLabelText}><AppIcon name="repeatOne" color="#fff" size={13} /> Lặp bài này</Text>
+                                    <View style={styles.modeLabelRow}>
+                                        <AppIcon name="repeatOne" color={themeColors.text} size={13} />
+                                        <Text style={styles.modeLabelText}> Lặp bài này</Text>
+                                    </View>
                                 )}
                                 {repeatMode === 'all' && (
-                                    <Text style={styles.modeLabelText}><AppIcon name="repeat" color="#fff" size={13} /> Lặp danh sách</Text>
+                                    <View style={styles.modeLabelRow}>
+                                        <AppIcon name="repeat" color={themeColors.text} size={13} />
+                                        <Text style={styles.modeLabelText}> Lặp danh sách</Text>
+                                    </View>
                                 )}
                             </View>
 
@@ -746,7 +772,7 @@ export const FullPlayerModal = () => {
                                     </View>
                                     <Text style={styles.qualityHint}>
                                         {'Đang phát: '}
-                                        <Text style={{ color: COLORS.accent }}>{selectedQuality}kbps</Text>
+                                        <Text style={{ color: themeColors.accent }}>{selectedQuality}kbps</Text>
                                     </Text>
                                     {autoQuality ? (
                                         <View style={styles.networkHintRow}>
@@ -772,16 +798,16 @@ export const FullPlayerModal = () => {
                             {/* Lyric hint */}
                             {showLyricsTab && activePage === 0 && (
                                 <Pressable style={styles.lyricHint} onPress={() => goToPage(1)}>
-                                    <Text style={styles.lyricHintText}>
-                                      <AppIcon name="emojiNotePad" size={13} color={COLORS.glass25} />{' '}
-                                      Vuốt sang phải để xem lời nhạc
-                                    </Text>
+                                    <View style={styles.lyricHintRow}>
+                                        <AppIcon name="emojiNotePad" size={13} color={themeColors.muted} />
+                                        <Text style={styles.lyricHintText}> Vuốt sang phải để xem lời nhạc</Text>
+                                    </View>
                                 </Pressable>
                             )}
 
                             {/* Stats */}
                             <View style={styles.stats}>
-                                <AppIcon name="headset" size={14} color={COLORS.glass30} />
+                                <AppIcon name="headset" size={14} color={themeColors.muted} />
                                 <Text style={styles.statsText}>
                                     {'  '}{currentSong.playCount?.toLocaleString('vi-VN') ?? 0} lượt nghe
                                 </Text>
@@ -810,19 +836,19 @@ export const FullPlayerModal = () => {
                                 {/* Mini player bar on lyrics page */}
                                 <View style={styles.lyricMiniBar}>
                                     {currentSong.thumbnailUrl
-                                        ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.lyricMiniArt} />
-                                        : <View style={[styles.lyricMiniArt, { backgroundColor: COLORS.accentFill20 }]}>
-                                            <AppIcon name="emojiMusic" size={14} color={COLORS.white} />
+                                        ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.lyricMiniArt} contentFit="cover" cachePolicy="memory-disk" />
+                                        : <View style={[styles.lyricMiniArt, { backgroundColor: themeColors.accentFill20 }]}>
+                                            <AppIcon name="emojiMusic" size={14} color={themeColors.text} />
                                         </View>
                                     }
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.lyricMiniTitle} numberOfLines={1}>{currentSong.title}</Text>
                                         <Text style={styles.lyricMiniArtist} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
                                     </View>
-                                    <Pressable onPress={togglePlay} hitSlop={8}>
+                                    <Pressable onPress={togglePlay} hitSlop={8} accessibilityRole="button" accessibilityLabel={isPlaying ? 'Tạm dừng' : 'Phát'}>
                                         {isPlaying
-                                            ? <AppIcon name="pause" size={24} color={COLORS.white} />
-                                            : <AppIcon name="play" size={24} color={COLORS.white} />
+                                            ? <AppIcon name="pause" size={24} color={themeColors.text} />
+                                            : <AppIcon name="play" size={24} color={themeColors.text} />
                                         }
                                     </Pressable>
                                 </View>
@@ -865,7 +891,7 @@ export const FullPlayerModal = () => {
                         onClose={() => setMenuOpen(false)}
                         actions={[
                             {
-                                icon: <AppIcon name="share" size={20} color={COLORS.white} />,
+                                icon: <AppIcon name="share" size={20} color={themeColors.text} />,
                                 label: 'Chia sẻ qua QR',
                                 onPress: async () => {
                                     const qr = await getSongShareQr(currentSong.id);
@@ -873,7 +899,7 @@ export const FullPlayerModal = () => {
                                 },
                             },
                             ...(!isSoundCloudTrack ? [{
-                                icon: <AppIcon name="addToPlaylist" size={20} color={COLORS.white} />,
+                                icon: <AppIcon name="addToPlaylist" size={20} color={themeColors.text} />,
                                 label: 'Thêm vào playlist',
                                 onPress: () => openPlaylistPicker(),
                             }] : []),
@@ -887,14 +913,14 @@ export const FullPlayerModal = () => {
                                 },
                             }] : []),
                             {
-                                icon: <AppIcon name="report" size={20} color={COLORS.error} />,
+                                icon: <AppIcon name="report" size={20} color={themeColors.error} />,
                                 label: 'Báo cáo bài hát',
                                 destructive: true,
                                 separator: true,
                                 onPress: openReportReasonPicker,
                             },
                             {
-                                icon: <AppIcon name="stop" size={20} color={COLORS.white} />,
+                                icon: <AppIcon name="stop" size={20} color={themeColors.text} />,
                                 label: 'Dừng phát',
                                 destructive: true,
                                 onPress: () => stopPlayer(),
@@ -971,7 +997,7 @@ export const FullPlayerModal = () => {
                             <View style={styles.menuSheet}>
                                 <Text style={styles.menuTitle}>QR Share</Text>
                                 {shareQr
-                                    ? <Image source={{ uri: shareQr }} style={{ width: 220, height: 220, borderRadius: 10, alignSelf: 'center' }} />
+                                    ? <Image source={{ uri: shareQr }} style={{ width: 220, height: 220, borderRadius: 10, alignSelf: 'center' }} contentFit="cover" cachePolicy="memory-disk" />
                                     : <Text style={styles.menuItem}>Không tạo được QR</Text>
                                 }
                             </View>
@@ -985,28 +1011,30 @@ export const FullPlayerModal = () => {
 
 const createStyles = (c: ColorScheme) => StyleSheet.create({
     root:               { flex: 1, backgroundColor: c.bg },
-    header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 20 },
-    headerCenter:       { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-    chevronBtn:         { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-    headerTitle:        { color: c.glass50, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', textAlign: 'center' },
-    moreBtn:            { color: c.white, fontSize: 30, lineHeight: 30 },
+    header:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: SPACING.md, paddingHorizontal: SPACING.xl },
+    headerCenter:       { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING.sm },
+    // Touch target 44×44 — đủ chuẩn accessibility
+    chevronBtn:         { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    moreBtn:            { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    headerTitle:        { color: c.muted, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.extrabold, letterSpacing: 1.2, textTransform: 'uppercase', textAlign: 'center' },
 
-    pageIndicator:      { flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%', justifyContent: 'center' },
-    pageIndicatorText:  { color: c.glass35, fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
-    pageIndicatorActive: { color: c.white },
+    pageIndicator:      { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, maxWidth: '100%', justifyContent: 'center' },
+    pageIndicatorText:  { color: c.muted, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.extrabold, letterSpacing: 0.6, textTransform: 'uppercase' },
+    pageIndicatorActive: { color: c.text },
     pageDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: c.glass20 },
 
-    artworkSection:     { alignItems: 'center', marginTop: 4, marginBottom: 24 },
-    artwork:            { width: 260, height: 260, borderRadius: 18, backgroundColor: c.surface },
+    artworkSection:     { alignItems: 'center', marginTop: SPACING.sm, marginBottom: SPACING.xxl },
+    // artwork width/height được set dynamically via artworkSize
+    artwork:            { borderRadius: RADIUS.lg, backgroundColor: c.surface },
     artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
-    songInfo:           { marginBottom: 20 },
-    songTitle:          { color: c.white, fontSize: 22, fontWeight: '800', marginBottom: 4 },
-    songMetaRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 },
-    artistName:         { color: c.glass60, fontSize: 14, fontWeight: '600', flex: 1 },
+    songInfo:           { marginBottom: SPACING.xl },
+    songTitle:          { color: c.text, fontSize: moderateScale(22), fontWeight: FONT_WEIGHT.extrabold, marginBottom: SPACING.xs },
+    songMetaRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACING.sm, marginBottom: SPACING.sm },
+    artistName:         { color: c.textSecondary, fontSize: FONT_SIZE.body_sm, fontWeight: FONT_WEIGHT.semibold, flex: 1 },
     heartWrap:          {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
+        width: 40,
+        height: 40,
+        borderRadius: RADIUS.full,
         backgroundColor: c.glass07,
         borderWidth: 1,
         borderColor: c.glass12,
@@ -1020,82 +1048,84 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     },
     externalBadge:      {
         alignSelf: 'flex-start',
-        marginBottom: 8,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 999,
+        marginBottom: SPACING.sm,
+        paddingHorizontal: SPACING.sm + 2,
+        paddingVertical: SPACING.xs,
+        borderRadius: RADIUS.full,
         backgroundColor: c.accentFill20,
         borderWidth: 1,
         borderColor: c.accentBorder25,
     },
-    externalBadgeText:  { color: c.accent, fontSize: 11, fontWeight: '800' },
-    genreRow:           { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-    genreChip:          { backgroundColor: c.glass06, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: c.glass10 },
-    genreText:          { color: c.glass60, fontSize: 11, fontWeight: '700' },
+    externalBadgeText:  { color: c.accent, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.extrabold },
+    genreRow:           { flexDirection: 'row', gap: SPACING.sm, flexWrap: 'wrap' },
+    genreChip:          { backgroundColor: c.glass06, borderRadius: RADIUS.sm, paddingHorizontal: SPACING.sm + 2, paddingVertical: SPACING.xs, borderWidth: 1, borderColor: c.glass10 },
+    genreText:          { color: c.textSecondary, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.bold },
 
-    progressSection:    { marginBottom: 18 },
+    progressSection:    { marginBottom: SPACING.lg },
     seekTouchArea:      { height: 48, justifyContent: 'center' },
-    seekTrack:          { height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2 },
-    seekTrackActive:    { height: 4 },
-    seekFill:           { height: 4, backgroundColor: c.accent, borderRadius: 2, shadowColor: c.accent, shadowOpacity: 0.5, shadowRadius: 8 },
+    seekTrack:          { height: 5, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 3 },
+    seekTrackActive:    { height: 5 },
+    seekFill:           { height: 5, backgroundColor: c.accent, borderRadius: 3, shadowColor: c.accent, shadowOpacity: 0.5, shadowRadius: 8 },
     seekThumb:          { position: 'absolute', top: '50%', marginTop: -(THUMB_RADIUS + 1), width: (THUMB_RADIUS + 1) * 2, height: (THUMB_RADIUS + 1) * 2, borderRadius: THUMB_RADIUS + 1, backgroundColor: c.accent, shadowColor: c.accent, shadowOpacity: 0.8, shadowRadius: 10 },
     seekThumbActive:    { width: THUMB_RADIUS * 3, height: THUMB_RADIUS * 3, marginTop: -(THUMB_RADIUS * 1.5), borderRadius: THUMB_RADIUS * 1.5, shadowOpacity: 1, shadowColor: c.white, backgroundColor: c.white },
-    timeRow:            { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 },
-    timeText:           { color: c.glass45, fontSize: 11, fontWeight: '600' },
+    timeRow:            { flexDirection: 'row', justifyContent: 'space-between', marginTop: SPACING.md },
+    timeText:           { color: c.muted, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.semibold },
 
-    controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 8 },
-    sideBtn:            { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    controls:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.sm, paddingHorizontal: SPACING.sm },
+    sideBtn:            { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
     playBtn:            {
-        width: 54, height: 54, borderRadius: 32,
+        width: 60, height: 60, borderRadius: RADIUS.full,
         backgroundColor: c.white,
         alignItems: 'center', justifyContent: 'center',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3, shadowRadius: 10, elevation: 8,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
     },
 
     modeDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: c.accent, marginTop: 2, alignSelf: 'center' },
-    modeLabels:         { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 14, minHeight: 14 },
-    modeLabelText:      { color: c.glass45, fontSize: 11, fontWeight: '700' },
+    modeLabels:         { flexDirection: 'row', justifyContent: 'center', gap: SPACING.md, marginBottom: SPACING.md, minHeight: 16 },
+    modeLabelRow:       { flexDirection: 'row', alignItems: 'center' },
+    modeLabelText:      { color: c.textSecondary, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.bold },
 
-    qualitySection:         { marginBottom: 12 },
-    qualityHeader:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
-    qualityLabel:           { color: c.glass35, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase' },
-    autoBtn:                { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: c.glass12, backgroundColor: c.glass06 },
+    qualitySection:         { marginBottom: SPACING.md },
+    qualityHeader:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: SPACING.sm },
+    qualityLabel:           { color: c.muted, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.extrabold, letterSpacing: 1.2, textTransform: 'uppercase' },
+    autoBtn:                { paddingHorizontal: SPACING.sm + 2, paddingVertical: SPACING.xs, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.glass12, backgroundColor: c.glass06 },
     autoBtnActive:          { borderColor: c.accent, backgroundColor: c.accentFill20 },
-    autoBtnText:            { color: c.glass60, fontSize: 11, fontWeight: '700' },
+    autoBtnText:            { color: c.textSecondary, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.bold },
     autoBtnTextActive:      { color: c.accent },
-    qualityRow:             { flexDirection: 'row', gap: 8, marginBottom: 8 },
-    qualityBtn:             { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: c.glass12, backgroundColor: c.glass06 },
-    qualityBtnActive:       { borderColor: c.glass35, backgroundColor: c.glass10 },
+    qualityRow:             { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.sm },
+    qualityBtn:             { paddingHorizontal: SPACING.md, paddingVertical: SPACING.sm, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: c.glass12, backgroundColor: c.glass06 },
+    qualityBtnActive:       { borderColor: c.textSecondary, backgroundColor: c.glass10 },
     qualityBtnLocked:       { opacity: 0.3 },
-    qualityBtnText:         { color: c.glass60, fontSize: 12, fontWeight: '700' },
-    qualityBtnTextActive:   { color: c.white, fontWeight: '800' },
+    qualityBtnText:         { color: c.textSecondary, fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold },
+    qualityBtnTextActive:   { color: c.text, fontWeight: FONT_WEIGHT.extrabold },
     qualityBtnTextLocked:   { color: c.glass20 },
-    qualityHint:            { color: c.glass35, fontSize: 11, lineHeight: 16 },
-    networkHintRow:         { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-    networkHintText:        { fontSize: 11, fontWeight: '600' },
+    qualityHint:            { color: c.muted, fontSize: FONT_SIZE.xxs, lineHeight: 16 },
+    networkHintRow:         { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginTop: 2 },
+    networkHintText:        { fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.semibold },
 
-    lyricHint:          { alignItems: 'center', marginBottom: 8 },
-    lyricHintText:      { color: c.glass35, fontSize: 11, fontWeight: '600' },
+    lyricHint:          { alignItems: 'center', marginBottom: SPACING.sm },
+    lyricHintRow:       { flexDirection: 'row', alignItems: 'center' },
+    lyricHintText:      { color: c.muted, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.semibold },
 
-    lyricMiniBar:       { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 12 },
-    lyricMiniArt:       { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-    lyricMiniTitle:     { color: c.white, fontSize: 13, fontWeight: '800' },
-    lyricMiniArtist:    { color: c.glass45, fontSize: 11, fontWeight: '600' },
-    lyricProgress:      { height: 2, backgroundColor: c.glass08, marginHorizontal: 20 },
-    lyricProgressFill:  { height: 2, backgroundColor: c.glass50, borderRadius: 1 },
+    lyricMiniBar:       { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md },
+    lyricMiniArt:       { width: 44, height: 44, borderRadius: RADIUS.sm, alignItems: 'center', justifyContent: 'center' },
+    lyricMiniTitle:     { color: c.text, fontSize: FONT_SIZE.sm, fontWeight: FONT_WEIGHT.extrabold },
+    lyricMiniArtist:    { color: c.textSecondary, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.semibold },
+    lyricProgress:      { height: 2, backgroundColor: c.glass08, marginHorizontal: SPACING.xl },
+    lyricProgressFill:  { height: 2, backgroundColor: c.accent, borderRadius: 1 },
 
     menuBackdrop:       { flex: 1, justifyContent: 'flex-end', backgroundColor: c.scrim },
-    menuSheet:          { backgroundColor: c.surfaceLow ?? c.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 20, gap: 10, borderWidth: 1, borderColor: c.glass10 },
-    menuTitle:          { color: c.white, fontSize: 16, fontWeight: '800', marginBottom: 6 },
-    menuItem:           { color: c.glass80, fontSize: 14, marginBottom: 8 },
-    stats:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-    statsText:          { color: c.glass35, fontSize: 12 },
+    menuSheet:          { backgroundColor: c.surfaceLow ?? c.surface, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, padding: SPACING.xl, gap: SPACING.sm, borderWidth: 1, borderColor: c.glass10 },
+    menuTitle:          { color: c.text, fontSize: FONT_SIZE.body_md, fontWeight: FONT_WEIGHT.extrabold, marginBottom: SPACING.sm },
+    menuItem:           { color: c.textSecondary, fontSize: FONT_SIZE.body_sm, marginBottom: SPACING.sm },
+    stats:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: SPACING.xs },
+    statsText:          { color: c.muted, fontSize: FONT_SIZE.xs },
     scAttribution: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        marginTop: 8, paddingVertical: 8, paddingHorizontal: 16,
-        backgroundColor: '#FF550010', borderRadius: 8,
+        marginTop: SPACING.sm, paddingVertical: SPACING.sm, paddingHorizontal: SPACING.lg,
+        backgroundColor: '#FF550010', borderRadius: RADIUS.sm,
         borderWidth: 1, borderColor: '#FF550030',
     },
-    scAttributionText: { color: '#FF5500', fontSize: 12 },
+    scAttributionText: { color: '#FF5500', fontSize: FONT_SIZE.xs },
 });

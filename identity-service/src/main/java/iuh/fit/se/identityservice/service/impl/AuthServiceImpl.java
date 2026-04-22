@@ -33,6 +33,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.*;
@@ -255,10 +258,45 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void logout(RefreshRequest request) {
-        if (request == null || request.getRefreshToken() == null
-                || request.getRefreshToken().isBlank()) return;
-        redisTemplate.delete(refreshTokenRedisKey(request.getRefreshToken()));
+    public void logout(RefreshRequest request, String accessToken) {
+        if (request != null && request.getRefreshToken() != null
+                && !request.getRefreshToken().isBlank()) {
+            redisTemplate.delete(refreshTokenRedisKey(request.getRefreshToken()));
+        }
+        blacklistAccessToken(accessToken);
+    }
+
+    private void blacklistAccessToken(String accessToken) {
+        if (accessToken == null || accessToken.isBlank()) return;
+        try {
+            Date expiration = Jwts.parserBuilder()
+                    .setSigningKey(Keys.hmacShaKeyFor(Decoders.BASE64.decode(signerKey)))
+                    .build()
+                    .parseClaimsJws(accessToken)
+                    .getBody()
+                    .getExpiration();
+
+            long ttlSeconds = (expiration.getTime() - System.currentTimeMillis()) / 1000;
+            if (ttlSeconds <= 0) return; // token đã hết hạn tự nhiên, không cần blacklist
+
+            String key = "auth:blacklist:" + sha256Hex(accessToken);
+            redisTemplate.opsForValue().set(key, "1", ttlSeconds, TimeUnit.SECONDS);
+            log.debug("Blacklisted access token, TTL={}s", ttlSeconds);
+        } catch (Exception e) {
+            log.warn("Could not blacklist access token: {}", e.getMessage());
+        }
+    }
+
+    private static String sha256Hex(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(hash.length * 2);
+            for (byte b : hash) sb.append(String.format("%02x", b));
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
     }
 
     @Override

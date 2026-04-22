@@ -16,7 +16,7 @@ x-infra: &infra
   RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
   RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
   RABBITMQ_VHOST: ${RABBITMQ_VHOST}
-  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://${EUREKA_USERNAME}:${EUREKA_PASSWORD}@discovery-server:8761/eureka/
   # Đăng ký lên Eureka nhanh hơn (mặc định Spring thường 30–40s cho lần replicate đầu)
   EUREKA_CLIENT_INITIAL_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS: "5"
   EUREKA_CLIENT_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS: "10"
@@ -84,8 +84,10 @@ services:
     ports: ["8761:8761"]
     environment:
       <<: *java-env
+      EUREKA_USERNAME: ${EUREKA_USERNAME}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD}
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
+      test: ["CMD", "wget", "-qO-", "--user=${EUREKA_USERNAME}", "--password=${EUREKA_PASSWORD}", "http://localhost:8761/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 6

@@ -14,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -28,6 +30,14 @@ public class FollowController {
     public ResponseEntity<ApiResponse<ArtistStatsResponse>> getArtistStats(
             @PathVariable UUID artistId) {
         return ResponseEntity.ok(ApiResponse.success(followService.getArtistStats(artistId)));
+    }
+
+    /** POST /social/artists/stats-batch — batch stats for multiple artists */
+    @PostMapping("/artists/stats-batch")
+    public ResponseEntity<ApiResponse<List<ArtistStatsResponse>>> getArtistStatsBatch(
+            @RequestBody Map<String, List<UUID>> body) {
+        List<UUID> artistIds = body.getOrDefault("artistIds", List.of());
+        return ResponseEntity.ok(ApiResponse.success(followService.getArtistStatsBatch(artistIds)));
     }
 
     /** POST /social/follows — follow an artist */

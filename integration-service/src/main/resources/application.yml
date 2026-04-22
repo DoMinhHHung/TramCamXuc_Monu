@@ -47,6 +47,12 @@ spring:
     suffix: .html
     cache: false
 
+groq:
+  api-key: ${GROQ_API_KEY:}
+
+assembly:
+  api-key: ${ASSEMBLY_API_KEY:}
+
 eureka:
   client:
     service-url:

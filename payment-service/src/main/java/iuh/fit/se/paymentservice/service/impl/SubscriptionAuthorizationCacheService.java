@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -46,11 +47,16 @@ public class SubscriptionAuthorizationCacheService {
     }
 
     public void evict(UUID userId) {
-        if (userId == null) {
-            return;
-        }
+        if (userId == null) return;
         stringRedisTemplate.delete(key(userId));
         log.info("Evicted cached subscription features for userId={}", userId);
+    }
+
+    public void evictAll(List<UUID> userIds) {
+        if (userIds == null || userIds.isEmpty()) return;
+        List<String> keys = userIds.stream().map(this::key).toList();
+        stringRedisTemplate.delete(keys);
+        log.info("Bulk evicted subscription cache for {} users", userIds.size());
     }
 
     private void normalizeAuthorizationFeatures(Map<String, Object> features) {

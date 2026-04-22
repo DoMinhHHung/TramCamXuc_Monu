@@ -31,6 +31,11 @@ class Settings(BaseSettings):
         description="Secret header for service-to-service calls to social-service /internal/*"
     )
 
+    model_signing_secret: str = Field(
+        default="",
+        description="HMAC-SHA256 key để sign model artifacts trước khi upload MinIO"
+    )
+
     # ── Redis ────────────────────────────────────────────────────────────────
     redis_host: str = "localhost"
     redis_port: int = 6379

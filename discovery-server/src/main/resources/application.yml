@@ -11,6 +11,11 @@ spring:
   application:
     name: discovery-server
 
+  security:
+    user:
+      name: ${EUREKA_USERNAME:admin}
+      password: ${EUREKA_PASSWORD:changeme}
+
   main:
     lazy-initialization: false
     banner-mode: off

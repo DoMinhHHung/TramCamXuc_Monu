@@ -203,9 +203,10 @@ class CFTrainer:
 
     def _upload_model_to_minio(self, model_version: str) -> None:
         """
-        Serialize model và upload lên MinIO để backup và rollback.
+        Serialize model và upload lên MinIO kèm HMAC-SHA256 signature để backup.
         Dùng joblib vì nhanh hơn pickle với numpy arrays.
         """
+        from app.core.model_signing import upload_with_signature
         try:
             buffer = io.BytesIO()
             joblib.dump({
@@ -215,21 +216,17 @@ class CFTrainer:
                 "idx_to_user": self._dataset.idx_to_user,
                 "idx_to_song": self._dataset.idx_to_song,
             }, buffer)
-            buffer.seek(0)
-            size = buffer.getbuffer().nbytes
+            data = buffer.getvalue()
 
-            minio = get_minio()
             object_name = f"cf-model/v{model_version}/model.joblib"
-            minio.put_object(
-                bucket_name=settings.minio_bucket,
+            upload_with_signature(
+                bucket=settings.minio_bucket,
                 object_name=object_name,
-                data=buffer,
-                length=size,
-                content_type="application/octet-stream",
+                data=data,
             )
             log.info("cf_model_uploaded",
                      object=object_name,
-                     size_mb=round(size / 1024 / 1024, 2))
+                     size_mb=round(len(data) / 1024 / 1024, 2))
         except Exception as e:
             # Upload thất bại không làm crash training
             log.warning("cf_model_upload_failed", error=str(e))

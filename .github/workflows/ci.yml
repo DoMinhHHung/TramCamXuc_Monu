@@ -2,9 +2,9 @@ name: CI — Build Check
 
 on:
   pull_request:
-    branches: [main]
+    branches: [base]
   push:
-    branches: [main, test/ui]
+    branches: [base]
 
 jobs:
   build-java:

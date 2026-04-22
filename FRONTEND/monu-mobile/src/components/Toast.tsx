@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { COLORS } from '../config/colors';
+import { useThemeColors } from '../config/colors';
+import { SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../config/design';
 
 interface ToastProps {
   message: string;
@@ -13,6 +14,8 @@ interface ToastProps {
 
 export const Toast = ({ message, type = 'success', visible, onHide }: ToastProps) => {
   const insets = useSafeAreaInsets();
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
   const translateY = useRef(new Animated.Value(-100)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const onHideRef = useRef(onHide);
@@ -79,8 +82,8 @@ export const Toast = ({ message, type = 'success', visible, onHide }: ToastProps
 
   if (!visible) return null;
 
-  const bgColor =
-    type === 'success' ? COLORS.success : type === 'error' ? COLORS.error : COLORS.accent;
+  const indicatorColor =
+    type === 'success' ? colors.success : type === 'error' ? colors.error : colors.accent;
   const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
 
   return (
@@ -89,9 +92,7 @@ export const Toast = ({ message, type = 'success', visible, onHide }: ToastProps
         style={[
           styles.toast,
           {
-            top: insets.top + 8,
-            backgroundColor: COLORS.surface,
-            borderColor: COLORS.glass12,
+            top: insets.top + SPACING.sm,
             transform: [{ translateY }],
             opacity,
           },
@@ -99,7 +100,7 @@ export const Toast = ({ message, type = 'success', visible, onHide }: ToastProps
         pointerEvents="auto"
       >
         <Pressable style={styles.toastContent} onPress={hideToast} hitSlop={4}>
-          <View style={[styles.iconCircle, { backgroundColor: bgColor }]}>
+          <View style={[styles.iconCircle, { backgroundColor: indicatorColor }]}>
             <Text style={styles.iconText}>{icon}</Text>
           </View>
           <Text style={styles.message} numberOfLines={4}>
@@ -112,30 +113,38 @@ export const Toast = ({ message, type = 'success', visible, onHide }: ToastProps
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   wrap: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 9999,
   },
   toast: {
     position: 'absolute',
-    left: 20,
-    right: 20,
-    borderRadius: 14,
+    left: SPACING.xl,
+    right: SPACING.xl,
+    borderRadius: RADIUS.md,
     borderWidth: 1,
-    padding: 14,
+    padding: SPACING.md,
+    backgroundColor: colors.surface,
+    borderColor: colors.glass12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  toastContent: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
+  toastContent: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: SPACING.sm },
   iconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: RADIUS.full,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
-  iconText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  message: { color: COLORS.white, fontSize: 14, fontWeight: '500', flex: 1 },
-  dismissHint: { color: 'rgba(255,255,255,0.3)', fontSize: 12, fontWeight: '700' },
+  iconText: { color: colors.white, fontWeight: FONT_WEIGHT.bold, fontSize: FONT_SIZE.xs },
+  message: { color: colors.text, fontSize: FONT_SIZE.body_sm, fontWeight: FONT_WEIGHT.medium, flex: 1 },
+  dismissHint: { color: colors.muted, fontSize: FONT_SIZE.xs, fontWeight: FONT_WEIGHT.bold },
 });
 
 export function useToast() {

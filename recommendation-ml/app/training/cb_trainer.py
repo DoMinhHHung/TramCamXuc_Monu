@@ -364,7 +364,8 @@ class CBTrainer:
         ]
 
     def _upload_to_minio(self, model_version: str) -> None:
-        """Upload song feature dataset lên MinIO."""
+        """Upload song feature dataset lên MinIO kèm HMAC-SHA256 signature."""
+        from app.core.model_signing import upload_with_signature
         try:
             buffer = io.BytesIO()
             joblib.dump({
@@ -373,18 +374,16 @@ class CBTrainer:
                 "genre_index": self._dataset.genre_index,
                 "feature_names": self._dataset.feature_names,
             }, buffer)
-            buffer.seek(0)
-            size = buffer.getbuffer().nbytes
+            data = buffer.getvalue()
 
-            get_minio().put_object(
-                bucket_name=settings.minio_bucket,
-                object_name=f"cb-model/v{model_version}/features.joblib",
-                data=buffer,
-                length=size,
-                content_type="application/octet-stream",
+            object_name = f"cb-model/v{model_version}/features.joblib"
+            upload_with_signature(
+                bucket=settings.minio_bucket,
+                object_name=object_name,
+                data=data,
             )
             log.info("cb_model_uploaded",
                      version=model_version,
-                     size_mb=round(size / 1024 / 1024, 2))
+                     size_mb=round(len(data) / 1024 / 1024, 2))
         except Exception as e:
             log.warning("cb_model_upload_failed", error=str(e))

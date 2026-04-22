@@ -1,6 +1,9 @@
-import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../config/colors';
+import React, { useMemo } from 'react';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useThemeColors } from '../config/colors';
+import { AppIcon } from '../config/appIcons';
+import { SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../config/design';
 
 interface ArtistCardProps {
   id: string;
@@ -19,27 +22,34 @@ export const ArtistCard: React.FC<ArtistCardProps> = ({
   onPress,
   disabled
 }) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   return (
     <Pressable
-      style={[
+      style={({ pressed }) => [
         styles.card,
         selected && styles.cardSelected,
-        disabled && styles.cardDisabled
+        disabled && styles.cardDisabled,
+        pressed && !disabled && styles.cardPressed,
       ]}
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ selected, disabled }}
+      accessibilityLabel={`Nghệ sĩ ${stageName}${selected ? ', đã chọn' : ''}`}
     >
       <View style={[styles.avatarContainer, selected && styles.avatarContainerSelected]}>
         {avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          <Image source={{ uri: avatarUrl }} style={styles.avatar} contentFit="cover" cachePolicy="memory-disk" />
         ) : (
           <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarPlaceholderText}>🎤</Text>
+            <AppIcon name="headset" size={28} color={selected ? colors.accent : colors.muted} />
           </View>
         )}
         {selected && (
           <View style={styles.checkmark}>
-            <Text style={styles.checkmarkText}>✓</Text>
+            <AppIcon name="check" size={14} color={colors.white} />
           </View>
         )}
       </View>
@@ -50,47 +60,45 @@ export const ArtistCard: React.FC<ArtistCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   card: {
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     width: 110,
-    margin: 6,
+    margin: SPACING.sm,
   },
   cardSelected: {
-    borderColor: COLORS.accent,
-    backgroundColor: COLORS.surface,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentFill20,
   },
   cardDisabled: {
     opacity: 0.5,
   },
+  cardPressed: {
+    opacity: 0.8,
+  },
   avatarContainer: {
     position: 'relative',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
-  avatarContainerSelected: {
-    // Additional styling if needed
-  },
+  avatarContainerSelected: {},
   avatar: {
     width: 70,
     height: 70,
-    borderRadius: 35,
-    backgroundColor: COLORS.bg,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.surfaceMid,
   },
   avatarPlaceholder: {
     width: 70,
     height: 70,
-    borderRadius: 35,
-    backgroundColor: COLORS.bg,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.surfaceMid,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  avatarPlaceholderText: {
-    fontSize: 32,
   },
   checkmark: {
     position: 'absolute',
@@ -98,24 +106,21 @@ const styles = StyleSheet.create({
     right: -4,
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: COLORS.accent,
+    borderRadius: RADIUS.full,
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  checkmarkText: {
-    color: COLORS.bg,
-    fontSize: 14,
-    fontWeight: 'bold',
+    borderWidth: 2,
+    borderColor: colors.bg,
   },
   name: {
-    color: COLORS.muted,
-    fontSize: 13,
-    fontWeight: '500',
+    color: colors.muted,
+    fontSize: FONT_SIZE.sm,
+    fontWeight: FONT_WEIGHT.medium,
     textAlign: 'center',
   },
   nameSelected: {
-    color: COLORS.text,
-    fontWeight: '600',
+    color: colors.text,
+    fontWeight: FONT_WEIGHT.semibold,
   },
 });
