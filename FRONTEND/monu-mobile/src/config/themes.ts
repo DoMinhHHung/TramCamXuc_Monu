@@ -55,6 +55,14 @@ export interface ThemeColors {
   cardLofiFrom: string;
   cardLofiTo: string;
 
+  // Extended surface and accent
+  surfaceVariant: string;
+  accentAlt: string;
+
+  // Glass overlays
+  glass07: string;
+  glass15: string;
+
   // Legacy support colors
   white: string;
   accentTint8: string;
@@ -110,6 +118,12 @@ export const darkTheme: ThemeColors = {
   cardAcousticTo: '#2C5C1C',
   cardLofiFrom: '#0C2C5C',
   cardLofiTo: '#0C4C8B',
+
+  // Extended
+  surfaceVariant: '#332D52',
+  accentAlt: '#C4ADFC',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
 
   // Legacy
   white: '#FFFFFF',
@@ -167,6 +181,12 @@ export const classicTheme: ThemeColors = {
   cardLofiFrom: '#0F1F3D',
   cardLofiTo: '#0F3A5C',
 
+  // Extended
+  surfaceVariant: '#383838',
+  accentAlt: '#FFB833',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
+
   // Legacy
   white: '#FFFFFF',
   accentTint8: 'rgba(255, 165, 0, 0.08)',
@@ -222,6 +242,12 @@ export const sunsetTheme: ThemeColors = {
   cardAcousticTo: '#3A6B2D',
   cardLofiFrom: '#1F3A5C',
   cardLofiTo: '#2D5C8B',
+
+  // Extended
+  surfaceVariant: '#5A4A3A',
+  accentAlt: '#FFAA65',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
 
   // Legacy
   white: '#FFFFFF',
@@ -279,6 +305,12 @@ export const oceanTheme: ThemeColors = {
   cardLofiFrom: '#0F2B5C',
   cardLofiTo: '#0F4A8B',
 
+  // Extended
+  surfaceVariant: '#3A5A8B',
+  accentAlt: '#33E5FF',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
+
   // Legacy
   white: '#FFFFFF',
   accentTint8: 'rgba(0, 217, 255, 0.08)',
@@ -334,6 +366,12 @@ export const neonGenTheme: ThemeColors = {
   cardAcousticTo: '#1A7B4A',
   cardLofiFrom: '#0F2F7A',
   cardLofiTo: '#1F5FAB',
+
+  // Extended
+  surfaceVariant: '#3D1E6D',
+  accentAlt: '#FF4D8D',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
 
   // Legacy
   white: '#FFFFFF',
@@ -391,6 +429,12 @@ export const neonCuratorTheme: ThemeColors = {
   cardLofiFrom: '#1a1040',
   cardLofiTo: '#2D1B69',
 
+  // Extended
+  surfaceVariant: '#403D54',
+  accentAlt: '#D4AEFD',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
+
   // Legacy
   white: '#FFFFFF',
   accentTint8: 'rgba(192, 132, 252, 0.08)',
@@ -446,6 +490,12 @@ export const neonPulseTheme: ThemeColors = {
   cardAcousticTo: '#103F25',
   cardLofiFrom: '#061D2B',
   cardLofiTo: '#0B344D',
+
+  // Extended
+  surfaceVariant: '#2A2A35',
+  accentAlt: '#FF7733',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
 
   // Legacy
   white: '#FFFFFF',
