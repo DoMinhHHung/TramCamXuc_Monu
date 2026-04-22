@@ -19,7 +19,7 @@ public class SecurityConfig {
                 .ignoringRequestMatchers("/eureka/**", "/actuator/**")
             )
             .authorizeHttpRequests(auth -> auth
-                // Eureka dashboard + API đều yêu cầu Basic Auth
+                .requestMatchers("/actuator/health").permitAll()
                 .anyRequest().authenticated()
             )
             .httpBasic(Customizer.withDefaults());
