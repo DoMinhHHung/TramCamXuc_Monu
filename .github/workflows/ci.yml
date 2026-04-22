@@ -1,0 +1,61 @@
+name: CI — Build Check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, test/ui]
+
+jobs:
+  build-java:
+    name: Build Java services
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build tất cả Java modules
+        run: ./mvnw -q package -DskipTests
+
+  build-mobile:
+    name: TypeScript check (mobile)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: FRONTEND/monu-mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: FRONTEND/monu-mobile
+        run: npm ci
+
+      - name: TypeScript check
+        working-directory: FRONTEND/monu-mobile
+        run: npx tsc --noEmit
+
+  build-ml:
+    name: Python syntax check (recommendation-ml)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: recommendation-ml/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r recommendation-ml/requirements.txt --quiet
+
+      - name: Syntax check
+        run: python -m py_compile recommendation-ml/app/main.py
