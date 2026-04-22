@@ -27,6 +27,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(
                                 "/songs", "/songs/trending", "/songs/newest",
                                 "/songs/batch", "/songs/by-artist/**",

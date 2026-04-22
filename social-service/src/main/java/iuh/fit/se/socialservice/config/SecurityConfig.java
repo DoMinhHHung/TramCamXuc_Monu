@@ -27,6 +27,8 @@ public class SecurityConfig {
     private final InternalRequestFilter internalRequestFilter;
 
     private static final String[] PUBLIC_GET = {
+            "/actuator/health",
+            "/actuator/health/**",
             "/social/artists/*/stats",
             "/social/reactions",
             "/social/comments",
