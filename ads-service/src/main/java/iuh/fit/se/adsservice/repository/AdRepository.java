@@ -75,4 +75,8 @@ void incrementImpressionsAndCheckBudget(@Param("id") UUID id);
           AND (a.cpmVnd * a.totalImpressions / 1000) >= a.budgetVnd
         """)
     List<Ad> findBudgetExceededAds(@Param("status") AdStatus status);
+
+    @Modifying
+    @Query("UPDATE Ad a SET a.status = 'PAUSED' WHERE a.id IN :ids")
+    int bulkPause(@Param("ids") List<UUID> ids);
 }

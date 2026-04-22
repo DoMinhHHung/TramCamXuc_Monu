@@ -1,5 +1,6 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { COLORS } from '../config/colors';
 
@@ -12,7 +13,7 @@ export const FavoriteArtistRow = ({ name, avatarUrl }: FavoriteArtistRowProps) =
   return (
     <View style={styles.row}>
       {avatarUrl ? (
-        <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+        <Image source={{ uri: avatarUrl }} style={styles.avatar} contentFit="cover" cachePolicy="memory-disk" />
       ) : (
         <View style={[styles.avatar, styles.placeholder]}>
           <Text style={styles.placeholderText}>🎤</Text>

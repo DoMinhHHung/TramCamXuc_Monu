@@ -149,6 +149,11 @@ public class FollowServiceImpl implements FollowService {
         return stats;
     }
 
+    @Override
+    public List<ArtistStatsResponse> getArtistStatsBatch(List<UUID> artistIds) {
+        return artistIds.stream().map(this::getArtistStats).toList();
+    }
+
     private FollowResponse toResponse(Follow follow) {
         return FollowResponse.builder()
                 .id(follow.getId())

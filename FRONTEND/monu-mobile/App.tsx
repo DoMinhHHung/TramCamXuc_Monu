@@ -17,9 +17,11 @@ import { LocalizationProvider } from './src/context/LocalizationContext';
 import { ThemeProvider }       from './src/context/ThemeContext';
 import { AppNavigator }        from './src/navigation/AppNavigator';
 import { queryClient } from './src/query/queryClient';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 
 export default function App() {
     return (
+        <ErrorBoundary>
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaProvider>
                 <LocalizationProvider>
@@ -40,5 +42,6 @@ export default function App() {
                 </LocalizationProvider>
             </SafeAreaProvider>
         </GestureHandlerRootView>
+        </ErrorBoundary>
     );
 }

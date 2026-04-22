@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Query, BackgroundTasks, HTTPException
+from fastapi import APIRouter, Query, BackgroundTasks, Depends, HTTPException
+from app.core.security import verify_internal_secret
 from app.api.schemas import (
     RecommendResponse, SongScore,
     TrainResponse, HealthResponse,
@@ -181,11 +182,12 @@ async def get_similar_songs(
 
 # ── Training Triggers ─────────────────────────────────────────────────────────
 
-@router.post("/train", response_model=TrainResponse)
+@router.post("/train", response_model=TrainResponse, dependencies=[Depends(verify_internal_secret)])
 async def trigger_full_training(background_tasks: BackgroundTasks):
     """
     Trigger full CF + CB training pipeline.
     Chạy async trong background — response trả về ngay.
+    Yêu cầu header X-Internal-Secret hợp lệ.
     """
     background_tasks.add_task(_run_pipeline_bg)
     return TrainResponse(
@@ -194,16 +196,16 @@ async def trigger_full_training(background_tasks: BackgroundTasks):
     )
 
 
-@router.post("/train/cf", response_model=TrainResponse)
+@router.post("/train/cf", response_model=TrainResponse, dependencies=[Depends(verify_internal_secret)])
 async def trigger_cf_training(background_tasks: BackgroundTasks):
-    """Trigger CF-only training (nhanh hơn, ~2-5 phút)."""
+    """Trigger CF-only training (nhanh hơn, ~2-5 phút). Yêu cầu X-Internal-Secret."""
     background_tasks.add_task(_run_cf_bg)
     return TrainResponse(status="cf_training_started")
 
 
-@router.post("/train/cb", response_model=TrainResponse)
+@router.post("/train/cb", response_model=TrainResponse, dependencies=[Depends(verify_internal_secret)])
 async def trigger_cb_training(background_tasks: BackgroundTasks):
-    """Trigger CB-only training."""
+    """Trigger CB-only training. Yêu cầu X-Internal-Secret."""
     background_tasks.add_task(_run_cb_bg)
     return TrainResponse(status="cb_training_started")
 

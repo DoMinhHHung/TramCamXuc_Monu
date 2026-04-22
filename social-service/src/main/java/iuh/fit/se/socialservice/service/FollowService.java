@@ -5,6 +5,7 @@ import iuh.fit.se.socialservice.dto.response.FollowResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface FollowService {
@@ -16,4 +17,5 @@ public interface FollowService {
     Page<FollowResponse> getFollowedArtists(UUID followerId, Pageable pageable);
     Page<FollowResponse> getArtistFollowers(UUID artistId, Pageable pageable);
     ArtistStatsResponse getArtistStats(UUID artistId);
+    List<ArtistStatsResponse> getArtistStatsBatch(List<UUID> artistIds);
 }

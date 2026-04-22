@@ -1,5 +1,6 @@
 import React, { useMemo, useRef } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Song } from '../services/music';
@@ -52,7 +53,7 @@ export const SongCard = ({
         >
           <View style={[styles.listIconWrap, isActive && styles.listIconWrapActive]}>
             {song.thumbnailUrl
-              ? <Image source={{ uri: song.thumbnailUrl }} style={styles.songThumbnail} />
+              ? <Image source={{ uri: song.thumbnailUrl }} style={styles.songThumbnail} contentFit="cover" cachePolicy="memory-disk" />
               : (
                 <View style={styles.thumbPlaceholder}>
                   <AppIcon name="musicNote" size={24} color={colors.textSecondary} />

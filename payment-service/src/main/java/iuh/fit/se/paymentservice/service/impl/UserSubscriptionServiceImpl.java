@@ -154,14 +154,13 @@ public class UserSubscriptionServiceImpl implements UserSubscriptionService {
 
         log.info("Processing {} expired subscriptions", expired.size());
 
-        for (UserSubscription sub : expired) {
-            sub.setStatus(SubscriptionStatus.EXPIRED);
-            subscriptionRepository.save(sub);
+        List<UUID> ids     = expired.stream().map(UserSubscription::getId).toList();
+        List<UUID> userIds = expired.stream().map(UserSubscription::getUserId).toList();
 
-            subscriptionAuthorizationCacheService.evict(sub.getUserId());
+        subscriptionRepository.bulkExpire(ids);
+        subscriptionAuthorizationCacheService.evictAll(userIds);
 
-            log.info("Expired subscription id={} for userId={}", sub.getId(), sub.getUserId());
-        }
+        log.info("Bulk expired {} subscriptions for userIds={}", ids.size(), userIds);
     }
 
     // ──────────────────────────────────────────────────────────

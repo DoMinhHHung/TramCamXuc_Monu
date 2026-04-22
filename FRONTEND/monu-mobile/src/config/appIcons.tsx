@@ -33,6 +33,7 @@ export const ICON_MAP = {
   create: { lib: 'MaterialCommunityIcons', name: 'plus-circle-outline' },
   premium: { lib: 'MaterialCommunityIcons', name: 'crown-outline' },
   back: { lib: 'MaterialCommunityIcons', name: 'arrow-left' },
+  chevronLeft: { lib: 'MaterialIcons', name: 'keyboard-arrow-left' },
   search: { lib: 'MaterialCommunityIcons', name: 'magnify' },
 
   // Actions

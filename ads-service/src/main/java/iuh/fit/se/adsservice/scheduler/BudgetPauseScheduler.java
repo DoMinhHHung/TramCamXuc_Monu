@@ -1,6 +1,5 @@
 package iuh.fit.se.adsservice.scheduler;
 
-import iuh.fit.se.adsservice.entity.Ad;
 import iuh.fit.se.adsservice.enums.AdStatus;
 import iuh.fit.se.adsservice.repository.AdRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -62,14 +61,11 @@ public class BudgetPauseScheduler {
     }
 
     private void pauseBudgetExceededAdsInTransaction() {
-        List<Ad> exceeded = adRepository.findBudgetExceededAds(AdStatus.ACTIVE);
-        if (exceeded.isEmpty()) return;
+        List<UUID> ids = adRepository.findBudgetExceededAds(AdStatus.ACTIVE)
+                .stream().map(ad -> ad.getId()).toList();
+        if (ids.isEmpty()) return;
 
-        log.info("BudgetPauseScheduler: pausing {} over-budget ads", exceeded.size());
-        for (Ad ad : exceeded) {
-            ad.setStatus(AdStatus.PAUSED);
-            adRepository.save(ad);
-            log.info("Paused ad id={} advertiser={} — budget exhausted", ad.getId(), ad.getAdvertiserName());
-        }
+        adRepository.bulkPause(ids);
+        log.info("BudgetPauseScheduler: bulk paused {} over-budget ads", ids.size());
     }
 }

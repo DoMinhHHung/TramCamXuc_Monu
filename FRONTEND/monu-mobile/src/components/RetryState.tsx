@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { COLORS } from '../config/colors';
+import { useThemeColors } from '../config/colors';
+import { SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../config/design';
 
 interface RetryStateProps {
   title: string;
@@ -21,6 +22,9 @@ export const RetryState = ({
   onFallback,
   fallbackLabel = 'Quay lại',
 }: RetryStateProps) => {
+  const colors = useThemeColors();
+  const styles = useMemo(() => getStyles(colors), [colors]);
+
   return (
     <View style={styles.container}>
       <Text style={styles.icon}>{icon}</Text>
@@ -30,12 +34,9 @@ export const RetryState = ({
       <View style={styles.buttonContainer}>
         {onRetry && (
           <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              styles.primaryButton,
-              pressed && styles.buttonPressed,
-            ]}
+            style={({ pressed }) => [styles.button, styles.primaryButton, pressed && styles.buttonPressed]}
             onPress={onRetry}
+            accessibilityRole="button"
           >
             <Text style={styles.primaryButtonText}>{retryLabel}</Text>
           </Pressable>
@@ -43,12 +44,9 @@ export const RetryState = ({
 
         {onFallback && (
           <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              styles.secondaryButton,
-              pressed && styles.buttonPressed,
-            ]}
+            style={({ pressed }) => [styles.button, styles.secondaryButton, pressed && styles.buttonPressed]}
             onPress={onFallback}
+            accessibilityRole="button"
           >
             <Text style={styles.secondaryButtonText}>{fallbackLabel}</Text>
           </Pressable>
@@ -58,61 +56,61 @@ export const RetryState = ({
   );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: SPACING.xl,
   },
   icon: {
     fontSize: 56,
-    marginBottom: 16,
+    marginBottom: SPACING.lg,
   },
   title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 8,
+    fontSize: FONT_SIZE.md,
+    fontWeight: FONT_WEIGHT.bold,
+    color: colors.text,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   description: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
+    fontSize: FONT_SIZE.body_sm,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
+    marginBottom: SPACING.xxl,
+    lineHeight: 22,
   },
   buttonContainer: {
-    gap: 12,
+    gap: SPACING.md,
     width: '100%',
   },
   button: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   primaryButton: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: colors.accent,
   },
   secondaryButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: colors.surfaceMid,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: colors.border,
   },
   buttonPressed: {
-    opacity: 0.8,
+    opacity: 0.75,
   },
   primaryButtonText: {
-    color: '#000',
-    fontSize: 14,
-    fontWeight: '700',
+    color: colors.white,
+    fontSize: FONT_SIZE.body_sm,
+    fontWeight: FONT_WEIGHT.bold,
   },
   secondaryButtonText: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '700',
+    color: colors.text,
+    fontSize: FONT_SIZE.body_sm,
+    fontWeight: FONT_WEIGHT.semibold,
   },
 });

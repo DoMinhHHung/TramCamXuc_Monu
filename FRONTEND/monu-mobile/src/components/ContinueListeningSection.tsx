@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { usePlayerControls, usePlayerState } from '../context/PlayerContext';
@@ -69,7 +70,7 @@ export const ContinueListeningSection = () => {
             }}
           >
             {item.thumbnailUrl ? (
-              <Image source={{ uri: item.thumbnailUrl }} style={{ width: 44, height: 44, borderRadius: 8 }} />
+              <Image source={{ uri: item.thumbnailUrl }} style={{ width: 44, height: 44, borderRadius: 8 }} contentFit="cover" cachePolicy="memory-disk" />
             ) : (
               <View
                 style={{

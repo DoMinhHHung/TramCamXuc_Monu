@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -17,6 +18,8 @@ public interface HeartRepository extends MongoRepository<Heart, String> {
     boolean existsByUserIdAndSongId(UUID userId, UUID songId);
 
     long countBySongId(UUID songId);
+
+    List<Heart> findByUserId(UUID userId);
 
     Page<Heart> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 

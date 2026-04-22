@@ -5,12 +5,11 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Pressable,
   StyleSheet,
   Text,
-  View,
   PressableProps,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +25,24 @@ interface LuxuryButtonProps extends Omit<PressableProps, 'style'> {
   disabled?: boolean;
 }
 
+const SIZE_CONFIG = {
+  small: {
+    paddingHorizontal: themeUtils.spacing.md,
+    paddingVertical: themeUtils.spacing.sm,
+    fontSize: themeUtils.fontSize.sm,
+  },
+  medium: {
+    paddingHorizontal: themeUtils.spacing.lg,
+    paddingVertical: themeUtils.spacing.md,
+    fontSize: themeUtils.fontSize.md,
+  },
+  large: {
+    paddingHorizontal: themeUtils.spacing.xl,
+    paddingVertical: themeUtils.spacing.lg,
+    fontSize: themeUtils.fontSize.lg,
+  },
+} as const;
+
 export const LuxuryButton: React.FC<LuxuryButtonProps> = ({
   label,
   variant = 'primary',
@@ -38,27 +55,7 @@ export const LuxuryButton: React.FC<LuxuryButtonProps> = ({
   const { colors } = useTheme();
   const [isPressed, setIsPressed] = useState(false);
 
-  const sizeConfig = {
-    small: {
-      paddingHorizontal: themeUtils.spacing.md,
-      paddingVertical: themeUtils.spacing.sm,
-      fontSize: themeUtils.fontSize.sm,
-    },
-    medium: {
-      paddingHorizontal: themeUtils.spacing.lg,
-      paddingVertical: themeUtils.spacing.md,
-      fontSize: themeUtils.fontSize.md,
-    },
-    large: {
-      paddingHorizontal: themeUtils.spacing.xl,
-      paddingVertical: themeUtils.spacing.lg,
-      fontSize: themeUtils.fontSize.lg,
-    },
-  };
-
-  const current = sizeConfig[size];
-
-  const variantConfig = {
+  const variantConfig = useMemo(() => ({
     primary: {
       backgroundGradient: [colors.accent, colors.accentBorder35] as const,
       textColor: colors.text,
@@ -75,7 +72,7 @@ export const LuxuryButton: React.FC<LuxuryButtonProps> = ({
       backgroundGradient: [colors.surface, colors.surfaceLow] as const,
       textColor: colors.textSecondary,
       borderColor: colors.border,
-      shadow: { shadowOpacity: 0 },
+      shadow: { shadowOpacity: 0 } as const,
     },
     danger: {
       backgroundGradient: ['#FF6B6B', '#CC4444'] as const,
@@ -83,60 +80,69 @@ export const LuxuryButton: React.FC<LuxuryButtonProps> = ({
       borderColor: '#FF6B6B',
       shadow: themeUtils.shadowPresets.md,
     },
-  };
+  }), [colors]);
 
   const currentVariant = variantConfig[variant];
+  const currentSize = SIZE_CONFIG[size];
 
-  const styles = StyleSheet.create({
-    container: {
-      width: fullWidth ? '100%' : 'auto',
-      borderRadius: themeUtils.borderRadius.lg,
-      overflow: 'hidden',
-      ...currentVariant.shadow,
-    },
-    gradient: {
-      paddingHorizontal: current.paddingHorizontal,
-      paddingVertical: current.paddingVertical,
-      justifyContent: 'center',
-      alignItems: 'center',
-      flexDirection: 'row',
-      gap: themeUtils.spacing.sm,
-    },
-    text: {
-      fontSize: current.fontSize,
-      fontWeight: '600',
-      color: currentVariant.textColor,
-    },
-    border: {
+  const containerStyle = useMemo(() => [
+    staticStyles.container,
+    { borderRadius: themeUtils.borderRadius.lg, ...currentVariant.shadow },
+    fullWidth && staticStyles.fullWidth,
+    { opacity: isPressed && !disabled ? 0.8 : disabled ? 0.5 : 1 },
+  ], [currentVariant.shadow, fullWidth, isPressed, disabled]);
+
+  const gradientStyle = useMemo(() => [
+    staticStyles.gradient,
+    {
+      paddingHorizontal: currentSize.paddingHorizontal,
+      paddingVertical: currentSize.paddingVertical,
       borderWidth: 1.5,
       borderColor: currentVariant.borderColor,
+      borderRadius: themeUtils.borderRadius.lg,
     },
-  });
-
-  const opacity = isPressed && !disabled ? 0.8 : disabled ? 0.5 : 1;
+  ], [currentSize, currentVariant.borderColor]);
 
   return (
     <Pressable
-      style={[styles.container, { opacity }, fullWidth && { width: '100%' }]}
+      style={containerStyle}
       onPressIn={() => setIsPressed(true)}
       onPressOut={() => setIsPressed(false)}
       disabled={disabled || isLoading}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: disabled || isLoading }}
       {...pressableProps}
     >
       <LinearGradient
         colors={currentVariant.backgroundGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[styles.gradient, styles.border]}
+        style={gradientStyle}
       >
-        {isLoading ? (
-          <Text style={styles.text}>...</Text>
-        ) : (
-          <Text style={styles.text}>{label}</Text>
-        )}
+        <Text style={[staticStyles.text, { fontSize: currentSize.fontSize, color: currentVariant.textColor }]}>
+          {isLoading ? '...' : label}
+        </Text>
       </LinearGradient>
     </Pressable>
   );
 };
+
+const staticStyles = StyleSheet.create({
+  container: {
+    overflow: 'hidden',
+  },
+  fullWidth: {
+    width: '100%',
+  },
+  gradient: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: themeUtils.spacing.sm,
+  },
+  text: {
+    fontWeight: '600',
+  },
+});
 
 export default LuxuryButton;

@@ -785,6 +785,7 @@
     "expiredMessage": "Đơn thanh toán đã tự hủy do quá 10 phút chưa thanh toán.",
     "autoCancelError": "Không thể tự hủy đơn thanh toán hết hạn.",
     "heroTitle": "Monu Plus",
+    "heroSubtitle": "Nâng tầm cảm xúc mỗi khoảnh khắc",
     "startingFrom": "CHỈ TỪ",
     "activeLine": "Đang kích hoạt · còn {days} ngày",
     "currencyDong": "đ",

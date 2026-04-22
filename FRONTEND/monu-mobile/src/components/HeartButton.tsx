@@ -71,9 +71,9 @@ export const HeartButton = ({ songId, size = 24, onToggle, variant = 'plain' }: 
 
 const styles = StyleSheet.create({
   base: {
-    width: 20,
-    height: 20,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },

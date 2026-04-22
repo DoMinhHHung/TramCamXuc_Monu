@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle,
 } from 'react-native';
 
 import { useAuth } from '../context/AuthContext';
 import { checkFollowing, followArtist, unfollowArtist } from '../services/social';
-import { COLORS } from '../config/colors';
+import { useThemeColors } from '../config/colors';
+import { SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../config/design';
 
 interface FollowButtonProps {
     artistId: string;
@@ -16,6 +17,8 @@ interface FollowButtonProps {
 
 export const FollowButton = ({ artistId, compact = false, style, onToggle }: FollowButtonProps) => {
     const { authSession } = useAuth();
+    const colors = useThemeColors();
+    const styles = useMemo(() => getStyles(colors), [colors]);
     const [following, setFollowing] = useState(false);
     const [loading,   setLoading]   = useState(false);
 
@@ -49,12 +52,17 @@ export const FollowButton = ({ artistId, compact = false, style, onToggle }: Fol
     };
 
     if (loading) {
-        return <ActivityIndicator size="small" color={COLORS.accent} />;
+        return <ActivityIndicator size="small" color={colors.accent} />;
     }
 
     if (compact) {
         return (
-            <Pressable onPress={handlePress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Pressable
+                onPress={handlePress}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={following ? 'Đang theo dõi' : 'Theo dõi'}
+            >
                 <Text style={[styles.compactText, following && styles.compactFollowing]}>
                     {following ? 'Đang theo dõi' : 'Theo dõi'}
                 </Text>
@@ -65,11 +73,14 @@ export const FollowButton = ({ artistId, compact = false, style, onToggle }: Fol
     return (
         <Pressable
             onPress={handlePress}
-            style={[
+            style={({ pressed }) => [
                 styles.button,
                 following ? styles.buttonFollowing : styles.buttonFollow,
+                pressed && styles.buttonPressed,
                 style,
             ]}
+            accessibilityRole="button"
+            accessibilityLabel={following ? 'Đang theo dõi' : 'Theo dõi nghệ sĩ'}
         >
             <Text style={[styles.text, following && styles.textFollowing]}>
                 {following ? 'Đang theo dõi' : '+ Theo dõi'}
@@ -78,23 +89,27 @@ export const FollowButton = ({ artistId, compact = false, style, onToggle }: Fol
     );
 };
 
-const styles = StyleSheet.create({
+const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
     button: {
-        paddingHorizontal: 20,
-        paddingVertical: 8,
-        borderRadius: 20,
+        paddingHorizontal: SPACING.xl,
+        paddingVertical: SPACING.sm + 2,
+        borderRadius: RADIUS.full,
         alignItems: 'center',
+        minWidth: 100,
     },
     buttonFollow: {
-        backgroundColor: COLORS.accentDim,
+        backgroundColor: colors.accent,
     },
     buttonFollowing: {
         backgroundColor: 'transparent',
-        borderWidth: 1,
-        borderColor: COLORS.accentDim,
+        borderWidth: 1.5,
+        borderColor: colors.accentBorder35,
     },
-    text:          { color: '#fff', fontSize: 14, fontWeight: '700' },
-    textFollowing: { color: COLORS.accent },
-    compactText:      { fontSize: 13, color: COLORS.accent, fontWeight: '600' },
-    compactFollowing: { color: COLORS.glass50 },
+    buttonPressed: {
+        opacity: 0.75,
+    },
+    text: { color: colors.white, fontSize: FONT_SIZE.body_sm, fontWeight: FONT_WEIGHT.bold },
+    textFollowing: { color: colors.accent },
+    compactText: { fontSize: FONT_SIZE.sm, color: colors.accent, fontWeight: FONT_WEIGHT.semibold },
+    compactFollowing: { color: colors.muted },
 });

@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -63,6 +65,23 @@ public class HeartController {
             @PageableDefault(size = 20) Pageable pageable) {
         UUID userId = extractUserId(auth);
         return ResponseEntity.ok(ApiResponse.success(heartService.getUserHearts(userId, pageable)));
+    }
+
+    /** GET /social/hearts/my-ids — song IDs hearted by current user */
+    @GetMapping("/my-ids")
+    public ResponseEntity<ApiResponse<List<UUID>>> myHeartedIds(Authentication auth) {
+        UUID userId = extractUserId(auth);
+        return ResponseEntity.ok(ApiResponse.success(heartService.getUserHeartedSongIds(userId)));
+    }
+
+    /** POST /social/hearts/check-batch — batch check hearted status */
+    @PostMapping("/check-batch")
+    public ResponseEntity<ApiResponse<Map<UUID, Boolean>>> checkBatch(
+            @RequestBody Map<String, List<UUID>> body,
+            Authentication auth) {
+        UUID userId = extractUserId(auth);
+        List<UUID> songIds = body.getOrDefault("songIds", List.of());
+        return ResponseEntity.ok(ApiResponse.success(heartService.checkHeartedBatch(userId, songIds)));
     }
 
     private UUID extractUserId(Authentication auth) {
