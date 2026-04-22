@@ -15,10 +15,10 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf
-                // CSRF off cho Eureka peer-sync và actuator (machine-to-machine)
                 .ignoringRequestMatchers("/eureka/**", "/actuator/**")
             )
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/eureka/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .anyRequest().authenticated()
             )
