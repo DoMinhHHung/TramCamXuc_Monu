@@ -87,7 +87,7 @@ services:
       EUREKA_USERNAME: ${EUREKA_USERNAME}
       EUREKA_PASSWORD: ${EUREKA_PASSWORD}
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "--user=${EUREKA_USERNAME}", "--password=${EUREKA_PASSWORD}", "http://localhost:8761/actuator/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8761/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 6
