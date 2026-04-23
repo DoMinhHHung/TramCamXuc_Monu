@@ -39,6 +39,7 @@ import type { Song } from '../../services/music';
 import { usePlayerControls, usePlayerState, usePlayerStatus } from '../../context/PlayerContext';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 import { MonuBrandHeaderTitle } from '../../components/MonuBrandHeaderTitle';
+import { uiPresets } from '../../config/uiPresets';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -1424,10 +1425,8 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 8,
-    borderRadius: 14,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.glass08,
+    borderRadius: 999,
+    ...uiPresets.glassSurface(colors, { intensity: 'default', radius: 999 }),
     alignItems: 'center',
     justifyContent: 'center',
   },

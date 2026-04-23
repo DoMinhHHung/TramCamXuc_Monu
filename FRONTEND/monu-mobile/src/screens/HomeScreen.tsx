@@ -47,7 +47,7 @@ import {
   getMyPlaylists,
   Song,
 } from '../services/music';
-import { FeedbackType, RecommendedSong } from '../services/recommendation';
+import { type FeedbackType, RecommendedSong } from '../services/recommendation';
 import { getSongShareQr } from '../services/social';
 import { buildGenreSectionsFromPool, useHomeDataPriority } from '../hooks/useHomeDataPriority';
 import { useRecommendations } from '../hooks/useRecommendations';
@@ -60,6 +60,7 @@ import { ContinueListeningSection } from '../components/ContinueListeningSection
 import { ReportReasonSheet } from '../components/ReportReasonSheet';
 import { openInSpotify, soundCloudTrackToSong } from '../services/externalMusic';
 import { moderateScale } from '../utils/responsive';
+import { uiPresets } from '../config/uiPresets';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 const TOP_ARTIST_CARD_STEP = 292;
@@ -1007,13 +1008,12 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     flexBasis: '47%',
     flexGrow: 1,
     minWidth: '45%',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 8,
+    ...uiPresets.glassSurface(colors, { intensity: 'default', radius: 16 }),
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
   },
-  quickPickImg: { width: 56, height: 56, backgroundColor: 'rgba(255,255,255,0.1)' },
+  quickPickImg: { width: 56, height: 56, backgroundColor: colors.glass08 },
   quickPickTitle: { color: colors.white, flex: 1, fontSize: 13, fontWeight: '700', marginLeft: 10, paddingRight: 8, fontFamily: 'Plus Jakarta Sans' },
   artistList: { paddingLeft: 20, paddingRight: 10, gap: 16 },
   artistCircleCard: { alignItems: 'center', width: 96 },

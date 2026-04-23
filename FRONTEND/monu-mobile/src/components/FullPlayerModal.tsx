@@ -23,6 +23,7 @@ import { HeartButton } from './HeartButton';
 import { ReportReasonSheet } from './ReportReasonSheet';
 import { moderateScale } from '../utils/responsive';
 import { SPACING, RADIUS, FONT_SIZE, FONT_WEIGHT } from '../config/design';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const THUMB_RADIUS = 8;
 const THUMB_VISUAL = THUMB_RADIUS + 1;
@@ -428,7 +429,7 @@ export const FullPlayerModal = () => {
 
     if (!currentSong) return null;
 
-    const showLyricsTab = hasLyrics || lyricData;
+    const showLyricsTab = true; // luôn hiện tab lyrics, kể cả khi không có lyric
     const isExternalTrack =
         isSoundCloudTrack
         || currentSong.sourceType === 'JAMENDO'
@@ -536,17 +537,33 @@ export const FullPlayerModal = () => {
                             }}
                             showsVerticalScrollIndicator={false}
                             nestedScrollEnabled
+                            scrollEnabled={!isSeeking}
                             keyboardShouldPersistTaps="handled"
                         >
                             {/* Artwork */}
                             <View style={[styles.artworkSection, isCompact && { marginBottom: 14 }]}>
+                                {/* Ambient glow blur */}
                                 {currentSong.thumbnailUrl && (
-                                    <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', zIndex: -1  }]}>
-                                        <Image source={{ uri: currentSong.thumbnailUrl }} style={{ width: artworkSize, height: artworkSize, opacity: 0.6 }} contentFit="cover" cachePolicy="memory-disk" blurRadius={80} />
+                                    <View style={StyleSheet.absoluteFill}>
+                                        <Image
+                                            source={{ uri: currentSong.thumbnailUrl }}
+                                            style={{ width: '100%', height: '100%', opacity: 0.25 }}
+                                            contentFit="cover"
+                                            cachePolicy="memory-disk"
+                                            blurRadius={60}
+                                        />
                                     </View>
                                 )}
                                 {currentSong.thumbnailUrl
-                                    ? <Image source={{ uri: currentSong.thumbnailUrl }} style={[styles.artwork, { width: artworkSize, height: artworkSize }]} contentFit="cover" cachePolicy="memory-disk" />
+                                    ? <Image
+                                        source={{ uri: currentSong.thumbnailUrl }}
+                                        style={[
+                                            styles.artwork,
+                                            { width: artworkSize, height: artworkSize },
+                                        ]}
+                                        contentFit="cover"
+                                        cachePolicy="memory-disk"
+                                    />
                                     : <View style={[styles.artwork, styles.artworkPlaceholder, { width: artworkSize, height: artworkSize }]}>
                                         <AppIcon name="musicNote" size={64} color={themeColors.muted} />
                                     </View>
@@ -596,7 +613,9 @@ export const FullPlayerModal = () => {
                                             requestAnimationFrame(() => syncSeekGeomFromLayout());
                                         }}
                                         onStartShouldSetResponder={() => true}
+                                        onStartShouldSetResponderCapture={() => true}
                                         onMoveShouldSetResponder={() => true}
+                                        onMoveShouldSetResponderCapture={() => true}
                                         onResponderGrant={(e) => {
                                             setIsSeeking(true);
                                             const pageX = e.nativeEvent.pageX;
@@ -624,12 +643,20 @@ export const FullPlayerModal = () => {
                                             setLocalSeekRatio(null);
                                         }}
                                     >
+                                        {/* Gradient fill */}
                                         <Animated.View
                                             style={[
                                                 styles.seekFill,
                                                 { width: Animated.multiply(visProgress, seekWidthAnim) },
                                             ]}
-                                        />
+                                        >
+                                            <LinearGradient
+                                                colors={[themeColors.accent, themeColors.accentAlt]}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 0 }}
+                                                style={StyleSheet.absoluteFill}
+                                            />
+                                        </Animated.View>
                                         <Animated.View
                                             style={[
                                                 styles.seekThumb,
@@ -707,22 +734,28 @@ export const FullPlayerModal = () => {
 
                             {/* Mode label */}
                             <View style={[styles.modeLabels, isCompact && { marginBottom: 10 }]}>
+                                {!isShuffled && repeatMode === 'none' && (
+                                    <View style={styles.modeLabelRow}>
+                                        <AppIcon name="repeat" color={themeColors.muted} size={13} />
+                                        <Text style={[styles.modeLabelText, { color: themeColors.muted }]}> Phát tuần tự</Text>
+                                    </View>
+                                )}
                                 {isShuffled && (
                                     <View style={styles.modeLabelRow}>
                                         <AppIcon name="shuffle" color="#34D399" size={13} />
-                                        <Text style={styles.modeLabelText}> Phát ngẫu nhiên</Text>
+                                        <Text style={[styles.modeLabelText, { color: '#34D399' }]}> Phát ngẫu nhiên</Text>
                                     </View>
                                 )}
                                 {repeatMode === 'one' && (
                                     <View style={styles.modeLabelRow}>
-                                        <AppIcon name="repeatOne" color={themeColors.text} size={13} />
-                                        <Text style={styles.modeLabelText}> Lặp bài này</Text>
+                                        <AppIcon name="repeatOne" color={themeColors.accent} size={13} />
+                                        <Text style={[styles.modeLabelText, { color: themeColors.accent }]}> Lặp bài này</Text>
                                     </View>
                                 )}
                                 {repeatMode === 'all' && (
                                     <View style={styles.modeLabelRow}>
-                                        <AppIcon name="repeat" color={themeColors.text} size={13} />
-                                        <Text style={styles.modeLabelText}> Lặp danh sách</Text>
+                                        <AppIcon name="repeat" color={themeColors.accent} size={13} />
+                                        <Text style={[styles.modeLabelText, { color: themeColors.accent }]}> Lặp danh sách</Text>
                                     </View>
                                 )}
                             </View>
@@ -795,16 +828,6 @@ export const FullPlayerModal = () => {
                                 </View>
                             )}
 
-                            {/* Lyric hint */}
-                            {showLyricsTab && activePage === 0 && (
-                                <Pressable style={styles.lyricHint} onPress={() => goToPage(1)}>
-                                    <View style={styles.lyricHintRow}>
-                                        <AppIcon name="emojiNotePad" size={13} color={themeColors.muted} />
-                                        <Text style={styles.lyricHintText}> Vuốt sang phải để xem lời nhạc</Text>
-                                    </View>
-                                </Pressable>
-                            )}
-
                             {/* Stats */}
                             <View style={styles.stats}>
                                 <AppIcon name="headset" size={14} color={themeColors.muted} />
@@ -831,44 +854,44 @@ export const FullPlayerModal = () => {
                         </ScrollView>
 
                         {/* ── Page 2: Lyrics ─────────────────────────── */}
-                        {showLyricsTab && (
-                            <View style={{ width: pageWidth }}>
-                                {/* Mini player bar on lyrics page */}
-                                <View style={styles.lyricMiniBar}>
-                                    {currentSong.thumbnailUrl
-                                        ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.lyricMiniArt} contentFit="cover" cachePolicy="memory-disk" />
-                                        : <View style={[styles.lyricMiniArt, { backgroundColor: themeColors.accentFill20 }]}>
-                                            <AppIcon name="emojiMusic" size={14} color={themeColors.text} />
-                                        </View>
-                                    }
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.lyricMiniTitle} numberOfLines={1}>{currentSong.title}</Text>
-                                        <Text style={styles.lyricMiniArtist} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
+                        <View style={{ width: pageWidth, flex: 1 }}>
+                            {/* Mini player bar on lyrics page */}
+                            <View style={styles.lyricMiniBar}>
+                                {currentSong.thumbnailUrl
+                                    ? <Image source={{ uri: currentSong.thumbnailUrl }} style={styles.lyricMiniArt} contentFit="cover" cachePolicy="memory-disk" />
+                                    : <View style={[styles.lyricMiniArt, { backgroundColor: themeColors.accentFill20, alignItems: 'center', justifyContent: 'center' }]}>
+                                        <AppIcon name="emojiMusic" size={14} color={themeColors.text} />
                                     </View>
-                                    <Pressable onPress={togglePlay} hitSlop={8} accessibilityRole="button" accessibilityLabel={isPlaying ? 'Tạm dừng' : 'Phát'}>
-                                        {isPlaying
-                                            ? <AppIcon name="pause" size={24} color={themeColors.text} />
-                                            : <AppIcon name="play" size={24} color={themeColors.text} />
-                                        }
-                                    </Pressable>
+                                }
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.lyricMiniTitle} numberOfLines={1}>{currentSong.title}</Text>
+                                    <Text style={styles.lyricMiniArtist} numberOfLines={1}>{currentSong.primaryArtist?.stageName}</Text>
                                 </View>
+                                <Pressable onPress={togglePlay} hitSlop={8} accessibilityRole="button" accessibilityLabel={isPlaying ? 'Tạm dừng' : 'Phát'}>
+                                    {isPlaying
+                                        ? <AppIcon name="pause" size={24} color={themeColors.text} />
+                                        : <AppIcon name="play" size={24} color={themeColors.text} />
+                                    }
+                                </Pressable>
+                            </View>
 
-                                {/* Progress bar */}
-                                <View style={styles.lyricProgress}>
-                                    <Animated.View
-                                        style={[
-                                            styles.lyricProgressFill,
-                                            {
-                                                width: visProgress.interpolate({
-                                                    inputRange: [0, 1],
-                                                    outputRange: ['0%', '100%'],
-                                                }),
-                                            },
-                                        ]}
-                                    />
-                                </View>
+                            {/* Progress bar */}
+                            <View style={styles.lyricProgress}>
+                                <Animated.View
+                                    style={[
+                                        styles.lyricProgressFill,
+                                        {
+                                            width: visProgress.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: ['0%', '100%'],
+                                            }),
+                                        },
+                                    ]}
+                                />
+                            </View>
 
-                                {/* Lyrics content */}
+                            {/* Lyrics content — always rendered, shows empty state if no lyric */}
+                            {hasLyrics || lyricData ? (
                                 <LyricViewer
                                     lyricData={lyricData}
                                     loading={lyricLoading}
@@ -876,10 +899,22 @@ export const FullPlayerModal = () => {
                                     currentTimeMs={currentTimeMs}
                                     onSeek={seekTo}
                                 />
+                            ) : (
+                                <View style={styles.lyricEmptyWrap}>
+                                    <Text style={styles.lyricEmptyIcon}>🎵</Text>
+                                    <Text style={styles.lyricEmptyTitle}>Chưa có lời bài hát</Text>
+                                    <Text style={styles.lyricEmptyTitleEn}>No lyrics available</Text>
+                                    <Text style={styles.lyricEmptySub}>
+                                        Lời bài hát chưa được cập nhật cho bài này.
+                                    </Text>
+                                    <Text style={styles.lyricEmptySubEn}>
+                                        Lyrics for this track haven't been added yet.
+                                    </Text>
+                                </View>
+                            )}
 
-                                <View style={{ height: insets.bottom + 24 }} />
-                            </View>
-                        )}
+                            <View style={{ height: insets.bottom + 24 }} />
+                        </View>
                     </ScrollView>
 
                     {/* Action sheet */}
@@ -1023,9 +1058,19 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     pageIndicatorActive: { color: c.text },
     pageDot:            { width: 4, height: 4, borderRadius: 2, backgroundColor: c.glass20 },
 
-    artworkSection:     { alignItems: 'center', marginTop: SPACING.sm, marginBottom: SPACING.xxl },
+    artworkSection:     { alignItems: 'center', marginTop: SPACING.sm, marginBottom: SPACING.xl, overflow: 'hidden', borderRadius: RADIUS.lg },
     // artwork width/height được set dynamically via artworkSize
-    artwork:            { borderRadius: RADIUS.lg, backgroundColor: c.surface },
+    artwork:            {
+        borderRadius: RADIUS.lg,
+        backgroundColor: c.surface,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.8,
+        shadowRadius: 50,
+        elevation: 20,
+        borderWidth: 1,
+        borderColor: c.glass10,
+    },
     artworkPlaceholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface },
     songInfo:           { marginBottom: SPACING.xl },
     songTitle:          { color: c.text, fontSize: moderateScale(22), fontWeight: FONT_WEIGHT.extrabold, marginBottom: SPACING.xs },
@@ -1062,7 +1107,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     genreText:          { color: c.textSecondary, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.bold },
 
     progressSection:    { marginBottom: SPACING.lg },
-    seekTouchArea:      { height: 48, justifyContent: 'center' },
+    seekTouchArea:      { height: 56, justifyContent: 'center' },
     seekTrack:          { height: 5, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 3 },
     seekTrackActive:    { height: 5 },
     seekFill:           { height: 5, backgroundColor: c.accent, borderRadius: 3, shadowColor: c.accent, shadowOpacity: 0.5, shadowRadius: 8 },
@@ -1114,6 +1159,19 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     lyricMiniArtist:    { color: c.textSecondary, fontSize: FONT_SIZE.xxs, fontWeight: FONT_WEIGHT.semibold },
     lyricProgress:      { height: 2, backgroundColor: c.glass08, marginHorizontal: SPACING.xl },
     lyricProgressFill:  { height: 2, backgroundColor: c.accent, borderRadius: 1 },
+
+    lyricEmptyWrap: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: SPACING.section,
+        gap: SPACING.xs,
+    },
+    lyricEmptyIcon:     { fontSize: 48, marginBottom: SPACING.sm },
+    lyricEmptyTitle:    { color: c.text, fontSize: FONT_SIZE.body_md, fontWeight: FONT_WEIGHT.bold, textAlign: 'center' },
+    lyricEmptyTitleEn:  { color: c.textSecondary, fontSize: FONT_SIZE.body_sm, fontWeight: FONT_WEIGHT.semibold, textAlign: 'center', marginBottom: SPACING.sm },
+    lyricEmptySub:      { color: c.muted, fontSize: FONT_SIZE.sm, textAlign: 'center', lineHeight: 20 },
+    lyricEmptySubEn:    { color: c.muted, fontSize: FONT_SIZE.xs, textAlign: 'center', lineHeight: 18, opacity: 0.7 },
 
     menuBackdrop:       { flex: 1, justifyContent: 'flex-end', backgroundColor: c.scrim },
     menuSheet:          { backgroundColor: c.surfaceLow ?? c.surface, borderTopLeftRadius: RADIUS.xl, borderTopRightRadius: RADIUS.xl, padding: SPACING.xl, gap: SPACING.sm, borderWidth: 1, borderColor: c.glass10 },

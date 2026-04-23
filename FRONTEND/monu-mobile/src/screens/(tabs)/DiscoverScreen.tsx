@@ -71,6 +71,7 @@ import { apiClient } from '../../services/api';
 import { usePlayerControls, usePlayerState } from '../../context/PlayerContext';
 import { notifyFeedUpdated, subscribeFeedUpdates } from '../../services/feedEvents';
 import { loadCache, saveCache } from '../../utils/swrCache';
+import { uiPresets } from '../../config/uiPresets';
 import { Entypo } from '@expo/vector-icons';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -552,11 +553,6 @@ const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> = ({
     content.type === 'ALBUM' ? 'Album' :
       content.type === 'PLAYLIST' ? 'Playlist' : 'Bài hát';
 
-  const saveBtnLabel =
-    content.type === 'ALBUM' ? '💿 Lưu vào playlist / album' :
-      content.type === 'PLAYLIST' ? '📋 Lưu vào playlist / album' :
-        '➕ Lưu vào playlist / album';
-
   return (
     <>
       <Modal
@@ -572,15 +568,6 @@ const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> = ({
               <Ionicons name="arrow-back" size={22} color={COLORS.white} />
               <Text style={detailStyles.backText}>Quay lại</Text>
             </Pressable>
-
-            {content.songs.length > 0 && (
-              <Pressable
-                style={detailStyles.saveBtn}
-                onPress={() => setSaveOpen(true)}
-              >
-                <Text style={detailStyles.saveBtnText}>{saveBtnLabel}</Text>
-              </Pressable>
-            )}
           </View>
 
           <ScrollView
@@ -589,7 +576,7 @@ const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> = ({
           >
             {/* Cover */}
             <Image
-              source={{ uri: content.coverUrl || 'https://via.placeholder.com/220' }}
+              source={{ uri: content.coverUrl || 'https://images.pexels.com/photos/30210449/pexels-photo-30210449.jpeg' }}
               style={detailStyles.cover}
             />
 
@@ -1445,7 +1432,7 @@ const PostCard: React.FC<PostCardProps> = ({
           >
             <View style={styles.contentHeader}>
               <Image
-                source={{ uri: contentInfo.coverUrl || post.coverImageUrl || 'https://via.placeholder.com/80' }}
+                source={{ uri: contentInfo.coverUrl || post.coverImageUrl || 'https://images.pexels.com/photos/30210449/pexels-photo-30210449.jpeg' }}
                 style={styles.contentCover}
               />
               <View style={styles.contentMeta}>
@@ -2136,9 +2123,7 @@ export const DiscoverScreen = () => {
 
   return (
     <LinearGradient
-      colors={[themeColors.surfaceMid, themeColors.bg]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
+      {...uiPresets.screenGradient(themeColors)}
       style={styles.root}
     >
       <StatusBar style="light" />
@@ -2331,15 +2316,21 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   liveBadge: { backgroundColor: C.error, borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   liveBadgeText: { color: C.white, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   headerSub: { color: C.muted, fontSize: 13, marginTop: 4, textAlign: 'center' },
-  tabBar: { flexDirection: 'row', backgroundColor: C.surface, borderRadius: 18, padding: 4, marginTop: 14, borderWidth: 1, borderColor: C.glass10, alignSelf: 'stretch' },
-  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 14 },
+  tabBar: {
+    flexDirection: 'row',
+    padding: 6,
+    marginTop: 14,
+    alignSelf: 'stretch',
+    ...uiPresets.glassPill(C, { intensity: 'default' }),
+  },
+  tab: { flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 999 },
   tabActive: { backgroundColor: C.accentFill20, borderWidth: 1, borderColor: C.accentBorder25 },
-  tabText: { color: C.muted, fontSize: 13, fontWeight: '700' },
+  tabText: { color: C.glass50, fontSize: 13, fontWeight: '800' },
   tabTextActive: { color: C.accent },
   tabHint: { color: C.muted, fontSize: 11, marginTop: 6, textAlign: 'center' },
-  composerBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10, marginTop: 2 },
-  composerInput: { flex: 1, backgroundColor: C.surface, borderRadius: 24, paddingHorizontal: 16, paddingVertical: 11, borderWidth: 1, borderColor: C.glass10 },
-  composerPlaceholder: { color: C.muted, fontSize: 14 },
+  composerBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10, marginTop: 6 },
+  composerInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 12, ...uiPresets.glassSurface(C, { intensity: 'default', radius: 24 }) },
+  composerPlaceholder: { color: C.glass60, fontSize: 14, fontWeight: '600' },
   composerIconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.glass08, borderWidth: 1, borderColor: C.glass12, alignItems: 'center', justifyContent: 'center' },
   feedDivider: { height: 8, backgroundColor: C.surfaceLow, borderTopWidth: 1, borderBottomWidth: 1, borderColor: C.divider },
   loadingWrap: { paddingVertical: 48, alignItems: 'center' },
@@ -2350,7 +2341,7 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   emptyBtn: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 24, paddingVertical: 12 },
   emptyBtnText: { color: C.white, fontWeight: '700' },
   // Post card
-  postCard: { backgroundColor: C.bg, marginBottom: 16, paddingVertical: 14, borderRadius: 24, paddingHorizontal: 4 },
+  postCard: { marginHorizontal: 16, marginBottom: 14, paddingVertical: 14, borderRadius: 28, paddingHorizontal: 4, ...uiPresets.glassSurface(C, { intensity: 'subtle', radius: 28 }) },
   postHeader: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, marginBottom: 10, gap: 10 },
   postMeta: { flex: 1 },
   postOwner: { color: C.white, fontWeight: '800', fontSize: 14, lineHeight: 18 },
@@ -2368,7 +2359,7 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
   postContent: { paddingHorizontal: 16, marginBottom: 14 },
   postTitle: { color: C.text, fontSize: 16, fontWeight: '800', lineHeight: 22, marginBottom: 6, fontFamily: 'Plus Jakarta Sans' },
   postCaption: { color: C.textSecondary, fontSize: 14, lineHeight: 20 },
-  contentCard: { marginTop: 12, borderRadius: 24, backgroundColor: C.surfaceLow || C.surface, padding: 16, gap: 12 },
+  contentCard: { marginTop: 12, borderRadius: 24, padding: 16, gap: 12, ...uiPresets.glassSurface(C, { intensity: 'default', radius: 24 }) },
   contentHeader: { flexDirection: 'row', gap: 12 },
   contentCover: { width: 88, height: 88, borderRadius: 16, backgroundColor: C.glass06 },
   contentMeta: { flex: 1, gap: 3, justifyContent: 'center' },
@@ -2396,7 +2387,9 @@ const createStyles = (C: ColorScheme) => StyleSheet.create({
     paddingVertical: 12,
     gap: 6,
     borderRadius: 999,
-    backgroundColor: C.glass06,
+    backgroundColor: C.glass07,
+    borderWidth: 1,
+    borderColor: C.glass10,
     marginHorizontal: 4,
   },
   likeWrap: {},

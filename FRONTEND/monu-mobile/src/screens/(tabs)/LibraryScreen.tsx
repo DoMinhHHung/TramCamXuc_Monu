@@ -61,6 +61,7 @@ import { MonuBrandHeaderTitle } from '../../components/MonuBrandHeaderTitle';
 import { Toast, useToast } from '../../components/Toast';
 import { getMySubscription } from '../../services/payment';
 import { fetchWithRetry, loadCache, saveCache } from '../../utils/swrCache';
+import { uiPresets } from '../../config/uiPresets';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -173,10 +174,9 @@ const getTabStyles = (c: ColorScheme) => StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 20,
     marginBottom: 20,
-    backgroundColor: c.surfaceLow,
+    ...uiPresets.glassPill(c, { intensity: 'default' }),
     borderRadius: 999,
     padding: 6,
-    borderWidth: 0,
   },
   tab: {
     flex: 1,
@@ -188,14 +188,16 @@ const getTabStyles = (c: ColorScheme) => StyleSheet.create({
     gap: 6,
   },
   tabActive: {
-    backgroundColor: c.surface,
+    backgroundColor: c.accentFill20,
+    borderWidth: 1,
+    borderColor: c.accentBorder25,
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 2,
   },
   icon: { fontSize: 13 },
-  label: { color: c.glass45, fontSize: 13, fontWeight: '600' },
+  label: { color: c.glass50, fontSize: 13, fontWeight: '800' },
   labelActive: { color: c.accent },
   badge: {
     backgroundColor: c.accentDim,
@@ -419,6 +421,58 @@ const getSongRowStyles = (c: ColorScheme) => StyleSheet.create({
 
 // ─── Album card ───────────────────────────────────────────────────────────────
 
+const PlaylistCard = ({
+  playlist,
+  onPress,
+  onEdit,
+  onShare,
+  onDelete,
+}: {
+  playlist: Playlist;
+  onPress: () => void;
+  onEdit: () => void;
+  onShare: () => void;
+  onDelete: () => void;
+}) => {
+  const themeColors = useThemeColors();
+  const cardStyles = useMemo(() => getGridCardStyles(themeColors), [themeColors]);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <View style={cardStyles.gridItem}>
+      <Pressable onPress={onPress}>
+        <View style={cardStyles.gridThumb}>
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: themeColors.surfaceLow, alignItems: 'center', justifyContent: 'center' }]}>
+            <MaterialCommunityIcons name="playlist-music" color={themeColors.glass40} size={40} />
+          </View>
+          <Pressable onPress={() => setMenuOpen(v => !v)} hitSlop={10} style={cardStyles.menuBtn}>
+            <Text style={cardStyles.menuIcon}>•••</Text>
+          </Pressable>
+        </View>
+        <Text style={cardStyles.gridTitle} numberOfLines={1}>{playlist.name}</Text>
+        <View style={cardStyles.metaRow}>
+          <Text style={cardStyles.count}>{playlist.totalSongs ?? 0} {tr('screens.library.songsSuffix', 'songs')}</Text>
+        </View>
+      </Pressable>
+
+      {menuOpen && (
+        <View style={cardStyles.menuAbsolute}>
+          <Pressable style={cardStyles.menuItem} onPress={() => { setMenuOpen(false); onEdit(); }}>
+            <Text style={cardStyles.menuItemText}><FontAwesome name="edit" color={themeColors.glass60} size={14} />  {tr('common.edit', 'Edit')}</Text>
+          </Pressable>
+          <Pressable style={cardStyles.menuItem} onPress={() => { setMenuOpen(false); onShare(); }}>
+            <Text style={cardStyles.menuItemText}>↗  {tr('common.share', 'Share')}</Text>
+          </Pressable>
+          <View style={cardStyles.menuDivider} />
+          <Pressable style={cardStyles.menuItem} onPress={() => { setMenuOpen(false); onDelete(); }}>
+            <Text style={[cardStyles.menuItemText, { color: themeColors.error }]}><AntDesign name="delete" color={themeColors.error} size={15} />  {tr('common.delete', 'Delete')}</Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+};
+
 const AlbumCard = ({
   album,
   onPress,
@@ -435,7 +489,7 @@ const AlbumCard = ({
   onShare: () => void;
 }) => {
   const themeColors = useThemeColors();
-  const albumCardStyles = useMemo(() => getAlbumCardStyles(themeColors), [themeColors]);
+  const cardStyles = useMemo(() => getGridCardStyles(themeColors), [themeColors]);
   const [menuOpen, setMenuOpen] = useState(false);
   const statusColor =
     album.status === 'PUBLIC' ? themeColors.success :
@@ -447,56 +501,55 @@ const AlbumCard = ({
         tr('screens.library.draft', 'Draft');
 
   return (
-    <View style={albumCardStyles.card}>
-      <Pressable style={albumCardStyles.main} onPress={onPress}>
-        <View style={albumCardStyles.cover}>
+    <View style={cardStyles.gridItem}>
+      <Pressable onPress={onPress}>
+        <View style={cardStyles.gridThumb}>
           {album.coverUrl ? (
-            <Image source={{ uri: album.coverUrl }} style={albumCardStyles.coverImg} />
+            <Image source={{ uri: album.coverUrl }} style={StyleSheet.absoluteFill} />
           ) : (
             <LinearGradient
               colors={[themeColors.gradPurple, themeColors.gradIndigo]}
-              style={albumCardStyles.coverImg}
+              style={StyleSheet.absoluteFill}
             >
-              <Text style={{ fontSize: 28 }}>💿</Text>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 40 }}>💿</Text>
+              </View>
             </LinearGradient>
           )}
+          <Pressable onPress={() => setMenuOpen(v => !v)} hitSlop={10} style={cardStyles.menuBtn}>
+            <Text style={cardStyles.menuIcon}>•••</Text>
+          </Pressable>
         </View>
-        <View style={albumCardStyles.info}>
-          <Text style={albumCardStyles.title} numberOfLines={1}>{album.title}</Text>
-          <View style={albumCardStyles.metaRow}>
-            <View style={[albumCardStyles.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[albumCardStyles.status, { color: statusColor }]}>{statusLabel}</Text>
-            <Text style={albumCardStyles.dot}>·</Text>
-            <Text style={albumCardStyles.count}>{album.totalSongs ?? album.songs?.length ?? 0} {tr('screens.library.songsSuffix', 'songs')}</Text>
-          </View>
+        <Text style={cardStyles.gridTitle} numberOfLines={1}>{album.title}</Text>
+        <View style={cardStyles.metaRow}>
+          <View style={[cardStyles.statusDot, { backgroundColor: statusColor }]} />
+          <Text style={[cardStyles.status, { color: statusColor }]}>{statusLabel}</Text>
+          <Text style={cardStyles.dot}>·</Text>
+          <Text style={cardStyles.count}>{album.totalSongs ?? album.songs?.length ?? 0}</Text>
         </View>
-      </Pressable>
-
-      <Pressable onPress={() => setMenuOpen(v => !v)} hitSlop={10} style={albumCardStyles.menuBtn}>
-        <Text style={albumCardStyles.menuIcon}>•••</Text>
       </Pressable>
 
       {menuOpen && (
-        <View style={albumCardStyles.menu}>
-          <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPress(); }}>
-            <Text style={albumCardStyles.menuItemText}>👁  {tr('screens.library.viewDetails', 'View details')}</Text>
+        <View style={cardStyles.menuAbsolute}>
+          <Pressable style={cardStyles.menuItem} onPress={() => { setMenuOpen(false); onPress(); }}>
+            <Text style={cardStyles.menuItemText}>👁  {tr('screens.library.viewDetails', 'View details')}</Text>
           </Pressable>
           {album.status !== 'PUBLIC' && (
-            <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onPublish(); }}>
-              <Text style={albumCardStyles.menuItemText}>🚀  {tr('screens.library.publish', 'Publish')}</Text>
+            <Pressable style={cardStyles.menuItem} onPress={() => { setMenuOpen(false); onPublish(); }}>
+              <Text style={cardStyles.menuItemText}>🚀  {tr('screens.library.publish', 'Publish')}</Text>
             </Pressable>
           )}
           {album.status === 'PUBLIC' && (
-            <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onUnpublish(); }}>
-              <Text style={albumCardStyles.menuItemText}>🔒  {tr('screens.library.setPrivate', 'Set private')}</Text>
+            <Pressable style={cardStyles.menuItem} onPress={() => { setMenuOpen(false); onUnpublish(); }}>
+              <Text style={cardStyles.menuItemText}>🔒  {tr('screens.library.setPrivate', 'Set private')}</Text>
             </Pressable>
           )}
-          <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onShare(); }}>
-            <Text style={albumCardStyles.menuItemText}>↗  {tr('common.share', 'Share')}</Text>
+          <Pressable style={cardStyles.menuItem} onPress={() => { setMenuOpen(false); onShare(); }}>
+            <Text style={cardStyles.menuItemText}>↗  {tr('common.share', 'Share')}</Text>
           </Pressable>
-          <View style={albumCardStyles.menuDivider} />
-          <Pressable style={albumCardStyles.menuItem} onPress={() => { setMenuOpen(false); onDelete(); }}>
-            <Text style={[albumCardStyles.menuItemText, { color: themeColors.error }]}><AntDesign name="delete" color={themeColors.error} size={15} />  {tr('screens.library.deleteAlbum', 'Delete album')}</Text>
+          <View style={cardStyles.menuDivider} />
+          <Pressable style={cardStyles.menuItem} onPress={() => { setMenuOpen(false); onDelete(); }}>
+            <Text style={[cardStyles.menuItemText, { color: themeColors.error }]}><AntDesign name="delete" color={themeColors.error} size={15} />  {tr('screens.library.deleteAlbum', 'Delete album')}</Text>
           </Pressable>
         </View>
       )}
@@ -504,38 +557,54 @@ const AlbumCard = ({
   );
 };
 
-const getAlbumCardStyles = (c: ColorScheme) => StyleSheet.create({
-  card: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    backgroundColor: c.surfaceLow,
-    borderRadius: 24,
-    borderWidth: 0,
-    overflow: 'visible',
+const getGridCardStyles = (c: ColorScheme) => StyleSheet.create({
+  gridItem: {
+    width: '47%',
+    marginBottom: 20,
+    zIndex: 1, // needed for absolute menu dropping down
   },
-  main: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 12 },
-  cover: { borderRadius: 10, overflow: 'hidden' },
-  coverImg: { width: 58, height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  info: { flex: 1 },
-  title: { color: c.white, fontSize: 15, fontWeight: '700', marginBottom: 4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  status: { fontSize: 12, fontWeight: '600' },
-  dot: { color: c.glass25 },
-  count: { color: c.glass45, fontSize: 12 },
-  menuBtn: { position: 'absolute', top: 12, right: 12, padding: 4 },
-  menuIcon: { color: c.glass45, fontSize: 12, letterSpacing: 1 },
-  menu: {
-    marginHorizontal: 12,
-    marginBottom: 10,
+  gridThumb: {
+    aspectRatio: 1,
+    borderRadius: 24,
+    overflow: 'hidden',
     backgroundColor: c.surfaceLow,
-    borderRadius: 10,
+  },
+  gridTitle: { color: c.white, fontSize: 13, fontWeight: '700', marginTop: 10 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  status: { fontSize: 11, fontWeight: '600' },
+  dot: { color: c.glass25 },
+  count: { color: c.glass45, fontSize: 11 },
+  menuBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.scrim,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuIcon: { color: c.white, fontSize: 14, letterSpacing: 1, marginTop: -4 },
+  menuAbsolute: {
+    position: 'absolute',
+    top: 44,
+    right: 8,
+    width: 150,
+    backgroundColor: c.surface,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: c.glass10,
+    borderColor: c.glass12,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+    zIndex: 100, // Make sure menu overlap other grids
     overflow: 'hidden',
   },
-  menuItem: { paddingHorizontal: 14, paddingVertical: 11 },
-  menuItemText: { color: c.white, fontSize: 14 },
+  menuItem: { paddingHorizontal: 14, paddingVertical: 12 },
+  menuItemText: { color: c.white, fontSize: 13 },
   menuDivider: { height: 1, backgroundColor: c.glass08 },
 });
 
@@ -1776,61 +1845,31 @@ export const LibraryScreen = () => {
 
   // ── Render content by tab ─────────────────────────────────────────────────
   const renderPlaylists = () => (
-    <>
+    <View style={styles.gridContainer}>
+      {playlists.map(p => (
+        <PlaylistCard
+          key={p.id}
+          playlist={p}
+          onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug })}
+          onEdit={() => { setEditPlaylist(p); setEditPlaylistName(p.name); }}
+          onShare={() => openShareOptions('playlist', p.id, p.name)}
+          onDelete={() => handleDeletePlaylist(p)}
+        />
+      ))}
+
       <Pressable
-        style={styles.createBtn}
+        style={styles.gridItemWrap}
         onPress={() => {
           setCreateAlbumOpen(false);
           setCreatePlaylistOpen(true);
         }}
       >
-        <View style={styles.createBtnInner}>
-          <AnimatedDecorIcon intensity="medium">
-            <Text style={styles.createBtnIcon}>+</Text>
-          </AnimatedDecorIcon>
-          <Text style={styles.createBtnText}>{t('screens.library.createNewPlaylist', 'Create new playlist')}</Text>
+        <View style={styles.gridCreateThumb}>
+          <MaterialCommunityIcons name="plus" color={themeColors.accent} size={36} />
         </View>
+        <Text style={styles.gridCreateTitle}>{tr('screens.library.createNewPlaylist', 'Create')}</Text>
       </Pressable>
-
-      {playlists.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>    <MaterialCommunityIcons name="playlist-music" color={themeColors.accent} size={40} /></Text>
-          <Text style={styles.emptyTitle}>{t('screens.library.noPlaylists', 'No playlists yet')}</Text>
-          <Text style={styles.emptySub}>{t('screens.library.noPlaylistsHint', 'Create playlists to organize your favorite songs')}</Text>
-        </View>
-      ) : playlists.map(p => (
-        <Pressable
-          key={p.id}
-          style={styles.listItem}
-          onPress={() => navigation.navigate('PlaylistDetail', { slug: p.slug })}
-        >
-          <View style={styles.listItemThumb}>
-            <Text style={{ fontSize: 22 }}><MaterialCommunityIcons name="playlist-music" color={themeColors.accent} size={20} /></Text>
-          </View>
-          <View style={styles.listItemInfo}>
-            <Text style={styles.listItemTitle} numberOfLines={1}>{p.name}</Text>
-            <Text style={styles.listItemSub}>{p.totalSongs ?? 0} {t('screens.library.songsSuffix', 'songs')}</Text>
-          </View>
-          <View style={styles.listItemActions}>
-            <Pressable
-              hitSlop={8}
-              onPress={() => { setEditPlaylist(p); setEditPlaylistName(p.name); }}
-              style={styles.iconBtn}
-            >
-              <Text style={styles.iconBtnText}>
-                <FontAwesome name="edit" color={themeColors.accentAlt} size={18} />
-              </Text>
-            </Pressable>
-            <Pressable hitSlop={8} onPress={() => openShareOptions('playlist', p.id, p.name)} style={styles.iconBtn}>
-              <Text style={styles.iconBtnText}>↗</Text>
-            </Pressable>
-            <Pressable hitSlop={8} onPress={() => handleDeletePlaylist(p)} style={styles.iconBtn}>
-              <Text style={[styles.iconBtnText, { color: themeColors.error }]}><AntDesign name="delete" color={themeColors.error} size={15} /></Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      ))}
-    </>
+    </View>
   );
 
   const renderSongs = () => (
@@ -1870,16 +1909,30 @@ export const LibraryScreen = () => {
 
   const renderAlbums = () => (
     <>
-      {canCreateAlbum ? (
-        <Pressable style={[styles.createBtn, { marginBottom: 12 }]} onPress={() => setCreateAlbumOpen(true)}>
-          <View style={styles.createBtnInner}>
-            <AnimatedDecorIcon intensity="medium">
-              <Text style={styles.createBtnIcon}>+</Text>
-            </AnimatedDecorIcon>
-            <Text style={styles.createBtnText}>{t('screens.library.createNewAlbum', 'Create new album')}</Text>
-          </View>
-        </Pressable>
-      ) : (
+      <View style={styles.gridContainer}>
+        {albums.map(a => (
+          <AlbumCard
+            key={a.id}
+            album={a}
+            onPress={() => setDetailAlbumId(a.id)}
+            onPublish={() => void handlePublishAlbum(a.id)}
+            onUnpublish={() => void handleUnpublishAlbum(a.id)}
+            onDelete={() => handleDeleteAlbum(a)}
+            onShare={() => openShareOptions('album', a.id, a.title)}
+          />
+        ))}
+
+        {canCreateAlbum && (
+           <Pressable style={styles.gridItemWrap} onPress={() => setCreateAlbumOpen(true)}>
+             <View style={styles.gridCreateThumb}>
+               <MaterialCommunityIcons name="plus" color={themeColors.accent} size={36} />
+             </View>
+             <Text style={styles.gridCreateTitle}>{tr('screens.library.createNewAlbum', 'Create')}</Text>
+           </Pressable>
+        )}
+      </View>
+
+      {!canCreateAlbum && (
         <View style={styles.albumGateCard}>
           {!isArtist ? (
             <>
@@ -1909,29 +1962,10 @@ export const LibraryScreen = () => {
         </View>
       )}
 
-      {canCreateAlbum ? (
-        albums.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}><MaterialCommunityIcons name="album" color={themeColors.accent} size={40} /></Text>
-            <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
-            <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
-          </View>
-        ) : albums.map(a => (
-          <AlbumCard
-            key={a.id}
-            album={a}
-            onPress={() => setDetailAlbumId(a.id)}
-            onPublish={() => void handlePublishAlbum(a.id)}
-            onUnpublish={() => void handleUnpublishAlbum(a.id)}
-            onDelete={() => handleDeleteAlbum(a)}
-            onShare={() => openShareOptions('album', a.id, a.title)}
-          />
-        ))
-      ) : (
+      {(!canCreateAlbum && albums.length === 0) && (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}><MaterialCommunityIcons name="album" color={themeColors.accent} size={40} /></Text>
           <Text style={styles.emptyTitle}>{t('screens.library.noAlbums', 'No albums yet')}</Text>
-          <Text style={styles.emptySub}>{t('screens.library.noAlbumsHint', 'Organize songs into albums for release')}</Text>
         </View>
       )}
     </>
@@ -2168,6 +2202,34 @@ const getMainLibraryStyles = (c: ColorScheme) => StyleSheet.create({
   },
   createBtnIcon: { color: c.accent, fontSize: 20, fontWeight: '300' },
   createBtnText: { color: c.accent, fontSize: 14, fontWeight: '700' },
+
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingBottom: 20,
+  },
+  gridItemWrap: {
+    width: '47%',
+    marginBottom: 20,
+  },
+  gridCreateThumb: {
+    aspectRatio: 1,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridCreateTitle: {
+    color: c.glass60,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 10,
+  },
+
   albumGateCard: {
     marginHorizontal: 20,
     marginBottom: 12,
