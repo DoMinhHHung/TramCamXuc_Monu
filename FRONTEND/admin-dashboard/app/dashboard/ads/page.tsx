@@ -579,7 +579,7 @@ export default function AdsPage() {
                 <table className="w-full text-[11px] min-w-[700px]">
                     <thead>
                     <tr className="border-b border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-zinc-950">
-                        {['Quảng cáo', 'Status', 'Impressions', 'Clicks', 'CTR', 'Budget', ''].map(h => (
+                        {['Quảng cáo', 'Trạng thái', 'Số lần hiển thị', 'Số lần nhấp', 'Tỉ lệ nhấp chuột', 'Ngân sách', ''].map(h => (
                             <th key={h} className="text-left px-4 py-2.5 text-[10px] tracking-widest text-zinc-400 dark:text-zinc-600 font-medium">
                                 {h.toUpperCase()}
                             </th>

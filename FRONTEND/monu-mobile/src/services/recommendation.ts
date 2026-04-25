@@ -23,6 +23,10 @@ export interface RecommendedSong {
   score: number;
   reason?: string;
   reasonType: ReasonType;
+  /** Vị trí trong bảng top 10 (1-based), chỉ có trong /trending/top10 */
+  rank?: number;
+  /** Badge xu hướng: "🔥 Nổi bật hôm nay" | "📈 Tăng mạnh" | "⭐ Mới & Hot" | "🎵 Đang thịnh" */
+  trendBadge?: string;
 }
 
 export interface HomeRecommendation {
@@ -122,6 +126,20 @@ export const getTrendingRecommendations = async (limit = 20): Promise<Recommende
     params: { limit },
   });
   return res.data ?? [];
+};
+
+/**
+ * Top 10 Xu Hướng — mỗi bài có rank (1-10) và trendBadge.
+ * Combined score: listen 50% + engagement 30% + velocity 15% + freshness 5%.
+ * Cache server-side 2 phút.
+ */
+export const getTop10Trending = async (): Promise<RecommendedSong[]> => {
+  try {
+    const res = await apiClient.get<RecommendedSong[]>('/recommendations/trending/top10');
+    return res.data ?? [];
+  } catch {
+    return [];
+  }
 };
 
 export const getTrendingByGenre = async (genreId: string, limit = 20): Promise<RecommendedSong[]> => {

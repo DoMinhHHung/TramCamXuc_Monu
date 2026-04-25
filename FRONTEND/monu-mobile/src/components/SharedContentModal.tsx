@@ -16,9 +16,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { COLORS } from '../config/colors';
+import { useThemeColors, COLORS } from '../config/colors';
 import { usePlayerControls, usePlayerState } from '../context/PlayerContext';
 import { addSongToPlaylist, createPlaylist, getMyPlaylists, isSoundCloudExternalSong, Playlist, Song } from '../services/music';
+import { uiPresets } from '../config/uiPresets';
 
 // ─── Kiểu dùng chung ─────────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ export const SaveContentModal: React.FC<SaveContentModalProps> = ({
                                                                       onClose,
                                                                   }) => {
     const insets = useSafeAreaInsets();
+    const colors = useThemeColors();
     const [playlists, setPlaylists] = useState<Playlist[]>([]);
     const [loading, setLoading]     = useState(false);
     const [saving, setSaving]       = useState<string | null>(null); // playlistId đang lưu
@@ -108,15 +110,15 @@ export const SaveContentModal: React.FC<SaveContentModalProps> = ({
 
     return (
         <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-            <Pressable style={saveStyles.overlay} onPress={onClose} />
-            <View style={[saveStyles.sheet, { paddingBottom: insets.bottom + 8 }]}>
-                <View style={saveStyles.handle} />
+            <Pressable style={[saveStyles.overlay, { backgroundColor: colors.scrim }]} onPress={onClose} />
+            <View style={[saveStyles.sheet, { paddingBottom: insets.bottom + 8, backgroundColor: colors.surface }]}>
+                <View style={[saveStyles.handle, { backgroundColor: colors.glass20 }]} />
 
-                <Text style={saveStyles.title}>Lưu vào playlist</Text>
+                <Text style={[saveStyles.title, { color: colors.white }]}>Lưu vào playlist</Text>
 
                 {/* Source info */}
-                <View style={saveStyles.sourceBadge}>
-                    <Text style={saveStyles.sourceText} numberOfLines={1}>
+                <View style={[saveStyles.sourceBadge, uiPresets.glassSurface(colors, { intensity: 'default', radius: 12 })]}>
+                    <Text style={[saveStyles.sourceText, { color: colors.glass70 }]} numberOfLines={1}>
                         📎 {sourceTitle}
                         {sourceOwner ? ` · bởi ${sourceOwner}` : ''}
                         {' · '}{savableSongs.length} bài có thể lưu
@@ -124,7 +126,7 @@ export const SaveContentModal: React.FC<SaveContentModalProps> = ({
                 </View>
 
                 {loading ? (
-                    <ActivityIndicator color={COLORS.accent} style={{ marginVertical: 24 }} />
+                    <ActivityIndicator color={colors.accent} style={{ marginVertical: 24 }} />
                 ) : (
                     <FlatList
                         data={playlists}
@@ -132,26 +134,26 @@ export const SaveContentModal: React.FC<SaveContentModalProps> = ({
                         style={{ maxHeight: 260 }}
                         renderItem={({ item }) => (
                             <Pressable
-                                style={saveStyles.playlistRow}
+                                style={[saveStyles.playlistRow, { borderBottomColor: colors.glass06 }]}
                                 onPress={() => void handleSaveToPlaylist(item.id, item.name)}
                                 disabled={saving === item.id}
                             >
-                                <View style={saveStyles.playlistIcon}>
+                                <View style={[saveStyles.playlistIcon, uiPresets.glassSurface(colors, { intensity: 'default', radius: 12 })]}>
                                     <Text>🎵</Text>
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={saveStyles.playlistName} numberOfLines={1}>{item.name}</Text>
-                                    <Text style={saveStyles.playlistCount}>{item.totalSongs ?? 0} bài</Text>
+                                    <Text style={[saveStyles.playlistName, { color: colors.white }]} numberOfLines={1}>{item.name}</Text>
+                                    <Text style={[saveStyles.playlistCount, { color: colors.glass45 }]}>{item.totalSongs ?? 0} bài</Text>
                                 </View>
                                 {saving === item.id ? (
-                                    <ActivityIndicator size="small" color={COLORS.accent} />
+                                    <ActivityIndicator size="small" color={colors.accent} />
                                 ) : (
-                                    <Text style={saveStyles.addIcon}>+</Text>
+                                    <Text style={[saveStyles.addIcon, { color: colors.accent }]}>+</Text>
                                 )}
                             </Pressable>
                         )}
                         ListEmptyComponent={
-                            <Text style={saveStyles.emptyText}>Bạn chưa có playlist nào</Text>
+                            <Text style={[saveStyles.emptyText, { color: colors.glass40 }]}>Bạn chưa có playlist nào</Text>
                         }
                     />
                 )}
@@ -159,23 +161,23 @@ export const SaveContentModal: React.FC<SaveContentModalProps> = ({
                 {/* Tạo playlist mới */}
                 <View style={saveStyles.newRow}>
                     <TextInput
-                        style={saveStyles.newInput}
+                        style={[saveStyles.newInput, { backgroundColor: colors.surfaceLow, borderColor: colors.glass15, color: colors.white }]}
                         value={newName}
                         onChangeText={setNewName}
                         placeholder="Tạo danh sách phát mới và lưu..."
-                        placeholderTextColor={COLORS.glass30}
+                        placeholderTextColor={colors.glass30}
                     />
                     <Pressable
-                        style={[saveStyles.newBtn, (!newName.trim() || creating) && { opacity: 0.4 }]}
+                        style={[saveStyles.newBtn, { backgroundColor: colors.accentDim }, (!newName.trim() || creating) && { opacity: 0.4 }]}
                         onPress={handleCreateAndSave}
                         disabled={!newName.trim() || creating}
                     >
-                        {creating ? <ActivityIndicator size="small" color={COLORS.white} /> : <Text style={saveStyles.newBtnText}>+</Text>}
+                        {creating ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={[saveStyles.newBtnText, { color: colors.white }]}>+</Text>}
                     </Pressable>
                 </View>
 
-                <Pressable style={saveStyles.cancelBtn} onPress={onClose}>
-                    <Text style={saveStyles.cancelText}>Đóng</Text>
+                <Pressable style={[saveStyles.cancelBtn, { borderTopColor: colors.glass08 }]} onPress={onClose}>
+                    <Text style={[saveStyles.cancelText, { color: colors.glass60 }]}>Đóng</Text>
                 </Pressable>
             </View>
         </Modal>
@@ -196,6 +198,7 @@ export const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> =
                                                                                       onClose,
                                                                                   }) => {
     const insets = useSafeAreaInsets();
+    const colors = useThemeColors();
     const { playSong } = usePlayerControls();
     const { currentSong } = usePlayerState();
     const [saveModalOpen, setSaveModalOpen] = useState(false);
@@ -218,20 +221,20 @@ export const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> =
             >
                 <View style={detailStyles.root}>
                     {/* Header */}
-                    <View style={[detailStyles.header, { paddingTop: insets.top + 6 }]}>
+                    <View style={[detailStyles.header, { paddingTop: insets.top + 6, borderBottomColor: colors.glass08 }]}>
                         <Pressable style={detailStyles.backBtn} onPress={onClose}>
-                            <Ionicons name="arrow-back" size={22} color={COLORS.white} />
-                            <Text style={detailStyles.backText}>Quay lại</Text>
+                            <Ionicons name="arrow-back" size={22} color={colors.white} />
+                            <Text style={[detailStyles.backText, { color: colors.white }]}>Quay lại</Text>
                         </Pressable>
 
                         {/* Lưu vào playlist (nếu có bài) */}
                         {canSave && (
                             <Pressable
-                                style={detailStyles.saveBtn}
+                                style={[detailStyles.saveBtn, { backgroundColor: colors.accentDim }]}
                                 onPress={() => setSaveModalOpen(true)}
                             >
-                                <Text style={detailStyles.saveBtnText}>
-                                    {content.type === 'ALBUM' ? '💿 Lưu album' : '📋 Lưu vào playlist'}
+                                <Text style={[detailStyles.saveBtnText, { color: colors.white }]}>
+                                    {content.type === 'ALBUM' ? '💿 Lưu album' : '📋 Lưu playlist'}
                                 </Text>
                             </Pressable>
                         )}
@@ -243,22 +246,22 @@ export const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> =
                     >
                         {/* Cover */}
                         <Image
-                            source={{ uri: content.coverUrl || 'https://via.placeholder.com/240' }}
+                            source={{ uri: content.coverUrl || 'https://images.pexels.com/photos/30210449/pexels-photo-30210449.jpeg' }}
                             style={detailStyles.cover}
                         />
 
                         {/* Info */}
                         <Text style={detailStyles.typeLabel}>{typeLabel}</Text>
-                        <Text style={detailStyles.title}>{content.title}</Text>
+                        <Text style={[detailStyles.title, { color: colors.white }]}>{content.title}</Text>
                         {content.subtitle ? (
-                            <Text style={detailStyles.subtitle}>{content.subtitle}</Text>
+                            <Text style={[detailStyles.subtitle, { color: colors.glass70 }]}>{content.subtitle}</Text>
                         ) : null}
                         {content.ownerName ? (
-                            <Text style={detailStyles.owner}>
-                                Bởi <Text style={{ color: COLORS.accent }}>{content.ownerName}</Text>
+                            <Text style={[detailStyles.owner, { color: colors.glass50 }]}>
+                                Bởi <Text style={{ color: colors.accent }}>{content.ownerName}</Text>
                             </Text>
                         ) : null}
-                        <Text style={detailStyles.count}>
+                        <Text style={[detailStyles.count, { color: colors.glass40 }]}>
                             {content.totalCount ?? content.songs.length} bài hát
                         </Text>
 
@@ -270,32 +273,36 @@ export const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> =
                                     return (
                                         <Pressable
                                             key={`${song.id}-${idx}`}
-                                            style={[detailStyles.trackRow, isNowPlaying && detailStyles.trackRowActive]}
+                                            style={[
+                                              detailStyles.trackRow,
+                                              uiPresets.glassSurface(colors, { intensity: 'default', radius: 16 }),
+                                              isNowPlaying && detailStyles.trackRowActive,
+                                            ]}
                                             onPress={() => playSong(song, content.songs)}
                                         >
-                                            <Text style={detailStyles.trackIdx}>{idx + 1}</Text>
+                                            <Text style={[detailStyles.trackIdx, { color: colors.glass60 }]}>{idx + 1}</Text>
                                             <View style={detailStyles.trackInfo}>
                                                 <Text
-                                                    style={[detailStyles.trackTitle, isNowPlaying && { color: COLORS.accent }]}
+                                                    style={[detailStyles.trackTitle, { color: colors.white }, isNowPlaying && { color: colors.accent }]}
                                                     numberOfLines={1}
                                                 >
                                                     {song.title}
                                                 </Text>
-                                                <Text style={detailStyles.trackArtist} numberOfLines={1}>
+                                                <Text style={[detailStyles.trackArtist, { color: colors.glass60 }]} numberOfLines={1}>
                                                     {song.primaryArtist?.stageName ?? 'Nghệ sĩ'}
                                                 </Text>
                                             </View>
                                             <Ionicons
                                                 name={isNowPlaying ? 'pause' : 'play'}
                                                 size={18}
-                                                color={isNowPlaying ? COLORS.accent : COLORS.glass60}
+                                                color={isNowPlaying ? colors.accent : colors.glass60}
                                             />
                                         </Pressable>
                                     );
                                 })}
                             </View>
                         ) : (
-                            <Text style={detailStyles.empty}>Không có bài hát nào</Text>
+                            <Text style={[detailStyles.empty, { color: colors.glass45 }]}>Không có bài hát nào</Text>
                         )}
                     </ScrollView>
                 </View>
@@ -316,25 +323,22 @@ export const SharedContentDetailModal: React.FC<SharedContentDetailModalProps> =
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const saveStyles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: COLORS.scrim },
+    overlay: { flex: 1 },
     sheet: {
-        backgroundColor: COLORS.surface,
         borderTopLeftRadius: 20, borderTopRightRadius: 20,
         padding: 16, maxHeight: '80%',
-        borderWidth: 1, borderBottomWidth: 0, borderColor: COLORS.glass12,
+        borderWidth: 1, borderBottomWidth: 0,
     },
     handle: {
         width: 36, height: 4, borderRadius: 2,
-        backgroundColor: COLORS.glass20,
         alignSelf: 'center', marginBottom: 14,
     },
-    title: { color: COLORS.white, fontSize: 17, fontWeight: '700', marginBottom: 8 },
+    title: { fontSize: 17, fontWeight: '700', marginBottom: 8 },
     sourceBadge: {
-        backgroundColor: COLORS.glass07,
         borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7,
-        marginBottom: 12, borderWidth: 1, borderColor: COLORS.glass10,
+        marginBottom: 12,
     },
-    sourceText: { color: COLORS.glass70, fontSize: 13 },
+    sourceText: { fontSize: 13 },
     playlistRow: {
         flexDirection: 'row', alignItems: 'center',
         paddingVertical: 11, gap: 12,
@@ -342,33 +346,30 @@ const saveStyles = StyleSheet.create({
     },
     playlistIcon: {
         width: 40, height: 40, borderRadius: 10,
-        backgroundColor: COLORS.glass08,
         alignItems: 'center', justifyContent: 'center',
     },
-    playlistName: { color: COLORS.white, fontSize: 14, fontWeight: '500' },
-    playlistCount: { color: COLORS.glass40, fontSize: 12, marginTop: 2 },
-    addIcon: { color: COLORS.accent, fontSize: 22, fontWeight: '300' },
-    emptyText: { color: COLORS.glass40, textAlign: 'center', paddingVertical: 16 },
+    playlistName: { fontSize: 14, fontWeight: '500' },
+    playlistCount: { fontSize: 12, marginTop: 2 },
+    addIcon: { fontSize: 22, fontWeight: '300' },
+    emptyText: { textAlign: 'center', paddingVertical: 16 },
     newRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
     newInput: {
         flex: 1,
-        backgroundColor: COLORS.surfaceLow,
         borderWidth: 1, borderColor: COLORS.glass15,
         borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9,
-        color: COLORS.white, fontSize: 14,
+        fontSize: 14,
     },
     newBtn: {
         width: 44, height: 44, borderRadius: 10,
-        backgroundColor: COLORS.accentDim,
         alignItems: 'center', justifyContent: 'center',
     },
-    newBtnText: { color: COLORS.white, fontSize: 22, fontWeight: '300' },
+    newBtnText: { fontSize: 22, fontWeight: '300' },
     cancelBtn: {
         marginTop: 10, paddingVertical: 13,
         alignItems: 'center',
         borderTopWidth: 1, borderTopColor: COLORS.glass08,
     },
-    cancelText: { color: COLORS.glass60, fontSize: 15 },
+    cancelText: { fontSize: 15 },
 });
 
 const detailStyles = StyleSheet.create({

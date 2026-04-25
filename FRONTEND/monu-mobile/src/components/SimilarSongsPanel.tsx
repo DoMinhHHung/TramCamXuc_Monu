@@ -8,10 +8,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { COLORS } from '../config/colors';
-import { ReasonBadge } from './ReasonBadge';
+import { useThemeColors } from '../config/colors';
 import { useSimilarSongs } from '../hooks/useSimilarSongs';
 import { RecommendedSong } from '../services/recommendation';
+import { uiPresets } from '../config/uiPresets';
 
 interface SimilarSongsPanelProps {
   currentSongId: string;
@@ -21,6 +21,8 @@ interface SimilarSongsPanelProps {
 export const SimilarSongsPanel = ({ currentSongId, onPress }: SimilarSongsPanelProps) => {
   const [expanded, setExpanded] = useState(true);
   const { songs, loading } = useSimilarSongs(currentSongId, 8);
+  const colors = useThemeColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
 
   if (!loading && !songs.length) return null;
 
@@ -33,7 +35,7 @@ export const SimilarSongsPanel = ({ currentSongId, onPress }: SimilarSongsPanelP
 
       {expanded && (loading ? (
         <View style={styles.loading}>
-          <ActivityIndicator size="small" color={COLORS.accent} />
+          <ActivityIndicator size="small" color={colors.accent} />
         </View>
       ) : (
         <FlatList
@@ -54,7 +56,7 @@ export const SimilarSongsPanel = ({ currentSongId, onPress }: SimilarSongsPanelP
                 <Text style={styles.artist} numberOfLines={1}>
                   {item.primaryArtist?.stageName}
                 </Text>
-                <ReasonBadge reasonType={item.reasonType} />
+                {/* <ReasonBadge reasonType={item.reasonType} /> */}
               </View>
               <Text style={styles.arrow}>›</Text>
             </Pressable>
@@ -65,11 +67,11 @@ export const SimilarSongsPanel = ({ currentSongId, onPress }: SimilarSongsPanelP
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (c: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   root: {
     marginTop: 16,
     borderTopWidth: 1,
-    borderTopColor: COLORS.glass10,
+    borderTopColor: c.glass10,
     paddingTop: 14,
   },
   header: {
@@ -79,13 +81,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   headerTitle: {
-    color: COLORS.glass50,
+    color: c.glass50,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
-  chevron: { color: COLORS.glass30, fontSize: 16 },
+  chevron: { color: c.glass30, fontSize: 16 },
   loading: { paddingVertical: 16, alignItems: 'center' },
   row: {
     flexDirection: 'row',
@@ -93,13 +95,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.glass06,
+    borderBottomColor: c.glass06,
   },
   thumb: { width: 44, height: 44, borderRadius: 8 },
-  thumbFallback: { backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
+  thumbFallback: { backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' },
   fallbackIcon: { fontSize: 18 },
   info: { flex: 1, gap: 3 },
-  title: { color: COLORS.white, fontSize: 13, fontWeight: '600' },
-  artist: { color: COLORS.glass40, fontSize: 11 },
-  arrow: { color: COLORS.glass20, fontSize: 20 },
+  title: { color: c.white, fontSize: 13, fontWeight: '700' },
+  artist: { color: c.glass45, fontSize: 11 },
+  arrow: { color: c.glass20, fontSize: 20 },
 });

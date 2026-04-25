@@ -75,4 +75,12 @@ public class RabbitMQConfig {
                                   FanoutExchange feedFanoutExchange) {
         return BindingBuilder.bind(feedSocialQueue).to(feedFanoutExchange);
     }
+
+    // ── Engagement events (like, dislike, heart, comment) → recommendation-service
+    public static final String SOCIAL_ENGAGEMENT_FANOUT_EXCHANGE = "social.engagement.fanout.exchange";
+
+    @Bean
+    public FanoutExchange socialEngagementFanoutExchange() {
+        return new FanoutExchange(SOCIAL_ENGAGEMENT_FANOUT_EXCHANGE, true, false);
+    }
 }

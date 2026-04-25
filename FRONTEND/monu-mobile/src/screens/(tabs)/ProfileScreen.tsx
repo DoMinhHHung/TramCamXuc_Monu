@@ -21,6 +21,7 @@ import { BackButton } from '../../components/BackButton';
 import { MonuBrandHeaderTitle } from '../../components/MonuBrandHeaderTitle';
 import { useNavigation } from '@react-navigation/native';
 import { AntDesign, FontAwesome, Fontisto, Feather } from '@expo/vector-icons';
+import { uiPresets } from '../../config/uiPresets';
 
 type ArtistProfile = {
     id: string;
@@ -482,7 +483,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     editBtn: {
         paddingHorizontal: 22, paddingVertical: 10,
         borderRadius: 999,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        ...uiPresets.glassPill(c, { intensity: 'default' }),
         marginTop: 6,
     },
     editBtnText: { color: c.text, fontWeight: '600', fontSize: 14 },
@@ -494,9 +495,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     },
 
     artistCard: {
-        backgroundColor: c.surfaceLow,
-        borderRadius: 24,
-        borderWidth: 0,
+        ...uiPresets.glassSurface(c, { intensity: 'subtle', radius: 24 }),
         padding: 20,
         gap: 12,
     },
@@ -537,8 +536,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
         marginTop: 16,
         borderRadius: 24,
         overflow: 'hidden',
-        backgroundColor: c.surfaceLow,
-        borderWidth: 0,
+        ...uiPresets.glassSurface(c, { intensity: 'subtle', radius: 24 }),
     },
     statItem:  { flex: 1, alignItems: 'center', paddingVertical: 16 },
     statVal:   { color: c.text, fontSize: 20, fontWeight: '800' },
@@ -548,8 +546,7 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     menuCard: {
         marginHorizontal: 20, marginTop: 16,
         borderRadius: 24, overflow: 'hidden',
-        backgroundColor: c.surfaceLow,
-        borderWidth: 0,
+        ...uiPresets.glassSurface(c, { intensity: 'subtle', radius: 24 }),
     },
     menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14 },
     menuIconWrap: {

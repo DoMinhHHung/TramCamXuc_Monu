@@ -77,6 +77,17 @@ public class RecommendationController {
         return ApiResponse.ok(orchestrator.getTrending(userId, safeLimit));
     }
 
+    /**
+     * Top 10 Xu Hướng — công thức kết hợp listen (50%) + engagement (30%) + velocity (15%) + freshness (5%).
+     * Mỗi bài có rank (1-10) và trendBadge (🔥📈⭐🎵).
+     * Cache 2 phút.
+     */
+    @GetMapping("/trending/top10")
+    public ApiResponse<List<RecommendedSongDto>> getTop10Trending(Authentication auth) {
+        UUID userId = tryExtractUserId(auth);
+        return ApiResponse.ok(orchestrator.getTop10Trending(userId));
+    }
+
     @GetMapping("/trending/genre/{genreId}")
     public ApiResponse<List<RecommendedSongDto>> getTrendingByGenre(
             Authentication auth,

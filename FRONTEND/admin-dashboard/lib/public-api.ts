@@ -1,4 +1,3 @@
-/** Base URL API Gateway (public GET, không auth) — ví dụ https://phazelsound.oopsgolden.id.vn */
 export function getPublicGatewayBase(): string {
   const raw = process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? '';
   return raw.replace(/\/$/, '');

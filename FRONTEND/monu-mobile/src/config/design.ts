@@ -29,7 +29,7 @@ export const SPACING = {
 } as const;
 
 /** Bottom tab bar content height (excluding safe-area); must match `tabBarStyle.height` math in AppNavigator. */
-export const MAIN_TAB_BAR_BASE_HEIGHT = 58;
+export const MAIN_TAB_BAR_BASE_HEIGHT = 74;
 
 /** Mini player bar height — keep in sync with `MiniPlayer` layout. */
 export const MINI_PLAYER_HEIGHT = 68;
@@ -83,11 +83,11 @@ export const FONT_SIZE = {
 /** Font-weight helpers. */
 export const FONT_WEIGHT = {
   regular: '400' as const,
-  medium:  '500' as const,
-  semibold:'600' as const,
-  bold:    '700' as const,
-  extrabold:'800' as const,
-  black:   '900' as const,
+  medium: '500' as const,
+  semibold: '600' as const,
+  bold: '700' as const,
+  extrabold: '800' as const,
+  black: '900' as const,
 };
 
 // ── Elevation / Shadow ────────────────────────────────────────────────────────
@@ -123,17 +123,17 @@ export const SHADOW = {
 // ── Hit Slop ──────────────────────────────────────────────────────────────────
 /** Standard hit-slop presets for touchable elements to improve accessibility. */
 export const HIT_SLOP = {
-  sm:  { top: 6,  right: 6,  bottom: 6,  left: 6  },
-  md:  { top: 10, right: 10, bottom: 10, left: 10 },
-  lg:  { top: 14, right: 14, bottom: 14, left: 14 },
+  sm: { top: 6, right: 6, bottom: 6, left: 6 },
+  md: { top: 10, right: 10, bottom: 10, left: 10 },
+  lg: { top: 14, right: 14, bottom: 14, left: 14 },
 } as const;
 
 // ── Z-Index ───────────────────────────────────────────────────────────────────
 /** Layering scale so components stack predictably. */
 export const Z_INDEX = {
-  base:    0,
-  card:    10,
+  base: 0,
+  card: 10,
   overlay: 50,
-  modal:   100,
-  toast:   200,
+  modal: 100,
+  toast: 200,
 } as const;

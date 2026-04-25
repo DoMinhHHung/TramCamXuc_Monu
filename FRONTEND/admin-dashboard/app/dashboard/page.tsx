@@ -371,21 +371,21 @@ export default function DashboardPage() {
                     loading={loadingUsers}
                 />
                 <StatCard
-                    label="Gói subscription"
+                    label="Gói cước"
                     value={errorPlans ? '—' : String(plans.length)}
                     sub={`${plans.filter(p => p.isActive).length} đang active`}
                     icon={CreditCard} color="text-purple-500" bg="bg-purple-50 dark:bg-purple-500/10"
                     loading={loadingPlans}
                 />
                 <StatCard
-                    label="Ads đang chạy"
+                    label="Quảng cáo đang chạy"
                     value={errorAds ? '—' : String(activeAds)}
                     sub={`${ads.length} tổng`}
                     icon={SpeakerHigh} color="text-emerald-500" bg="bg-emerald-50 dark:bg-emerald-500/10"
                     loading={loadingAds}
                 />
                 <StatCard
-                    label="Tổng impressions"
+                    label="Tổng số lần nhấp"
                     value={errorAds ? '—' : fmtNum(totalImpressions)}
                     sub={`CTR trung bình ${avgCtr}%`}
                     icon={Eye} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-500/10"
@@ -396,14 +396,14 @@ export default function DashboardPage() {
             {/* ── Row 2: Ad engagement stats ──────────────────────────────────────── */}
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
                 <StatCard
-                    label="Tổng lượt click Ads"
+                    label="Tổng lượt nhấp quảng cáo"
                     value={errorAds ? '—' : fmtNum(totalClicks)}
                     sub="Tất cả quảng cáo"
                     icon={CursorClick} color="text-sky-500" bg="bg-sky-50 dark:bg-sky-500/10"
                     loading={loadingAds}
                 />
                 <StatCard
-                    label="CTR trung bình"
+                    label="Tỉ lệ nhấp chuột trung bình"
                     value={errorAds ? '—' : `${avgCtr}%`}
                     sub="Click / Impression"
                     icon={ChartLine} color="text-violet-500" bg="bg-violet-50 dark:bg-violet-500/10"
@@ -411,14 +411,14 @@ export default function DashboardPage() {
                     badge={Number(avgCtr) > 3 ? '🔥 Tốt' : undefined}
                 />
                 <StatCard
-                    label="Doanh thu Ads ước tính"
+                    label="Doanh thu quảng cáo ước tính"
                     value={errorAds ? '—' : vnd(estimatedAdRevenue)}
                     sub="Dựa trên CPM × impressions"
                     icon={TrendUp} color="text-rose-500" bg="bg-rose-50 dark:bg-rose-500/10"
                     loading={loadingAds}
                 />
                 <StatCard
-                    label="Doanh thu Subscription"
+                    label="Doanh thu gói cước"
                     value={loadingRevenue ? '···' : vnd(totalRevenue)}
                     sub={`${window_ === '7D' ? '7 ngày' : window_ === '1M' ? '30 ngày' : '1 năm'} gần nhất`}
                     icon={CreditCard} color="text-teal-500" bg="bg-teal-50 dark:bg-teal-500/10"
@@ -428,8 +428,8 @@ export default function DashboardPage() {
 
             {/* ── Revenue chart ───────────────────────────────────────────────────── */}
             <Section
-                title="PAYMENT OVERVIEW"
-                sub="Doanh thu thực tế từ payment-service"
+                title="Tổng quan gói cước thanh toán"
+                sub="Doanh thu thực tế từ gói cước thanh toán"
                 error={errorRevenue}
                 action={
                     <div className="flex gap-1">
@@ -480,7 +480,7 @@ export default function DashboardPage() {
             {/* ── Ad clicks section ────────────────────────────────────────────────── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Section
-                    title="TOP 5 QUẢNG CÁO — LƯỢT CLICK"
+                    title="TOP 5 QUẢNG CÁO — LƯỢT NHẤP"
                     sub="Xếp hạng theo tổng clicks"
                     error={errorAds}
                 >
@@ -496,7 +496,7 @@ export default function DashboardPage() {
                 </Section>
 
                 <Section
-                    title="PHÂN BỐ IMPRESSIONS VS CLICKS"
+                    title="PHÂN BỐ SỐ LẦN HIỂN THỊ & LƯỢT NHẤP"
                     sub="Tổng hợp hiệu suất quảng cáo"
                     error={errorAds}
                 >
@@ -513,7 +513,7 @@ export default function DashboardPage() {
                                 <table className="w-full text-[11px]">
                                     <thead>
                                         <tr className="border-b border-zinc-200 dark:border-white/[0.08]">
-                                            {['Trạng thái', 'Số lượng', 'Impressions', 'Clicks', 'CTR'].map(h => (
+                                            {['Trạng thái', 'Số lượng', 'Số lần hiển thị', 'Số lần nhấp', 'Ti lệ nhấp chuột'].map(h => (
                                                 <th key={h} className="text-left py-2 pr-3 text-[10px] text-zinc-400 dark:text-zinc-600 font-medium tracking-wider">
                                                     {h.toUpperCase()}
                                                 </th>

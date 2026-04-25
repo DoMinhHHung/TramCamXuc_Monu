@@ -242,7 +242,14 @@ export const AdPlayerModal = ({ ad, songId, onFinished }: AdPlayerModalProps) =>
                 </View>
 
                 {/* CTA button */}
-                <Pressable style={styles.ctaBtn} onPress={handleClick}>
+                <Pressable
+                    style={({ pressed }) => [
+                        styles.ctaBtn,
+                        pressed && styles.ctaBtnPressed,
+                    ]}
+                    onPress={handleClick}
+                    android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: false }}
+                >
                     <LinearGradient
                         colors={[COLORS.accent, COLORS.accentAlt]}
                         start={{ x: 0, y: 0 }}
@@ -261,9 +268,14 @@ export const AdPlayerModal = ({ ad, songId, onFinished }: AdPlayerModalProps) =>
                         </View>
                     )}
                     <Pressable
-                        style={[styles.skipBtn, !canSkip && styles.skipBtnLocked]}
+                        style={({ pressed }) => [
+                            styles.skipBtn,
+                            !canSkip && styles.skipBtnLocked,
+                            canSkip && pressed && styles.skipBtnPressed,
+                        ]}
                         onPress={handleSkip}
                         disabled={!canSkip}
+                        hitSlop={canSkip ? 16 : 0}
                     >
                         <Text style={[styles.skipText, !canSkip && styles.skipTextLocked]}>
                             {canSkip ? 'Bỏ qua ›' : 'Bỏ qua'}
@@ -393,6 +405,10 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         marginBottom: 10,
     },
+    ctaBtnPressed: {
+        opacity: 0.82,
+        transform: [{ scale: 0.98 }],
+    },
     ctaGradient: {
         paddingVertical: 15,
         alignItems: 'center',
@@ -407,6 +423,11 @@ const styles = StyleSheet.create({
     skipBtn: {
         alignItems: 'center',
         paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+    },
+    skipBtnPressed: {
+        backgroundColor: 'rgba(255,255,255,0.08)',
     },
     skipWrap: {
         flexDirection: 'row',

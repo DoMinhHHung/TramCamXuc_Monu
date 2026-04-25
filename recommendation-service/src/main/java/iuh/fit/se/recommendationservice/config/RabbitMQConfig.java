@@ -25,8 +25,9 @@ import org.springframework.context.annotation.Configuration;
 public class RabbitMQConfig {
 
     // ── Exchange names  ──────────────
-    public static final String SONG_LISTEN_FANOUT_EXCHANGE  = "song.listen.fanout.exchange";
-    public static final String FEED_CONTENT_FANOUT_EXCHANGE = "feed.content.fanout.exchange";
+    public static final String SONG_LISTEN_FANOUT_EXCHANGE    = "song.listen.fanout.exchange";
+    public static final String FEED_CONTENT_FANOUT_EXCHANGE   = "feed.content.fanout.exchange";
+    public static final String SOCIAL_ENGAGEMENT_FANOUT_EXCHANGE = "social.engagement.fanout.exchange";
 
     // ── Queue names riêng của recommendation-service ─────────────────────────
     /** Nhận mỗi sự kiện nghe nhạc để cập nhật trending score */
@@ -34,6 +35,9 @@ public class RabbitMQConfig {
 
     /** Nhận sự kiện album mới publish để cập nhật new-releases cache */
     public static final String REC_NEW_RELEASES_QUEUE = "rec.new-releases.queue";
+
+    /** Nhận engagement events (like, dislike, heart) để cập nhật trending engagement score */
+    public static final String REC_ENGAGEMENT_QUEUE = "rec.engagement.queue";
 
     @Bean
     public MessageConverter jsonMessageConverter() {
@@ -81,5 +85,22 @@ public class RabbitMQConfig {
     public Binding bindNewReleases(Queue recNewReleasesQueue,
                                    FanoutExchange feedContentFanoutExchange) {
         return BindingBuilder.bind(recNewReleasesQueue).to(feedContentFanoutExchange);
+    }
+
+    // ── Engagement (social-service) ───────────────────────────────────────────
+    @Bean
+    public FanoutExchange socialEngagementFanoutExchange() {
+        return new FanoutExchange(SOCIAL_ENGAGEMENT_FANOUT_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public Queue recEngagementQueue() {
+        return QueueBuilder.durable(REC_ENGAGEMENT_QUEUE).build();
+    }
+
+    @Bean
+    public Binding bindEngagement(Queue recEngagementQueue,
+                                  FanoutExchange socialEngagementFanoutExchange) {
+        return BindingBuilder.bind(recEngagementQueue).to(socialEngagementFanoutExchange);
     }
 }

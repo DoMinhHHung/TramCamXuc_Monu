@@ -19,14 +19,15 @@ import java.time.Instant;
 import java.util.Set;
 
 /**
- * Hai nhiệm vụ:
+ * Các nhiệm vụ định kỳ:
  *
- * 1. Hourly decay — nhân tất cả trending scores với decayFactor.
- *    Chạy mỗi giờ đúng vào phút 0.
+ * 1. Hourly decay — nhân tất cả trending/engagement scores × 0.85
+ *    Sau 24h: 0.85^24 ≈ 3% còn lại → bài cũ tự rơi khỏi top
  *
- * 2. New releases consumer — nhận FeedContentEvent khi album mới publish
- *    và lưu vào Redis ZSET rec:all-new-releases (albumId → publishedAt).
- *    → RecommendationOrchestratorService đọc để build "New Releases" section.
+ * 2. Velocity snapshot + recompute — mỗi giờ lưu snapshot và tính lại velocity
+ *    velocity_normalized = sigmoid((score_now - score_24h_ago) / max(score_24h_ago, 1))
+ *
+ * 3. New releases consumer — nhận FeedContentEvent khi album mới publish
  */
 @Component
 @RequiredArgsConstructor
@@ -37,35 +38,42 @@ public class TrendingDecayScheduler {
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
-     * Chạy mỗi giờ: 0 0 * * * *
+     * Chạy mỗi giờ đúng phút 0.
      *
-     * Lý do decay hourly thay vì theo số lượt nghe:
-     * - Đảm bảo bài viral ngày hôm qua không chiếm top mãi
-     * - Đơn giản, predictable, không cần lưu timestamp của từng event
-     *
-     * Với decayFactor = 0.85:
-     *   Sau 1h  → còn 85%  score
-     *   Sau 8h  → còn 27%  score
-     *   Sau 24h → còn 3%   score → về cuối bảng
-     *   Sau 48h → < 0.01   → tự bị xóa khỏi ZSET
+     * Order of operations:
+     *   1. Snapshot current scores (để velocity tuần tới có dữ liệu so sánh)
+     *   2. Recompute velocity (dùng snapshot 24h trước)
+     *   3. Decay tất cả listen + engagement ZSETs
+     *   4. Prune new-releases cũ
      */
     @Scheduled(cron = "0 0 * * * *")
     public void decayTrendingScores() {
-        log.info("[Trending] Starting hourly decay...");
+        long epochHour = Instant.now().getEpochSecond() / 3600;
+        log.info("[Trending] Starting hourly decay (epochHour={})...", epochHour);
         int keysProcessed = 0;
 
-        // Decay global trending
+        // ── Step 1: Snapshot trước khi decay ──────────────────────────────────
+        // Snapshot phải chạy TRƯỚC decay để velocity không bị sai
+        trendingScoreService.snapshotCurrentScores(epochHour);
+
+        // ── Step 2: Recompute velocity dùng snapshot 24h trước ────────────────
+        trendingScoreService.recomputeVelocityScores(epochHour);
+
+        // ── Step 3: Decay listen ZSET (global + per-genre) ────────────────────
         trendingScoreService.decayAll(RedisConfig.KEY_TRENDING_GLOBAL);
         keysProcessed++;
 
-        // Decay tất cả genre trending ZSETs
         Set<String> genreKeys = trendingScoreService.getAllGenreTrendingKeys();
         for (String key : genreKeys) {
             trendingScoreService.decayAll(key);
             keysProcessed++;
         }
 
-        // Dọn new-releases cũ hơn 30 ngày
+        // ── Step 4: Decay engagement ZSET ─────────────────────────────────────
+        trendingScoreService.decayAll(TrendingScoreService.KEY_ENGAGEMENT_GLOBAL);
+        keysProcessed++;
+
+        // ── Step 5: Prune new-releases cũ hơn 30 ngày ────────────────────────
         pruneOldNewReleases();
 
         log.info("[Trending] Decay complete — {} ZSETs processed", keysProcessed);
@@ -73,7 +81,6 @@ public class TrendingDecayScheduler {
 
     /**
      * Nhận sự kiện album mới publish từ music-service.
-     * Lưu vào ZSET với score = publishedAt epoch seconds → sort by thời gian mới nhất.
      */
     @RabbitListener(queues = RabbitMQConfig.REC_NEW_RELEASES_QUEUE, ackMode = "MANUAL")
     public void handleNewRelease(
@@ -89,20 +96,15 @@ public class TrendingDecayScheduler {
                 return;
             }
 
-            // Score = timestamp (epoch seconds) → ZREVRANGE sẽ ra đúng thứ tự mới nhất trước
             double score = Instant.now().getEpochSecond();
 
-            // Global new-releases ZSET
             redisTemplate.opsForZSet().add(
                     RedisConfig.KEY_ALL_NEW_RELEASES,
-                    event.getContentId(),  // albumId
-                    score
-            );
+                    event.getContentId(),
+                    score);
 
-            // Per-artist new-releases để recommendation có thể filter theo followed artists
             String artistKey = "rec:new-releases:artist:" + event.getArtistId();
             redisTemplate.opsForZSet().add(artistKey, event.getContentId(), score);
-            // TTL 30 ngày cho per-artist key
             redisTemplate.expire(artistKey, Duration.ofDays(30));
 
             log.info("[NewReleases] Album {} by artist {} added to new-releases cache",
@@ -120,16 +122,12 @@ public class TrendingDecayScheduler {
         }
     }
 
-    /**
-     * Xóa entries cũ hơn 30 ngày khỏi rec:all-new-releases.
-     * Score trong ZSET là epoch seconds → cutoff = now - 30 ngày.
-     */
     private void pruneOldNewReleases() {
         long cutoff = Instant.now().minus(Duration.ofDays(30)).getEpochSecond();
         Long removed = redisTemplate.opsForZSet()
                 .removeRangeByScore(RedisConfig.KEY_ALL_NEW_RELEASES, 0, cutoff);
         if (removed != null && removed > 0) {
-            log.debug("[NewReleases] Pruned {} old entries from new-releases", removed);
+            log.debug("[NewReleases] Pruned {} old entries", removed);
         }
     }
 }

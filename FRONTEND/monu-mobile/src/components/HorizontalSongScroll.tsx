@@ -10,9 +10,23 @@ import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useThemeColors } from '../config/colors';
 import { HorizontalRecommendationSkeleton } from './SkeletonLoader';
-import { ReasonBadge } from './ReasonBadge';
 import { FeedbackType, RecommendedSong } from '../services/recommendation';
 import { AppIcon } from '../config/appIcons';
+import { uiPresets } from '../config/uiPresets';
+
+const formatDuration = (seconds: number): string => {
+  if (!seconds) return '';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
+const formatPlayCount = (count: number): string => {
+  if (!count) return '';
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(0)}K`;
+  return `${count}`;
+};
 
 interface CardProps {
   item: RecommendedSong;
@@ -65,14 +79,30 @@ const SongCard = memo(({ item, isActive, onPress, onLongPress, onFeedback }: Car
       </View>
 
       <View style={styles.info}>
-        <Text style={[styles.title, isActive && styles.titleActive]} numberOfLines={1}>
+        {/* Title */}
+        <Text style={[styles.title, isActive && styles.titleActive]} numberOfLines={2}>
           {item.title}
         </Text>
-        <Text style={styles.artist} numberOfLines={1}>
-          {item.primaryArtist?.stageName}
+
+        {/* Artist */}
+        <Text style={[styles.artist, isActive && styles.artistActive]} numberOfLines={1}>
+          {item.primaryArtist?.stageName ?? ''}
         </Text>
-        <View style={styles.reasonWrap}>
-          <ReasonBadge reasonType={item.reasonType} reason={item.reason} variant="full" />
+
+        {/* Stats row: duration + play count */}
+        <View style={styles.statsRow}>
+          {!!item.durationSeconds && (
+            <View style={styles.statChip}>
+              <AppIcon name="headset" size={9} color={colors.muted} />
+              <Text style={styles.statText}>{formatDuration(item.durationSeconds)}</Text>
+            </View>
+          )}
+          {!!item.playCount && (
+            <View style={styles.statChip}>
+              <AppIcon name="play" size={9} color={colors.muted} />
+              <Text style={styles.statText}>{formatPlayCount(item.playCount)}</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -144,18 +174,17 @@ export const HorizontalSongScroll = ({
   );
 };
 
-const CARD_WIDTH = 148;
+const CARD_WIDTH = 152;
 
 const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.create({
   listContent: { paddingHorizontal: 20, gap: 10 },
   card: {
     width: CARD_WIDTH,
-    height: 220,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.glass12,
+    backgroundColor: uiPresets.glassSurface(colors, { intensity: 'subtle', radius: 16 }).backgroundColor,
   },
   cardActive: { borderColor: colors.accentBorder35 },
   thumbWrap: { position: 'relative' },
@@ -167,19 +196,53 @@ const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.crea
     alignItems: 'center',
     justifyContent: 'center',
   },
-  info: { padding: 10, height: 72, justifyContent: 'space-between' },
-  title: { color: colors.text, fontSize: 13, fontWeight: '700', lineHeight: 17 },
+  info: {
+    padding: 10,
+    paddingBottom: 12,
+    gap: 5,
+  },
+  title: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
   titleActive: { color: colors.accent },
-  artist: { color: colors.textSecondary, fontSize: 11 },
-  reasonWrap: { minHeight: 20, justifyContent: 'flex-end' },
+  artist: {
+    color: colors.textSecondary,
+    fontSize: 11,
+  },
+  artistActive: { color: colors.accent, opacity: 0.85 },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 2,
+  },
+  statChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.glass06,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: colors.glass10,
+  },
+  statText: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
   dislikeBtn: {
     position: 'absolute',
     top: 6,
     right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.surfaceDim,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center',
     justifyContent: 'center',
   },

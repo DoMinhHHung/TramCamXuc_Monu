@@ -39,6 +39,20 @@ public class RecommendedSongDto {
      */
     private String reasonContext;
 
+    /** Vị trí trong bảng xếp hạng trending (1-based), null nếu không phải trending context */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Integer rank;
+
+    /**
+     * Badge hiển thị trên UI:
+     *   "🔥 Nổi bật hôm nay"  → top 3
+     *   "📈 Tăng mạnh"        → velocity cao (> 0.7)
+     *   "⭐ Mới & Hot"         → bài mới < 24h và đang trending
+     *   "🎵 Đang thịnh"       → top 4-10
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String trendBadge;
+
     /** Chỉ trả về khi debug=true — không bao giờ expose production */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Double debugScore;

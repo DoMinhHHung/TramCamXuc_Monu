@@ -69,7 +69,7 @@ export const RecommendedSongRow = memo(({
           <Text style={styles.artist} numberOfLines={1}>
             {item.primaryArtist?.stageName}
           </Text>
-          <ReasonBadge reasonType={item.reasonType} reason={item.reason} />
+          {/* <ReasonBadge reasonType={item.reasonType} reason={item.reason} /> */}
         </View>
 
         <View style={styles.right}>

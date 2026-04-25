@@ -406,25 +406,125 @@ public class RecommendationOrchestratorService {
     // ── Trending endpoint ─────────────────────────────────────────────────────
 
     /**
-     * Trending toàn cầu (có cache riêng với TTL ngắn hơn).
+     * Trending toàn cầu với combined scoring (listen 50% + engagement 30% + velocity 15% + freshness 5%).
      */
     public List<RecommendedSongDto> getTrending(UUID userId, int limit) {
         String cacheKey = RedisConfig.KEY_CACHE_HOME + "trending:global";
         List<RecommendedSongDto> cached = getCached(cacheKey, new TypeReference<>() {});
         if (cached != null) return cached.stream().limit(limit).collect(Collectors.toList());
 
-        // User disliked songs — không show bài bị dislike dù đang trending
         Set<String> disliked = userId != null
                 ? socialService.getDislikedSongIds(userId)
                 : Collections.emptySet();
 
-        List<String> trendingIds = trendingService.getGlobalTrending(limit * 2);
-        Map<String, SongDetailDto> details = hydrateSongsBatch(new LinkedHashSet<>(trendingIds));
-        List<RecommendedSongDto> result = ranker.rankTrending(
-                trendingIds, details, disliked, null, limit);
+        List<RecommendedSongDto> result = buildCombinedTrending(disliked, limit, false);
 
-        cache(cacheKey, result,
-                Duration.ofMinutes(props.getCache().getTrendingTtlMinutes()));
+        cache(cacheKey, result, Duration.ofMinutes(props.getCache().getTrendingTtlMinutes()));
+        return result;
+    }
+
+    /**
+     * Top 10 Xu Hướng — always fresh, includes rank + trendBadge.
+     */
+    public List<RecommendedSongDto> getTop10Trending(UUID userId) {
+        String cacheKey = RedisConfig.KEY_CACHE_HOME + "trending:top10";
+        List<RecommendedSongDto> cached = getCached(cacheKey, new TypeReference<>() {});
+        if (cached != null) return cached;
+
+        Set<String> disliked = userId != null
+                ? socialService.getDislikedSongIds(userId)
+                : Collections.emptySet();
+
+        List<RecommendedSongDto> result = buildCombinedTrending(disliked, 10, true);
+
+        cache(cacheKey, result, Duration.ofMinutes(2));
+        return result;
+    }
+
+    /**
+     * Core combined trending builder.
+     *
+     * @param withRankBadge nếu true: thêm rank + trendBadge vào mỗi bài
+     */
+    private List<RecommendedSongDto> buildCombinedTrending(
+            Set<String> disliked, int limit, boolean withRankBadge) {
+
+        int candidateCount = limit * 3;
+        List<String> listenIds = trendingService.getGlobalTrending(candidateCount);
+
+        List<String> candidates = listenIds.stream()
+                .filter(id -> !disliked.contains(id))
+                .collect(Collectors.toList());
+
+        if (candidates.isEmpty()) return Collections.emptyList();
+
+        Map<String, SongDetailDto> details = hydrateSongsBatch(new LinkedHashSet<>(candidates));
+        Map<String, Double> engagementScores = trendingService.getEngagementScoresBatch(candidates);
+        Map<String, Double> velocityScores   = trendingService.getVelocityScoresBatch(candidates);
+
+        // Normalise listen scores để cùng scale với engagement
+        double maxListen = candidates.stream()
+                .mapToDouble(trendingService::getTrendingScore)
+                .max().orElse(1.0);
+        double maxEngagement = engagementScores.values().stream()
+                .mapToDouble(Double::doubleValue).max().orElse(1.0);
+
+        record SongScore(String songId, double combinedScore, double velocity, boolean isNew) {}
+
+        List<SongScore> scored = candidates.stream()
+                .filter(details::containsKey)
+                .map(songId -> {
+                    SongDetailDto d = details.get(songId);
+
+                    double listenNorm  = maxListen     > 0 ? trendingService.getTrendingScore(songId) / maxListen     : 0;
+                    double engageNorm  = maxEngagement > 0 ? engagementScores.getOrDefault(songId, 0.0) / maxEngagement : 0;
+                    double velocity    = velocityScores.getOrDefault(songId, 0.5);
+                    double freshness   = TrendingScoreService.freshnessMultiplier(d.getCreatedAt());
+                    boolean isNew      = freshness >= 1.5;
+
+                    double raw = listenNorm * 0.50
+                               + engageNorm * 0.30
+                               + velocity   * 0.15;
+                    // Freshness là multiplier lên toàn bộ score (5% contribution)
+                    double combined = raw * (1.0 + (freshness - 1.0) * 0.05);
+
+                    return new SongScore(songId, combined, velocity, isNew);
+                })
+                .sorted(Comparator.comparingDouble(SongScore::combinedScore).reversed())
+                .limit(limit)
+                .collect(Collectors.toList());
+
+        List<RecommendedSongDto> result = new ArrayList<>();
+        for (int i = 0; i < scored.size(); i++) {
+            SongScore ss = scored.get(i);
+            SongDetailDto d = details.get(ss.songId());
+            SongDetailDto.ArtistInfo a = d.getPrimaryArtist();
+            int rankPos = i + 1;
+
+            String badge = null;
+            if (withRankBadge) {
+                if (rankPos <= 3)               badge = "🔥 Nổi bật hôm nay";
+                else if (ss.isNew())             badge = "⭐ Mới & Hot";
+                else if (ss.velocity() > 0.70)  badge = "📈 Tăng mạnh";
+                else                             badge = "🎵 Đang thịnh";
+            }
+
+            result.add(RecommendedSongDto.builder()
+                    .songId(d.getId())
+                    .title(d.getTitle())
+                    .slug(d.getSlug())
+                    .thumbnailUrl(d.getThumbnailUrl())
+                    .durationSeconds(d.getDurationSeconds())
+                    .playCount(d.getPlayCount())
+                    .artistId(a != null ? a.getArtistId() : null)
+                    .artistStageName(a != null ? a.getStageName() : null)
+                    .artistAvatarUrl(a != null ? a.getAvatarUrl() : null)
+                    .reason(RecommendedSongDto.ReasonType.TRENDING_NOW)
+                    .rank(withRankBadge ? rankPos : null)
+                    .trendBadge(badge)
+                    .build());
+        }
+
         return result;
     }
 

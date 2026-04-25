@@ -4,6 +4,7 @@ import iuh.fit.se.socialservice.document.Reaction;
 import iuh.fit.se.socialservice.dto.response.ReactionResponse;
 import iuh.fit.se.socialservice.dto.response.ReactionUserEntry;
 import iuh.fit.se.socialservice.enums.ReactionType;
+import iuh.fit.se.socialservice.event.EngagementEventPublisher;
 import iuh.fit.se.socialservice.exception.AppException;
 import iuh.fit.se.socialservice.exception.ErrorCode;
 import iuh.fit.se.socialservice.repository.ReactionRepository;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public class ReactionServiceImpl implements ReactionService {
 
     private final ReactionRepository reactionRepository;
+    private final EngagementEventPublisher engagementPublisher;
 
     // ── LIKE ──────────────────────────────────────────────────────────────────
 
@@ -34,20 +36,19 @@ public class ReactionServiceImpl implements ReactionService {
             Reaction reaction = existing.get();
 
             if (reaction.getType() == ReactionType.LIKE) {
-                // Đang LIKE → bấm lại → bỏ LIKE (un-like)
                 reactionRepository.delete(reaction);
                 log.info("User {} un-liked song {}", userId, songId);
+                engagementPublisher.publish(songId, userId, EngagementEventPublisher.EngagementType.UN_LIKE, artistId);
                 return buildSummary(userId, songId, null);
             } else {
-                // Đang DISLIKE → chuyển sang LIKE
                 reaction.setType(ReactionType.LIKE);
                 reactionRepository.save(reaction);
                 log.info("User {} switched from DISLIKE to LIKE on song {}", userId, songId);
+                engagementPublisher.publish(songId, userId, EngagementEventPublisher.EngagementType.LIKE, artistId);
                 return buildSummary(userId, songId, reaction);
             }
         }
 
-        // Chưa react → thêm LIKE
         Reaction reaction = reactionRepository.save(
                 Reaction.builder()
                         .userId(userId)
@@ -56,6 +57,7 @@ public class ReactionServiceImpl implements ReactionService {
                         .type(ReactionType.LIKE)
                         .build());
         log.info("User {} liked song {}", userId, songId);
+        engagementPublisher.publish(songId, userId, EngagementEventPublisher.EngagementType.LIKE, artistId);
         return buildSummary(userId, songId, reaction);
     }
 
@@ -69,20 +71,19 @@ public class ReactionServiceImpl implements ReactionService {
             Reaction reaction = existing.get();
 
             if (reaction.getType() == ReactionType.DISLIKE) {
-                // Đang DISLIKE → bấm lại → bỏ DISLIKE (un-dislike)
                 reactionRepository.delete(reaction);
                 log.info("User {} un-disliked song {}", userId, songId);
+                engagementPublisher.publish(songId, userId, EngagementEventPublisher.EngagementType.UN_DISLIKE, artistId);
                 return buildSummary(userId, songId, null);
             } else {
-                // Đang LIKE → chuyển sang DISLIKE
                 reaction.setType(ReactionType.DISLIKE);
                 reactionRepository.save(reaction);
                 log.info("User {} switched from LIKE to DISLIKE on song {}", userId, songId);
+                engagementPublisher.publish(songId, userId, EngagementEventPublisher.EngagementType.DISLIKE, artistId);
                 return buildSummary(userId, songId, reaction);
             }
         }
 
-        // Chưa react → thêm DISLIKE
         Reaction reaction = reactionRepository.save(
                 Reaction.builder()
                         .userId(userId)
@@ -91,6 +92,7 @@ public class ReactionServiceImpl implements ReactionService {
                         .type(ReactionType.DISLIKE)
                         .build());
         log.info("User {} disliked song {}", userId, songId);
+        engagementPublisher.publish(songId, userId, EngagementEventPublisher.EngagementType.DISLIKE, artistId);
         return buildSummary(userId, songId, reaction);
     }
 

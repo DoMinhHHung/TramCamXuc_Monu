@@ -1,9 +1,11 @@
 package iuh.fit.se.recommendationservice.service;
 
 import iuh.fit.se.recommendationservice.config.RedisConfig;
+import iuh.fit.se.recommendationservice.dto.EngagementEventDto;
 import iuh.fit.se.recommendationservice.dto.SongListenEventDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import iuh.fit.se.recommendationservice.config.RedisConfig.RecommendationProperties;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
@@ -11,31 +13,37 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * Quản lý trending score trong Redis Sorted Sets.
+ * Quản lý trending scores trong Redis Sorted Sets.
  *
  * ── Cấu trúc Redis ──────────────────────────────────────────────────────────
  *
- *   rec:trending:global           ZSET  (songId → score)
- *   rec:trending:genre:{genreId}  ZSET  (songId → score)
+ *   rec:trending:global           ZSET  songId → listen_score   (50% weight)
+ *   rec:engagement:global         ZSET  songId → engagement_score (30% weight)
+ *   rec:trending:genre:{genreId}  ZSET  songId → listen_score   (per-genre)
+ *   rec:trending:velocity         HASH  songId → velocity_normalized [0,1] (15%)
+ *   rec:trending:snap:{epochHour} HASH  songId → score  (24h snapshot cho velocity)
  *
- * ── Scoring logic ───────────────────────────────────────────────────────────
+ * ── Scoring ──────────────────────────────────────────────────────────────────
  *
- *   Mỗi lần nghe nhạc đóng góp một điểm cơ bản, được điều chỉnh bởi:
- *   - completion bonus: nghe xong toàn bài → bài hay hơn nghe 10s
- *   - duration weight: nghe lâu hơn → meaningful listen
+ *   Listen score (per listen event):
+ *     1.0 + (completed ? 4.0 : 0) + min(durationSeconds/30, 5.0)
+ *     → Range [1.0, 10.0]
  *
- *   Decay chạy hourly (TrendingDecayScheduler):
- *   score_new = score_old × decayFactor^hoursElapsed
- *   → bài cũ tự nhiên rơi xuống, bài mới viral nổi lên nhanh
+ *   Engagement score (per social event):
+ *     LIKE=+8, HEART=+6, COMMENT=+3, SHARE=+5
+ *     DISLIKE=-10, UN_LIKE=-4, UN_HEART=-3, UN_DISLIKE=+5
  *
- * ── Tại sao ZSET thay vì sorted list thường? ────────────────────────────────
- *   ZINCRBY: O(log N) atomic increment — không race condition dù nhiều consumer
- *   ZREVRANGE: O(log N + M) để lấy top-M — nhanh dù ZSET có 10k entries
- *   ZREMRANGEBYRANK: xóa bottom entries để giữ kích thước ZSET ổn định
+ *   Combined trending (tính tại read-time bởi Orchestrator):
+ *     score = listen_raw×0.50 + engagement_raw×0.30 + velocity×0.15
+ *     freshness_factor = 2.0|1.5|1.2|1.0 (applied as multiplier)
+ *
+ * ── Decay ────────────────────────────────────────────────────────────────────
+ *   Mỗi giờ: score *= 0.85 → bài 24h cũ còn ~3%, tự rơi khỏi top
  */
 @Service
 @RequiredArgsConstructor
@@ -43,46 +51,44 @@ import java.util.stream.Collectors;
 public class TrendingScoreService {
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final RedisConfig.RecommendationProperties props;
+    private final RecommendationProperties props;
 
-    // ── Scoring weights ──────────────────────────────────────────────────────
+    // ── Redis key constants ──────────────────────────────────────────────────
+    public static final String KEY_ENGAGEMENT_GLOBAL  = "rec:engagement:global";
+    public static final String KEY_ENGAGEMENT_GENRE   = "rec:engagement:genre:";
+    public static final String KEY_VELOCITY_HASH      = "rec:trending:velocity";
+    public static final String KEY_SNAPSHOT_PREFIX    = "rec:trending:snap:";
 
-    /** Điểm cơ bản cho mỗi lượt nghe */
-    private static final double BASE_LISTEN_SCORE = 1.0;
+    // ── Listen score weights ─────────────────────────────────────────────────
+    private static final double BASE_LISTEN_SCORE   = 1.0;
+    private static final double COMPLETION_BONUS    = 4.0;
+    private static final int    DURATION_UNIT_SECS  = 30;
+    private static final double MAX_DURATION_BONUS  = 5.0;
 
-    /** Bonus nếu nghe hoàn chỉnh (completed = true) */
-    private static final double COMPLETION_BONUS = 4.0;
+    // ── Engagement score weights ─────────────────────────────────────────────
+    private static final double SCORE_LIKE        =  8.0;
+    private static final double SCORE_HEART       =  6.0;
+    private static final double SCORE_COMMENT     =  3.0;
+    private static final double SCORE_SHARE       =  5.0;
+    private static final double SCORE_DISLIKE     = -10.0;
+    private static final double SCORE_UN_LIKE     = -4.0;
+    private static final double SCORE_UN_HEART    = -3.0;
+    private static final double SCORE_UN_DISLIKE  =  5.0;
 
-    /**
-     * Duration weight: mỗi 30 giây nghe thêm được +1 điểm
-     * (capped at 5 điểm = 2.5 phút)
-     * → Tránh trường hợp bài 10 giây bị đánh giá ngang bài 5 phút
-     */
-    private static final int DURATION_UNIT_SECONDS = 30;
-    private static final double MAX_DURATION_BONUS = 5.0;
+    // ── Public API: Write path ────────────────────────────────────────────────
 
-    // ── Public API ───────────────────────────────────────────────────────────
-
-    /**
-     * Cập nhật trending score khi có sự kiện nghe nhạc.
-     * Gọi bởi TrendingEventConsumer từ RabbitMQ message.
-     *
-     * @param event deserialized từ song.listen.fanout.exchange message
-     */
     public void handleListenEvent(SongListenEventDto event) {
         if (!StringUtils.hasText(event.getSongId())) {
             log.warn("[Trending] Received event with null songId, skipping");
             return;
         }
 
-        double score = calculateListenScore(event);
+        double score  = calculateListenScore(event);
         String songId = event.getSongId();
 
-        // Update global trending
         incrementScore(RedisConfig.KEY_TRENDING_GLOBAL, songId, score);
         trimZSet(RedisConfig.KEY_TRENDING_GLOBAL, props.getTrending().getGlobalTopSize());
 
-        // Update per-genre trending (nếu event có genre info)
         if (event.getGenreIds() != null && !event.getGenreIds().isEmpty()) {
             for (String genreId : event.getGenreIds()) {
                 String genreKey = RedisConfig.KEY_TRENDING_GENRE + genreId;
@@ -91,46 +97,85 @@ public class TrendingScoreService {
             }
         }
 
-        log.debug("[Trending] Updated score for songId={} by +{:.2f} (completed={}, duration={}s)",
-                songId, score, event.isCompleted(), event.getDurationSeconds());
+        log.debug("[Trending] Listen +{:.2f} for songId={} (completed={}, duration={}s)",
+                score, songId, event.isCompleted(), event.getDurationSeconds());
     }
 
-    /**
-     * Lấy top-N trending songs global.
-     *
-     * @param topN số lượng cần lấy
-     * @return list songId theo thứ tự score giảm dần
-     */
+    public void handleEngagementEvent(EngagementEventDto event) {
+        if (!StringUtils.hasText(event.getSongId()) || !StringUtils.hasText(event.getType())) return;
+
+        double delta = engagementDelta(event.getType());
+        if (delta == 0.0) return;
+
+        String songId = event.getSongId();
+
+        incrementScore(KEY_ENGAGEMENT_GLOBAL, songId, delta);
+        // Ensure engagement ZSET doesn't go below 0 for any song
+        Double current = redisTemplate.opsForZSet().score(KEY_ENGAGEMENT_GLOBAL, songId);
+        if (current != null && current < 0) {
+            redisTemplate.opsForZSet().add(KEY_ENGAGEMENT_GLOBAL, songId, 0.0);
+        }
+        trimZSet(KEY_ENGAGEMENT_GLOBAL, props.getTrending().getGlobalTopSize());
+
+        log.debug("[Engagement] {} {:+.1f} for songId={}", event.getType(), delta, songId);
+    }
+
+    // ── Public API: Read path ─────────────────────────────────────────────────
+
     public List<String> getGlobalTrending(int topN) {
         return getTopSongIds(RedisConfig.KEY_TRENDING_GLOBAL, topN);
     }
 
-    /**
-     * Lấy top-N trending songs trong một genre.
-     */
     public List<String> getTrendingByGenre(String genreId, int topN) {
         return getTopSongIds(RedisConfig.KEY_TRENDING_GENRE + genreId, topN);
     }
 
-    /**
-     * Lấy score của một bài hát trong trending global.
-     * Dùng khi blending — để tính trending contribution.
-     *
-     * @return score, hoặc 0.0 nếu bài không có trong trending ZSET
-     */
     public double getTrendingScore(String songId) {
         Double score = redisTemplate.opsForZSet()
                 .score(RedisConfig.KEY_TRENDING_GLOBAL, songId);
         return score != null ? score : 0.0;
     }
 
-    /**
-     * Decay tất cả scores trong một ZSET.
-     * Gọi bởi TrendingDecayScheduler mỗi giờ.
-     *
-     * Design: thay vì dùng TTL (làm mất hết data), chúng ta nhân score với
-     * decay factor → bài cũ dần rơi xuống đáy ZSET → không ảnh hưởng top
-     */
+    public double getEngagementScore(String songId) {
+        Double score = redisTemplate.opsForZSet().score(KEY_ENGAGEMENT_GLOBAL, songId);
+        return score != null ? score : 0.0;
+    }
+
+    /** Velocity [0,1] từ Redis HASH, default 0.5 (neutral sigmoid) nếu chưa tính */
+    public double getVelocityScore(String songId) {
+        Object raw = redisTemplate.opsForHash().get(KEY_VELOCITY_HASH, songId);
+        if (raw == null) return 0.5;
+        try { return Double.parseDouble(raw.toString()); } catch (Exception e) { return 0.5; }
+    }
+
+    /** Batch get velocity scores cho nhiều songs — dùng pipeline để giảm round-trips */
+    public Map<String, Double> getVelocityScoresBatch(List<String> songIds) {
+        if (songIds == null || songIds.isEmpty()) return Collections.emptyMap();
+        List<Object> values = redisTemplate.opsForHash().multiGet(KEY_VELOCITY_HASH, new ArrayList<>(songIds));
+        Map<String, Double> result = new LinkedHashMap<>();
+        for (int i = 0; i < songIds.size(); i++) {
+            Object raw = values.get(i);
+            double v = 0.5;
+            if (raw != null) {
+                try { v = Double.parseDouble(raw.toString()); } catch (Exception ignored) {}
+            }
+            result.put(songIds.get(i), v);
+        }
+        return result;
+    }
+
+    /** Batch get engagement scores từ ZSET */
+    public Map<String, Double> getEngagementScoresBatch(List<String> songIds) {
+        if (songIds == null || songIds.isEmpty()) return Collections.emptyMap();
+        Map<String, Double> result = new LinkedHashMap<>();
+        for (String songId : songIds) {
+            result.put(songId, getEngagementScore(songId));
+        }
+        return result;
+    }
+
+    // ── Decay ─────────────────────────────────────────────────────────────────
+
     public void decayAll(String zsetKey) {
         Set<ZSetOperations.TypedTuple<Object>> entries =
                 redisTemplate.opsForZSet().rangeWithScores(zsetKey, 0, -1);
@@ -151,7 +196,6 @@ public class TrendingScoreService {
                 double newScore = entry.getScore() * factor;
 
                 if (newScore < 0.01) {
-                    // Score quá nhỏ → remove để giữ ZSET sạch
                     connection.zSetCommands().zRem(rawKey, rawMember);
                 } else {
                     connection.zSetCommands().zAdd(rawKey, newScore, rawMember);
@@ -164,44 +208,122 @@ public class TrendingScoreService {
         log.debug("[Trending] Decayed {} entries in {} (factor={})", updated[0], zsetKey, factor);
     }
 
-    /**
-     * Lấy tất cả genre keys có trending data để decay.
-     * Dùng bởi scheduler để lặp qua tất cả per-genre ZSETs.
-     */
     public Set<String> getAllGenreTrendingKeys() {
         Set<String> keys = redisTemplate.keys(RedisConfig.KEY_TRENDING_GENRE + "*");
         return keys != null ? keys : Collections.emptySet();
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
+    // ── Velocity snapshot ─────────────────────────────────────────────────────
 
     /**
-     * Tính điểm đóng góp của một sự kiện nghe nhạc.
-     *
-     * Formula:
-     *   score = BASE_LISTEN_SCORE
-     *         + (completed ? COMPLETION_BONUS : 0)
-     *         + min(durationSeconds / DURATION_UNIT_SECONDS, MAX_DURATION_BONUS)
-     *
-     * Ví dụ:
-     *   Nghe 10s, không xong  → 1.0 + 0 + 0.33 = 1.33
-     *   Nghe 60s, không xong  → 1.0 + 0 + 2.0  = 3.0
-     *   Nghe 180s, xong bài   → 1.0 + 4.0 + 5.0 = 10.0 (max)
+     * Snapshot toàn bộ trending ZSET vào một Redis HASH theo epochHour.
+     * Dùng bởi TrendingDecayScheduler mỗi giờ để tính velocity.
+     * TTL 48h để có thể so sánh với 24h trước.
      */
-    private double calculateListenScore(SongListenEventDto event) {
-        double score = BASE_LISTEN_SCORE;
+    public void snapshotCurrentScores(long epochHour) {
+        Set<ZSetOperations.TypedTuple<Object>> entries =
+                redisTemplate.opsForZSet().rangeWithScores(RedisConfig.KEY_TRENDING_GLOBAL, 0, -1);
 
-        if (event.isCompleted()) {
-            score += COMPLETION_BONUS;
+        if (entries == null || entries.isEmpty()) return;
+
+        String snapKey = KEY_SNAPSHOT_PREFIX + epochHour;
+        Map<String, Double> snapshot = new LinkedHashMap<>();
+        for (ZSetOperations.TypedTuple<Object> e : entries) {
+            if (e.getValue() != null && e.getScore() != null) {
+                snapshot.put(e.getValue().toString(), e.getScore());
+            }
         }
 
-        double durationBonus = Math.min(
-                (double) event.getDurationSeconds() / DURATION_UNIT_SECONDS,
-                MAX_DURATION_BONUS
-        );
-        score += durationBonus;
+        redisTemplate.opsForHash().putAll(snapKey, snapshot);
+        redisTemplate.expire(snapKey, Duration.ofHours(48));
 
+        log.debug("[Velocity] Snapshot {} songs → key={}", snapshot.size(), snapKey);
+    }
+
+    /**
+     * Tính velocity cho từng bài và lưu vào KEY_VELOCITY_HASH.
+     * velocity = sigmoid((current - yesterday) / max(yesterday, 1))
+     */
+    public void recomputeVelocityScores(long epochHour) {
+        long yesterdayEpochHour = epochHour - 24;
+        String yesterdayKey = KEY_SNAPSHOT_PREFIX + yesterdayEpochHour;
+
+        Set<ZSetOperations.TypedTuple<Object>> currentEntries =
+                redisTemplate.opsForZSet().rangeWithScores(RedisConfig.KEY_TRENDING_GLOBAL, 0, -1);
+
+        if (currentEntries == null || currentEntries.isEmpty()) return;
+
+        Map<String, Double> velocities = new LinkedHashMap<>();
+        for (ZSetOperations.TypedTuple<Object> entry : currentEntries) {
+            if (entry.getValue() == null || entry.getScore() == null) continue;
+            String songId = entry.getValue().toString();
+            double current = entry.getScore();
+
+            Object rawYesterday = redisTemplate.opsForHash().get(yesterdayKey, songId);
+            double yesterday = 0.0;
+            if (rawYesterday != null) {
+                try { yesterday = Double.parseDouble(rawYesterday.toString()); } catch (Exception ignored) {}
+            }
+
+            double rawVelocity = (current - yesterday) / Math.max(yesterday, 1.0);
+            double normalized  = sigmoid(rawVelocity);
+            velocities.put(songId, normalized);
+        }
+
+        if (!velocities.isEmpty()) {
+            redisTemplate.opsForHash().putAll(KEY_VELOCITY_HASH, velocities);
+        }
+        log.debug("[Velocity] Recomputed {} velocity scores (epochHour={})", velocities.size(), epochHour);
+    }
+
+    // ── Freshness (applied at read-time in Orchestrator) ──────────────────────
+
+    /**
+     * Tính freshness multiplier dựa trên age của bài hát (tính bằng giờ).
+     *   < 24h  → 2.0  (double boost)
+     *   1-3d   → 1.5
+     *   3-7d   → 1.2
+     *   > 7d   → 1.0  (no bonus)
+     */
+    public static double freshnessMultiplier(String createdAtIso) {
+        if (createdAtIso == null || createdAtIso.isBlank()) return 1.0;
+        try {
+            java.time.Instant created = java.time.Instant.parse(createdAtIso);
+            long ageHours = java.time.Duration.between(created, java.time.Instant.now()).toHours();
+            if (ageHours <= 24)  return 2.0;
+            if (ageHours <= 72)  return 1.5;
+            if (ageHours <= 168) return 1.2;
+            return 1.0;
+        } catch (Exception e) {
+            return 1.0;
+        }
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    public double calculateListenScore(SongListenEventDto event) {
+        double score = BASE_LISTEN_SCORE;
+        if (event.isCompleted()) score += COMPLETION_BONUS;
+        score += Math.min((double) event.getDurationSeconds() / DURATION_UNIT_SECS, MAX_DURATION_BONUS);
         return score;
+    }
+
+    private double engagementDelta(String type) {
+        return switch (type.toUpperCase()) {
+            case "LIKE"       -> SCORE_LIKE;
+            case "UN_LIKE"    -> SCORE_UN_LIKE;
+            case "DISLIKE"    -> SCORE_DISLIKE;
+            case "UN_DISLIKE" -> SCORE_UN_DISLIKE;
+            case "HEART"      -> SCORE_HEART;
+            case "UN_HEART"   -> SCORE_UN_HEART;
+            case "COMMENT"    -> SCORE_COMMENT;
+            case "SHARE"      -> SCORE_SHARE;
+            default           -> 0.0;
+        };
+    }
+
+    private double sigmoid(double x) {
+        return 1.0 / (1.0 + Math.exp(-x));
     }
 
     private void incrementScore(String key, String songId, double delta) {
@@ -209,25 +331,15 @@ public class TrendingScoreService {
     }
 
     private List<String> getTopSongIds(String key, int topN) {
-        Set<Object> result = redisTemplate.opsForZSet()
-                .reverseRange(key, 0, topN - 1);
-
+        Set<Object> result = redisTemplate.opsForZSet().reverseRange(key, 0, topN - 1);
         if (result == null) return Collections.emptyList();
-
-        return result.stream()
-                .map(Object::toString)
-                .collect(Collectors.toList());
+        return result.stream().map(Object::toString).collect(Collectors.toList());
     }
 
-    /**
-     * Giữ ZSET không vượt quá maxSize.
-     * Remove các entries có score thấp nhất để tránh memory leak.
-     */
     private void trimZSet(String key, int maxSize) {
-        Long currentSize = redisTemplate.opsForZSet().size(key);
-        if (currentSize != null && currentSize > maxSize) {
-            // Xóa từ vị trí 0 đến (currentSize - maxSize - 1) — tức là bottom entries
-            redisTemplate.opsForZSet().removeRange(key, 0, currentSize - maxSize - 1);
+        Long size = redisTemplate.opsForZSet().size(key);
+        if (size != null && size > maxSize) {
+            redisTemplate.opsForZSet().removeRange(key, 0, size - maxSize - 1);
         }
     }
 
