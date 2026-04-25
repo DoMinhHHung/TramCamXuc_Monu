@@ -22,6 +22,9 @@ export const ReasonBadge = ({ reasonType, reason, variant = 'full' }: ReasonBadg
     TRENDING_IN_GENRE: { icon: '📈', label: 'Hot trong thể loại', color: colors.warningMid, bg: colors.warningDim },
     SIMILAR_TO_LIKED: { icon: '💡', label: 'Tương tự bạn thích', color: colors.accent, bg: 'rgba(192,132,252,0.12)' },
     POPULAR_GLOBALLY: { icon: '🌍', label: 'Phổ biến toàn cầu', color: colors.glass50, bg: colors.glass08 },
+    CONTEXT_TIME:     { icon: '🕐', label: 'Phù hợp lúc này', color: colors.info, bg: 'rgba(99,179,237,0.12)' },
+    CROWD_PICK:       { icon: '👥', label: 'Người gu giống bạn', color: '#f472b6', bg: 'rgba(244,114,182,0.12)' },
+    DISCOVERY:        { icon: '🔭', label: 'Mới với bạn', color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
   };
 
   const cfg = REASON_CONFIG[reasonType] ?? REASON_CONFIG.POPULAR_GLOBALLY;
