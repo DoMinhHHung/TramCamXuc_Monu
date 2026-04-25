@@ -34,7 +34,9 @@ export const useSessionSignal = () => {
   const onSongComplete = useCallback(
     (songId: string, genreIds: string[], artistId?: string) => {
       lastCompletedSongId.current = songId;
-      const playedSeconds = Math.round((Date.now() - startTimeRef.current) / 1000);
+      const playedSeconds = startTimeRef.current
+        ? Math.max(0, Math.round((Date.now() - startTimeRef.current) / 1000))
+        : undefined;
       send({ songId, type: 'COMPLETED', genreIds, artistId, playedSeconds });
     },
     [send],
