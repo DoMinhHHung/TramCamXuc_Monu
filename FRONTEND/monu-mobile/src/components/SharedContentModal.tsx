@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useThemeColors } from '../config/colors';
+import { useThemeColors, COLORS } from '../config/colors';
 import { usePlayerControls, usePlayerState } from '../context/PlayerContext';
 import { addSongToPlaylist, createPlaylist, getMyPlaylists, isSoundCloudExternalSong, Playlist, Song } from '../services/music';
 import { uiPresets } from '../config/uiPresets';

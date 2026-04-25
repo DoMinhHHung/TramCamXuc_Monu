@@ -11,7 +11,7 @@ const glassAlpha: Record<GlassIntensity, number> = {
 
 export const uiPresets = {
   screenGradient: (c: ColorScheme) => ({
-    colors: [c.gradNavy ?? c.surfaceMid, c.bg],
+    colors: [c.gradNavy ?? c.surfaceMid, c.bg] as const,
     start: { x: 0, y: 0 } as const,
     end: { x: 1, y: 1 } as const,
   }),
