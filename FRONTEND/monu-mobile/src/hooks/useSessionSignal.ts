@@ -50,6 +50,7 @@ export const useSessionSignal = () => {
     (songId: string, genreIds: string[], artistId?: string) => {
       const type: SessionSignalType =
         lastCompletedSongId.current === songId ? 'REPEATED' : 'PLAYED';
+      startTimeRef.current = Date.now();
       send({ songId, type, genreIds, artistId });
     },
     [send],
