@@ -23,7 +23,11 @@ public class EngagementEventPublisher {
     private final RabbitTemplate rabbitTemplate;
 
     public enum EngagementType {
-        LIKE, UN_LIKE, DISLIKE, UN_DISLIKE, HEART, UN_HEART, COMMENT, SHARE
+        LIKE, UN_LIKE, DISLIKE, UN_DISLIKE, HEART, UN_HEART, COMMENT, SHARE,
+        /** Feature 3: Bỏ qua trong 10 giây đầu — negative signal mạnh */
+        SKIP_EARLY,
+        /** Feature 3: Nghe lại ngay lập tức — super like */
+        REPEAT
     }
 
     public void publish(UUID songId, UUID userId, EngagementType type) {

@@ -7,6 +7,14 @@ public class FeedbackRequest {
     private FeedbackType type;
     private String sessionId;
     public enum FeedbackType {
-        SKIP, REPLAY, ADD_PLAYLIST, SHARE, DISLIKE
+        SKIP,
+        /** Bỏ qua trong 10 giây đầu — negative signal mạnh hơn SKIP */
+        SKIP_EARLY,
+        /** Nghe lại ngay lập tức — super like */
+        REPEAT,
+        REPLAY,
+        ADD_PLAYLIST,
+        SHARE,
+        DISLIKE
     }
 }

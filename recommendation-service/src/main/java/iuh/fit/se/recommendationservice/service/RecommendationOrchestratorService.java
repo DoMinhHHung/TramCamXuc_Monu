@@ -63,17 +63,21 @@ import java.util.stream.Stream;
 @Slf4j
 public class RecommendationOrchestratorService {
 
-    private final MlServiceClient                mlClient;
-    private final MusicInternalClient            musicClient;
-    private final IdentityInternalClient         identityClient;
-    private final SocialRecommendationService    socialService;
-    private final TrendingScoreService           trendingService;
-    private final RecommendationRanker           ranker;
-    private final ColdStartHandler               coldStartHandler;
-    private final RedisTemplate<String, Object>  redisTemplate;
-    private final ObjectMapper                   objectMapper;
+    private final MlServiceClient                    mlClient;
+    private final MusicInternalClient                musicClient;
+    private final IdentityInternalClient             identityClient;
+    private final SocialRecommendationService        socialService;
+    private final TrendingScoreService               trendingService;
+    private final RecommendationRanker               ranker;
+    private final ColdStartHandler                   coldStartHandler;
+    private final ContextAwareRecommendationService  contextService;
+    private final SessionSignalService               sessionService;
+    private final DiscoveryEngineService             discoveryEngine;
+    private final SocialGraphRecommendationService   socialGraphService;
+    private final RedisTemplate<String, Object>      redisTemplate;
+    private final ObjectMapper                       objectMapper;
     private final RedisConfig.RecommendationProperties props;
-    private final Executor                       fetchExecutor;
+    private final Executor                           fetchExecutor;
     @Value("${recommendation.mode:advance}")
     private String recommendationMode;
 
@@ -85,6 +89,10 @@ public class RecommendationOrchestratorService {
             TrendingScoreService trendingService,
             RecommendationRanker ranker,
             ColdStartHandler coldStartHandler,
+            ContextAwareRecommendationService contextService,
+            SessionSignalService sessionService,
+            DiscoveryEngineService discoveryEngine,
+            SocialGraphRecommendationService socialGraphService,
             RedisTemplate<String, Object> redisTemplate,
             ObjectMapper objectMapper,
             RedisConfig.RecommendationProperties props,
@@ -96,6 +104,10 @@ public class RecommendationOrchestratorService {
         this.trendingService = trendingService;
         this.ranker = ranker;
         this.coldStartHandler = coldStartHandler;
+        this.contextService = contextService;
+        this.sessionService = sessionService;
+        this.discoveryEngine = discoveryEngine;
+        this.socialGraphService = socialGraphService;
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper;
         this.props = props;
@@ -108,22 +120,36 @@ public class RecommendationOrchestratorService {
 
     /**
      * Tổng hợp toàn bộ home feed recommendation.
+     * context có thể null → auto-detect từ giờ hiện tại.
      */
-    public HomeRecommendationResponse getHomeFeed(UUID userId, boolean debug) {
+    public HomeRecommendationResponse getHomeFeed(UUID userId, boolean debug, ContextSignalDto context) {
         return defaultMode() == RecommendationMode.BASIC
-                ? getHomeFeedBasic(userId, debug)
-                : getHomeFeedAdvance(userId, debug);
+                ? getHomeFeedBasic(userId, debug, context)
+                : getHomeFeedAdvance(userId, debug, context);
+    }
+
+    /** Backward-compat: không truyền context → auto-detect */
+    public HomeRecommendationResponse getHomeFeed(UUID userId, boolean debug) {
+        return getHomeFeed(userId, debug, new ContextSignalDto());
+    }
+
+    public HomeRecommendationResponse getHomeFeedBasic(UUID userId, boolean debug, ContextSignalDto context) {
+        return getHomeFeedByMode(userId, debug, RecommendationMode.BASIC, context);
     }
 
     public HomeRecommendationResponse getHomeFeedBasic(UUID userId, boolean debug) {
-        return getHomeFeedByMode(userId, debug, RecommendationMode.BASIC);
+        return getHomeFeedBasic(userId, debug, new ContextSignalDto());
+    }
+
+    public HomeRecommendationResponse getHomeFeedAdvance(UUID userId, boolean debug, ContextSignalDto context) {
+        return getHomeFeedByMode(userId, debug, RecommendationMode.ADVANCE, context);
     }
 
     public HomeRecommendationResponse getHomeFeedAdvance(UUID userId, boolean debug) {
-        return getHomeFeedByMode(userId, debug, RecommendationMode.ADVANCE);
+        return getHomeFeedAdvance(userId, debug, new ContextSignalDto());
     }
 
-    private HomeRecommendationResponse getHomeFeedByMode(UUID userId, boolean debug, RecommendationMode mode) {
+    private HomeRecommendationResponse getHomeFeedByMode(UUID userId, boolean debug, RecommendationMode mode, ContextSignalDto context) {
         // Check cache
         if (!debug) { // debug mode luôn bypass cache để xem fresh data
             HomeRecommendationResponse cached = getCached(
@@ -137,8 +163,8 @@ public class RecommendationOrchestratorService {
 
         log.debug("[Orchestrator] Cache MISS — building home feed for userId={} mode={}", userId, mode);
         HomeRecommendationResponse response = mode == RecommendationMode.BASIC
-                ? buildHomeFeedBasic(userId, debug)
-                : buildHomeFeedAdvance(userId, debug);
+                ? buildHomeFeedBasic(userId, debug, context)
+                : buildHomeFeedAdvance(userId, debug, context);
 
         // Cache kết quả
         if (!debug) {
@@ -150,9 +176,14 @@ public class RecommendationOrchestratorService {
     }
 
     /**
-     * Xây dựng home feed bằng cách fetch song song tất cả nguồn dữ liệu.
+     * Xây dựng home feed nâng cao với 5 features mới.
+     * Feature 1: context-aware section (ngữ cảnh thời gian/tâm trạng)
+     * Feature 2: session re-rank (hành vi ngay lúc đó > lịch sử dài hạn)
+     * Feature 3: SKIP_EARLY / REPEAT scoring (xử lý ở TrendingScoreService)
+     * Feature 4: social graph crowd picks
+     * Feature 5: discovery 70/30 blend
      */
-    private HomeRecommendationResponse buildHomeFeedAdvance(UUID userId, boolean debug) {
+    private HomeRecommendationResponse buildHomeFeedAdvance(UUID userId, boolean debug, ContextSignalDto context) {
         int pageSize = props.getPage().getDefaultSize();
 
         // ── Phase 1a: Kick off all independent fetches on the pool (truly parallel) ──
@@ -256,7 +287,57 @@ public class RecommendationOrchestratorService {
         List<RecommendedSongDto> artistsSection     = futureResult(futureArtists, Collections.emptyList());
         List<RecommendedSongDto> newReleasesSection = futureResult(futureNewReleases, Collections.emptyList());
 
-        // ── Phase 8: Assemble response ───────────────────────────────────────
+        // ── Phase 8: Feature 2 — Session re-rank forYou ─────────────────────
+        // Hành vi 5-10 phút gần nhất quan trọng hơn lịch sử cả tháng
+
+        Map<String, SongDetailDto> forYouDetails = hydrateSongsBatch(
+                forYouSection.stream().map(RecommendedSongDto::getSongId)
+                        .collect(Collectors.toCollection(LinkedHashSet::new)));
+
+        SessionSignalService.SessionPreference sessionPref =
+                sessionService.computeSessionPreference(userId);
+
+        if (!sessionPref.isEmpty()) {
+            forYouSection = reRankBySession(forYouSection, forYouDetails, sessionPref);
+        }
+
+        // ── Phase 9: Feature 1 — Context-aware section ──────────────────────
+        // Lấy từ combined pool (forYou + trending) rồi filter theo ngữ cảnh
+
+        Map<String, RecommendedSongDto> dedup = new LinkedHashMap<>();
+        Stream.concat(forYouSection.stream(), trendingSection.stream())
+                .filter(s -> !disliked.contains(s.getSongId()))
+                .forEach(s -> dedup.putIfAbsent(s.getSongId(), s));
+        List<RecommendedSongDto> combinedPool = new ArrayList<>(dedup.values());
+
+        Map<String, SongDetailDto> poolDetails = new LinkedHashMap<>(forYouDetails);
+        // trendingSection details đã có trong trendingDetails — re-use
+        if (!CollectionUtils.isEmpty(trendingSection)) {
+            Set<String> trendingIds2 = trendingSection.stream()
+                    .map(RecommendedSongDto::getSongId)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+            poolDetails.putAll(hydrateSongsBatch(trendingIds2));
+        }
+
+        List<RecommendedSongDto> contextualSection = contextService.buildContextualSection(
+                combinedPool, poolDetails, context, pageSize / 2);
+
+        String contextualLabel = contextService.getSectionLabel(context);
+
+        // ── Phase 10: Feature 4 — Social graph crowd picks ─────────────────
+
+        List<RecommendedSongDto> crowdPicksSection = socialGraphService.getCrowdPicks(
+                userId, disliked, pageSize / 2);
+
+        // ── Phase 11: Feature 5 — Discovery engine 70/30 ───────────────────
+        // Extract user's known genres từ forYou pool details để classify
+
+        Set<String> userKnownGenreIds = discoveryEngine.extractUserKnownGenreIds(poolDetails.values());
+
+        List<RecommendedSongDto> discoverSection = discoveryEngine.applyDiscoveryBlend(
+                combinedPool, poolDetails, userKnownGenreIds, pageSize);
+
+        // ── Phase 12: Assemble response ──────────────────────────────────────
 
         List<String> recentlyPlayedIds = alreadyHeard.stream()
                 .limit(20)
@@ -268,11 +349,39 @@ public class RecommendationOrchestratorService {
                 .fromArtists(artistsSection)
                 .newReleases(newReleasesSection)
                 .friendsAreListening(friendsSection)
+                .contextual(contextualSection)
+                .contextualLabel(contextualLabel)
+                .crowdPicks(crowdPicksSection)
+                .discover(discoverSection)
                 .recentlyPlayedIds(recentlyPlayedIds)
                 .build();
     }
 
-    private HomeRecommendationResponse buildHomeFeedBasic(UUID userId, boolean debug) {
+    /**
+     * Feature 2: Re-rank forYou theo session preference.
+     * Boost genres user đang thích trong session, penalty genres user đang skip.
+     */
+    private List<RecommendedSongDto> reRankBySession(
+            List<RecommendedSongDto> songs,
+            Map<String, SongDetailDto> details,
+            SessionSignalService.SessionPreference pref) {
+
+        return songs.stream()
+                .map(s -> {
+                    SongDetailDto d = details.get(s.getSongId());
+                    if (d == null) return Map.entry(s, 1.0);
+                    List<String> genreIds = d.getGenres() != null
+                            ? d.getGenres().stream().map(SongDetailDto.GenreInfo::getId).collect(Collectors.toList())
+                            : List.of();
+                    double modifier = pref.scoreModifier(genreIds, s.getArtistId());
+                    return Map.entry(s, modifier);
+                })
+                .sorted(Comparator.comparingDouble(Map.Entry<RecommendedSongDto, Double>::getValue).reversed())
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+    }
+
+    private HomeRecommendationResponse buildHomeFeedBasic(UUID userId, boolean debug, ContextSignalDto context) {
         int pageSize = props.getPage().getDefaultSize();
 
         CompletableFuture<Set<String>> futureAlreadyHeard = CompletableFuture.supplyAsync(
@@ -325,12 +434,13 @@ public class RecommendationOrchestratorService {
         }
 
         List<RecommendedSongDto> trendingSection;
+        Map<String, SongDetailDto> trendingDetails = Collections.emptyMap();
         if (!CollectionUtils.isEmpty(trendingIds)) {
             Set<String> trendingIdsFiltered = trendingIds.stream()
                     .filter(id -> !disliked.contains(id))
                     .collect(Collectors.toCollection(LinkedHashSet::new));
 
-            Map<String, SongDetailDto> trendingDetails = hydrateSongsBatch(trendingIdsFiltered);
+            trendingDetails = hydrateSongsBatch(trendingIdsFiltered);
             trendingSection = ranker.rankTrending(
                     trendingIds, trendingDetails, disliked, null, pageSize);
         } else {
@@ -340,6 +450,25 @@ public class RecommendationOrchestratorService {
         List<RecommendedSongDto> friendsSection = futureResult(futureFriends, Collections.emptyList());
         List<RecommendedSongDto> artistsSection = futureResult(futureArtists, Collections.emptyList());
         List<RecommendedSongDto> newReleasesSection = futureResult(futureNewReleases, Collections.emptyList());
+
+        // Feature 2: Session re-rank
+        Map<String, SongDetailDto> forYouDetails = hydrateSongsBatch(
+                forYouSection.stream().map(RecommendedSongDto::getSongId)
+                        .collect(Collectors.toCollection(LinkedHashSet::new)));
+        SessionSignalService.SessionPreference sessionPref = sessionService.computeSessionPreference(userId);
+        if (!sessionPref.isEmpty()) {
+            forYouSection = reRankBySession(forYouSection, forYouDetails, sessionPref);
+        }
+
+        // Feature 1: Context section
+        List<RecommendedSongDto> combinedPool = Stream.concat(forYouSection.stream(), trendingSection.stream())
+                .filter(s -> !disliked.contains(s.getSongId()))
+                .collect(Collectors.toList());
+        Map<String, SongDetailDto> poolDetails = new LinkedHashMap<>(forYouDetails);
+        poolDetails.putAll(trendingDetails);
+        List<RecommendedSongDto> contextualSection = contextService.buildContextualSection(
+                combinedPool, poolDetails, context, pageSize / 2);
+        String contextualLabel = contextService.getSectionLabel(context);
 
         List<String> recentlyPlayedIds = alreadyHeard.stream()
                 .limit(20)
@@ -351,6 +480,8 @@ public class RecommendationOrchestratorService {
                 .fromArtists(artistsSection)
                 .newReleases(newReleasesSection)
                 .friendsAreListening(friendsSection)
+                .contextual(contextualSection)
+                .contextualLabel(contextualLabel)
                 .recentlyPlayedIds(recentlyPlayedIds)
                 .build();
     }

@@ -8,9 +8,36 @@ export type ReasonType =
     | 'TRENDING_NOW'
     | 'TRENDING_IN_GENRE'
     | 'SIMILAR_TO_LIKED'
-    | 'POPULAR_GLOBALLY';
+    | 'POPULAR_GLOBALLY'
+    | 'CONTEXT_TIME'        // Feature 1: ngữ cảnh thời gian/tâm trạng
+    | 'CROWD_PICK'          // Feature 4: social graph crowd
+    | 'DISCOVERY';          // Feature 5: khám phá
 
-export type FeedbackType = 'LIKE' | 'DISLIKE' | 'SKIP' | 'COMPLETE';
+export type FeedbackType = 'LIKE' | 'DISLIKE' | 'SKIP' | 'SKIP_EARLY' | 'REPEAT' | 'COMPLETE';
+
+// ─── Context signal types ─────────────────────────────────────────────────────
+
+export type TimeSlot = 'EARLY_MORNING' | 'MORNING' | 'AFTERNOON' | 'EVENING' | 'NIGHT' | 'LATE_NIGHT';
+export type MoodType = 'HAPPY' | 'SAD' | 'STRESSED' | 'FOCUSED' | 'ROMANTIC' | 'ENERGETIC';
+export type ActivityType = 'WORKING' | 'EXERCISING' | 'COMMUTING' | 'RELAXING' | 'STUDYING';
+
+export interface ContextSignal {
+  timeSlot?: TimeSlot;
+  mood?: MoodType;
+  activity?: ActivityType;
+}
+
+// ─── Session signal types ─────────────────────────────────────────────────────
+
+export type SessionSignalType = 'PLAYED' | 'SKIPPED' | 'SKIP_EARLY' | 'REPEATED' | 'COMPLETED';
+
+export interface SessionSignal {
+  songId: string;
+  type: SessionSignalType;
+  genreIds?: string[];
+  artistId?: string;
+  playedSeconds?: number;
+}
 
 export interface RecommendedSong {
   songId: string;
@@ -23,6 +50,9 @@ export interface RecommendedSong {
   score: number;
   reason?: string;
   reasonType: ReasonType;
+  reasonContext?: string;
+  /** Feature 5: true nếu bài thuộc luồng khám phá */
+  isDiscovery?: boolean;
   /** Vị trí trong bảng top 10 (1-based), chỉ có trong /trending/top10 */
   rank?: number;
   /** Badge xu hướng: "🔥 Nổi bật hôm nay" | "📈 Tăng mạnh" | "⭐ Mới & Hot" | "🎵 Đang thịnh" */
@@ -35,6 +65,14 @@ export interface HomeRecommendation {
   fromArtists: RecommendedSong[];
   newReleases: RecommendedSong[];
   friendsAreListening: RecommendedSong[];
+  /** Feature 1: gợi ý theo ngữ cảnh thời gian/tâm trạng */
+  contextual?: RecommendedSong[];
+  /** Label mô tả contextual section, vd "Đêm - Cảm xúc 🌙" */
+  contextualLabel?: string;
+  /** Feature 4: crowd picks từ social graph */
+  crowdPicks?: RecommendedSong[];
+  /** Feature 5: 30% discovery */
+  discover?: RecommendedSong[];
   recentlyPlayedIds: string[];
 }
 
@@ -98,9 +136,24 @@ export interface ListeningInsights {
 
 // ─── API calls ────────────────────────────────────────────────────────────────
 
-export const getHomeRecommendations = async (debug = false): Promise<HomeRecommendation> => {
+/** Detect time slot từ giờ hiện tại của thiết bị (client-side) */
+export const detectLocalTimeSlot = (): TimeSlot => {
+  const h = new Date().getHours();
+  if (h >= 5  && h < 8)  return 'EARLY_MORNING';
+  if (h >= 8  && h < 12) return 'MORNING';
+  if (h >= 12 && h < 17) return 'AFTERNOON';
+  if (h >= 17 && h < 20) return 'EVENING';
+  if (h >= 20 && h < 23) return 'NIGHT';
+  return 'LATE_NIGHT';
+};
+
+export const getHomeRecommendations = async (
+  debug = false,
+  context?: ContextSignal,
+): Promise<HomeRecommendation> => {
+  const timeSlot = context?.timeSlot ?? detectLocalTimeSlot();
   const res = await apiClient.get<HomeRecommendation>('/recommendations/home', {
-    params: { debug },
+    params: { debug, timeSlot, mood: context?.mood, activity: context?.activity },
   });
   return res.data;
 };
@@ -108,9 +161,11 @@ export const getHomeRecommendations = async (debug = false): Promise<HomeRecomme
 export const getHomeRecommendationsByMode = async (
     mode: RecommendationMode,
     debug = false,
+    context?: ContextSignal,
 ): Promise<HomeRecommendation> => {
+  const timeSlot = context?.timeSlot ?? detectLocalTimeSlot();
   const res = await apiClient.get<HomeRecommendation>(`/recommendations/${mode}/home`, {
-    params: { debug },
+    params: { debug, timeSlot, mood: context?.mood },
   });
   return res.data;
 };
@@ -219,4 +274,18 @@ export const getListeningInsights = async (days: 7 | 30 | 90 = 30): Promise<List
     params: { days },
   });
   return res.data;
+};
+
+// ─── Feature 2: Session signal API ───────────────────────────────────────────
+
+/**
+ * Gửi session signal lên server để re-rank real-time.
+ * Fire-and-forget — không block UI.
+ */
+export const postSessionSignal = async (signal: SessionSignal): Promise<void> => {
+  try {
+    await apiClient.post('/recommendations/session/signal', signal);
+  } catch {
+    // best-effort, không block
+  }
 };
