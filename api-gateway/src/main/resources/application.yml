@@ -578,6 +578,19 @@ spring:
                 redis-rate-limiter.burstCapacity: 5
                 redis-rate-limiter.requestedTokens: 1
 
+        - id: recommendation-admin-trending
+          uri: lb://RECOMMENDATION-SERVICE
+          predicates:
+            - Path=/recommendations/admin/**
+          filters:
+            - StripPrefix=1
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+                
         - id: recommendation-service-api
           uri: lb://RECOMMENDATION-SERVICE
           predicates:
