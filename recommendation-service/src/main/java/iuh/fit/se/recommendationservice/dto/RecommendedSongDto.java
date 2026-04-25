@@ -57,6 +57,10 @@ public class RecommendedSongDto {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private Double debugScore;
 
+    /** Đánh dấu bài thuộc luồng khám phá (30% discovery) — hiển thị badge "Mới với bạn" trên UI */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private Boolean isDiscovery;
+
     public enum ReasonType {
         BECAUSE_YOU_LISTEN,
         FRIEND_LIKED,
@@ -65,6 +69,12 @@ public class RecommendedSongDto {
         TRENDING_NOW,
         TRENDING_IN_GENRE,
         SIMILAR_TO_LIKED,
-        POPULAR_GLOBALLY
+        POPULAR_GLOBALLY,
+        /** Gợi ý theo ngữ cảnh thời gian/tâm trạng */
+        CONTEXT_TIME,
+        /** Crowd pick từ social graph — người gu giống bạn đang nghe */
+        CROWD_PICK,
+        /** Discovery engine — mở rộng khỏi vùng quen thuộc */
+        DISCOVERY
     }
 }

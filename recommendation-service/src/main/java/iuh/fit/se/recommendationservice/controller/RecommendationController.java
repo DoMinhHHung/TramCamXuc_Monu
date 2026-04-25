@@ -3,6 +3,7 @@ package iuh.fit.se.recommendationservice.controller;
 import iuh.fit.se.recommendationservice.dto.*;
 import iuh.fit.se.recommendationservice.service.ListeningInsightsService;
 import iuh.fit.se.recommendationservice.service.RecommendationOrchestratorService;
+import iuh.fit.se.recommendationservice.service.SessionSignalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -35,34 +36,52 @@ public class RecommendationController {
 
     private final RecommendationOrchestratorService orchestrator;
     private final ListeningInsightsService insightsService;
+    private final SessionSignalService sessionSignalService;
 
     // ── Home feed ─────────────────────────────────────────────────────────────
 
+    /**
+     * Home feed với context-aware recommendation (Feature 1).
+     * @param timeSlot  optional: EARLY_MORNING | MORNING | AFTERNOON | EVENING | NIGHT | LATE_NIGHT
+     * @param mood      optional: HAPPY | SAD | STRESSED | FOCUSED | ROMANTIC | ENERGETIC
+     * @param activity  optional: WORKING | EXERCISING | COMMUTING | RELAXING | STUDYING
+     */
     @GetMapping("/home")
     public ApiResponse<HomeRecommendationResponse> getHome(
             Authentication auth,
-            @RequestParam(defaultValue = "false") boolean debug) {
+            @RequestParam(defaultValue = "false") boolean debug,
+            @RequestParam(required = false) ContextSignalDto.TimeSlot timeSlot,
+            @RequestParam(required = false) ContextSignalDto.MoodType mood,
+            @RequestParam(required = false) ContextSignalDto.ActivityType activity) {
 
         UUID userId = extractUserId(auth);
-        return ApiResponse.ok(orchestrator.getHomeFeed(userId, debug));
+        ContextSignalDto context = ContextSignalDto.builder()
+                .timeSlot(timeSlot).mood(mood).activity(activity).build();
+        return ApiResponse.ok(orchestrator.getHomeFeed(userId, debug, context));
     }
 
     @GetMapping("/basic/home")
     public ApiResponse<HomeRecommendationResponse> getBasicHome(
             Authentication auth,
-            @RequestParam(defaultValue = "false") boolean debug) {
+            @RequestParam(defaultValue = "false") boolean debug,
+            @RequestParam(required = false) ContextSignalDto.TimeSlot timeSlot,
+            @RequestParam(required = false) ContextSignalDto.MoodType mood) {
 
         UUID userId = extractUserId(auth);
-        return ApiResponse.ok(orchestrator.getHomeFeedBasic(userId, debug));
+        ContextSignalDto context = ContextSignalDto.builder().timeSlot(timeSlot).mood(mood).build();
+        return ApiResponse.ok(orchestrator.getHomeFeedBasic(userId, debug, context));
     }
 
     @GetMapping("/advance/home")
     public ApiResponse<HomeRecommendationResponse> getAdvanceHome(
             Authentication auth,
-            @RequestParam(defaultValue = "false") boolean debug) {
+            @RequestParam(defaultValue = "false") boolean debug,
+            @RequestParam(required = false) ContextSignalDto.TimeSlot timeSlot,
+            @RequestParam(required = false) ContextSignalDto.MoodType mood) {
 
         UUID userId = extractUserId(auth);
-        return ApiResponse.ok(orchestrator.getHomeFeedAdvance(userId, debug));
+        ContextSignalDto context = ContextSignalDto.builder().timeSlot(timeSlot).mood(mood).build();
+        return ApiResponse.ok(orchestrator.getHomeFeedAdvance(userId, debug, context));
     }
 
     // ── Trending ──────────────────────────────────────────────────────────────
@@ -162,8 +181,35 @@ public class RecommendationController {
                 releases.stream().limit(limit).collect(java.util.stream.Collectors.toList()));
     }
 
-    // ── Feedback ──────────────────────────────────────────────────────────────
+    // ── Session signals (Feature 2) ───────────────────────────────────────────
 
+    /**
+     * Ghi nhận session signal để re-rank real-time trong session.
+     *
+     * POST /recommendations/session/signal
+     * Body: { songId, type (PLAYED|SKIPPED|SKIP_EARLY|REPEATED|COMPLETED), genreIds, artistId, playedSeconds }
+     *
+     * Client gọi mỗi khi:
+     *   - Player bắt đầu phát bài (PLAYED)
+     *   - User skip sau < 10s (SKIP_EARLY)
+     *   - User skip bình thường (SKIPPED)
+     *   - User nghe lại bài vừa xong (REPEATED)
+     *   - Bài nghe đến cuối (COMPLETED)
+     */
+    @PostMapping("/session/signal")
+    public ApiResponse<Void> recordSessionSignal(
+            Authentication auth,
+            @RequestBody SessionSignalDto signal) {
+
+        UUID userId = extractUserId(auth);
+        sessionSignalService.recordSignal(userId, signal);
+        return ApiResponse.<Void>builder()
+                .code(1000)
+                .message("Signal recorded")
+                .build();
+    }
+
+    // ── Feedback ──────────────────────────────────────────────────────────────
 
     @PostMapping("/feedback")
     public ApiResponse<Void> submitFeedback(

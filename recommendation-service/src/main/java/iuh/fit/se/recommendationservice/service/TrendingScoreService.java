@@ -74,6 +74,10 @@ public class TrendingScoreService {
     private static final double SCORE_UN_LIKE     = -4.0;
     private static final double SCORE_UN_HEART    = -3.0;
     private static final double SCORE_UN_DISLIKE  =  5.0;
+    /** Feature 3: Negative signal mạnh — bỏ qua trong 10 giây đầu */
+    private static final double SCORE_SKIP_EARLY  = -3.0;
+    /** Feature 3: Super like — nghe lại ngay lập tức */
+    private static final double SCORE_REPEAT      = 12.0;
 
     // ── Public API: Write path ────────────────────────────────────────────────
 
@@ -318,6 +322,8 @@ public class TrendingScoreService {
             case "UN_HEART"   -> SCORE_UN_HEART;
             case "COMMENT"    -> SCORE_COMMENT;
             case "SHARE"      -> SCORE_SHARE;
+            case "SKIP_EARLY" -> SCORE_SKIP_EARLY;
+            case "REPEAT"     -> SCORE_REPEAT;
             default           -> 0.0;
         };
     }
