@@ -304,9 +304,11 @@ public class RecommendationOrchestratorService {
         // ── Phase 9: Feature 1 — Context-aware section ──────────────────────
         // Lấy từ combined pool (forYou + trending) rồi filter theo ngữ cảnh
 
-        List<RecommendedSongDto> combinedPool = Stream.concat(forYouSection.stream(), trendingSection.stream())
+        Map<String, RecommendedSongDto> dedup = new LinkedHashMap<>();
+        Stream.concat(forYouSection.stream(), trendingSection.stream())
                 .filter(s -> !disliked.contains(s.getSongId()))
-                .collect(Collectors.toList());
+                .forEach(s -> dedup.putIfAbsent(s.getSongId(), s));
+        List<RecommendedSongDto> combinedPool = new ArrayList<>(dedup.values());
 
         Map<String, SongDetailDto> poolDetails = new LinkedHashMap<>(forYouDetails);
         // trendingSection details đã có trong trendingDetails — re-use
