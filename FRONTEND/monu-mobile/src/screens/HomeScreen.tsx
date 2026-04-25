@@ -28,6 +28,7 @@ import { useDownload } from '../context/DownloadContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { RecommendationSection } from '../components/RecommendationSection';
+import { TrendingSongCard } from '../components/TrendingSongCard';
 import {
   SectionSkeleton,
   SongCardSkeleton,
@@ -47,7 +48,7 @@ import {
   getMyPlaylists,
   Song,
 } from '../services/music';
-import { type FeedbackType, RecommendedSong } from '../services/recommendation';
+import { type FeedbackType, RecommendedSong, getTop10Trending } from '../services/recommendation';
 import { getSongShareQr } from '../services/social';
 import { buildGenreSectionsFromPool, useHomeDataPriority } from '../hooks/useHomeDataPriority';
 import { useRecommendations } from '../hooks/useRecommendations';
@@ -174,6 +175,15 @@ export const HomeScreen = () => {
 
   const styles = useMemo(() => getStyles(palette), [palette]);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const [top10Songs, setTop10Songs] = useState<RecommendedSong[]>([]);
+  const [top10Loading, setTop10Loading] = useState(true);
+
+  useEffect(() => {
+    getTop10Trending()
+      .then(setTop10Songs)
+      .finally(() => setTop10Loading(false));
+  }, []);
 
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [selectedRecSong, setSelectedRecSong] = useState<RecommendedSong | null>(null);
@@ -380,7 +390,12 @@ export const HomeScreen = () => {
   const handleRefresh = useCallback(async () => {
     setPullRefreshing(true);
     try {
-      await Promise.all([rec.refresh(), refreshHomePriority(), externalSections.refresh()]);
+      await Promise.all([
+        rec.refresh(),
+        refreshHomePriority(),
+        externalSections.refresh(),
+        getTop10Trending().then(setTop10Songs),
+      ]);
     } finally {
       setPullRefreshing(false);
     }
@@ -593,6 +608,52 @@ export const HomeScreen = () => {
             </TouchableOpacity>
           </LinearGradient>
         </View>      
+
+        {/* ── 2. TOP 10 XU HƯỚNG (INLINE) ─────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <MaterialCommunityIcons name="fire" size={22} color="#FF3B30" />
+            <Text style={styles.sectionTitle}>Top 10 Xu Hướng</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              const parentNav = navigation.getParent();
+              const rootNav = parentNav?.getParent?.();
+              const nav: any = rootNav ?? parentNav ?? navigation;
+              nav.navigate('TrendingChart');
+            }}
+          >
+            <Text style={styles.seeAllText}>Chi tiết →</Text>
+          </TouchableOpacity>
+        </View>
+
+        {top10Loading ? (
+          <View style={{ paddingHorizontal: 20, gap: 8, marginBottom: 24 }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <View
+                key={i}
+                style={{
+                  height: 66,
+                  borderRadius: 14,
+                  backgroundColor: palette.glass08,
+                  borderWidth: 1,
+                  borderColor: palette.border,
+                }}
+              />
+            ))}
+          </View>
+        ) : top10Songs.length > 0 ? (
+          <View style={[styles.top10List, { marginBottom: 28 }]}>
+            {top10Songs.map((song) => (
+              <TrendingSongCard
+                key={song.songId}
+                song={song}
+                onPress={(s) => playSong(toSong(s), top10Songs.map(toSong))}
+                isPlaying={currentSong?.id === song.songId}
+              />
+            ))}
+          </View>
+        ) : null}
 
         {/* ── 3. DÀNH CHO BẠN (GRID/FEATURED) ──────────────────────────── */}
         <View style={styles.sectionHeader}>
@@ -1041,6 +1102,28 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
   },
   avatarEmoji: { fontSize: 24 },
   artistName: { color: colors.text, fontSize: 12, fontWeight: '600', marginTop: 8 },
+  top10List: {
+    paddingHorizontal: 8,
+    marginBottom: 10,
+    backgroundColor: 'transparent',
+  },
+  top10SeeMoreBtn: {
+    marginHorizontal: 20,
+    marginTop: 4,
+    marginBottom: 20,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.accentBorder25,
+    alignItems: 'center',
+    backgroundColor: colors.glass08,
+  },
+  top10SeeMoreText: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
   platformRow: { paddingHorizontal: 20, flexDirection: 'row', gap: 14, marginTop: 28, marginBottom: 24 },
   platformCol: {
     flex: 1,

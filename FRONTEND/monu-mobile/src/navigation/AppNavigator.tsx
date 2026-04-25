@@ -4,7 +4,7 @@ import { NavigationContainer, LinkingOptions, useNavigationContainerRef } from '
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+
 
 import { COLORS } from '../config/colors';
 import { MAIN_TAB_BAR_BASE_HEIGHT, MINI_PLAYER_HEIGHT } from '../config/design';
@@ -23,7 +23,7 @@ import { UploadProgressBanner } from '../components/UploadProgressBanner';
 import { AdPlayerModal } from '../components/AdPlayerModal';
 import { AdNoticeBanner } from '../components/AdNoticeBanner';
 import { StreamingStatusBanner } from '../components/StreamingStatusBanner';
-import { AnimatedDecorIcon } from '../components/AnimatedDecorIcon';
+
 
 import { HomeScreen } from '../screens/HomeScreen';
 import { WelcomeScreen } from '../screens/(auth)/WelcomeScreen';
@@ -70,6 +70,7 @@ export type RootStackParamList = {
     ArtistDiscovery: undefined;
     AlbumAddSong: { albumId: string };
     EditSong: { songId: string };
+    TrendingChart: undefined;
 };
 
 export type MainTabParamList = {
@@ -108,7 +109,6 @@ const MainTabNavigator = () => {
         <Tab.Navigator
             screenOptions={({ route }: any) => {
                 const meta = tabMeta[route.name as keyof MainTabParamList];
-                const isCreate = route.name === 'Create';
                 return {
                     lazy: true,
                     headerShown: false,
@@ -146,27 +146,10 @@ const MainTabNavigator = () => {
                         fontWeight: '700',
                         marginTop: 2,
                     },
-                    tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
-                        isCreate ? (
-                            <View style={styles.createOuter}>
-                                <LinearGradient
-                                    colors={[themeColors.accent, themeColors.accentAlt ?? themeColors.accent]}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 1 }}
-                                    style={styles.createGradient}
-                                >
-                                    <AnimatedDecorIcon active={focused} intensity="medium">
-                                        <AppIcon name={meta.icon} size={22} color={themeColors.white} />
-                                    </AnimatedDecorIcon>
-                                </LinearGradient>
-                            </View>
-                        ) : (
-                            <View style={styles.tabIconWrap}>
-                                <AnimatedDecorIcon active={focused} intensity="medium">
-                                    <AppIcon name={meta.icon} size={20} color={color} />
-                                </AnimatedDecorIcon>
-                            </View>
-                        )
+                    tabBarIcon: ({ color }: { color: string; focused: boolean }) => (
+                        <View style={styles.tabIconWrap}>
+                            <AppIcon name={meta.icon} size={20} color={color} />
+                        </View>
                     ),
                 };
             }}
@@ -300,6 +283,7 @@ export const AppNavigator = () => {
                                 <Stack.Screen name="ArtistDiscovery" getComponent={() => require('../screens/(artist)/ArtistDiscoveryScreen').ArtistDiscoveryScreen} />
                                 <Stack.Screen name="AlbumAddSong" getComponent={() => require('../screens/(artist)/AlbumAddSongScreen').AlbumAddSongScreen} />
                                 <Stack.Screen name="EditSong" getComponent={() => require('../screens/EditSongScreen').EditSongScreen} />
+                                <Stack.Screen name="TrendingChart" getComponent={() => require('../screens/TrendingScreen').TrendingScreen} />
                             </>
                         )
                     ) : (
@@ -334,26 +318,5 @@ const styles = StyleSheet.create({
         shadowRadius: 18,
         elevation: 18,
     },
-    createOuter: {
-        width: 54,
-        height: 54,
-        borderRadius: 27,
-        marginTop: -20, // lift above pill like the mock
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.35,
-        shadowRadius: 18,
-        elevation: 22,
-    },
-    createGradient: {
-        width: 54,
-        height: 54,
-        borderRadius: 27,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.12)',
-    },
+
 });

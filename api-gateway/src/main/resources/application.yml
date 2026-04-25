@@ -527,6 +527,18 @@ spring:
 
         # ================= RECOMMENDATION =================
 
+        - id: recommendation-admin-trending
+          uri: lb://RECOMMENDATION-SERVICE
+          predicates:
+            - Path=/admin/trending/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@ipAndUserKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+
         - id: recommendation-heavy-home
           uri: lb://RECOMMENDATION-SERVICE
           predicates:

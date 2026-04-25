@@ -2,6 +2,7 @@ package iuh.fit.se.socialservice.service.impl;
 
 import iuh.fit.se.socialservice.document.Heart;
 import iuh.fit.se.socialservice.dto.response.HeartResponse;
+import iuh.fit.se.socialservice.event.EngagementEventPublisher;
 import iuh.fit.se.socialservice.exception.AppException;
 import iuh.fit.se.socialservice.exception.ErrorCode;
 import iuh.fit.se.socialservice.repository.HeartRepository;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 public class HeartServiceImpl implements HeartService {
 
     private final HeartRepository heartRepository;
+    private final EngagementEventPublisher engagementPublisher;
 
     @Override
     public HeartResponse heartSong(UUID userId, UUID songId) {
@@ -36,6 +38,7 @@ public class HeartServiceImpl implements HeartService {
                 .build();
         heart = heartRepository.save(heart);
         long total = heartRepository.countBySongId(songId);
+        engagementPublisher.publish(songId, userId, EngagementEventPublisher.EngagementType.HEART);
         return toResponse(heart, total);
     }
 
@@ -45,6 +48,7 @@ public class HeartServiceImpl implements HeartService {
             throw new AppException(ErrorCode.NOT_HEARTED);
         }
         heartRepository.deleteByUserIdAndSongId(userId, songId);
+        engagementPublisher.publish(songId, userId, EngagementEventPublisher.EngagementType.UN_HEART);
     }
 
     @Override

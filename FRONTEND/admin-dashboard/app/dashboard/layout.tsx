@@ -17,6 +17,7 @@ import {
     ChartBar,
     MusicNotesPlus,
     Microphone,
+    TrendUpIcon,
 } from '@phosphor-icons/react';
 import { useTheme } from '@/lib/theme';
 import { LogoIcon } from '@/components/logo-icon';
@@ -30,6 +31,7 @@ const NAV = [
     { href: '/dashboard/ads',       label: 'Quản lý quảng cáo',   icon: SpeakerHigh, exact: false },
     { href: '/dashboard/reports',   label: 'Quản lý báo cáo',     icon: Warning,     exact: false },
     { href: '/dashboard/analytics', label: 'Thống kê',    icon: ChartBar,    exact: false },
+    { href: '/dashboard/trending',  label: 'Xu Hướng Âm Nhạc', icon: TrendUpIcon, exact: false },
 ];
 
 // Map segment → tên đẹp hơn cho breadcrumb
@@ -43,6 +45,7 @@ const SEGMENT_LABELS: Record<string, string> = {
     ads:        'Quản lý quảng cáo',
     reports:    'Quản lý báo cáo',
     analytics:  'Thống kê',
+    trending:   'Xu Hướng Âm Nhạc',
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
