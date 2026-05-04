@@ -1,0 +1,56 @@
+appId: com.minhhung0403.monumobile
+name: "04b - Validation đăng ký"
+tags:
+  - auth
+  - negative
+  - register
+---
+# Kiểm tra các trường hợp validation khi đăng ký
+
+- launchApp
+- waitForAnimationToEnd
+- tapOn: "Tạo tài khoản"
+- waitForAnimationToEnd
+- tapOn: "Đăng ký với Email"
+- waitForAnimationToEnd
+
+# --- Case 1: bỏ trống họ tên → nhấn Đăng ký ---
+- scrollUntilVisible:
+    element:
+      text: "Đăng ký"
+    direction: DOWN
+- tapOn: "Đăng ký"
+- waitForAnimationToEnd
+- assertVisible: "Thông tin không hợp lệ"
+- tapOn: "OK"
+
+# --- Case 2: password yếu (dưới 8 ký tự) ---
+- tapOn:
+    hint: "Nhập họ và tên"
+- inputText: "Test User"
+- tapOn:
+    hint: "Nhập email của bạn"
+- inputText: "test_weak@mail.com"
+- tapOn:
+    hint: "Tối thiểu 8 ký tự..."
+- inputText: "123"
+# Strength indicator nên hiển thị "Yếu"
+- assertVisible: "Yếu"
+
+# --- Case 3: password không khớp ---
+- tapOn:
+    hint: "Tối thiểu 8 ký tự..."
+- clearText
+- inputText: "Test@12345"
+- tapOn:
+    hint: "Xác nhận mật khẩu"
+- inputText: "DifferentPass@1"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Đăng ký"
+    direction: DOWN
+- tapOn: "Đăng ký"
+- waitForAnimationToEnd
+- assertVisible: "Mật khẩu không khớp"
+- tapOn: "OK"

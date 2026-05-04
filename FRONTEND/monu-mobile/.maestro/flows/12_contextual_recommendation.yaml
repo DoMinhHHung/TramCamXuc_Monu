@@ -1,0 +1,38 @@
+appId: com.minhhung0403.monumobile
+name: "12 - Context-Aware Recommendation Section"
+tags:
+  - recommendation
+  - context
+---
+# Kiểm tra section gợi ý theo ngữ cảnh thời gian xuất hiện trên Home
+# Section label thay đổi theo giờ: "Thư giãn", "Đa cảm xúc", "Ngủ cùng Monu", v.v.
+
+- launchApp
+- waitForAnimationToEnd
+
+# Cuộn xuống để tìm contextual section
+# Label sẽ là 1 trong các giá trị tùy giờ chạy test
+- scrollUntilVisible:
+    element:
+      anyOf:
+        - text: "Năng lượng ngày mới"
+        - text: "Tập trung công việc"
+        - text: "Háo hức"
+        - text: "Thư giãn"
+        - text: "Đa cảm xúc"
+        - text: "Ngủ cùng Monu"
+    direction: DOWN
+    timeout: 6000
+
+# Nhấn vào bài đầu tiên trong section contextual
+- tapOn:
+    index: 0
+    belowText: "Đa cảm xúc"
+- waitForAnimationToEnd
+
+# MiniPlayer phải kích hoạt
+- assertVisible:
+    index: 0
+    text: "Đang phát"
+    OR:
+      accessibilityLabel: "Tạm dừng"

@@ -1,0 +1,37 @@
+appId: com.minhhung0403.monumobile
+name: "03 - Đăng nhập thất bại"
+tags:
+  - auth
+  - negative
+---
+# Kiểm tra xử lý khi đăng nhập bằng thông tin sai
+
+- launchApp
+- waitForAnimationToEnd
+
+- tapOn: "Đăng nhập"
+- waitForAnimationToEnd
+- tapOn: "Đăng nhập với Email"
+- waitForAnimationToEnd
+
+# --- Case 1: sai mật khẩu ---
+- tapOn:
+    hint: "Nhập email của bạn"
+- inputText: ${TEST_EMAIL}
+- tapOn:
+    hint: "Nhập mật khẩu"
+- inputText: "SatMat@Khau000"
+- hideKeyboard
+- tapOn: "Đăng nhập"
+- waitForAnimationToEnd
+# Phải hiện Alert hoặc thông báo lỗi — vẫn còn ở màn Login
+- assertVisible: "Đăng nhập"
+- tapOn: "OK"
+
+# --- Case 2: email rỗng ---
+- tapOn:
+    hint: "Nhập email của bạn"
+- clearText
+- tapOn: "Đăng nhập"
+- waitForAnimationToEnd
+- assertVisible: "Đăng nhập"

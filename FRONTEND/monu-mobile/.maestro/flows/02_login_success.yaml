@@ -1,0 +1,39 @@
+appId: com.minhhung0403.monumobile
+name: "02 - Đăng nhập thành công"
+tags:
+  - auth
+  - smoke
+---
+# Happy path: đăng nhập bằng email + password hợp lệ
+# Yêu cầu: tài khoản ${TEST_EMAIL} / ${TEST_PASSWORD} đã tồn tại
+
+- launchApp
+- waitForAnimationToEnd
+
+# Đi qua Welcome → LoginOptions → Login
+- tapOn: "Đăng nhập"
+- waitForAnimationToEnd
+- assertVisible: "Đăng nhập với Email"
+- tapOn: "Đăng nhập với Email"
+- waitForAnimationToEnd
+
+# LoginScreen
+- assertVisible: "Nhập email của bạn"
+- tapOn:
+    hint: "Nhập email của bạn"
+- inputText: ${TEST_EMAIL}
+
+- tapOn:
+    hint: "Nhập mật khẩu"
+- inputText: ${TEST_PASSWORD}
+- hideKeyboard
+
+- tapOn: "Đăng nhập"
+- waitForAnimationToEnd
+
+# Sau khi login thành công → HomeScreen hoặc OnboardingScreen
+# Kiểm tra ít nhất 1 trong 2 trường hợp:
+- assertTrue:
+    visible: "Monu"
+    OR:
+      visible: "Chọn thể loại yêu thích"

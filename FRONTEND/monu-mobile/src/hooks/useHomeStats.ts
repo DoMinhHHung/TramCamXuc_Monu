@@ -9,7 +9,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getPopularArtists, getPopularGenres } from '../services/favorites';
+import { getArtistById, getPopularArtists, getPopularGenres } from '../services/favorites';
 import { getAlbumById, getMyPlaylists, getPublicAlbums, Playlist, searchSongs } from '../services/music';
 import { getListeningInsights, ListeningInsights } from '../services/recommendation';
 import {
@@ -271,6 +271,25 @@ export const fetchHomeStats = async (options?: { force?: boolean }): Promise<Hom
         isFollowing: followedArtistIds.has(artist.artistId),
       };
     });
+
+    // Backend có thể trả về stageName/avatarUrl rỗng khi lookup qua songs thất bại
+    // → fetch thẳng profile cho các artist chưa có tên
+    const needsProfile = topArtists.filter((a) => !a.name);
+    if (needsProfile.length > 0) {
+      const profileResults = await Promise.allSettled(
+        needsProfile.map((a) => getArtistById(a.id)),
+      );
+      const profileMap = new Map(
+        profileResults
+          .map((r, i) => [needsProfile[i].id, r.status === 'fulfilled' ? r.value : null] as const)
+          .filter(([, v]) => v !== null),
+      );
+      topArtists = topArtists.map((a) => {
+        if (a.name) return a;
+        const profile = profileMap.get(a.id);
+        return profile ? { ...a, name: profile.stageName, avatarUrl: profile.avatarUrl ?? a.avatarUrl } : a;
+      });
+    }
 
     if (topArtists.length === 0) {
       const fallbackIds = popularArtists.map((a) => a.id);

@@ -56,35 +56,29 @@ public class ContextAwareRecommendationService {
         return ContextSignalDto.TimeSlot.LATE_NIGHT;
     }
 
-    /** Label hiển thị cho section context trên UI */
     public String getSectionLabel(ContextSignalDto context) {
         if (context.getMood() != null) {
             return switch (context.getMood()) {
-                case HAPPY     -> "Vui vẻ - Nhảy thôi 🎉";
-                case SAD       -> "Buồn - Chill cùng mình 🌧️";
-                case STRESSED  -> "Thư giãn - Hít thở đi 🌿";
-                case FOCUSED   -> "Tập trung - Focus mode 🎯";
-                case ROMANTIC  -> "Lãng mạn 💕";
-                case ENERGETIC -> "Năng lượng - Bùng cháy 🔥";
+                case HAPPY     -> "Vui vẻ - Happy mode";
+                case SAD       -> "Buồn - Sad mode";
+                case STRESSED  -> "Thư giãn - Relax mode";
+                case FOCUSED   -> "Tập trung - Focus mode";
+                case ROMANTIC  -> "Lãng mạn - Romantic mode";
+                case ENERGETIC -> "Năng lượng - Energetic mode";
             };
         }
         ContextSignalDto.TimeSlot slot = context.getTimeSlot() != null
                 ? context.getTimeSlot() : detectCurrentTimeSlot();
         return switch (slot) {
-            case EARLY_MORNING -> "Sáng sớm - Năng lượng 🌅";
-            case MORNING       -> "Buổi sáng - Tập trung ☀️";
-            case AFTERNOON     -> "Chiều nay - Phấn khích 🎶";
-            case EVENING       -> "Tối nay - Thư giãn 🌆";
-            case NIGHT         -> "Đêm - Cảm xúc 🌙";
-            case LATE_NIGHT    -> "Khuya - Chiêm nghiệm 🌃";
+            case EARLY_MORNING -> "Năng lượng ngày mới";
+            case MORNING       -> "Tập trung công việc";
+            case AFTERNOON     -> "Háo hức";
+            case EVENING       -> "Thư giãn";
+            case NIGHT         -> "Đa cảm xúc";
+            case LATE_NIGHT    -> "Ngủ cùng Monu";
         };
     }
 
-    /**
-     * Tính multiplier ngữ cảnh cho một bài hát.
-     *
-     * @return [0.6, 2.0] — 0.6 nếu genre lệch hoàn toàn, 2.0 nếu match tốt
-     */
     public double computeContextMultiplier(SongDetailDto song, ContextSignalDto context) {
         ContextSignalDto.TimeSlot slot = context.getTimeSlot() != null
                 ? context.getTimeSlot() : detectCurrentTimeSlot();

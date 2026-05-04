@@ -1,0 +1,49 @@
+appId: com.minhhung0403.monumobile
+name: "10 - Thư viện & Playlist"
+tags:
+  - library
+  - playlist
+---
+# Kiểm tra tab Thư viện: xem danh sách playlist, tạo mới, thêm bài
+
+- launchApp
+- waitForAnimationToEnd
+
+# Mở tab Thư viện
+- tapOn: "Thư viện"
+- waitForAnimationToEnd
+
+# --- Sub-tabs ---
+- tapOn: "Playlist"
+- waitForAnimationToEnd
+
+- tapOn: "Bài hát"
+- waitForAnimationToEnd
+
+- tapOn: "Album"
+- waitForAnimationToEnd
+
+# Quay lại tab Playlist
+- tapOn: "Playlist"
+- waitForAnimationToEnd
+
+# --- Tạo Playlist mới ---
+# Tìm nút "+" hoặc "Tạo playlist"
+- scrollUntilVisible:
+    element:
+      text: "Tạo playlist"
+    direction: DOWN
+    timeout: 3000
+- tapOn: "Tạo playlist"
+- waitForAnimationToEnd
+
+# Nhập tên playlist
+- tapOn:
+    hint: "Tên playlist..."
+- inputText: "Playlist Test Maestro"
+- hideKeyboard
+- tapOn: "Tạo"
+- waitForAnimationToEnd
+
+# Playlist vừa tạo phải xuất hiện
+- assertVisible: "Playlist Test Maestro"

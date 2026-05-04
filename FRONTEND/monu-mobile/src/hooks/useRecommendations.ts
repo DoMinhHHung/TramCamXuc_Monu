@@ -267,27 +267,31 @@ export function useRecommendations() {
   const sendFeedback = useCallback(async (songId: string, feedback: FeedbackType, contextSection?: string) => {
     setBasicHomeFeed((prev) => {
       if (!prev || feedback !== 'DISLIKE') return prev;
-
+      const f = (arr: RecommendedSong[] | undefined) => arr?.filter((s) => s.songId !== songId);
       return {
         ...prev,
-        forYou: prev.forYou.filter((s) => s.songId !== songId),
-        trendingNow: prev.trendingNow.filter((s) => s.songId !== songId),
-        fromArtists: prev.fromArtists.filter((s) => s.songId !== songId),
-        newReleases: prev.newReleases.filter((s) => s.songId !== songId),
-        friendsAreListening: prev.friendsAreListening.filter((s) => s.songId !== songId),
+        forYou: f(prev.forYou) ?? prev.forYou,
+        trendingNow: f(prev.trendingNow) ?? prev.trendingNow,
+        fromArtists: f(prev.fromArtists) ?? prev.fromArtists,
+        newReleases: f(prev.newReleases) ?? prev.newReleases,
+        friendsAreListening: f(prev.friendsAreListening) ?? prev.friendsAreListening,
+        contextual: f(prev.contextual),
       };
     });
 
     setAdvanceHomeFeed((prev) => {
       if (!prev || feedback !== 'DISLIKE') return prev;
-
+      const f = (arr: RecommendedSong[] | undefined) => arr?.filter((s) => s.songId !== songId);
       return {
         ...prev,
-        forYou: prev.forYou.filter((s) => s.songId !== songId),
-        trendingNow: prev.trendingNow.filter((s) => s.songId !== songId),
-        fromArtists: prev.fromArtists.filter((s) => s.songId !== songId),
-        newReleases: prev.newReleases.filter((s) => s.songId !== songId),
-        friendsAreListening: prev.friendsAreListening.filter((s) => s.songId !== songId),
+        forYou: f(prev.forYou) ?? prev.forYou,
+        trendingNow: f(prev.trendingNow) ?? prev.trendingNow,
+        fromArtists: f(prev.fromArtists) ?? prev.fromArtists,
+        newReleases: f(prev.newReleases) ?? prev.newReleases,
+        friendsAreListening: f(prev.friendsAreListening) ?? prev.friendsAreListening,
+        contextual: f(prev.contextual),
+        crowdPicks: f(prev.crowdPicks),
+        discover: f(prev.discover),
       };
     });
 

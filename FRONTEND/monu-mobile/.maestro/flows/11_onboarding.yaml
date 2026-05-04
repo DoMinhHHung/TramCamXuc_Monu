@@ -1,0 +1,47 @@
+appId: com.minhhung0403.monumobile
+name: "11 - Onboarding Chọn Thể Loại & Nghệ Sĩ"
+tags:
+  - onboarding
+  - register
+---
+# Luồng onboarding sau khi đăng ký lần đầu
+# (Chạy sau flow 04 đã verify OTP thành công)
+# SelectGenresScreen → SelectArtistsScreen → HomeScreen
+
+- waitForAnimationToEnd
+
+# SelectGenresScreen
+- assertVisible: "Chọn thể loại yêu thích"
+
+# Chọn ít nhất 3 thể loại (tap vào GenreCard)
+- tapOn: "Pop"
+- tapOn: "Ballad"
+- tapOn: "Indie"
+- waitForAnimationToEnd
+
+# Tiếp theo
+- scrollUntilVisible:
+    element:
+      text: "Tiếp theo"
+    direction: DOWN
+- tapOn: "Tiếp theo"
+- waitForAnimationToEnd
+
+# SelectArtistsScreen
+- assertVisible: "Chọn nghệ sĩ yêu thích"
+
+# Chọn ít nhất 1 nghệ sĩ
+- tapOn:
+    index: 0
+- waitForAnimationToEnd
+
+# Hoàn tất
+- scrollUntilVisible:
+    element:
+      text: "Bắt đầu"
+    direction: DOWN
+- tapOn: "Bắt đầu"
+- waitForAnimationToEnd
+
+# Sau onboarding → HomeScreen
+- assertVisible: "Monu"

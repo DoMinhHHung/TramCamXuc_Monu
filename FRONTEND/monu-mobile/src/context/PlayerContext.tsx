@@ -17,6 +17,7 @@ import { addListenHistory } from '../utils/listenHistory';
 import { useAuth } from './AuthContext';
 import { useNetworkQuality, suggestQuality, NetworkTier } from '../hooks/useNetworkQuality';
 import { getSoundCloudStreamUrl } from '../services/externalMusic';
+import { useSessionSignal } from '../hooks/useSessionSignal';
 
 // ─── Quality ──────────────────────────────────────────────────────────────────
 
@@ -207,6 +208,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
     useEffect(() => { autoQualityRef.current = autoQuality; }, [autoQuality]);
 
     const { tier: networkTier, tierRef: networkTierRef } = useNetworkQuality();
+    const { onSongStart, onSongSkip, onSongComplete, onSongRepeat } = useSessionSignal();
     const maxQualityRef = useRef<AudioQuality>(128);
     useEffect(() => { maxQualityRef.current = maxQuality; }, [maxQuality]);
 
@@ -506,6 +508,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             totalMs += Date.now() - playSegmentStartRef.current;
         }
         completionFiredRef.current = true;
+        onSongComplete(song.id, song.genres?.map((g) => g.id) ?? [], song.primaryArtist?.artistId);
 
         registerAdListen(Math.round(totalMs / 1000));
 
@@ -529,6 +532,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             if (repeat === 'one') {
                 const currentS = currentSongRef.current;
                 if (currentS) {
+                    onSongRepeat(currentS.id, currentS.genres?.map((g) => g.id) ?? [], currentS.primaryArtist?.artistId);
                     resetListenTracking();
                     shouldAutoPlayRef.current = true;
                     player.replace({ uri: buildStreamUri(currentS, selectedQualityRef.current) });
@@ -584,7 +588,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 recordPlay(nextSong.id).catch(() => { });
             }
         })();
-    }, [status.playing, checkForAd]);
+    }, [status.playing, checkForAd, onSongComplete, onSongRepeat]);
 
     // ── Reset tracking ─────────────────────────────────────────────────────────
     const resetListenTracking = useCallback(() => {
@@ -627,6 +631,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             shouldAutoPlayRef.current = true;
             player.replace({ uri });
             setCurrentSong(song);
+            onSongStart(song.id, song.genres?.map((g) => g.id) ?? [], song.primaryArtist?.artistId);
 
             if (newQueue) {
                 setQueue(newQueue);
@@ -638,7 +643,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
                 recordPlay(song.id).catch(() => { });
             }
         },
-        [player, isPlayingAd, resetListenTracking],
+        [player, isPlayingAd, resetListenTracking, onSongStart],
     );
 
     const togglePlay = useCallback(() => {
@@ -676,6 +681,7 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
         if (!queueRef.current.length || isPlayingAd) return;
         const curQueue = queueRef.current;
         const curIdx = queueIndexRef.current;
+        const prevSong = currentSongRef.current;
 
         if (repeatModeRef.current === 'one') {
             const s = currentSongRef.current;
@@ -694,22 +700,30 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             if (next === 0 && repeatModeRef.current === 'none') return;
         }
 
+        if (prevSong) {
+            onSongSkip(prevSong.id, statusRef.current.currentTime, prevSong.genres?.map((g) => g.id) ?? [], prevSong.primaryArtist?.artistId);
+        }
         setQueueIndex(next);
         void playSong(curQueue[next], curQueue);
         void checkForAd();
-    }, [isPlayingAd, playSong, checkForAd]);
+    }, [isPlayingAd, playSong, checkForAd, onSongSkip]);
 
     const playPrev = useCallback(() => {
         if (!queueRef.current.length || isPlayingAd) return;
         const curQueue = queueRef.current;
         const curIdx = queueIndexRef.current;
+        const prevSong = currentSongRef.current;
 
         if (status.currentTime > 3) { seekTo(0); return; }
+
+        if (prevSong) {
+            onSongSkip(prevSong.id, status.currentTime, prevSong.genres?.map((g) => g.id) ?? [], prevSong.primaryArtist?.artistId);
+        }
         const prev = (curIdx - 1 + curQueue.length) % curQueue.length;
         setQueueIndex(prev);
         void playSong(curQueue[prev], curQueue);
         void checkForAd();
-    }, [isPlayingAd, status.currentTime, seekTo, playSong, checkForAd]);
+    }, [isPlayingAd, status.currentTime, seekTo, playSong, checkForAd, onSongSkip]);
 
     const setQuality = useCallback((q: AudioQuality) => {
         if (q > maxQuality || isPlayingAd) return;
