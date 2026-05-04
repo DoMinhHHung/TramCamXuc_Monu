@@ -1,0 +1,60 @@
+appId: com.minhhung0403.monumobile
+name: "07 - Top 10 Xu Hướng"
+tags:
+  - trending
+  - smoke
+---
+# Kiểm tra màn hình Top 10 Xu Hướng
+# Có thể điều hướng từ Home hoặc trực tiếp (nếu có deep link)
+
+- launchApp
+- waitForAnimationToEnd
+
+# Từ HomeScreen, cuộn đến section "Xu hướng" và nhấn "Xem tất cả"
+- scrollUntilVisible:
+    element:
+      text: "Xu hướng"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn: "Xem tất cả"
+- waitForAnimationToEnd
+
+# --- TrendingScreen ---
+
+# Header phải có title
+- assertVisible: "Top 10 Xu Hướng"
+
+# Mô tả scoring
+- assertVisible: "Bảng xếp hạng theo lượt nghe, tương tác & đà tăng trưởng"
+
+# Legend 4 thành phần
+- assertVisible: "Lượt nghe"
+- assertVisible: "Tương tác"
+- assertVisible: "Đà tăng"
+- assertVisible: "Độ mới"
+
+# Cuộn xuống để thấy danh sách bài hát
+- scrollUntilVisible:
+    element:
+      text: "50%"
+    direction: DOWN
+    timeout: 5000
+
+# Phải có ít nhất 1 bài hát (badge rank)
+- assertVisible: "🥇"
+
+# --- Pull-to-refresh ---
+- swipeDown
+- waitForAnimationToEnd
+
+# --- Nhấn phát 1 bài hát ---
+- tapOn: "🥇"
+- waitForAnimationToEnd
+# MiniPlayer nên xuất hiện
+
+# --- Quay lại Home ---
+- tapOn:
+    accessibilityLabel: "Quay lại"
+- waitForAnimationToEnd
+- assertVisible: "Monu"

@@ -1,0 +1,23 @@
+# Cấu hình Maestro cho Monu Mobile
+# Android: com.minhhung0403.monumobile
+# iOS: bundle identifier chưa set trong app.json — điền vào khi build iOS
+
+# Chạy tất cả flows:
+#   maestro test .maestro/flows/
+#
+# Chạy từng flow:
+#   maestro test .maestro/flows/02_login_success.yaml
+#
+# Truyền env vars:
+#   maestro test .maestro/flows/02_login_success.yaml \
+#     -e TEST_EMAIL=your@email.com \
+#     -e TEST_PASSWORD=YourPass@1
+
+# Env vars dùng trong các flow (override khi chạy)
+env:
+  TEST_EMAIL: testmonu@gmail.com
+  TEST_PASSWORD: Test@12345
+  NEW_USER_EMAIL: newuser_test@gmail.com
+  NEW_USER_PASSWORD: Test@12345
+  NEW_USER_NAME: Nguyen Test
+  NEW_USER_DOB: "01/01/2000"

@@ -64,7 +64,7 @@ import { moderateScale } from '../utils/responsive';
 import { uiPresets } from '../config/uiPresets';
 
 type HomeNavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
-const TOP_ARTIST_CARD_STEP = 292;
+const TOP_ARTIST_CARD_STEP = 112; // 96px card + 16px gap
 const HEADER_COLLAPSE_DISTANCE = 118;
 
 const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
@@ -613,7 +613,7 @@ export const HomeScreen = () => {
         <View style={styles.sectionHeader}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <MaterialCommunityIcons name="fire" size={22} color="#FF3B30" />
-            <Text style={styles.sectionTitle}>Top 10 Xu Hướng</Text>
+            <Text style={styles.sectionTitle}>Xu Hướng</Text>
           </View>
           <TouchableOpacity
             onPress={() => {
@@ -675,11 +675,13 @@ export const HomeScreen = () => {
         </View>
 
         {/* ── 4. NGHỆ SĨ YÊU THÍCH (CIRCLES) ───────────────────────────── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('homeScreen.topArtists')}</Text>
-        </View>
-        {homeStats?.topArtists && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistList}>
+        {homeStats?.topArtists && homeStats.topArtists.length > 0 && (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t('homeScreen.topArtists')}</Text>
+          </View>
+        )}
+        {homeStats?.topArtists && homeStats.topArtists.length > 0 && (
+          <ScrollView ref={topArtistsScrollRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistList}>
             {homeStats.topArtists.map((artist, idx) => (
               <TouchableOpacity 
                 key={idx} 
@@ -731,6 +733,62 @@ export const HomeScreen = () => {
             hasBadge={!!rec.advanceHomeFeed?.forYou?.length}
           />
         ) : null}
+
+        {/* ── CONTEXTUAL (time/mood) ───────────────────────── */}
+        {authSession && (() => {
+          const feed = rec.advancedRecEnabled ? rec.advanceHomeFeed : rec.basicHomeFeed;
+          const songs = feed?.contextual ?? [];
+          const label = feed?.contextualLabel ?? 'Phù hợp lúc này 🕐';
+          if (!songs.length) return null;
+          return (
+            <RecommendationSection
+              icon="🕐"
+              title={label}
+              songs={songs}
+              activeSongId={currentSong?.id}
+              onPress={(s) => playRec(s, songs)}
+              onLongPress={openRecActionSheet}
+              onFeedback={handleFeedback}
+              hasBadge
+            />
+          );
+        })()}
+
+        {/* ── CROWD PICKS (social graph) ───────────────────── */}
+        {authSession && rec.advancedRecEnabled && (() => {
+          const songs = rec.advanceHomeFeed?.crowdPicks ?? [];
+          if (!songs.length) return null;
+          return (
+            <RecommendationSection
+              icon="👥"
+              title="Người gu giống bạn"
+              songs={songs}
+              activeSongId={currentSong?.id}
+              onPress={(s) => playRec(s, songs)}
+              onLongPress={openRecActionSheet}
+              onFeedback={handleFeedback}
+              hasBadge
+            />
+          );
+        })()}
+
+        {/* ── DISCOVERY (explore new music) ───────────────── */}
+        {authSession && rec.advancedRecEnabled && (() => {
+          const songs = rec.advanceHomeFeed?.discover ?? [];
+          if (!songs.length) return null;
+          return (
+            <RecommendationSection
+              icon="🔭"
+              title="Khám phá mới"
+              songs={songs}
+              activeSongId={currentSong?.id}
+              onPress={(s) => playRec(s, songs)}
+              onLongPress={openRecActionSheet}
+              onFeedback={handleFeedback}
+              hasBadge
+            />
+          );
+        })()}
 
         {/* ── PLATFORM CURATION ───────────────────────── */}
         <View style={styles.platformRow}>
@@ -905,7 +963,10 @@ export const HomeScreen = () => {
             destructive: true,
             onPress: async () => {
               if (!selectedSong) return;
-              openReportReasonPicker(selectedSong.id);
+              const songId = selectedSong.id;
+              setSelectedSong(null);
+              setSelectedRecSong(null);
+              setTimeout(() => openReportReasonPicker(songId), 350);
             },
           },
         ]}
@@ -918,6 +979,11 @@ export const HomeScreen = () => {
         onClose={() => {
           setReportSheetOpen(false);
           setReportSongId(null);
+        }}
+        onReported={() => {
+          if (reportSongId) {
+            void rec.sendFeedback(reportSongId, 'DISLIKE');
+          }
         }}
         t={t}
       />

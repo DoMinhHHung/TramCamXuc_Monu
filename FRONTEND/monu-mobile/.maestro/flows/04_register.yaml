@@ -1,0 +1,64 @@
+appId: com.minhhung0403.monumobile
+name: "04 - Đăng ký tài khoản"
+tags:
+  - auth
+  - register
+---
+# Luồng đăng ký tài khoản mới hoàn chỉnh
+# Lưu ý: mỗi lần chạy cần dùng email khác nhau (hoặc xóa tài khoản trước)
+
+- launchApp
+- waitForAnimationToEnd
+
+# Welcome → RegisterOptions → Register
+- tapOn: "Tạo tài khoản"
+- waitForAnimationToEnd
+- tapOn: "Đăng ký với Email"
+- waitForAnimationToEnd
+
+# RegisterScreen
+- assertVisible: "Bắt đầu hành trình âm nhạc của bạn"
+
+# Nhập Họ và tên
+- tapOn:
+    hint: "Nhập họ và tên"
+- inputText: ${NEW_USER_NAME}
+
+# Nhập Email
+- tapOn:
+    hint: "Nhập email của bạn"
+- inputText: ${NEW_USER_EMAIL}
+
+# Nhập Mật khẩu (tối thiểu 8 ký tự, có hoa/thường/số/ký tự đặc biệt)
+- tapOn:
+    hint: "Tối thiểu 8 ký tự..."
+- inputText: ${NEW_USER_PASSWORD}
+
+# Nhập lại mật khẩu
+- tapOn:
+    hint: "Xác nhận mật khẩu"
+- inputText: ${NEW_USER_PASSWORD}
+
+# Nhập Ngày sinh
+- tapOn:
+    hint: "DD/MM/YYYY"
+- inputText: ${NEW_USER_DOB}
+- hideKeyboard
+
+# Chọn giới tính
+- tapOn: "Nam"
+
+# Scroll xuống để thấy nút Đăng ký
+- scrollUntilVisible:
+    element:
+      text: "Đăng ký"
+    direction: DOWN
+
+- tapOn: "Đăng ký"
+- waitForAnimationToEnd
+
+# Sang VerifyOtpScreen
+- assertVisible: "Xác thực"
+
+# --- Kiểm tra validation: password không đủ mạnh ---
+# (Sub-flow riêng nếu cần)

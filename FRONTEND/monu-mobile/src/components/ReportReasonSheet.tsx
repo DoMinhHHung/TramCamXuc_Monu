@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useThemeColors } from '../config/colors';
@@ -46,14 +47,7 @@ export const ReportReasonSheet = ({
   const styles = useMemo(() => getStyles(colors), [colors]);
   const translate: TranslateFn = t ?? ((key, fallback) => fallback ?? key);
   const reasonOptions = useMemo(() => getReasonOptions(translate), [translate]);
-  const [pendingReason, setPendingReason] = useState<ReportReason | null>(null);
   const [loadingReason, setLoadingReason] = useState<ReportReason | null>(null);
-
-  const closeConfirm = () => {
-    if (loadingReason === null) {
-      setPendingReason(null);
-    }
-  };
 
   const handleReport = async (reason: ReportReason) => {
     setLoadingReason(reason);
@@ -62,13 +56,12 @@ export const ReportReasonSheet = ({
         reason,
         description: `Reported from ${source}: ${reason}`,
       });
+      onClose();
+      onReported?.();
       Alert.alert(
         translate('report.successTitle', 'Đã gửi báo cáo'),
         translate('report.successMessage', 'Cảm ơn bạn đã báo cáo. Chúng tôi sẽ sớm kiểm tra.'),
       );
-      setPendingReason(null);
-      onClose();
-      onReported?.();
     } catch (error: any) {
       Alert.alert(
         translate('common.error', 'Lỗi'),
@@ -79,9 +72,17 @@ export const ReportReasonSheet = ({
     }
   };
 
-  const pendingLabel = pendingReason
-    ? reasonOptions.find((option) => option.reason === pendingReason)?.label ?? pendingReason
-    : '';
+  const handleReasonPress = (reason: ReportReason) => {
+    const reasonLabel = reasonOptions.find((o) => o.reason === reason)?.label ?? reason;
+    Alert.alert(
+      translate('report.confirmTitle', 'Xác nhận báo cáo'),
+      reasonLabel,
+      [
+        { text: translate('common.cancel', 'Hủy'), style: 'cancel' },
+        { text: translate('report.confirmAction', 'Báo cáo'), style: 'destructive', onPress: () => void handleReport(reason) },
+      ],
+    );
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -103,7 +104,7 @@ export const ReportReasonSheet = ({
                     isLoading && styles.reasonBtnLoading,
                     index === 0 && styles.reasonBtnPrimary,
                   ]}
-                  onPress={() => setPendingReason(option.reason)}
+                  onPress={() => handleReasonPress(option.reason)}
                   disabled={loadingReason !== null}
                 >
                   <Text style={styles.reasonText}>{option.label}</Text>
@@ -122,31 +123,6 @@ export const ReportReasonSheet = ({
           </Pressable>
         </Pressable>
       </Pressable>
-
-      <Modal visible={pendingReason !== null} transparent animationType="fade" onRequestClose={closeConfirm}>
-        <Pressable style={styles.confirmBackdrop} onPress={closeConfirm}>
-          <Pressable style={styles.confirmCard} onPress={() => null}>
-            <Text style={styles.confirmTitle}>{translate('report.confirmTitle', 'Xác nhận báo cáo')}</Text>
-            <Text style={styles.confirmMessage}>
-              {translate('report.confirmMessage', 'Bạn có chắc muốn gửi báo cáo với lý do này không?')}
-            </Text>
-            <View style={styles.confirmReasonPill}>
-              <Text style={styles.confirmReasonText}>{pendingLabel}</Text>
-            </View>
-            <Pressable
-              style={({ pressed }) => [styles.confirmBtn, pressed && styles.confirmBtnPressed]}
-              onPress={() => pendingReason && void handleReport(pendingReason)}
-              disabled={loadingReason !== null || pendingReason === null}
-            >
-              {loadingReason !== null ? (
-                <ActivityIndicator size="small" color={colors.white} />
-              ) : (
-                <Text style={styles.confirmBtnText}>{translate('report.confirmAction', 'Báo cáo')}</Text>
-              )}
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </Modal>
   );
 };
@@ -236,62 +212,5 @@ const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.crea
     color: colors.glass40,
     fontSize: 15,
     fontWeight: '700',
-  },
-  confirmBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 22,
-  },
-  confirmCard: {
-    width: '100%',
-    maxWidth: 360,
-    borderRadius: 20,
-    padding: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.glass12,
-    gap: 10,
-  },
-  confirmTitle: {
-    color: colors.white,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  confirmMessage: {
-    color: colors.glass60,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  confirmReasonPill: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    backgroundColor: colors.accentFill20,
-    borderWidth: 1,
-    borderColor: colors.accentBorder25,
-  },
-  confirmReasonText: {
-    color: colors.accent,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  confirmBtn: {
-    minHeight: 46,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.accent,
-  },
-  confirmBtnPressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.99 }],
-  },
-  confirmBtnText: {
-    color: colors.white,
-    fontSize: 15,
-    fontWeight: '800',
   },
 });

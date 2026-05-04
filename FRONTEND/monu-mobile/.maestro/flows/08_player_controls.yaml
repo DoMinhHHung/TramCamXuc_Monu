@@ -1,0 +1,72 @@
+appId: com.minhhung0403.monumobile
+name: "08 - Music Player Controls"
+tags:
+  - player
+  - smoke
+---
+# Kiểm tra MiniPlayer và FullPlayerModal
+# Yêu cầu: đã login, có ít nhất 1 bài hát trong trending
+
+- launchApp
+- waitForAnimationToEnd
+
+# Phát bài hát đầu tiên từ Home
+- scrollUntilVisible:
+    element:
+      text: "Xu hướng"
+    direction: DOWN
+    timeout: 5000
+
+# Nhấn bài đầu tiên trong section
+- tapOn:
+    index: 0
+    text: "Phát"
+- waitForAnimationToEnd
+
+# --- MiniPlayer ---
+# MiniPlayer xuất hiện ở cuối màn hình
+- assertVisible:
+    accessibilityLabel: "Thu nhỏ player"
+    OR:
+      text: "Tạm dừng"
+      OR:
+        text: "Đang phát"
+
+# Nhấn nút Bài tiếp theo trên MiniPlayer
+- tapOn:
+    accessibilityLabel: "Bài tiếp theo"
+- waitForAnimationToEnd
+
+# --- Mở FullPlayerModal ---
+- tapOn:
+    accessibilityLabel: "Thu nhỏ player"
+- waitForAnimationToEnd
+
+# FullPlayerModal đã mở
+- assertVisible:
+    accessibilityLabel: "Thu nhỏ player"
+
+# Phát / Tạm dừng
+- tapOn:
+    accessibilityLabel: "Tạm dừng"
+- waitForAnimationToEnd
+- tapOn:
+    accessibilityLabel: "Phát"
+- waitForAnimationToEnd
+
+# Bài trước / Bài tiếp
+- tapOn:
+    accessibilityLabel: "Bài tiếp theo"
+- waitForAnimationToEnd
+- tapOn:
+    accessibilityLabel: "Bài trước"
+- waitForAnimationToEnd
+
+# Đóng player (thu nhỏ)
+- tapOn:
+    accessibilityLabel: "Thu nhỏ player"
+- waitForAnimationToEnd
+
+# MiniPlayer vẫn còn ở đáy màn hình
+- assertNotVisible:
+    accessibilityLabel: "Bài trước"

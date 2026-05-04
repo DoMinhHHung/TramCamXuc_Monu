@@ -1,0 +1,33 @@
+appId: com.minhhung0403.monumobile
+name: "01 - Welcome Screen"
+tags:
+  - auth
+  - smoke
+---
+# Kiểm tra màn hình chào mừng hiển thị đúng nội dung
+# và điều hướng sang 2 luồng chính
+
+- launchApp
+- waitForAnimationToEnd
+
+# Màn hình Welcome phải hiển thị brand name và tagline
+- assertVisible: "Monu"
+- assertVisible: "Kết nối mọi cung bậc qua từng giai điệu"
+- assertVisible: "Tạo tài khoản"
+- assertVisible: "Đăng nhập"
+
+# Nhấn "Đăng nhập" → sang LoginOptionsScreen
+- tapOn: "Đăng nhập"
+- waitForAnimationToEnd
+- assertVisible: "Đăng nhập với Email"
+
+# Quay lại Welcome
+- tapOn:
+    accessibilityLabel: "Quay lại"
+- waitForAnimationToEnd
+- assertVisible: "Tạo tài khoản"
+
+# Nhấn "Tạo tài khoản" → sang RegisterOptionsScreen
+- tapOn: "Tạo tài khoản"
+- waitForAnimationToEnd
+- assertVisible: "Đăng ký với Email"

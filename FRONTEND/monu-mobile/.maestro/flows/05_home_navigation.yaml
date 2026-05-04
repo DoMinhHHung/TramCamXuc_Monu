@@ -1,0 +1,49 @@
+appId: com.minhhung0403.monumobile
+name: "05 - Home Screen & Navigation"
+tags:
+  - home
+  - navigation
+  - smoke
+---
+# Kiểm tra màn hình Home và điều hướng Bottom Tabs
+# Yêu cầu: tài khoản đã login sẵn (dùng persistent session)
+# Hoặc uncomment phần runFlow bên dưới
+
+# runFlow: ../_helpers/do_login.yaml
+
+- launchApp
+- waitForAnimationToEnd
+
+# Giả sử đang ở HomeScreen sau khi login
+# Kiểm tra brand header
+- assertVisible: "Monu"
+
+# Cuộn xuống để xem các section
+- scrollUntilVisible:
+    element:
+      text: "Xu hướng"
+    direction: DOWN
+    timeout: 5000
+
+# --- Bottom Tab Navigation ---
+
+# Tab Khám phá (Discover)
+- tapOn: "Khám phá"
+- waitForAnimationToEnd
+
+# Tab Thư viện (Library)
+- tapOn: "Thư viện"
+- waitForAnimationToEnd
+
+# Tab Premium
+- tapOn: "Premium"
+- waitForAnimationToEnd
+
+# Quay về Tab Trang chủ (Home)
+- tapOn: "Trang chủ"
+- waitForAnimationToEnd
+- assertVisible: "Monu"
+
+# --- Pull-to-refresh ---
+- swipeDown
+- waitForAnimationToEnd

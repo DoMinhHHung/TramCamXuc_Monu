@@ -1,0 +1,16 @@
+appId: com.minhhung0403.monumobile
+name: "00 - Full Smoke Test Suite"
+tags:
+  - smoke
+  - full
+---
+# Chạy toàn bộ các flow smoke theo thứ tự
+# Yêu cầu: TEST_EMAIL / TEST_PASSWORD đã được set
+
+- runFlow: "01_welcome.yaml"
+- runFlow: "02_login_success.yaml"
+- runFlow: "03_login_invalid.yaml"
+- runFlow: "05_home_navigation.yaml"
+- runFlow: "06_search.yaml"
+- runFlow: "07_trending.yaml"
+- runFlow: "08_player_controls.yaml"

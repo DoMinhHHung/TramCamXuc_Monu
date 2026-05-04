@@ -1,0 +1,19 @@
+
+
+- tapOn: "Đăng nhập"
+- waitForAnimationToEnd
+# LoginOptionsScreen
+- assertVisible: "Đăng nhập với Email"
+- tapOn: "Đăng nhập với Email"
+- waitForAnimationToEnd
+# LoginScreen
+- tapOn:
+    hint: "Nhập email của bạn"
+- inputText: testmonu@gmail.com
+
+- tapOn:
+    hint: "Nhập mật khẩu"
+- inputText: Hung@0934029227
+- hideKeyboard
+- tapOn: "Đăng nhập"
+- waitForAnimationToEnd

@@ -1,0 +1,56 @@
+appId: com.minhhung0403.monumobile
+name: "06 - Tìm kiếm bài hát"
+tags:
+  - search
+  - smoke
+---
+# Kiểm tra luồng tìm kiếm: gõ từ khóa, xem kết quả, chạy bài
+
+- launchApp
+- waitForAnimationToEnd
+
+# Điều hướng sang tab Tìm kiếm
+- tapOn: "Tìm kiếm"
+- waitForAnimationToEnd
+
+# --- Gõ từ khóa và tìm kiếm ---
+- tapOn:
+    hint: "Tìm kiếm bài hát, nghệ sĩ..."
+- inputText: "Sơn Tùng"
+- waitForAnimationToEnd
+
+# Kết quả phải xuất hiện
+- scrollUntilVisible:
+    element:
+      text: "Bài hát"
+    direction: DOWN
+    timeout: 5000
+
+# --- Lịch sử tìm kiếm ---
+- clearText
+- hideKeyboard
+- waitForAnimationToEnd
+# Khi xóa query, lịch sử tìm kiếm nên hiện lại
+# (nếu có lịch sử trước đó)
+
+# --- Gõ từ khóa mới ---
+- tapOn:
+    hint: "Tìm kiếm bài hát, nghệ sĩ..."
+- inputText: "Chúng ta của hiện tại"
+- waitForAnimationToEnd
+
+# Nhấn vào kết quả đầu tiên để phát nhạc
+- tapOn:
+    index: 0
+    text: "Chúng ta của hiện tại"
+
+- waitForAnimationToEnd
+# MiniPlayer nên xuất hiện ở dưới
+- assertVisible: "Chúng ta của hiện tại"
+
+# --- Tìm kiếm không có kết quả ---
+- tapOn:
+    hint: "Tìm kiếm bài hát, nghệ sĩ..."
+- clearText
+- inputText: "xyzxyzxyz_khong_co_ket_qua"
+- waitForAnimationToEnd

@@ -32,3 +32,12 @@ export const getPopularArtists = async (limit: number = 10): Promise<Artist[]> =
   });
   return response.data;
 };
+
+export const getArtistById = async (artistId: string): Promise<Artist | null> => {
+  try {
+    const response = await apiClient.get<Artist>(`/artists/${artistId}`);
+    return response.data ?? null;
+  } catch {
+    return null;
+  }
+};
