@@ -2,8 +2,6 @@
 error.log
 .cursor
 .claude
-build.yml
-.github\workflows\build.yml
 __pycache__
 yarn.lock
 .expo
