@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { useAuth } from '../context/AuthContext';
 import { Song, getTrendingSongs } from '../services/music';
 import { getMySubscriptionOrNull } from '../services/payment';
@@ -63,6 +64,9 @@ export function useRecommendations() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  /** true khi UI đang hiển thị dữ liệu từ cache (offline hoặc network lỗi) */
+  const [isStale, setIsStale] = useState(false);
 
   const isMountedRef = useRef(true);
 
@@ -172,6 +176,20 @@ export function useRecommendations() {
   }, [authSession]);
 
   const fetchAll = useCallback(async (silent = false) => {
+    // Kiểm tra network trước khi fetch
+    const netState = await NetInfo.fetch();
+    const online = netState.isConnected && netState.isInternetReachable !== false;
+
+    if (!online) {
+      if (isMountedRef.current) {
+        setIsOffline(true);
+        setIsStale(true);
+        if (!silent) setLoading(false);
+      }
+      return;
+    }
+
+    if (isMountedRef.current) setIsOffline(false);
     if (!silent) setLoading(true);
 
     try {
@@ -184,8 +202,10 @@ export function useRecommendations() {
 
       const merged = [...coreErrs, ...personalErrs];
       setError(merged.length ? merged[0] : null);
+      setIsStale(false);
       setLastUpdatedAt(new Date());
     } catch (e: unknown) {
+      if (isMountedRef.current) setIsStale(true);
       if (!silent) {
         const msg = e instanceof Error ? e.message : 'Không thể tải recommendation';
         setError(msg);
@@ -242,9 +262,19 @@ export function useRecommendations() {
       void fetchAll(true);
     }, RECOMMENDATION_POLL_MS);
 
+    // Tự động refetch khi mạng trở lại
+    const unsubNetInfo = NetInfo.addEventListener((state) => {
+      const backOnline = state.isConnected && state.isInternetReachable !== false;
+      if (backOnline && isMountedRef.current) {
+        setIsOffline(false);
+        void fetchAll(true);
+      }
+    });
+
     return () => {
       isMountedRef.current = false;
       clearInterval(id);
+      unsubNetInfo();
     };
   }, [runTrendingReleases, runHomeSocial, fetchAll]);
 
@@ -312,7 +342,9 @@ export function useRecommendations() {
     loading,
     error,
     lastUpdatedAt,
+    isOffline,
+    isStale,
     refresh,
     sendFeedback,
-  }), [basicHomeFeed, advanceHomeFeed, advancedRecEnabled, globalTrending, newReleases, socialRecs, loading, error, lastUpdatedAt, refresh, sendFeedback]);
+  }), [basicHomeFeed, advanceHomeFeed, advancedRecEnabled, globalTrending, newReleases, socialRecs, loading, error, lastUpdatedAt, isOffline, isStale, refresh, sendFeedback]);
 }

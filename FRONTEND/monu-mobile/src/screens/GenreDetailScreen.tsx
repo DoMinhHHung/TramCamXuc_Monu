@@ -27,7 +27,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useTranslation } from '../context/LocalizationContext';
 import { usePlayerControls, usePlayerState, usePlayerStatus } from '../context/PlayerContext';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { Song } from '../services/music';
+import { Song, getSongsByGenre } from '../services/music';
 import { SongSection } from '../components/SongSection';
 import { BackButton } from '../components/BackButton';
 import themeUtils from '../config/themeUtils';
@@ -58,6 +58,7 @@ export const GenreDetailScreen = () => {
   const [sortBy, setSortBy] = useState<'trending' | 'newest' | 'popular'>('trending');
 
   const fetchGenreSongs = useCallback(async (refresh = false) => {
+    if (!genreId) return;
     try {
       if (refresh) {
         setRefreshing(true);
@@ -65,26 +66,8 @@ export const GenreDetailScreen = () => {
         setLoading(true);
       }
 
-      // TODO: Replace with actual API call
-      // const response = await getGenreSongs(genreId, { sortBy, limit: 50 });
-      // setSongs(response);
-
-      // Mock data for now
-      const mockSongs: Song[] = Array.from({ length: 12 }, (_, i) => ({
-        id: `song_${i}`,
-        title: `${genreName} Track ${i + 1}`,
-        primaryArtist: { artistId: `artist_${i}`, stageName: 'Artist Name' },
-        genres: [{ id: genreId, name: genreName }],
-        durationSeconds: 180 + Math.random() * 120,
-        playCount: 1000 + Math.random() * 10000,
-        thumbnailUrl: undefined,
-        status: 'PUBLIC' as const,
-        transcodeStatus: 'COMPLETED' as const,
-        createdAt: '',
-        updatedAt: '',
-      }));
-
-      setSongs(mockSongs);
+      const response = await getSongsByGenre(genreId, { sortBy, size: 50 });
+      setSongs(response.content ?? []);
     } catch (error) {
       Alert.alert('Error', 'Failed to load genre songs');
       console.error('[GenreDetailScreen] Error fetching songs:', error);
@@ -92,7 +75,7 @@ export const GenreDetailScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [genreId, genreName, sortBy]);
+  }, [genreId, sortBy]);
 
   useEffect(() => {
     fetchGenreSongs();

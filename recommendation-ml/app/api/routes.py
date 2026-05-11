@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Query, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel
 from app.core.security import verify_internal_secret
 from app.api.schemas import (
     RecommendResponse, SongScore,
@@ -12,6 +13,7 @@ from app.data.puller import DataPuller
 from app.core.clients import get_async_redis, get_minio, get_sync_redis, RedisKeys
 from app.core.settings import get_settings
 from app.core.logging import get_logger
+from app.api.metrics import record_impression, record_hit, get_hit_rate_stats
 import asyncio
 import json
 import math
@@ -82,16 +84,28 @@ async def get_cf_recommendations(
     recommendations = cf_trainer.get_recommendations_for_user(user_id, limit)
 
     if not recommendations:
-        return RecommendResponse(
-            recommendations=[],
-            source="no_model",
-        )
+        # Cold-start: user chưa có CF vector → fallback trending
+        log.info("cf_cold_start_fallback", user_id=user_id)
+        redis_sync = get_sync_redis()
+        trending_raw = redis_sync.zrevrange("rec:trending:global", 0, limit - 1, withscores=True)
+        if trending_raw:
+            return RecommendResponse(
+                recommendations=[
+                    SongScore(songId=str(sid), score=_normalize_score(score))
+                    for sid, score in trending_raw
+                ],
+                source="cold_start_trending",
+            )
+        return RecommendResponse(recommendations=[], source="no_model")
 
-    return RecommendResponse(
+    result = RecommendResponse(
         recommendations=_to_song_scores(recommendations, limit),
         modelVersion=await redis.get(RedisKeys.CF_MODEL_VERSION) or "",
         source="realtime",
     )
+    # Track impressions cho hit-rate monitoring
+    asyncio.create_task(record_impression(user_id, [r.songId for r in result.recommendations]))
+    return result
 
 
 # ── CB Recommendations ────────────────────────────────────────────────────────
@@ -122,7 +136,6 @@ async def get_cb_recommendations(
 
     # Pull user data từ social-service
     async with DataPuller() as puller:
-        import asyncio
         listen_history, liked_songs = await asyncio.gather(
             puller.get_listen_history(user_id, limit=100, days=30),
             puller.get_liked_songs(user_id),
@@ -138,6 +151,21 @@ async def get_cb_recommendations(
     )
 
     if not recommendations:
+        # ── Cold-start fallback: user mới, không có lịch sử ──────────────
+        # Trả về top-N bài trending từ Redis thay vì empty list
+        log.info("cb_cold_start_fallback", user_id=user_id)
+        redis_sync = get_sync_redis()
+        trending_raw = redis_sync.zrevrange("rec:trending:global", 0, limit - 1, withscores=True)
+        if trending_raw:
+            cold_start_songs = [
+                SongScore(songId=str(sid), score=_normalize_score(score))
+                for sid, score in trending_raw
+            ]
+            return RecommendResponse(
+                recommendations=cold_start_songs,
+                modelVersion=await redis.get(RedisKeys.CB_MODEL_VERSION) or "",
+                source="cold_start_trending",
+            )
         return RecommendResponse(recommendations=[], source="no_data")
 
     # Cache result
@@ -147,11 +175,13 @@ async def get_cb_recommendations(
         json.dumps([{"songId": r.get("songId"), "score": _normalize_score(r.get("score"))} for r in (recommendations or [])]),
     )
 
-    return RecommendResponse(
+    result = RecommendResponse(
         recommendations=_to_song_scores(recommendations, limit),
         modelVersion=await redis.get(RedisKeys.CB_MODEL_VERSION) or "",
         source="realtime",
     )
+    asyncio.create_task(record_impression(user_id, [r.songId for r in result.recommendations]))
+    return result
 
 
 # ── Similar Songs ─────────────────────────────────────────────────────────────
@@ -291,6 +321,33 @@ async def health_check_alias():
     Render probes tại /health/health thay vì /health.
     """
     return await health_check()
+
+
+# ── Feedback & Metrics ────────────────────────────────────────────────────────
+
+class FeedbackRequest(BaseModel):
+    userId: str
+    songId: str
+
+
+@router.post("/recommend/feedback", dependencies=[Depends(verify_internal_secret)])
+async def submit_recommendation_feedback(body: FeedbackRequest):
+    """
+    Được gọi từ recommendation-service khi user play một bài đã được recommend.
+    Ghi hit để tính hit-rate theo ngày.
+    """
+    await record_hit(body.userId, body.songId)
+    return {"status": "ok"}
+
+
+@router.get("/metrics/hit-rate", dependencies=[Depends(verify_internal_secret)])
+async def get_metrics(days: int = Query(default=7, ge=1, le=30)):
+    """
+    Trả về hit-rate của recommendation trong N ngày gần nhất.
+    hit_rate = số bài được recommend mà user thực sự play / tổng bài đã recommend.
+    """
+    stats = await get_hit_rate_stats(days=days)
+    return stats
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

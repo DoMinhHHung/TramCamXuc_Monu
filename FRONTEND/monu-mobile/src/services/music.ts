@@ -145,6 +145,34 @@ export const searchSongs = async (params: {
   return unwrap<PageResponse<Song>>(response.data);
 };
 
+export const getSongsByGenre = async (
+  genreId: string,
+  params?: {
+    sortBy?: 'trending' | 'newest' | 'popular';
+    page?: number;
+    size?: number;
+  },
+): Promise<PageResponse<Song>> => {
+  const { sortBy = 'trending', page = 0, size = 50 } = params ?? {};
+  if (sortBy === 'newest') {
+    const response = await apiClient.get<PageResponse<Song>>('/songs/newest', {
+      params: { genreId, page, size },
+    });
+    return unwrap<PageResponse<Song>>(response.data);
+  }
+  if (sortBy === 'trending') {
+    const response = await apiClient.get<PageResponse<Song>>('/songs/trending', {
+      params: { genreId, page, size },
+    });
+    return unwrap<PageResponse<Song>>(response.data);
+  }
+  // popular → sort by playCount desc via search endpoint
+  const response = await apiClient.get<PageResponse<Song>>('/songs', {
+    params: { genreId, page, size, sort: 'playCount,desc' },
+  });
+  return unwrap<PageResponse<Song>>(response.data);
+};
+
 export const searchArtists = async (params: {
   keyword?: string;
   page?: number;

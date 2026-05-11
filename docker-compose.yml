@@ -17,7 +17,6 @@ x-infra: &infra
   RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
   RABBITMQ_VHOST: ${RABBITMQ_VHOST}
   EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
-  # Đăng ký lên Eureka nhanh hơn (mặc định Spring thường 30–40s cho lần replicate đầu)
   EUREKA_CLIENT_INITIAL_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS: "5"
   EUREKA_CLIENT_INSTANCE_INFO_REPLICATION_INTERVAL_SECONDS: "10"
 
@@ -169,6 +168,7 @@ services:
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
       MINIO_RAW_BUCKET: ${MINIO_RAW_BUCKET:-music}
       MINIO_PUBLIC_BUCKET: ${MINIO_PUBLIC_BUCKET:-public-songs}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
     depends_on:
       discovery-server:
         condition: service_healthy
@@ -303,10 +303,10 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 1024M
         reservations:
           cpus: "0.05"
-          memory: 256M
+          memory: 512M
     environment:
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
