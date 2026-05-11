@@ -514,6 +514,63 @@ const FeatureRow = ({
     );
 };
 
+// ─── Subscription history item ────────────────────────────────────────────────
+
+const STATUS_COLOR_MAP: Record<UserSubscription['status'], string> = {
+    ACTIVE: '#34D399',
+    EXPIRED: '#6B7280',
+    CANCELLED: '#F87171',
+    PENDING: '#FBBF24',
+    SUSPENDED: '#F97316',
+};
+
+const formatHistoryDate = (dateStr?: string): string => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+};
+
+const HistoryItem = ({
+    item,
+    styles,
+    themeColors,
+    t,
+}: {
+    item: UserSubscription;
+    styles: PremiumStyles;
+    themeColors: ColorScheme;
+    t: TranslateFn;
+}) => {
+    const statusColor = STATUS_COLOR_MAP[item.status] ?? themeColors.glass50;
+    const price = typeof item.plan?.price === 'number' ? item.plan.price : Number(item.plan?.price ?? 0);
+    const isFree = !Number.isFinite(price) || price === 0;
+    const endDate = item.cancelledAt ?? item.expiresAt;
+
+    return (
+        <View style={styles.historyItem}>
+            <View style={[styles.historyStatusDot, { backgroundColor: statusColor }]} />
+            <View style={styles.historyItemBody}>
+                <View style={styles.historyItemTitleRow}>
+                    <Text style={styles.historyPlanName}>{item.plan?.subsName ?? '—'}</Text>
+                    <View style={[styles.historyStatusBadge, { backgroundColor: `${statusColor}20`, borderColor: `${statusColor}50` }]}>
+                        <Text style={[styles.historyStatusText, { color: statusColor }]}>
+                            {t(`premium.history.status.${item.status.toLowerCase()}`, item.status)}
+                        </Text>
+                    </View>
+                </View>
+                <Text style={styles.historyDateRange}>
+                    {formatHistoryDate(item.startedAt)} → {formatHistoryDate(endDate)}
+                </Text>
+                {!isFree && (
+                    <Text style={styles.historyPrice}>
+                        {new Intl.NumberFormat('vi-VN').format(price)}đ · {item.plan?.durationDays ?? '—'} {t('premium.history.days', 'ngày')}
+                    </Text>
+                )}
+            </View>
+        </View>
+    );
+};
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export const PremiumScreen = () => {
@@ -537,6 +594,8 @@ export const PremiumScreen = () => {
         isFetching: queryFetching,
         isError: queryIsError,
         error: queryError,
+        history,
+        isHistoryLoading,
         refresh: refreshSubscription,
     } = useSubscription();
 
@@ -1235,6 +1294,37 @@ export const PremiumScreen = () => {
                         </View>
                     </LinearGradient>
 
+                    {/* ── Purchase history ── */}
+                    {authSession && (
+                        <View style={styles.section}>
+                            <View style={styles.dividerRow}>
+                                <View style={styles.dividerLine} />
+                                <Text style={styles.dividerLabel}>{t('premium.history.title', 'Lịch sử đăng ký')}</Text>
+                                <View style={styles.dividerLine} />
+                            </View>
+                            {isHistoryLoading ? (
+                                <ActivityIndicator color={themeColors.accent} style={{ marginVertical: 16 }} />
+                            ) : history.length === 0 ? (
+                                <View style={styles.historyEmpty}>
+                                    <MaterialCommunityIcons name="history" size={32} color={themeColors.glass20} />
+                                    <Text style={styles.historyEmptyText}>{t('premium.history.empty', 'Chưa có lịch sử đăng ký')}</Text>
+                                </View>
+                            ) : (
+                                <View style={styles.historyList}>
+                                    {history.map((item) => (
+                                        <HistoryItem
+                                            key={item.id}
+                                            item={item}
+                                            styles={styles}
+                                            themeColors={themeColors}
+                                            t={t}
+                                        />
+                                    ))}
+                                </View>
+                            )}
+                        </View>
+                    )}
+
                 </View>
             </ScrollView>
         </LinearGradient>
@@ -1770,6 +1860,73 @@ const createPremiumStyles = (colors: ColorScheme) => StyleSheet.create({
         height: 90,
         borderRadius: 16,
         marginBottom: 20,
+    },
+
+    // ── History ───────────────────────────────────────────────────────────────
+    historyList: {
+        gap: 10,
+    },
+    historyItem: {
+        flexDirection: 'row',
+        gap: 12,
+        alignItems: 'flex-start',
+        backgroundColor: colors.surface,
+        borderRadius: 16,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: colors.glass10,
+    },
+    historyStatusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginTop: 5,
+        flexShrink: 0,
+    },
+    historyItemBody: {
+        flex: 1,
+        gap: 4,
+    },
+    historyItemTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+    },
+    historyPlanName: {
+        color: colors.white,
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    historyStatusBadge: {
+        borderRadius: 999,
+        borderWidth: 1,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+    },
+    historyStatusText: {
+        fontSize: 9,
+        fontWeight: '800',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+    historyDateRange: {
+        color: colors.glass50,
+        fontSize: 12,
+    },
+    historyPrice: {
+        color: colors.glass65,
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    historyEmpty: {
+        alignItems: 'center',
+        gap: 10,
+        paddingVertical: 24,
+    },
+    historyEmptyText: {
+        color: colors.glass35,
+        fontSize: 14,
     },
 
     // ── Guarantee ─────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import React, {
     useState,
 } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 
 import { confirmUploadSong, requestUploadSong, uploadLyric } from '../services/music';
 
@@ -42,58 +43,52 @@ interface UploadContextValue {
 
 const UploadContext = createContext<UploadContextValue | null>(null);
 
-// ─── Native XHR upload ────────────────────────────────────────────────────────
+// ─── Native file upload via expo-file-system ─────────────────────────────────
 //
-// BUG CŨ: fetch(file.uri).blob() load toàn bộ file vào JS memory qua bridge
-// → treo với file > vài MB vì JS bridge bị block.
+// Dùng FileSystem.createUploadTask thay vì XHR hack.
+// FileSystem đọc file trực tiếp từ filesystem ở tầng native (ObjC/Java),
+// không đi qua JS bridge → không treo với file lớn, hỗ trợ progress chuẩn.
 //
-// FIX: xhr.send({ uri, type, name }) — React Native nhận dạng object này
-// và đọc file natively từ filesystem, KHÔNG qua JS bridge.
-// Kết quả: không treo, upload.onprogress hoạt động đúng.
-//
-function uploadFileNative(params: {
+async function uploadFileNative(params: {
     url: string;
     uri: string;
     mimeType: string;
     fileName: string;
     onProgress: (pct: number) => void;
-    timeoutMs?: number;
 }): Promise<void> {
+    const { url, uri, mimeType, onProgress } = params;
+
     return new Promise((resolve, reject) => {
-        const { url, uri, mimeType, fileName, onProgress, timeoutMs = 10 * 60 * 1000 } = params;
+        const task = FileSystem.createUploadTask(
+            url,
+            uri,
+            {
+                httpMethod: 'PUT',
+                uploadType: 0, 
+                headers: { 'Content-Type': mimeType },
+            },
+            (progress) => {
+                const { totalBytesExpectedToSend, totalBytesSent } = progress;
+                if (totalBytesExpectedToSend > 0) {
+                    const pct = Math.min(99, Math.round((totalBytesSent / totalBytesExpectedToSend) * 100));
+                    onProgress(pct);
+                }
+            },
+        );
 
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', url);
-        xhr.setRequestHeader('Content-Type', mimeType);
-        xhr.timeout = timeoutMs;
-
-        xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable && event.total > 0) {
-                const pct = Math.min(99, Math.round((event.loaded / event.total) * 100));
-                onProgress(pct);
-            }
-        };
-
-        xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-                onProgress(100);
-                resolve();
-            } else {
-                reject(new Error(
-                    `Upload thất bại HTTP ${xhr.status}. ` +
-                    `Có thể presigned URL hết hạn hoặc lỗi CORS.`
-                ));
-            }
-        };
-
-        xhr.onerror   = () => reject(new Error('Lỗi mạng khi upload. Kiểm tra kết nối.'));
-        xhr.ontimeout = () => reject(new Error(`Upload timeout sau ${timeoutMs / 60000} phút.`));
-
-        // ── Đây là fix chính ──────────────────────────────────────────────
-        // Truyền object { uri, type, name } thay vì blob.
-        // React Native XHR runtime xử lý natively, đọc file từ filesystem
-        // mà không load vào JS memory.
-        xhr.send({ uri, type: mimeType, name: fileName } as unknown as Document);
+        task.uploadAsync()
+            .then((result: { status: number } | null | undefined) => {
+                if (!result || result.status < 200 || result.status >= 300) {
+                    reject(new Error(
+                        `Upload thất bại HTTP ${result?.status ?? 'unknown'}. ` +
+                        `Có thể presigned URL hết hạn hoặc lỗi CORS.`
+                    ));
+                } else {
+                    onProgress(100);
+                    resolve();
+                }
+            })
+            .catch((err: Error) => reject(new Error(`Lỗi upload: ${err.message}`)));
     });
 }
 

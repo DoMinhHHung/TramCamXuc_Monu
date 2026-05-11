@@ -223,6 +223,7 @@ def get_user_feature_vector(
         liked_song_ids: list[str],
         song_features: SongFeatureDataset,
         favorite_genre_ids: list[str] | None = None,
+        favorite_genre_names: list[str] | None = None,
 ) -> np.ndarray | None:
     """
     Tạo user profile vector từ listen history và liked songs.
@@ -232,8 +233,10 @@ def get_user_feature_vector(
                   + 2.0 × weighted_avg(song_vectors_liked)
                   (liked = explicit positive → weight cao hơn)
 
-    Nếu có favorite_genre_ids từ identity-service (cold-start):
-      → boost các genre dims tương ứng
+    Cold-start (không có listen history + liked songs):
+      1. Thử dùng favorite_genre_names (tên genre)
+      2. Thử dùng favorite_genre_ids (ID genre, map sang tên nếu cần)
+      3. Nếu vẫn không có → trả None (caller dùng trending fallback)
 
     @return: user feature vector cùng shape với song features, hoặc None nếu không đủ data
     """
@@ -265,14 +268,34 @@ def get_user_feature_vector(
         total_weight += weight
 
     if total_weight == 0:
-        # Cold-start: dùng favorite genres nếu có
-        if favorite_genre_ids:
-            vec = np.zeros(n_features, dtype=np.float32)
-            for genre_id in favorite_genre_ids:
+        # ── Cold-start: không có interaction nào ────────────────────────────
+        vec = np.zeros(n_features, dtype=np.float32)
+        found_genre = False
+
+        # Ưu tiên 1: dùng tên genre trực tiếp (chính xác nhất)
+        for genre_name in (favorite_genre_names or []):
+            if genre_name in song_features.genre_index:
+                vec[song_features.genre_index[genre_name]] = 1.0
+                found_genre = True
+
+        # Ưu tiên 2: dùng genre_id (có thể trùng tên trong genre_index)
+        if not found_genre:
+            for genre_id in (favorite_genre_ids or []):
+                # genre_index key là tên; thử match trực tiếp với id string
                 if genre_id in song_features.genre_index:
                     vec[song_features.genre_index[genre_id]] = 1.0
+                    found_genre = True
+
+        if found_genre:
             norm = np.linalg.norm(vec)
-            return (vec / norm).astype(np.float32) if norm > 0 else None
+            result = (vec / norm).astype(np.float32) if norm > 0 else None
+            log.info("cold_start_vector_built", user_id=user_id,
+                     genre_names_used=len(favorite_genre_names or []),
+                     genre_ids_used=len(favorite_genre_ids or []))
+            return result
+
+        # Không có gì → trả None, caller sẽ fallback sang trending
+        log.info("cold_start_no_signal", user_id=user_id)
         return None
 
     user_vector = (weighted_sum / total_weight).astype(np.float32)

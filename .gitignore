@@ -1,5 +1,6 @@
 .env
 error.log
+docs
 .cursor
 .claude
 __pycache__

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getActiveSubscriptionPlans,
   getMySubscriptionOrNull,
+  getMySubscriptionHistory,
   type SubscriptionPlan,
   type UserSubscription,
 } from '../services/payment';
@@ -34,6 +35,9 @@ export type UseSubscriptionResult = {
   isFetching: boolean;
   isError: boolean;
   error: unknown;
+  history: UserSubscription[];
+  isHistoryLoading: boolean;
+  isHistoryError: boolean;
   refresh: () => Promise<void>;
   invalidateAll: () => Promise<void>;
 };
@@ -54,6 +58,16 @@ export function useSubscription(): UseSubscriptionResult {
   const subQuery = useQuery({
     queryKey: ['subscriptions', 'my', authSession?.profile?.id ?? 'anon'],
     queryFn: () => (authSession ? getMySubscriptionOrNull() : Promise.resolve(null)),
+    enabled: Boolean(authSession),
+    staleTime: THIRTY_MIN_MS,
+    gcTime: SIX_HOURS_MS,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+
+  const historyQuery = useQuery({
+    queryKey: ['subscriptions', 'my', 'history', authSession?.profile?.id ?? 'anon'],
+    queryFn: () => (authSession ? getMySubscriptionHistory() : Promise.resolve([])),
     enabled: Boolean(authSession),
     staleTime: THIRTY_MIN_MS,
     gcTime: SIX_HOURS_MS,
@@ -84,7 +98,7 @@ export function useSubscription(): UseSubscriptionResult {
   const error = plansQuery.error ?? subQuery.error ?? null;
 
   const refresh = async () => {
-    await Promise.all([plansQuery.refetch(), subQuery.refetch()]);
+    await Promise.all([plansQuery.refetch(), subQuery.refetch(), historyQuery.refetch()]);
   };
 
   const invalidateAll = async () => {
@@ -103,6 +117,9 @@ export function useSubscription(): UseSubscriptionResult {
     isFetching,
     isError,
     error,
+    history: historyQuery.data ?? [],
+    isHistoryLoading: historyQuery.isLoading,
+    isHistoryError: historyQuery.isError,
     refresh,
     invalidateAll,
   };

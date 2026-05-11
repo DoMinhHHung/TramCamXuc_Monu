@@ -262,7 +262,14 @@ public class PayOSServiceImpl implements PayOSService {
     // PRIVATE HELPERS
     // ──────────────────────────────────────────────────────────
 
-    /** Cùng transaction với save subscription — scheduler sẽ gửi RabbitMQ. */
+    void enqueueSubscriptionActiveEventPublic(UUID userId, UserSubscription sub) {
+        enqueueSubscriptionActiveEvent(userId, sub);
+    }
+
+    void enqueuePaymentSuccessEmailPublic(PaymentTransaction transaction, UserSubscription sub) {
+        enqueuePaymentSuccessEmail(transaction, sub);
+    }
+
     private void enqueueSubscriptionActiveEvent(UUID userId, UserSubscription sub) {
         try {
             SubscriptionActiveEvent evt = SubscriptionActiveEvent.builder()
