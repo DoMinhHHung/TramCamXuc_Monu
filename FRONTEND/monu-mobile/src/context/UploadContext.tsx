@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import { FileSystemUploadType, FileSystemUploadResult } from 'expo-file-system';
 
 import { confirmUploadSong, requestUploadSong, uploadLyric } from '../services/music';
 
@@ -65,7 +64,7 @@ async function uploadFileNative(params: {
             uri,
             {
                 httpMethod: 'PUT',
-                uploadType: FileSystemUploadType.BINARY_CONTENT,
+                uploadType: 0, 
                 headers: { 'Content-Type': mimeType },
             },
             (progress) => {
@@ -78,7 +77,7 @@ async function uploadFileNative(params: {
         );
 
         task.uploadAsync()
-            .then((result: FileSystemUploadResult | null) => {
+            .then((result: { status: number } | null | undefined) => {
                 if (!result || result.status < 200 || result.status >= 300) {
                     reject(new Error(
                         `Upload thất bại HTTP ${result?.status ?? 'unknown'}. ` +
