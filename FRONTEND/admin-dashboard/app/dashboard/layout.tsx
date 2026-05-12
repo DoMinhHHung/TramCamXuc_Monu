@@ -115,13 +115,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 key={href}
                                 href={href}
                                 onClick={() => setOpen(false)}
-                                className={`
-                                    flex items-center gap-3 px-4 h-10 text-[13px] rounded-full transition-all duration-200 font-medium
-                                    ${active
-                                        ? 'bg-gradient-to-r from-yellow-400 via-pink-500 to-blue-500 text-white shadow-lg shadow-pink-500/30 dark:shadow-pink-500/20'
-                                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60'
-                                    }
-                                `}
+                            className={`
+                                flex items-center gap-3 px-4 h-10 text-[13px] rounded-full transition-all duration-200 font-medium
+                                ${active
+                                    ? 'bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 text-white shadow-xl shadow-pink-500/40'
+                                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'
+                                }
+                            `}
                             >
                                 <Icon
                                     size={18}
@@ -234,7 +234,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </header>
 
                 {/* Page content */}
-                <main className="flex-1 p-5 lg:p-7 bg-slate-50 dark:bg-slate-950">
+                <main className="flex-1 p-5 lg:p-8 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
                     {children}
                 </main>
             </div>
