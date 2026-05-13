@@ -27,7 +27,7 @@ public class OpenApiConfig {
                         .version("v1.0.0")
                         .description("OpenAPI configuration for Music Service")
                         .contact(new Contact()
-                                .name("Monu Team")
+                                .name("TramCamXuc Team")
                                 .email("dominhhung04032003@gmail.com")))
                 .servers(List.of(new Server().url(serverUrl).description(serverDescription)))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))

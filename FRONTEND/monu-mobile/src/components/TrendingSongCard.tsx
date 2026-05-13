@@ -1,5 +1,5 @@
-import React, { memo } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { memo, useRef } from 'react';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeColors, type ColorScheme } from '../config/colors';
@@ -14,6 +14,13 @@ interface Props {
 
 const RANK_MEDAL: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
+// Left border accent color for top 3
+const TOP3_ACCENT: Record<number, [string, string]> = {
+  1: ['#FFD700', '#FFA500'],
+  2: ['#C0C0C0', '#A8A8A8'],
+  3: ['#CD7F32', '#A0522D'],
+};
+
 const formatPlayCount = (n?: number | null): string => {
   if (!n) return '0';
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -25,70 +32,91 @@ export const TrendingSongCard = memo(({ song, onPress, isPlaying }: Props) => {
   const palette = useThemeColors();
   const styles = getStyles(palette);
   const rank = song.rank ?? 0;
-  const isTop3 = rank <= 3;
+  const isTop3 = rank >= 1 && rank <= 3;
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, tension: 120, friction: 8 }).start();
+  };
+  const handlePressOut = () => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 120, friction: 8 }).start();
+  };
 
   return (
-    <TouchableOpacity
-      style={[styles.card, isPlaying && styles.cardActive]}
-      onPress={() => onPress(song)}
-      activeOpacity={0.82}
-    >
-      {/* Rank badge */}
-      <View style={[styles.rankBadge, isTop3 && styles.rankBadgeTop3]}>
-        {isTop3 ? (
-          <Text style={styles.rankMedal}>{RANK_MEDAL[rank]}</Text>
-        ) : (
-          <Text style={[styles.rankNum, isPlaying && { color: palette.accent }]}>
-            {rank}
-          </Text>
-        )}
-      </View>
-
-      {/* Thumbnail */}
-      <View style={styles.thumbWrap}>
-        {song.thumbnailUrl ? (
-          <Image source={{ uri: song.thumbnailUrl }} style={styles.thumb} />
-        ) : (
-          <View style={[styles.thumb, styles.thumbPlaceholder]}>
-            <MaterialCommunityIcons name="music" size={20} color={palette.muted} />
-          </View>
-        )}
-        {isPlaying && (
+    <Animated.View style={[{ transform: [{ scale }] }]}>
+      <Pressable
+        style={[styles.card, isPlaying && styles.cardActive]}
+        onPress={() => onPress(song)}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
+        {/* Top-3 gradient left border strip */}
+        {isTop3 && (
           <LinearGradient
-            colors={['transparent', `${palette.accent}90`]}
-            style={StyleSheet.absoluteFill}
+            colors={TOP3_ACCENT[rank]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.rankStrip}
           />
         )}
-        {isPlaying && (
-          <View style={styles.playingIndicator}>
-            <MaterialCommunityIcons name="waveform" size={14} color={palette.accent} />
-          </View>
-        )}
-      </View>
 
-      {/* Song info */}
-      <View style={styles.info}>
-        <Text style={[styles.title, isPlaying && { color: palette.accent }]} numberOfLines={1}>
-          {song.title}
-        </Text>
-        <Text style={styles.artist} numberOfLines={1}>
-          {song.primaryArtist?.stageName ?? ''}
-        </Text>
+        {/* Rank badge */}
+        <View style={[styles.rankBadge, isTop3 && styles.rankBadgeTop3]}>
+          {isTop3 ? (
+            <Text style={styles.rankMedal}>{RANK_MEDAL[rank]}</Text>
+          ) : (
+            <Text style={[styles.rankNum, isPlaying && { color: palette.accent }]}>
+              {rank}
+            </Text>
+          )}
+        </View>
 
-        {/* Trend badge + play count */}
-        <View style={styles.metaRow}>
-          {song.trendBadge ? (
-            <View style={styles.badgePill}>
-              <Text style={styles.badgeText}>{song.trendBadge}</Text>
+        {/* Thumbnail */}
+        <View style={styles.thumbWrap}>
+          {song.thumbnailUrl ? (
+            <Image source={{ uri: song.thumbnailUrl }} style={styles.thumb} />
+          ) : (
+            <View style={[styles.thumb, styles.thumbPlaceholder]}>
+              <MaterialCommunityIcons name="music" size={20} color={palette.muted} />
             </View>
-          ) : null}
-          <View style={styles.playCountRow}>
-            <MaterialCommunityIcons name="play-circle-outline" size={11} color={palette.muted} />
-            <Text style={styles.playCountText}>{formatPlayCount(song.playCount)}</Text>
+          )}
+          {isPlaying && (
+            <LinearGradient
+              colors={['transparent', `${palette.accent}90`]}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
+          {isPlaying && (
+            <View style={styles.playingIndicator}>
+              <MaterialCommunityIcons name="waveform" size={14} color={palette.accent} />
+            </View>
+          )}
+        </View>
+
+        {/* Song info */}
+        <View style={styles.info}>
+          <Text style={[styles.title, isPlaying && { color: palette.accent }]} numberOfLines={1}>
+            {song.title}
+          </Text>
+          <Text style={styles.artist} numberOfLines={1}>
+            {song.primaryArtist?.stageName ?? ''}
+          </Text>
+
+          {/* Trend badge + play count */}
+          <View style={styles.metaRow}>
+            {song.trendBadge ? (
+              <View style={styles.badgePill}>
+                <Text style={styles.badgeText}>{song.trendBadge}</Text>
+              </View>
+            ) : null}
+            <View style={styles.playCountRow}>
+              <MaterialCommunityIcons name="play-circle-outline" size={11} color={palette.muted} />
+              <Text style={styles.playCountText}>{formatPlayCount(song.playCount)}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
+      </Pressable>
+    </Animated.View>
   );
 });
 
@@ -103,9 +131,18 @@ const getStyles = (c: ColorScheme) =>
       paddingVertical: SPACING.md,
       borderRadius: RADIUS.md,
       backgroundColor: 'transparent',
+      overflow: 'hidden',
     },
     cardActive: {
       backgroundColor: `${c.accent}12`,
+    },
+    rankStrip: {
+      position: 'absolute',
+      left: 0,
+      top: 6,
+      bottom: 6,
+      width: 3,
+      borderRadius: 3,
     },
     rankBadge: {
       width: 32,

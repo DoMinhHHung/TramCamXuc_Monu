@@ -58,6 +58,7 @@ import { ArtistCardEnhanced } from '../components/ArtistCardEnhanced';
 import { MonuBrandHeaderTitle } from '../components/MonuBrandHeaderTitle';
 import { StreakBanner } from '../components/StreakBanner';
 import { ContinueListeningSection } from '../components/ContinueListeningSection';
+import { MoodPickerSection, type MoodItem } from '../components/MoodPickerSection';
 import { ReportReasonSheet } from '../components/ReportReasonSheet';
 import { openInSpotify, soundCloudTrackToSong } from '../services/externalMusic';
 import { moderateScale } from '../utils/responsive';
@@ -233,22 +234,25 @@ export const HomeScreen = () => {
     (navigation as unknown as { navigate: (route: 'Profile') => void }).navigate('Profile');
   }, [navigation]);
 
-  const handleOpenSearch = useCallback(() => {
+  const handleOpenSearch = useCallback((initialQuery?: string) => {
     const parentNavigation = navigation.getParent();
     const rootNavigation = parentNavigation?.getParent?.();
+    type SearchNav = { navigate: (route: 'Search', params?: { initialQuery?: string }) => void };
 
     if (rootNavigation && 'navigate' in rootNavigation) {
-      (rootNavigation as { navigate: (route: 'Search') => void }).navigate('Search');
+      (rootNavigation as unknown as SearchNav).navigate('Search', initialQuery ? { initialQuery } : undefined);
       return;
     }
-
     if (parentNavigation && 'navigate' in parentNavigation) {
-      (parentNavigation as { navigate: (route: 'Search') => void }).navigate('Search');
+      (parentNavigation as unknown as SearchNav).navigate('Search', initialQuery ? { initialQuery } : undefined);
       return;
     }
-
-    (navigation as unknown as { navigate: (route: 'Search') => void }).navigate('Search');
+    (navigation as unknown as SearchNav).navigate('Search', initialQuery ? { initialQuery } : undefined);
   }, [navigation]);
+
+  const handleSelectMood = useCallback((mood: MoodItem) => {
+    handleOpenSearch(mood.query);
+  }, [handleOpenSearch]);
 
   const handleOpenInsights = useCallback(() => {
     const parentNavigation = navigation.getParent();
@@ -584,30 +588,12 @@ export const HomeScreen = () => {
         </View>
 
         {/* ── 1. STREAK BANNER ─────────────────────────────────────────── */}
-        <View style={styles.sectionContainer}>
-          <LinearGradient
-            colors={[palette.cardTrendingFrom || '#1a1040', palette.cardTrendingTo || '#2D1B69']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.streakCard}
-          >
-            <View style={styles.streakContent}>
-              <View style={styles.streakLabelRow}>
-                <MaterialCommunityIcons name="fire" size={18} color="#FF3B30" />
-                <Text style={styles.streakLabel}>{t('screens.home.streakLabel')}</Text>
-              </View>
-              <Text style={styles.streakValue}>
-                {streakIsZero ? t('screens.home.streakValueZero') : t('screens.home.streakValue', { days: streakDays })}
-              </Text>
-              <Text style={styles.streakSub}>
-                {streakIsZero ? t('screens.home.streakSubZero') : t('screens.home.streakSub')}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.streakBtn} onPress={handleOpenInsights}>
-              <Text style={styles.streakBtnText}>{t('screens.home.streakDetail')}</Text>
-            </TouchableOpacity>
-          </LinearGradient>
-        </View>      
+        <StreakBanner
+          streakDays={streakDays}
+          totalMinutesToday={homeStats?.listeningMinutesToday ?? 0}
+          onPress={handleOpenInsights}
+        />
+
 
         {/* ── 2. TOP 10 XU HƯỚNG (INLINE) ─────────────────────────────── */}
         <View style={styles.sectionHeader}>
@@ -673,6 +659,9 @@ export const HomeScreen = () => {
                <Text style={styles.quickPickTitle} numberOfLines={2}>{t('screens.home.discoveryNew')}</Text>
            </TouchableOpacity>
         </View>
+
+        {/* ── 3b. TÂM TRẠNG ────────────────────────────────────────────── */}
+        <MoodPickerSection onSelectMood={handleSelectMood} />
 
         {/* ── 4. NGHỆ SĨ YÊU THÍCH (CIRCLES) ───────────────────────────── */}
         {homeStats?.topArtists && homeStats.topArtists.length > 0 && (
@@ -790,51 +779,6 @@ export const HomeScreen = () => {
           );
         })()}
 
-        {/* ── PLATFORM CURATION ───────────────────────── */}
-        <View style={styles.platformRow}>
-           <View style={styles.platformCol}>
-              <View style={styles.platformHeader}>
-                <View style={[styles.platformIcon, { backgroundColor: '#ff5708' }]}>
-                  <Ionicons name="cloud" size={16} color="#fff" />
-                </View>
-                <Text style={styles.platformTitle}>SoundCloud</Text>
-              </View>
-              {externalSections.soundcloudTracks.slice(0, 3).map(track => (
-                <TouchableOpacity 
-                  key={track.id} 
-                  style={styles.platformItem}
-                  onPress={() => {
-                    const song = soundCloudTrackToSong(track) as any;
-                    playSong(song, externalSections.soundcloudTracks.map(t2 => soundCloudTrackToSong(t2) as any));
-                  }}
-                >
-                  <Image source={{ uri: track.thumbnailUrl }} style={styles.platformThumb} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.platformItemTitle} numberOfLines={1}>{track.title}</Text>
-                    <Text style={styles.platformItemSub} numberOfLines={1}>{track.artistUsername}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-           </View>
-           <View style={styles.platformCol}>
-              <View style={styles.platformHeader}>
-                <View style={[styles.platformIcon, { backgroundColor: '#1DB954' }]}>
-                  <Ionicons name="musical-notes" size={16} color="#fff" />
-                </View>
-                <Text style={styles.platformTitle}>Spotify</Text>
-              </View>
-              {externalSections.spotifyTracks.slice(0, 3).map(track => (
-                <TouchableOpacity key={track.id} style={styles.platformItem} onPress={() => openInSpotify(track)}>
-                  <Image source={{ uri: track.thumbnailUrl }} style={styles.platformThumb} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.platformItemTitle} numberOfLines={1}>{track.name}</Text>
-                    <Text style={styles.platformItemSub} numberOfLines={1}>{track.artistName}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-           </View>
-        </View>
-        
         <SongSection
           title={`✨ ${t('screens.home.newReleases')}`}
             songs={legacyNewestSongs}
@@ -846,6 +790,62 @@ export const HomeScreen = () => {
         />
 
         {/* ... remaining legacy sections ... */}
+
+        {/* ── NGOẠI NỀN TẢNG (cuối trang) ──────────────────────────────── */}
+        {(externalSections.soundcloudTracks.length > 0 || externalSections.spotifyTracks.length > 0) && (
+          <View style={styles.platformWrapper}>
+            <View style={[styles.sectionHeader, { marginBottom: 14 }]}>
+              <Text style={styles.sectionTitle}>Khám phá ngoài Monu</Text>
+            </View>
+            <View style={styles.platformRow}>
+              {externalSections.soundcloudTracks.length > 0 && (
+                <View style={styles.platformCol}>
+                  <View style={styles.platformHeader}>
+                    <View style={[styles.platformIcon, { backgroundColor: '#ff5708' }]}>
+                      <Ionicons name="cloud" size={16} color="#fff" />
+                    </View>
+                    <Text style={styles.platformTitle}>SoundCloud</Text>
+                  </View>
+                  {externalSections.soundcloudTracks.slice(0, 3).map(track => (
+                    <TouchableOpacity
+                      key={track.id}
+                      style={styles.platformItem}
+                      onPress={() => {
+                        const song = soundCloudTrackToSong(track) as any;
+                        playSong(song, externalSections.soundcloudTracks.map(t2 => soundCloudTrackToSong(t2) as any));
+                      }}
+                    >
+                      <Image source={{ uri: track.thumbnailUrl }} style={styles.platformThumb} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.platformItemTitle} numberOfLines={1}>{track.title}</Text>
+                        <Text style={styles.platformItemSub} numberOfLines={1}>{track.artistUsername}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {externalSections.spotifyTracks.length > 0 && (
+                <View style={styles.platformCol}>
+                  <View style={styles.platformHeader}>
+                    <View style={[styles.platformIcon, { backgroundColor: '#1DB954' }]}>
+                      <Ionicons name="musical-notes" size={16} color="#fff" />
+                    </View>
+                    <Text style={styles.platformTitle}>Spotify</Text>
+                  </View>
+                  {externalSections.spotifyTracks.slice(0, 3).map(track => (
+                    <TouchableOpacity key={track.id} style={styles.platformItem} onPress={() => openInSpotify(track)}>
+                      <Image source={{ uri: track.thumbnailUrl }} style={styles.platformThumb} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.platformItemTitle} numberOfLines={1}>{track.name}</Text>
+                        <Text style={styles.platformItemSub} numberOfLines={1}>{track.artistName}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>    <MaterialCommunityIcons name="music-box-multiple" color={palette.accent} size={30} /> {t('screens.home.expandedSections')}</Text>
@@ -1088,33 +1088,6 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     letterSpacing: -0.8,
   },
   sectionContainer: { paddingHorizontal: 20, marginBottom: 30 },
-  streakCard: {
-    borderRadius: 28,
-    padding: 22,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.accentBorder25,
-    backgroundColor: 'rgba(26, 5, 51, 0.92)',
-    elevation: 12,
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.28,
-    shadowRadius: 24,
-  },
-  streakContent: { flex: 1 },
-  streakLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  streakLabel: { color: colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
-  streakValue: { fontSize: 42, fontWeight: '900', color: colors.white, letterSpacing: -1 },
-  streakSub: { color: colors.textSecondary, fontSize: 13, marginTop: 4, maxWidth: '80%' },
-  streakBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 18,
-    paddingVertical: 13,
-    borderRadius: 999,
-  },
-  streakBtnText: { color: '#12051f', fontSize: 11, fontWeight: '900', letterSpacing: 0.4 },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1190,7 +1163,8 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3,
   },
-  platformRow: { paddingHorizontal: 20, flexDirection: 'row', gap: 14, marginTop: 28, marginBottom: 24 },
+  platformWrapper: { marginTop: 32, marginBottom: 8 },
+  platformRow: { paddingHorizontal: 20, flexDirection: 'row', gap: 14, marginTop: 8, marginBottom: 24 },
   platformCol: {
     flex: 1,
     backgroundColor: colors.surface,

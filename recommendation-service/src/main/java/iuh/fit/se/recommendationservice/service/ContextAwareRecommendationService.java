@@ -103,10 +103,6 @@ public class ContextAwareRecommendationService {
         return Math.min(1.5 + (matches - 1) * 0.25, 2.0);
     }
 
-    /**
-     * Lọc và boost candidates theo ngữ cảnh → trả về contextual section.
-     * Chỉ lấy các bài match context (multiplier >= 1.0).
-     */
     public List<RecommendedSongDto> buildContextualSection(
             List<RecommendedSongDto> candidates,
             Map<String, SongDetailDto> details,

@@ -6,8 +6,10 @@ import {
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { AntDesign } from '@expo/vector-icons';
+import { MoodPickerSection, MOOD_ITEMS, type MoodItem } from '../../components/MoodPickerSection';
+import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 import { BackButton } from '../../components/BackButton';
 import { RetryState } from '../../components/RetryState';
@@ -61,12 +63,14 @@ const scoreByQuery = (query: string, ...fields: Array<string | undefined>): numb
 export const SearchScreen = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
+    const route = useRoute<RouteProp<RootStackParamList, 'Search'>>();
     const { playSong } = usePlayerControls();
     const { t } = useTranslation();
     const themeColors = useThemeColors();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
-    const [query, setQuery] = useState('');
+    const initialQuery = route.params?.initialQuery ?? '';
+    const [query, setQuery] = useState(initialQuery);
     const [loading, setLoading] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
     const [songResults, setSongResults] = useState<Song[]>([]);
@@ -145,10 +149,14 @@ export const SearchScreen = () => {
         }
     }, [voice]);
 
-    // ── Mount: load history + focus input ────────────────────────────────────
+    // ── Mount: load history + focus input + handle initialQuery ─────────────
     useEffect(() => {
         getSearchHistory().then(setHistory);
         setTimeout(() => inputRef.current?.focus(), 120);
+        if (initialQuery.trim().length >= MIN_QUERY_LENGTH) {
+            doSearch(initialQuery.trim());
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ── Search ────────────────────────────────────────────────────────────────
@@ -611,7 +619,17 @@ export const SearchScreen = () => {
                             />
                         </>
                     ) : (
-                        <View style={styles.center}>
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ paddingBottom: 120 }}
+                        >
+                            <MoodPickerSection
+                                onSelectMood={(mood: MoodItem) => {
+                                    setQuery(mood.query);
+                                    doSearch(mood.query);
+                                    addSearchHistory(mood.query).then(() => getSearchHistory().then(setHistory));
+                                }}
+                            />
                             <View style={styles.voiceHintBox}>
                                 <Text style={styles.voiceHintIcon}>🎙</Text>
                                 <Text style={styles.voiceHintTitle}>{t('screens.search.voiceHintTitle')}</Text>
@@ -620,7 +638,7 @@ export const SearchScreen = () => {
                                 </Text>
                             </View>
                             <Text style={styles.hintText}>{t('screens.search.voiceHintInput')}</Text>
-                        </View>
+                        </ScrollView>
                     )}
                 </View>
             )}

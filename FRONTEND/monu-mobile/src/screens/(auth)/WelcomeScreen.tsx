@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,9 +9,15 @@ import { StatusBar } from 'expo-status-bar';
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useTranslation } from '../../context/LocalizationContext';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import { moderateScale, scale, SCREEN, verticalScale } from '../../utils/responsive';
+import { moderateScale, scale, verticalScale } from '../../utils/responsive';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Welcome'>;
+
+const FEATURE_CHIPS = [
+  { emoji: '🎵', label: 'Nhạc theo cảm xúc' },
+  { emoji: '🤖', label: 'AI sáng tác' },
+  { emoji: '👥', label: 'Cộng đồng' },
+];
 
 export const WelcomeScreen = () => {
     const navigation = useNavigation<Nav>();
@@ -20,30 +26,87 @@ export const WelcomeScreen = () => {
     const { t } = useTranslation();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
+    // Animated breathing orbs
+    const orbScale1 = useRef(new Animated.Value(1)).current;
+    const orbScale2 = useRef(new Animated.Value(1)).current;
+    const orbOpacity = useRef(new Animated.Value(0.5)).current;
+    const titleSlide = useRef(new Animated.Value(30)).current;
+    const titleOpacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        // Entry animation
+        Animated.parallel([
+            Animated.timing(titleSlide, { toValue: 0, duration: 700, useNativeDriver: true }),
+            Animated.timing(titleOpacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+        ]).start();
+
+        // Ambient orb pulse
+        const pulse1 = Animated.loop(
+            Animated.sequence([
+                Animated.timing(orbScale1, { toValue: 1.15, duration: 3000, useNativeDriver: true }),
+                Animated.timing(orbScale1, { toValue: 1, duration: 3000, useNativeDriver: true }),
+            ])
+        );
+        const pulse2 = Animated.loop(
+            Animated.sequence([
+                Animated.delay(1500),
+                Animated.timing(orbScale2, { toValue: 1.2, duration: 3200, useNativeDriver: true }),
+                Animated.timing(orbScale2, { toValue: 0.9, duration: 3200, useNativeDriver: true }),
+            ])
+        );
+        const opacityPulse = Animated.loop(
+            Animated.sequence([
+                Animated.timing(orbOpacity, { toValue: 0.7, duration: 2500, useNativeDriver: true }),
+                Animated.timing(orbOpacity, { toValue: 0.35, duration: 2500, useNativeDriver: true }),
+            ])
+        );
+        pulse1.start();
+        pulse2.start();
+        opacityPulse.start();
+        return () => {
+            pulse1.stop();
+            pulse2.stop();
+            opacityPulse.stop();
+        };
+    }, []);
+
     return (
         <View style={styles.root}>
             <StatusBar style="light" />
 
-            <View style={[StyleSheet.absoluteFillObject, styles.bgMeshWrapper]}>
-                <View style={styles.gradBgTopRight} />
-                <View style={styles.gradBgBottomLeft} />
+            {/* Animated ambient orbs */}
+            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+                <Animated.View style={[
+                    styles.orbTopRight,
+                    { transform: [{ scale: orbScale1 }], opacity: orbOpacity },
+                ]} />
+                <Animated.View style={[
+                    styles.orbBottomLeft,
+                    { transform: [{ scale: orbScale2 }], opacity: orbOpacity },
+                ]} />
+                <Animated.View style={[
+                    styles.orbCenter,
+                    { transform: [{ scale: orbScale1 }], opacity: Animated.multiply(orbOpacity, 0.4) },
+                ]} />
             </View>
 
             <View style={[styles.mainLayout, { paddingTop: insets.top + verticalScale(20), paddingBottom: insets.bottom + verticalScale(20) }]}>
-                {/* Header Context Spacer */}
                 <View style={styles.headerSpacer} />
 
-                {/* Hero Minimalist Context */}
-                <View style={styles.centerContent}>
-                    <Text style={[styles.brandTitle, { textAlign: 'center' }]}>
-                        Monu
-                    </Text>
-                    <Text style={[styles.tagline, { textAlign: 'center' }]}>
-                        Kết nối mọi cung bậc qua từng giai điệu
-                    </Text>
-                </View>
+                {/* Hero content */}
+                <Animated.View style={[
+                    styles.centerContent,
+                    { transform: [{ translateY: titleSlide }], opacity: titleOpacity },
+                ]}>
+                    <Image
+                        source={require('../../../assets/faviconpng-removebg.png')}
+                        style={styles.brandLogo}
+                        resizeMode="contain"
+                    />
+                    
+                </Animated.View>
 
-                {/* Actions Bottom Anchored */}
+                {/* Actions */}
                 <View style={styles.actionsBox}>
                     <Pressable
                         style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}
@@ -55,7 +118,7 @@ export const WelcomeScreen = () => {
                             end={{ x: 1, y: 0 }}
                             style={styles.btnGradient}
                         >
-                            <Text style={styles.primaryText}>{t('screens.welcome.registerFree', 'Tạo tài khoản')}</Text>
+                            <Text style={styles.primaryText}>{t('screens.welcome.registerFree', 'Tạo tài khoản miễn phí')}</Text>
                         </LinearGradient>
                     </Pressable>
 
@@ -77,42 +140,74 @@ export const WelcomeScreen = () => {
 
 const createStyles = (colors: ColorScheme) => StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
-    bgMeshWrapper: { opacity: 0.6 },
-    gradBgTopRight: {
+    orbTopRight: {
         position: 'absolute',
-        top: -scale(100),   // -100 to push orb out
-        right: -scale(100),
-        width: scale(380),
-        height: scale(380),
-        borderRadius: scale(190),
-        backgroundColor: colors.accent + '25', // '25' gives ~15% alpha
+        top: -scale(80),
+        right: -scale(80),
+        width: scale(360),
+        height: scale(360),
+        borderRadius: scale(180),
+        backgroundColor: colors.accent + '30',
     },
-    gradBgBottomLeft: {
+    orbBottomLeft: {
         position: 'absolute',
         bottom: -scale(100),
-        left: -scale(100),
-        width: scale(320),
-        height: scale(320),
-        borderRadius: scale(160),
-        backgroundColor: colors.gradPurple + '20',
+        left: -scale(80),
+        width: scale(300),
+        height: scale(300),
+        borderRadius: scale(150),
+        backgroundColor: colors.gradPurple + '25',
+    },
+    orbCenter: {
+        position: 'absolute',
+        top: '35%',
+        alignSelf: 'center',
+        width: scale(200),
+        height: scale(200),
+        borderRadius: scale(100),
+        backgroundColor: colors.accentAlt + '15',
     },
     mainLayout: { flex: 1, paddingHorizontal: scale(24), justifyContent: 'space-between' },
-    headerSpacer: { flex: 0.2 },
+    headerSpacer: { flex: 0.15 },
     centerContent: { flex: 1, justifyContent: 'center' },
-    brandTitle: {
-        fontSize: moderateScale(48),
-        fontWeight: '900',
-        color: colors.white,
-        letterSpacing: -1,
-        marginBottom: verticalScale(12),
+    brandLogo: {
+        width: scale(140),
+        height: scale(140),
+        alignSelf: 'center',
+        marginBottom: verticalScale(14),
     },
     tagline: {
-        fontSize: moderateScale(16),
-        color: colors.glass65,
-        fontWeight: '500',
+        fontSize: moderateScale(20),
+        color: colors.glass75,
+        fontWeight: '600',
+        lineHeight: moderateScale(28),
+        marginBottom: verticalScale(32),
+    },
+    chipsRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: scale(10),
+        flexWrap: 'wrap',
+    },
+    chip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.glass08,
+        borderWidth: 1,
+        borderColor: colors.glass15,
+        borderRadius: 999,
+        paddingHorizontal: scale(12),
+        paddingVertical: scale(7),
+        gap: scale(5),
+    },
+    chipEmoji: { fontSize: moderateScale(14) },
+    chipLabel: {
+        color: colors.glass75,
+        fontSize: moderateScale(12),
+        fontWeight: '600',
     },
     actionsBox: { width: '100%' },
-    primaryBtn: { borderRadius: 999, overflow: 'hidden', marginBottom: verticalScale(16) },
+    primaryBtn: { borderRadius: 999, overflow: 'hidden', marginBottom: verticalScale(14) },
     btnGradient: { minHeight: verticalScale(56), alignItems: 'center', justifyContent: 'center' },
     primaryText: { color: colors.white, fontSize: moderateScale(17), fontWeight: '800' },
     secondaryBtn: {
@@ -126,11 +221,10 @@ const createStyles = (colors: ColorScheme) => StyleSheet.create({
     },
     secondaryText: { color: colors.white, fontSize: moderateScale(17), fontWeight: '700' },
     legalNote: {
-        color: colors.glass40,
-        fontSize: moderateScale(11),
+        color: colors.glass35,
+        fontSize: moderateScale(10),
         textAlign: 'center',
-        marginTop: verticalScale(24),
-        textTransform: 'uppercase',
-        letterSpacing: 0.8,
+        marginTop: verticalScale(20),
+        letterSpacing: 0.5,
     },
 });

@@ -126,32 +126,9 @@ export const TrendingScreen = () => {
       >
         {/* Hero */}
         <View style={styles.hero}>
-          <Text style={styles.heroTitle}>🔥 Top 10 Xu Hướng</Text>
-          <Text style={styles.heroSub}>
-            Bảng xếp hạng theo lượt nghe, tương tác & đà tăng trưởng
+          <Text style={styles.heroTitle}>
+            Bảng xếp hạng
           </Text>
-          {updatedLabel && (
-            <View style={styles.updateRow}>
-              <View style={styles.liveDot} />
-              <Text style={styles.updateLabel}>{updatedLabel}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Score legend */}
-        <View style={styles.legendRow}>
-          {[
-            { icon: '🎧', label: 'Lượt nghe', weight: '50%' },
-            { icon: '❤️', label: 'Tương tác', weight: '30%' },
-            { icon: '📈', label: 'Đà tăng', weight: '15%' },
-            { icon: '✨', label: 'Độ mới', weight: '5%' },
-          ].map((item) => (
-            <View key={item.label} style={styles.legendItem}>
-              <Text style={styles.legendIcon}>{item.icon}</Text>
-              <Text style={styles.legendLabel}>{item.label}</Text>
-              <Text style={styles.legendWeight}>{item.weight}</Text>
-            </View>
-          ))}
         </View>
 
         {/* Divider */}
@@ -167,7 +144,6 @@ export const TrendingScreen = () => {
           <View style={styles.emptyWrap}>
             <MaterialCommunityIcons name="music-off" size={48} color={palette.muted} />
             <Text style={styles.emptyText}>Chưa có dữ liệu xu hướng</Text>
-            <Text style={styles.emptySubText}>Hãy nghe nhạc để bảng xếp hạng hoạt động!</Text>
           </View>
         ) : (
           <View style={styles.list}>

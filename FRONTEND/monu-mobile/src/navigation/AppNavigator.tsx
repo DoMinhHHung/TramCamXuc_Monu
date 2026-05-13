@@ -53,7 +53,7 @@ export type RootStackParamList = {
     DeleteAccount: undefined;
     Insights: undefined;
     Profile: undefined;
-    Search: undefined;
+    Search: { initialQuery?: string } | undefined;
     PlaylistDetail: { slug: string };
     AlbumDetail: { albumId: string };
     GenreDetail: { genreId: string; genreName: string };
@@ -89,7 +89,7 @@ const tabMeta: Record<keyof MainTabParamList, { label: string; icon: AppIconName
     Discover: { label: 'Khám phá', icon: 'discover' },
     Create: { label: 'Tạo', icon: 'create' },
     Library: { label: 'Thư viện', icon: 'library' },
-    Premium: { label: 'Monu Plus', icon: 'premium' },
+    Premium: { label: 'TramCamXuc Plus', icon: 'premium' },
 };
 
 const linking: LinkingOptions<any> = {

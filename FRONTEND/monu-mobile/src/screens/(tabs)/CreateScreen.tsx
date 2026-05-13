@@ -836,7 +836,7 @@ export const CreateScreen = () => {
                           style={{ color: themeColors.accent, textDecorationLine: 'underline', fontWeight: '700' }}
                           onPress={() => navigation.navigate('Premium')}
                         >
-                          {t('navigation.premium', 'Monu Plus')}
+                          {t('navigation.premium', 'TramCamXuc Plus')}
                         </Text>
                         {' '}{t('screens.create.upgradePremiumSuffix', 'to unlock this feature.')}
                       </Text>
@@ -849,7 +849,7 @@ export const CreateScreen = () => {
                   <Text style={styles.cardTitle}>{t('screens.create.renewSubscription', 'Renew subscription')}</Text>
                   <Text style={styles.cardDesc}>
                     {t('screens.create.subscriptionExpiredMessagePrefix', 'Your subscription has expired. Go to')}{' '}
-                    <Text style={{ color: themeColors.accent }}>{t('navigation.premium', 'Monu Plus')}</Text>
+                    <Text style={{ color: themeColors.accent }}>{t('navigation.premium', 'TramCamXuc Plus')}</Text>
                     {' '}{t('screens.create.subscriptionExpiredMessageSuffix', 'to renew and continue uploading music.')}
                   </Text>
                 </View>

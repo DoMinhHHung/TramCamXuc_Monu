@@ -11,22 +11,22 @@ const TERMS: { title: string; content: string }[] = [
     {
         title: '1. Quyền sở hữu nội dung',
         content:
-            'Bạn xác nhận rằng mình sở hữu hoặc có quyền hợp pháp đối với toàn bộ nội dung âm nhạc tải lên. Monu không chịu trách nhiệm pháp lý về bất kỳ vi phạm bản quyền nào do người dùng gây ra.',
+            'Bạn xác nhận rằng mình sở hữu hoặc có quyền hợp pháp đối với toàn bộ nội dung âm nhạc tải lên. TramCamXuc không chịu trách nhiệm pháp lý về bất kỳ vi phạm bản quyền nào do người dùng gây ra.',
     },
     {
         title: '2. Nội dung bị cấm',
         content:
-            'Nghiêm cấm nội dung có ngôn ngữ thù địch, kích động bạo lực, khiêu dâm, hoặc vi phạm quyền riêng tư. Monu có quyền gỡ bỏ nội dung vi phạm và đình chỉ tài khoản mà không cần báo trước.',
+            'Nghiêm cấm nội dung có ngôn ngữ thù địch, kích động bạo lực, khiêu dâm, hoặc vi phạm quyền riêng tư. TramCamXuc có quyền gỡ bỏ nội dung vi phạm và đình chỉ tài khoản mà không cần báo trước.',
     },
     {
         title: '3. Tiêu chuẩn chất lượng',
         content:
-            'Nội dung âm thanh phải đạt tối thiểu 128 kbps. Monu có quyền từ chối hoặc gỡ bỏ nội dung không đáp ứng yêu cầu kỹ thuật hoặc chất lượng nghệ thuật tối thiểu.',
+            'Nội dung âm thanh phải đạt tối thiểu 128 kbps. TramCamXuc có quyền từ chối hoặc gỡ bỏ nội dung không đáp ứng yêu cầu kỹ thuật hoặc chất lượng nghệ thuật tối thiểu.',
     },
     {
         title: '4. Quy trình xét duyệt',
         content:
-            'Mỗi đơn đăng ký nghệ sĩ đều trải qua quy trình xét duyệt 1–3 ngày làm việc. Monu có quyền từ chối mà không cần giải thích lý do. Quyết định xét duyệt là quyết định cuối cùng.',
+            'Mỗi đơn đăng ký nghệ sĩ đều trải qua quy trình xét duyệt 1–3 ngày làm việc. TramCamXuc có quyền từ chối mà không cần giải thích lý do. Quyết định xét duyệt là quyết định cuối cùng.',
     },
     {
         title: '5. Phân phối doanh thu',

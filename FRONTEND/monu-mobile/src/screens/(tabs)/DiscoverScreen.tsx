@@ -2142,7 +2142,7 @@ export const DiscoverScreen = () => {
         >
           <View style={styles.headerRow}>
             <MonuBrandHeaderTitle layout="hero" accentColor={themeColors.accent} textAlign="center">
-              {t('navigation.headerDiscover', 'MONU · Khám phá')}
+              {t('navigation.headerDiscover', 'TramCamXuc · Khám phá')}
             </MonuBrandHeaderTitle>
           </View>
           <Text style={styles.headerSub}>
