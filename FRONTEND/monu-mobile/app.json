@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TramCamXuc",
-    "slug": "tramcamxuc-mobile",
+    "slug": "monu-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "monumobile",
@@ -33,7 +33,7 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WAKE_LOCK"
       ],
-      "package": "com.minhhung0403.tramcamxucmobile"
+      "package": "com.minhhung0403.monumobile"
     },
     "web": {
       "bundler": "metro"
