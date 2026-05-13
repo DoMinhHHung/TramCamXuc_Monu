@@ -69,8 +69,8 @@ export const SearchScreen = () => {
     const themeColors = useThemeColors();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
-    const initialQuery = route.params?.initialQuery ?? '';
-    const [query, setQuery] = useState(initialQuery);
+    const initialQuery = String(route.params?.initialQuery ?? '');
+    const [query, setQuery] = useState<string>(initialQuery);
     const [loading, setLoading] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
     const [songResults, setSongResults] = useState<Song[]>([]);
@@ -135,19 +135,21 @@ export const SearchScreen = () => {
         };
     }, [voice.state, waveAnims]);
 
-    const handleVoicePressIn = useCallback(async () => {
-        await voice.startRecording();
+    const handleVoicePressIn = useCallback(() => {
+        void voice.startRecording();
     }, [voice]);
 
-    const handleVoicePressOut = useCallback(async () => {
-        const text = await voice.stopAndTranscribe();
-        if (text) {
-            setQuery(text);
-            await addSearchHistory(text.trim());
-            setHistory(await getSearchHistory());
-            doSearch(text.trim());
-        }
-    }, [voice]);
+    const handleVoicePressOut = useCallback(() => {
+        void (async () => {
+            const text = await voice.stopAndTranscribe();
+            if (text) {
+                setQuery(text);
+                await addSearchHistory(text.trim());
+                setHistory(await getSearchHistory());
+                doSearch(text.trim());
+            }
+        })();
+    }, [voice, doSearch]);
 
     // ── Mount: load history + focus input + handle initialQuery ─────────────
     useEffect(() => {
@@ -234,8 +236,9 @@ export const SearchScreen = () => {
     };
 
     const handleQueryChange = (q: string) => {
-        setQuery(q);
-        if (!q.trim() || q.trim().length < MIN_QUERY_LENGTH) {
+        const safeQ = q ?? '';
+        setQuery(safeQ);
+        if (!safeQ.trim() || safeQ.trim().length < MIN_QUERY_LENGTH) {
             setSongResults([]);
             setArtistResults([]);
             setSpotifyResults([]);
@@ -244,14 +247,15 @@ export const SearchScreen = () => {
             setSearchError(null);
             return;
         }
-        scheduleSearch(q);
+        scheduleSearch(safeQ);
     };
 
     const handleSubmit = async () => {
-        if (!query.trim()) return;
-        await addSearchHistory(query.trim());
+        const q = query ?? '';
+        if (!q.trim()) return;
+        await addSearchHistory(q.trim());
         setHistory(await getSearchHistory());
-        doSearch(query.trim());
+        doSearch(q.trim());
     };
 
     // ── History actions ───────────────────────────────────────────────────────
@@ -286,8 +290,9 @@ export const SearchScreen = () => {
 
     const handleSongPress = (song: Song, queue: Song[]) => {
         playSong(song, queue);
-        if (query.trim()) {
-            addSearchHistory(query.trim()).then(() => getSearchHistory().then(setHistory));
+        const q = query ?? '';
+        if (q.trim()) {
+            addSearchHistory(q.trim()).then(() => getSearchHistory().then(setHistory));
         }
     };
 
@@ -367,8 +372,9 @@ export const SearchScreen = () => {
 
         if (selected?.streamUrl) {
             playSong(selected, queue);
-            if (query.trim()) {
-                addSearchHistory(query.trim()).then(() => getSearchHistory().then(setHistory));
+            const q = query ?? '';
+            if (q.trim()) {
+                addSearchHistory(q.trim()).then(() => getSearchHistory().then(setHistory));
             }
             return;
         }
@@ -379,9 +385,10 @@ export const SearchScreen = () => {
     }, [mapSoundCloudTrackToSong, playSong, query, soundCloudResults]);
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-    const showHistory = !query.trim();
+    const safeQuery = query ?? '';
+    const showHistory = !safeQuery.trim();
     const currentResultCount = songResults.length + artistResults.length + spotifyResults.length + soundCloudResults.length;
-    const showEmpty = !loading && !!query.trim() && !artistDetail
+    const showEmpty = !loading && !!safeQuery.trim() && !artistDetail
         && currentResultCount === 0;
 
     const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
@@ -566,11 +573,11 @@ export const SearchScreen = () => {
                 </View>
             )}
 
-            {!loading && searchError && query.trim().length >= MIN_QUERY_LENGTH && (
+            {!loading && searchError && safeQuery.trim().length >= MIN_QUERY_LENGTH && (
                 <RetryState
                     title="Không tìm được dữ liệu"
                     description={searchError}
-                    onRetry={() => doSearch(query)}
+                    onRetry={() => doSearch(safeQuery)}
                     fallbackLabel="Xoá tìm kiếm"
                     onFallback={() => {
                         setQuery('');

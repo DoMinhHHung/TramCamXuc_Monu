@@ -544,7 +544,7 @@ export const HomeScreen = () => {
               {t('navigation.headerHome')}
             </MonuBrandHeaderTitle>
           </View>
-          <TouchableOpacity style={styles.headerSearchBtn} onPress={handleOpenSearch}>
+          <TouchableOpacity style={styles.headerSearchBtn} onPress={() => handleOpenSearch()}>
             <Ionicons name="search" size={24} color={palette.accent} />
           </TouchableOpacity>
         </View>
@@ -652,7 +652,7 @@ export const HomeScreen = () => {
                    <Text style={styles.quickPickTitle} numberOfLines={2}>{song.title}</Text>
                </TouchableOpacity>
            ))}
-           <TouchableOpacity style={styles.quickPickItem} onPress={handleOpenSearch}>
+           <TouchableOpacity style={styles.quickPickItem} onPress={() => handleOpenSearch()}>
                <View style={[styles.quickPickImg, { backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center'}]}>
                    <MaterialCommunityIcons name="auto-fix" size={24} color={palette.bg} />
                </View>

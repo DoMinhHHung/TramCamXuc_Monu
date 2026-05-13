@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { NavigationContainer, LinkingOptions, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -105,6 +105,19 @@ const MainTabNavigator = () => {
     const tabBarHeight = MAIN_TAB_BAR_BASE_HEIGHT + insets.bottom;
     const themeColors = useThemeColors();
 
+    const libraryTabButton = useCallback(
+        (props: React.ComponentProps<typeof Pressable>) => (
+            <Pressable
+                {...props}
+                onPress={(event) => {
+                    void prefetchLibrary();
+                    props.onPress?.(event);
+                }}
+            />
+        ),
+        [prefetchLibrary],
+    );
+
     return (
         <Tab.Navigator
             screenOptions={({ route }: any) => {
@@ -160,17 +173,7 @@ const MainTabNavigator = () => {
             <Tab.Screen
                 name="Library"
                 getComponent={() => require('../screens/(tabs)/LibraryScreen').LibraryScreen}
-                options={{
-                    tabBarButton: (props: React.ComponentProps<typeof Pressable>) => (
-                        <Pressable
-                            {...props}
-                            onPress={(event) => {
-                                void prefetchLibrary();
-                                props.onPress?.(event);
-                            }}
-                        />
-                    ),
-                }}
+                options={{ tabBarButton: libraryTabButton }}
             />
             <Tab.Screen name="Premium" getComponent={() => require('../screens/(tabs)/PremiumScreen').PremiumScreen} />
         </Tab.Navigator>

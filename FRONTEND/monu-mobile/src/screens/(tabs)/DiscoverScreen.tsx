@@ -1229,7 +1229,7 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
                       <Pressable onPress={() => { setEditingId(comment.id); setEditText(comment.content); }} hitSlop={8}>
                         <Text style={commentStyles.action}>Sửa</Text>
                       </Pressable>
-                      <Pressable onPress={async () => { await onDeleteComment(comment.id); if (comment.parentId) await loadReplies(comment.parentId); }} hitSlop={8}>
+                      <Pressable onPress={() => { void onDeleteComment(comment.id).then(() => { if (comment.parentId) void loadReplies(comment.parentId); }); }} hitSlop={8}>
                         <Text style={[commentStyles.action, { color: COLORS.error }]}>Xoá</Text>
                       </Pressable>
                     </>
