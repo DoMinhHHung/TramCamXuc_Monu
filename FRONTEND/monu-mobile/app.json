@@ -4,7 +4,7 @@
     "slug": "tramcamxuc-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "tramcamxucmobile",
+    "scheme": "monumobile",
     "icon": "./assets/faviconpng-removebg.png",
     "userInterfaceStyle": "light",
     "splash": {
