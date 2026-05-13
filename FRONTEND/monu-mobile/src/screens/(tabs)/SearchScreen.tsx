@@ -83,6 +83,69 @@ export const SearchScreen = () => {
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputRef = useRef<TextInput>(null);
 
+    // ── Search ────────────────────────────────────────────────────────────────
+    const doSearch = useCallback(async (q: string) => {
+        if (!q.trim()) {
+            setSearchError(null);
+            setSongResults([]);
+            setArtistResults([]);
+            setSpotifyResults([]);
+            setSoundCloudResults([]);
+            setArtistDetail(null);
+            return;
+        }
+        setLoading(true);
+        setSearchError(null);
+        setArtistDetail(null);
+        try {
+            const [titleRes, lyricRes, artistRes, spotifyRes, soundCloudRes] = await Promise.allSettled([
+                searchSongs({ keyword: q, size: 30 }),
+                searchByLyric({ keyword: q, size: 20 }),
+                searchArtists({ keyword: q, size: 20 }),
+                searchSpotifyTracks({ keyword: q, limit: 10, market: 'VN' }),
+                searchSoundCloudTracks({ keyword: q, limit: 50 }),
+            ]);
+
+            const titleSongs = titleRes.status === 'fulfilled' ? titleRes.value.content : [];
+            const lyricSongs = lyricRes.status === 'fulfilled' ? lyricRes.value : [];
+            const seen = new Set(titleSongs.map((s) => s.id));
+            const merged = [...titleSongs];
+            for (const s of lyricSongs) {
+                if (!seen.has(s.id)) {
+                    seen.add(s.id);
+                    merged.push(s);
+                }
+            }
+
+            setSongResults(
+                [...merged].sort(
+                    (a, b) => scoreByQuery(q, b.title, b.primaryArtist?.stageName) - scoreByQuery(q, a.title, a.primaryArtist?.stageName),
+                ),
+            );
+            setArtistResults(
+                [...(artistRes.status === 'fulfilled' ? artistRes.value.content : [])].sort(
+                    (a, b) => scoreByQuery(q, b.stageName) - scoreByQuery(q, a.stageName),
+                ),
+            );
+            setSpotifyResults(
+                [...(spotifyRes.status === 'fulfilled' ? spotifyRes.value : [])].sort(
+                    (a, b) => scoreByQuery(q, b.name, b.artistName, b.albumName) - scoreByQuery(q, a.name, a.artistName, a.albumName),
+                ),
+            );
+            setSoundCloudResults(
+                [...(soundCloudRes.status === 'fulfilled' ? soundCloudRes.value : [])].sort(
+                    (a, b) => scoreByQuery(q, b.title, b.uploaderName) - scoreByQuery(q, a.title, a.uploaderName),
+                ),
+            );
+
+            const allFailed = [titleRes, lyricRes, artistRes, spotifyRes, soundCloudRes].every((res) => res.status === 'rejected');
+            if (allFailed) {
+                setSearchError(t('errors.loadingFailed', 'Không thể tìm kiếm lúc này'));
+            }
+        } catch { /* silent */ }
+        finally { setLoading(false); }
+    }, [t]);
+
     // ── Voice search ─────────────────────────────────────────────────────────
     const voice = useVoiceSearch();
     const voiceBannerAnim = useRef(new Animated.Value(0)).current;
@@ -160,69 +223,6 @@ export const SearchScreen = () => {
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    // ── Search ────────────────────────────────────────────────────────────────
-    const doSearch = useCallback(async (q: string) => {
-        if (!q.trim()) {
-            setSearchError(null);
-            setSongResults([]);
-            setArtistResults([]);
-            setSpotifyResults([]);
-            setSoundCloudResults([]);
-            setArtistDetail(null);
-            return;
-        }
-        setLoading(true);
-        setSearchError(null);
-        setArtistDetail(null);
-        try {
-            const [titleRes, lyricRes, artistRes, spotifyRes, soundCloudRes] = await Promise.allSettled([
-                searchSongs({ keyword: q, size: 30 }),
-                searchByLyric({ keyword: q, size: 20 }),
-                searchArtists({ keyword: q, size: 20 }),
-                searchSpotifyTracks({ keyword: q, limit: 10, market: 'VN' }),
-                searchSoundCloudTracks({ keyword: q, limit: 50 }),
-            ]);
-
-            const titleSongs = titleRes.status === 'fulfilled' ? titleRes.value.content : [];
-            const lyricSongs = lyricRes.status === 'fulfilled' ? lyricRes.value : [];
-            const seen = new Set(titleSongs.map((s) => s.id));
-            const merged = [...titleSongs];
-            for (const s of lyricSongs) {
-                if (!seen.has(s.id)) {
-                    seen.add(s.id);
-                    merged.push(s);
-                }
-            }
-
-            setSongResults(
-                [...merged].sort(
-                    (a, b) => scoreByQuery(q, b.title, b.primaryArtist?.stageName) - scoreByQuery(q, a.title, a.primaryArtist?.stageName),
-                ),
-            );
-            setArtistResults(
-                [...(artistRes.status === 'fulfilled' ? artistRes.value.content : [])].sort(
-                    (a, b) => scoreByQuery(q, b.stageName) - scoreByQuery(q, a.stageName),
-                ),
-            );
-            setSpotifyResults(
-                [...(spotifyRes.status === 'fulfilled' ? spotifyRes.value : [])].sort(
-                    (a, b) => scoreByQuery(q, b.name, b.artistName, b.albumName) - scoreByQuery(q, a.name, a.artistName, a.albumName),
-                ),
-            );
-            setSoundCloudResults(
-                [...(soundCloudRes.status === 'fulfilled' ? soundCloudRes.value : [])].sort(
-                    (a, b) => scoreByQuery(q, b.title, b.uploaderName) - scoreByQuery(q, a.title, a.uploaderName),
-                ),
-            );
-
-            const allFailed = [titleRes, lyricRes, artistRes, spotifyRes, soundCloudRes].every((res) => res.status === 'rejected');
-            if (allFailed) {
-                setSearchError(t('errors.loadingFailed', 'Không thể tìm kiếm lúc này'));
-            }
-        } catch { /* silent */ }
-        finally { setLoading(false); }
-    }, [t]);
 
     const DEBOUNCE_MS = 700;
     const MIN_QUERY_LENGTH = 2;

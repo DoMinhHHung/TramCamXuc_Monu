@@ -315,23 +315,23 @@ export const ProfileScreen = () => {
 
                 {/* ── Stats ───────────────────────────────────────── */}
                 <View style={styles.statsRow}>
-                    <View style={styles.statItem}>
+                    <View style={styles.statsRowItem}>
                         <Text style={styles.statVal}>
                             {playlistCount !== null ? playlistCount : '—'}
                         </Text>
-                        <Text style={styles.statLabel}>Playlist</Text>
+                        <Text style={styles.statsRowLabel}>Playlist</Text>
                     </View>
-                    <View style={styles.statItem}>
+                    <View style={styles.statsRowItem}>
                         <Text style={styles.statVal}>
                             {downloadedSongs.length}
                         </Text>
-                        <Text style={styles.statLabel}>{t('screens.library.downloads', 'Downloads')}</Text>
+                        <Text style={styles.statsRowLabel}>{t('screens.library.downloads', 'Downloads')}</Text>
                     </View>
-                    <View style={styles.statItem}>
+                    <View style={styles.statsRowItem}>
                         <Text style={styles.statVal}>
                             {favoriteCount !== null ? favoriteCount : '—'}
                         </Text>
-                        <Text style={styles.statLabel}>{t('labels.likes', 'Likes')}</Text>
+                        <Text style={styles.statsRowLabel}>{t('labels.likes', 'Likes')}</Text>
                     </View>
                 </View>
 
@@ -596,9 +596,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
         overflow: 'hidden',
         ...uiPresets.glassSurface(c, { intensity: 'subtle', radius: 24 }),
     },
-    statItem:  { flex: 1, alignItems: 'center', paddingVertical: 16 },
-    statVal:   { color: c.text, fontSize: 20, fontWeight: '800' },
-    statLabel: { color: c.muted, fontSize: 11, marginTop: 2 },
+    statsRowItem:  { flex: 1, alignItems: 'center', paddingVertical: 16 },
+    statVal:       { color: c.text, fontSize: 20, fontWeight: '800' },
+    statsRowLabel: { color: c.muted, fontSize: 11, marginTop: 2 },
 
     // Menu
     menuCard: {
