@@ -1070,7 +1070,7 @@ export const PremiumScreen = () => {
                     </Animated.View>
 
                     <MonuBrandHeaderTitle layout="hero" accentColor={themeColors.accent} style={styles.heroTitleWrap}>
-                        {t('navigation.headerPremium', 'MONU · Plus')}
+                        {t('navigation.headerPremium', 'TramCamXuc · Plus')}
                     </MonuBrandHeaderTitle>
 
                     {isActive ? (
@@ -1261,7 +1261,7 @@ export const PremiumScreen = () => {
                     {/* ── Divider ── */}
                     <View style={styles.dividerRow}>
                         <View style={styles.dividerLine} />
-                        <Text style={styles.dividerLabel}>{t('premium.featuresHeading', 'Monu Plus features')}</Text>
+                        <Text style={styles.dividerLabel}>{t('premium.featuresHeading', 'TramCamXuc Plus features')}</Text>
                         <View style={styles.dividerLine} />
                     </View>
 

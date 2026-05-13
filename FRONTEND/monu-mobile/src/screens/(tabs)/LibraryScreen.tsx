@@ -59,13 +59,15 @@ import { AddToPlaylistSheet } from '../../components/AddToPlaylistSheet';
 import { AnimatedDecorIcon } from '../../components/AnimatedDecorIcon';
 import { MonuBrandHeaderTitle } from '../../components/MonuBrandHeaderTitle';
 import { Toast, useToast } from '../../components/Toast';
+import { SmartPlaylistCard } from '../../components/SmartPlaylistCard';
+import { useSmartPlaylists } from '../../hooks/useSmartPlaylists';
 import { getMySubscription } from '../../services/payment';
 import { fetchWithRetry, loadCache, saveCache } from '../../utils/swrCache';
 import { uiPresets } from '../../config/uiPresets';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = 'playlists' | 'songs' | 'albums';
+type Tab = 'playlists' | 'songs' | 'albums' | 'smart';
 let tr = (key: string, fallback?: string) => fallback ?? key;
 
 const getStatusBarStyle = (backgroundColor: string): 'light' | 'dark' => {
@@ -127,6 +129,21 @@ const getSongStatusLabel = (song: Song, c: ColorScheme): { label: string; color:
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+// ─── Tab config ───────────────────────────────────────────────────────────────
+
+const TAB_CONFIG: Array<{
+  key: Tab;
+  labelFn: () => string;
+  iconName: string;
+  iconLib: 'mci' | 'entypo';
+  activeColor: string;
+}> = [
+  { key: 'playlists', labelFn: () => tr('screens.library.tabPlaylists', 'Playlist'), iconName: 'playlist-music', iconLib: 'mci', activeColor: '#A78BFA' },
+  { key: 'songs',     labelFn: () => tr('screens.library.tabSongs', 'Bài hát'),     iconName: 'music',           iconLib: 'entypo', activeColor: '#60A5FA' },
+  { key: 'albums',    labelFn: () => tr('screens.library.tabAlbums', 'Album'),      iconName: 'album',           iconLib: 'mci', activeColor: '#FBBF24' },
+  { key: 'smart',     labelFn: () => 'Đề xuất',                                     iconName: 'auto-fix',        iconLib: 'mci', activeColor: '#F472B6' },
+];
+
 const TabBar = ({
   active,
   onChange,
@@ -137,78 +154,136 @@ const TabBar = ({
   counts: Record<Tab, number>;
 }) => {
   const themeColors = useThemeColors();
-  const tabStyles = useMemo(() => getTabStyles(themeColors), [themeColors]);
-  const tabs: { key: Tab; label: string; icon: string | React.ReactNode }[] = [
-    { key: 'playlists', label: tr('screens.library.tabPlaylists', 'Playlists'), icon: <MaterialCommunityIcons name="playlist-music" color={themeColors.accent} size={20} /> },
-    { key: 'songs', label: tr('screens.library.tabSongs', 'Songs'), icon: <Entypo name="music" color={themeColors.accent} size={20} /> },
-    { key: 'albums', label: tr('screens.library.tabAlbums', 'Albums'), icon: <MaterialCommunityIcons name="album" color={themeColors.accent} size={20} /> },
-  ];
+  const activeIndex = TAB_CONFIG.findIndex((t) => t.key === active);
+
+  // Animated indicator position
+  const indicatorX = useRef(new Animated.Value(activeIndex)).current;
+
+  useEffect(() => {
+    Animated.spring(indicatorX, {
+      toValue: activeIndex,
+      useNativeDriver: true,
+      tension: 180,
+      friction: 18,
+    }).start();
+  }, [activeIndex, indicatorX]);
+
+  const tabWidth = 1 / TAB_CONFIG.length;
 
   return (
-    <View style={tabStyles.bar}>
-      {tabs.map(t => (
-        <Pressable
-          key={t.key}
-          style={[tabStyles.tab, active === t.key && tabStyles.tabActive]}
-          onPress={() => onChange(t.key)}
-        >
-          <AnimatedDecorIcon active={active === t.key} intensity="medium">
-            <Text style={tabStyles.icon}>{t.icon}</Text>
-          </AnimatedDecorIcon>
-          <Text style={[tabStyles.label, active === t.key && tabStyles.labelActive]}>
-            {t.label}
-          </Text>
-          {counts[t.key] > 0 && (
-            <View style={tabStyles.badge}>
-              <Text style={tabStyles.badgeText}>{counts[t.key]}</Text>
-            </View>
-          )}
-        </Pressable>
-      ))}
+    <View style={tabBarStyles.container}>
+      {/* Tabs */}
+      <View style={tabBarStyles.row}>
+        {TAB_CONFIG.map((tab) => {
+          const isActive = tab.key === active;
+          const iconColor = isActive ? tab.activeColor : themeColors.glass40;
+          const count = counts[tab.key] ?? 0;
+
+          return (
+            <Pressable
+              key={tab.key}
+              style={tabBarStyles.tab}
+              onPress={() => onChange(tab.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+            >
+              {/* Icon */}
+              <View style={tabBarStyles.iconWrap}>
+                {tab.iconLib === 'mci' ? (
+                  <MaterialCommunityIcons name={tab.iconName as any} size={22} color={iconColor} />
+                ) : (
+                  <Entypo name={tab.iconName as any} size={20} color={iconColor} />
+                )}
+                {count > 0 && (
+                  <View style={[tabBarStyles.dot, { backgroundColor: tab.activeColor }]} />
+                )}
+              </View>
+              {/* Label */}
+              <Text style={[
+                tabBarStyles.label,
+                { color: isActive ? tab.activeColor : themeColors.glass40 },
+                isActive && tabBarStyles.labelActive,
+              ]}>
+                {tab.labelFn()}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Sliding underline indicator */}
+      <View style={tabBarStyles.indicatorTrack}>
+        <Animated.View
+          style={[
+            tabBarStyles.indicator,
+            {
+              width: `${tabWidth * 100}%` as any,
+              backgroundColor: TAB_CONFIG[activeIndex]?.activeColor ?? themeColors.accent,
+              transform: [{
+                translateX: indicatorX.interpolate({
+                  inputRange: TAB_CONFIG.map((_, i) => i),
+                  outputRange: TAB_CONFIG.map((_, i) => i * 0),
+                }),
+              }],
+              left: `${activeIndex * tabWidth * 100}%` as any,
+            },
+          ]}
+        />
+      </View>
     </View>
   );
 };
 
-const getTabStyles = (c: ColorScheme) => StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
+const tabBarStyles = StyleSheet.create({
+  container: {
     marginHorizontal: 20,
     marginBottom: 20,
-    ...uiPresets.glassPill(c, { intensity: 'default' }),
-    borderRadius: 999,
-    padding: 6,
+  },
+  row: {
+    flexDirection: 'row',
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    gap: 5,
+  },
+  iconWrap: {
+    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 999,
-    gap: 6,
   },
-  tabActive: {
-    backgroundColor: c.accentFill20,
-    borderWidth: 1,
-    borderColor: c.accentBorder25,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 2,
+  dot: {
+    position: 'absolute',
+    top: -2,
+    right: -5,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: '#05050A',
   },
-  icon: { fontSize: 13 },
-  label: { color: c.glass50, fontSize: 13, fontWeight: '800' },
-  labelActive: { color: c.accent },
-  badge: {
-    backgroundColor: c.accentDim,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
-  badgeText: { color: c.white, fontSize: 10, fontWeight: '700' },
+  labelActive: {
+    fontWeight: '800',
+  },
+  indicatorTrack: {
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  indicator: {
+    position: 'absolute',
+    height: 2,
+    borderRadius: 2,
+    top: 0,
+  },
 });
 
 // ─── Pulsing dot for in-progress status ──────────────────────────────────────
@@ -421,6 +496,23 @@ const getSongRowStyles = (c: ColorScheme) => StyleSheet.create({
 
 // ─── Album card ───────────────────────────────────────────────────────────────
 
+// Deterministic gradient from string – each playlist gets a unique, stable color pair
+const PLAYLIST_GRADIENTS: Array<[string, string]> = [
+  ['#1a1a4a', '#4a2070'],
+  ['#1a3a1a', '#2d6a4a'],
+  ['#3a1a1a', '#6a2d2d'],
+  ['#1a2a3a', '#2d4a6a'],
+  ['#3a2a1a', '#6a4a2d'],
+  ['#1a3a3a', '#2d6a6a'],
+  ['#2a1a3a', '#4a2d6a'],
+  ['#3a3a1a', '#6a6a2d'],
+];
+const getPlaylistGradient = (id: string): [string, string] => {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return PLAYLIST_GRADIENTS[Math.abs(hash) % PLAYLIST_GRADIENTS.length];
+};
+
 const PlaylistCard = ({
   playlist,
   onPress,
@@ -437,14 +529,27 @@ const PlaylistCard = ({
   const themeColors = useThemeColors();
   const cardStyles = useMemo(() => getGridCardStyles(themeColors), [themeColors]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const gradientColors = getPlaylistGradient(playlist.id);
+  const visibilityIcon = playlist.visibility === 'PRIVATE' ? '🔒' : playlist.visibility === 'COLLABORATIVE' ? '👥' : null;
 
   return (
     <View style={cardStyles.gridItem}>
       <Pressable onPress={onPress}>
         <View style={cardStyles.gridThumb}>
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: themeColors.surfaceLow, alignItems: 'center', justifyContent: 'center' }]}>
-            <MaterialCommunityIcons name="playlist-music" color={themeColors.glass40} size={40} />
-          </View>
+          {playlist.coverUrl ? (
+            <Image source={{ uri: playlist.coverUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ) : (
+            <LinearGradient colors={gradientColors} style={StyleSheet.absoluteFill}>
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <MaterialCommunityIcons name="playlist-music" color="rgba(255,255,255,0.35)" size={36} />
+              </View>
+            </LinearGradient>
+          )}
+          {visibilityIcon && (
+            <View style={cardStyles.visibilityBadge}>
+              <Text style={{ fontSize: 11 }}>{visibilityIcon}</Text>
+            </View>
+          )}
           <Pressable onPress={() => setMenuOpen(v => !v)} hitSlop={10} style={cardStyles.menuBtn}>
             <Text style={cardStyles.menuIcon}>•••</Text>
           </Pressable>
@@ -587,6 +692,15 @@ const getGridCardStyles = (c: ColorScheme) => StyleSheet.create({
     justifyContent: 'center',
   },
   menuIcon: { color: c.white, fontSize: 14, letterSpacing: 1, marginTop: -4 },
+  visibilityBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
   menuAbsolute: {
     position: 'absolute',
     top: 44,
@@ -1151,8 +1265,6 @@ const AlbumDetailModal = ({
   const [loading, setLoading] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const { playSong } = usePlayerControls();
-  const { currentSong } = usePlayerState();
-  const { isPlaying } = usePlayerStatus();
 
   React.useEffect(() => {
     if (!albumId || !visible) return;
@@ -1444,6 +1556,10 @@ export const LibraryScreen = () => {
   const [shareQrData, setShareQrData] = useState<{ link: string; image?: string } | null>(null);
 
   const userScope = authSession?.profile?.id ?? authSession?.tokens?.accessToken?.slice(-24) ?? 'anonymous';
+
+  // ── Smart Playlists ────────────────────────────────────────────────────────
+  const userId = authSession?.profile?.id ?? null;
+  const { playlists: smartPlaylists, loading: smartLoading, refresh: refreshSmart, dismiss: dismissSmart } = useSmartPlaylists(userId);
 
   const load = async (
     mode: 'initial' | 'refresh' | 'silent' = 'initial',
@@ -1971,10 +2087,64 @@ export const LibraryScreen = () => {
     </>
   );
 
+  const renderSmart = () => {
+    if (smartLoading) {
+      return (
+        <View style={styles.empty}>
+          <ActivityIndicator color={themeColors.accent} size="large" />
+          <Text style={[styles.emptySub, { marginTop: 12 }]}>Đang phân tích lịch sử nghe...</Text>
+        </View>
+      );
+    }
+    if (smartPlaylists.length === 0) {
+      return (
+        <View style={styles.empty}>
+          <Text style={styles.emptyEmoji}>🎵</Text>
+          <Text style={styles.emptyTitle}>Chưa có đủ dữ liệu</Text>
+          <Text style={styles.emptySub}>Nghe thêm nhạc để TramCamXuc tạo playlist phù hợp với bạn</Text>
+        </View>
+      );
+    }
+    return (
+      <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <View>
+            <Text style={{ color: themeColors.white, fontSize: 13, fontWeight: '700' }}>
+              ✨ Tự động tạo từ thói quen nghe nhạc
+            </Text>
+            <Text style={{ color: themeColors.muted, fontSize: 11, marginTop: 2 }}>
+              Chỉ lưu trên thiết bị này · Cập nhật mỗi 6h
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => void refreshSmart()}
+            hitSlop={8}
+            style={{ backgroundColor: themeColors.glass08, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: themeColors.glass12 }}
+          >
+            <Text style={{ color: themeColors.accent, fontSize: 12, fontWeight: '700' }}>Làm mới</Text>
+          </Pressable>
+        </View>
+        {smartPlaylists.map((pl) => (
+          <SmartPlaylistCard
+            key={pl.id}
+            playlist={pl}
+            onPlay={(p) => {
+              if (p.songs.length > 0) {
+                playSong(p.songs[0], p.songs);
+              }
+            }}
+            onDismiss={(id) => void dismissSmart(id)}
+          />
+        ))}
+      </View>
+    );
+  };
+
   const renderContent = () => (
     displayedTab === 'playlists' ? renderPlaylists() :
       displayedTab === 'songs' ? renderSongs() :
-        renderAlbums()
+        displayedTab === 'smart' ? renderSmart() :
+          renderAlbums()
   );
 
   const showSkeleton = loading && songs.length === 0;
@@ -2000,7 +2170,7 @@ export const LibraryScreen = () => {
           style={[styles.header, { paddingTop: insets.top + 18 }]}
         >
           <MonuBrandHeaderTitle layout="hero" accentColor={themeColors.accent}>
-            {t('navigation.headerLibrary', 'MONU · Thư viện')}
+            {t('navigation.headerLibrary', 'TramCamXuc · Thư viện')}
           </MonuBrandHeaderTitle>
           <Text style={styles.headerSub}>
             {playlists.length} {t('screens.library.tabPlaylists', 'playlists')} · {songs.length} {t('screens.library.tabSongs', 'songs')} · {albums.length} {t('screens.library.tabAlbums', 'albums')}
@@ -2011,7 +2181,7 @@ export const LibraryScreen = () => {
         <TabBar
           active={activeTab}
           onChange={switchTab}
-          counts={{ playlists: playlists.length, songs: songs.length, albums: albums.length }}
+          counts={{ playlists: playlists.length, songs: songs.length, albums: albums.length, smart: smartPlaylists.length }}
         />
 
         {/* Content */}

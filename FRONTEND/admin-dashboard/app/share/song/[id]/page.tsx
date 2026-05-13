@@ -40,7 +40,7 @@ export default async function PublicShareSongPage({ params }: PageProps) {
         <h1 className="text-2xl font-bold">{title}</h1>
         {artist ? <p className="text-zinc-400">{artist}</p> : null}
         <p className="text-sm text-zinc-500 pt-2">
-          Mở trong app Monu (đã cài đặt):
+          Mở trong app TramCamXuc (đã cài đặt):
         </p>
         <a
           href={deep}

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Monu",
-    "slug": "monu-mobile",
+    "name": "TramCamXuc",
+    "slug": "tramcamxuc-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "monumobile",
-    "icon": "./assets/faviconpng.png",
+    "scheme": "tramcamxucmobile",
+    "icon": "./assets/faviconpng-removebg.png",
     "userInterfaceStyle": "light",
     "splash": {
       "resizeMode": "contain",
@@ -15,7 +15,7 @@
       "**/*"
     ],
     "ios": {
-      "icon": "./assets/faviconpng.png",
+      "icon": "./assets/faviconpng-removebg.png",
       "infoPlist": {
         "UIBackgroundModes": ["audio"]
       },
@@ -23,7 +23,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/faviconpng.png",
+        "foregroundImage": "./assets/faviconpng-removebg.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [
@@ -33,7 +33,7 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.WAKE_LOCK"
       ],
-      "package": "com.minhhung0403.monumobile"
+      "package": "com.minhhung0403.tramcamxucmobile"
     },
     "web": {
       "bundler": "metro"
@@ -43,7 +43,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Cho phép Monu dùng microphone để tìm kiếm bằng giọng nói"
+          "microphonePermission": "Cho phép TramCamXuc dùng microphone để tìm kiếm bằng giọng nói"
         }
       ],
       "expo-localization"

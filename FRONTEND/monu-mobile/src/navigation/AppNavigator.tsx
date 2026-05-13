@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { NavigationContainer, LinkingOptions, useNavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -53,7 +53,7 @@ export type RootStackParamList = {
     DeleteAccount: undefined;
     Insights: undefined;
     Profile: undefined;
-    Search: undefined;
+    Search: { initialQuery?: string } | undefined;
     PlaylistDetail: { slug: string };
     AlbumDetail: { albumId: string };
     GenreDetail: { genreId: string; genreName: string };
@@ -89,7 +89,7 @@ const tabMeta: Record<keyof MainTabParamList, { label: string; icon: AppIconName
     Discover: { label: 'Khám phá', icon: 'discover' },
     Create: { label: 'Tạo', icon: 'create' },
     Library: { label: 'Thư viện', icon: 'library' },
-    Premium: { label: 'Monu Plus', icon: 'premium' },
+    Premium: { label: 'TramCamXuc Plus', icon: 'premium' },
 };
 
 const linking: LinkingOptions<any> = {
@@ -104,6 +104,19 @@ const MainTabNavigator = () => {
     const { prefetch: prefetchLibrary } = useLibraryData();
     const tabBarHeight = MAIN_TAB_BAR_BASE_HEIGHT + insets.bottom;
     const themeColors = useThemeColors();
+
+    const libraryTabButton = useCallback(
+        (props: React.ComponentProps<typeof Pressable>) => (
+            <Pressable
+                {...props}
+                onPress={(event) => {
+                    void prefetchLibrary();
+                    props.onPress?.(event);
+                }}
+            />
+        ),
+        [prefetchLibrary],
+    );
 
     return (
         <Tab.Navigator
@@ -160,17 +173,7 @@ const MainTabNavigator = () => {
             <Tab.Screen
                 name="Library"
                 getComponent={() => require('../screens/(tabs)/LibraryScreen').LibraryScreen}
-                options={{
-                    tabBarButton: (props: React.ComponentProps<typeof Pressable>) => (
-                        <Pressable
-                            {...props}
-                            onPress={(event) => {
-                                void prefetchLibrary();
-                                props.onPress?.(event);
-                            }}
-                        />
-                    ),
-                }}
+                options={{ tabBarButton: libraryTabButton }}
             />
             <Tab.Screen name="Premium" getComponent={() => require('../screens/(tabs)/PremiumScreen').PremiumScreen} />
         </Tab.Navigator>

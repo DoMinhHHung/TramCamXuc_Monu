@@ -6,8 +6,10 @@ import {
 import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { AntDesign } from '@expo/vector-icons';
+import { MoodPickerSection, MOOD_ITEMS, type MoodItem } from '../../components/MoodPickerSection';
+import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 import { BackButton } from '../../components/BackButton';
 import { RetryState } from '../../components/RetryState';
@@ -61,12 +63,14 @@ const scoreByQuery = (query: string, ...fields: Array<string | undefined>): numb
 export const SearchScreen = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
+    const route = useRoute<RouteProp<RootStackParamList, 'Search'>>();
     const { playSong } = usePlayerControls();
     const { t } = useTranslation();
     const themeColors = useThemeColors();
     const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
-    const [query, setQuery] = useState('');
+    const initialQuery = String(route.params?.initialQuery ?? '');
+    const [query, setQuery] = useState<string>(initialQuery);
     const [loading, setLoading] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
     const [songResults, setSongResults] = useState<Song[]>([]);
@@ -78,78 +82,6 @@ export const SearchScreen = () => {
 
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const inputRef = useRef<TextInput>(null);
-
-    // ── Voice search ─────────────────────────────────────────────────────────
-    const voice = useVoiceSearch();
-    const voiceBannerAnim = useRef(new Animated.Value(0)).current;
-    const waveAnims = useRef(
-        [...Array(5)].map(() => new Animated.Value(0.3)),
-    ).current;
-    const waveAnimationsRef = useRef<Animated.CompositeAnimation[]>([]);
-
-    // Hiện / ẩn banner trạng thái voice
-    useEffect(() => {
-        const shouldShow = voice.state === 'recording' || voice.state === 'processing';
-        Animated.timing(voiceBannerAnim, {
-            toValue: shouldShow ? 1 : 0,
-            duration: 200,
-            useNativeDriver: true,
-        }).start();
-    }, [voice.state]);
-
-    useEffect(() => {
-        waveAnimationsRef.current.forEach((animation) => animation.stop());
-        waveAnimationsRef.current = [];
-
-        if (voice.state !== 'recording') {
-            waveAnims.forEach((anim) => anim.setValue(0.3));
-            return;
-        }
-
-        const animations = waveAnims.map((anim, i) => Animated.loop(
-            Animated.sequence([
-                Animated.delay(i * 80),
-                Animated.timing(anim, {
-                    toValue: 1,
-                    duration: 300 + i * 50,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(anim, {
-                    toValue: 0.3,
-                    duration: 300 + i * 50,
-                    useNativeDriver: true,
-                }),
-            ]),
-        ));
-
-        waveAnimationsRef.current = animations;
-        animations.forEach((animation) => animation.start());
-
-        return () => {
-            animations.forEach((animation) => animation.stop());
-            waveAnims.forEach((anim) => anim.setValue(0.3));
-        };
-    }, [voice.state, waveAnims]);
-
-    const handleVoicePressIn = useCallback(async () => {
-        await voice.startRecording();
-    }, [voice]);
-
-    const handleVoicePressOut = useCallback(async () => {
-        const text = await voice.stopAndTranscribe();
-        if (text) {
-            setQuery(text);
-            await addSearchHistory(text.trim());
-            setHistory(await getSearchHistory());
-            doSearch(text.trim());
-        }
-    }, [voice]);
-
-    // ── Mount: load history + focus input ────────────────────────────────────
-    useEffect(() => {
-        getSearchHistory().then(setHistory);
-        setTimeout(() => inputRef.current?.focus(), 120);
-    }, []);
 
     // ── Search ────────────────────────────────────────────────────────────────
     const doSearch = useCallback(async (q: string) => {
@@ -214,6 +146,84 @@ export const SearchScreen = () => {
         finally { setLoading(false); }
     }, [t]);
 
+    // ── Voice search ─────────────────────────────────────────────────────────
+    const voice = useVoiceSearch();
+    const voiceBannerAnim = useRef(new Animated.Value(0)).current;
+    const waveAnims = useRef(
+        [...Array(5)].map(() => new Animated.Value(0.3)),
+    ).current;
+    const waveAnimationsRef = useRef<Animated.CompositeAnimation[]>([]);
+
+    // Hiện / ẩn banner trạng thái voice
+    useEffect(() => {
+        const shouldShow = voice.state === 'recording' || voice.state === 'processing';
+        Animated.timing(voiceBannerAnim, {
+            toValue: shouldShow ? 1 : 0,
+            duration: 200,
+            useNativeDriver: true,
+        }).start();
+    }, [voice.state]);
+
+    useEffect(() => {
+        waveAnimationsRef.current.forEach((animation) => animation.stop());
+        waveAnimationsRef.current = [];
+
+        if (voice.state !== 'recording') {
+            waveAnims.forEach((anim) => anim.setValue(0.3));
+            return;
+        }
+
+        const animations = waveAnims.map((anim, i) => Animated.loop(
+            Animated.sequence([
+                Animated.delay(i * 80),
+                Animated.timing(anim, {
+                    toValue: 1,
+                    duration: 300 + i * 50,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(anim, {
+                    toValue: 0.3,
+                    duration: 300 + i * 50,
+                    useNativeDriver: true,
+                }),
+            ]),
+        ));
+
+        waveAnimationsRef.current = animations;
+        animations.forEach((animation) => animation.start());
+
+        return () => {
+            animations.forEach((animation) => animation.stop());
+            waveAnims.forEach((anim) => anim.setValue(0.3));
+        };
+    }, [voice.state, waveAnims]);
+
+    const handleVoicePressIn = useCallback(() => {
+        void voice.startRecording();
+    }, [voice]);
+
+    const handleVoicePressOut = useCallback(() => {
+        void (async () => {
+            const text = await voice.stopAndTranscribe();
+            if (text) {
+                setQuery(text);
+                await addSearchHistory(text.trim());
+                setHistory(await getSearchHistory());
+                doSearch(text.trim());
+            }
+        })();
+    }, [voice, doSearch]);
+
+    // ── Mount: load history + focus input + handle initialQuery ─────────────
+    useEffect(() => {
+        getSearchHistory().then(setHistory);
+        setTimeout(() => inputRef.current?.focus(), 120);
+        if (initialQuery.trim().length >= MIN_QUERY_LENGTH) {
+            doSearch(initialQuery.trim());
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const DEBOUNCE_MS = 700;
     const MIN_QUERY_LENGTH = 2;
 
@@ -226,8 +236,9 @@ export const SearchScreen = () => {
     };
 
     const handleQueryChange = (q: string) => {
-        setQuery(q);
-        if (!q.trim() || q.trim().length < MIN_QUERY_LENGTH) {
+        const safeQ = q ?? '';
+        setQuery(safeQ);
+        if (!safeQ.trim() || safeQ.trim().length < MIN_QUERY_LENGTH) {
             setSongResults([]);
             setArtistResults([]);
             setSpotifyResults([]);
@@ -236,14 +247,15 @@ export const SearchScreen = () => {
             setSearchError(null);
             return;
         }
-        scheduleSearch(q);
+        scheduleSearch(safeQ);
     };
 
     const handleSubmit = async () => {
-        if (!query.trim()) return;
-        await addSearchHistory(query.trim());
+        const q = query ?? '';
+        if (!q.trim()) return;
+        await addSearchHistory(q.trim());
         setHistory(await getSearchHistory());
-        doSearch(query.trim());
+        doSearch(q.trim());
     };
 
     // ── History actions ───────────────────────────────────────────────────────
@@ -278,8 +290,9 @@ export const SearchScreen = () => {
 
     const handleSongPress = (song: Song, queue: Song[]) => {
         playSong(song, queue);
-        if (query.trim()) {
-            addSearchHistory(query.trim()).then(() => getSearchHistory().then(setHistory));
+        const q = query ?? '';
+        if (q.trim()) {
+            addSearchHistory(q.trim()).then(() => getSearchHistory().then(setHistory));
         }
     };
 
@@ -359,8 +372,9 @@ export const SearchScreen = () => {
 
         if (selected?.streamUrl) {
             playSong(selected, queue);
-            if (query.trim()) {
-                addSearchHistory(query.trim()).then(() => getSearchHistory().then(setHistory));
+            const q = query ?? '';
+            if (q.trim()) {
+                addSearchHistory(q.trim()).then(() => getSearchHistory().then(setHistory));
             }
             return;
         }
@@ -371,9 +385,10 @@ export const SearchScreen = () => {
     }, [mapSoundCloudTrackToSong, playSong, query, soundCloudResults]);
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-    const showHistory = !query.trim();
+    const safeQuery = query ?? '';
+    const showHistory = !safeQuery.trim();
     const currentResultCount = songResults.length + artistResults.length + spotifyResults.length + soundCloudResults.length;
-    const showEmpty = !loading && !!query.trim() && !artistDetail
+    const showEmpty = !loading && !!safeQuery.trim() && !artistDetail
         && currentResultCount === 0;
 
     const renderSongItem = ({ item, index }: { item: Song; index: number }) => (
@@ -558,11 +573,11 @@ export const SearchScreen = () => {
                 </View>
             )}
 
-            {!loading && searchError && query.trim().length >= MIN_QUERY_LENGTH && (
+            {!loading && searchError && safeQuery.trim().length >= MIN_QUERY_LENGTH && (
                 <RetryState
                     title="Không tìm được dữ liệu"
                     description={searchError}
-                    onRetry={() => doSearch(query)}
+                    onRetry={() => doSearch(safeQuery)}
                     fallbackLabel="Xoá tìm kiếm"
                     onFallback={() => {
                         setQuery('');
@@ -611,7 +626,17 @@ export const SearchScreen = () => {
                             />
                         </>
                     ) : (
-                        <View style={styles.center}>
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={{ paddingBottom: 120 }}
+                        >
+                            <MoodPickerSection
+                                onSelectMood={(mood: MoodItem) => {
+                                    setQuery(mood.query);
+                                    doSearch(mood.query);
+                                    addSearchHistory(mood.query).then(() => getSearchHistory().then(setHistory));
+                                }}
+                            />
                             <View style={styles.voiceHintBox}>
                                 <Text style={styles.voiceHintIcon}>🎙</Text>
                                 <Text style={styles.voiceHintTitle}>{t('screens.search.voiceHintTitle')}</Text>
@@ -620,7 +645,7 @@ export const SearchScreen = () => {
                                 </Text>
                             </View>
                             <Text style={styles.hintText}>{t('screens.search.voiceHintInput')}</Text>
-                        </View>
+                        </ScrollView>
                     )}
                 </View>
             )}

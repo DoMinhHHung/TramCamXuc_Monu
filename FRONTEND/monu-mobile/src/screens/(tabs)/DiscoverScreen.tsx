@@ -1229,7 +1229,7 @@ const CommentSheet: React.FC<CommentSheetProps> = ({
                       <Pressable onPress={() => { setEditingId(comment.id); setEditText(comment.content); }} hitSlop={8}>
                         <Text style={commentStyles.action}>Sửa</Text>
                       </Pressable>
-                      <Pressable onPress={async () => { await onDeleteComment(comment.id); if (comment.parentId) await loadReplies(comment.parentId); }} hitSlop={8}>
+                      <Pressable onPress={() => { void onDeleteComment(comment.id).then(() => { if (comment.parentId) void loadReplies(comment.parentId); }); }} hitSlop={8}>
                         <Text style={[commentStyles.action, { color: COLORS.error }]}>Xoá</Text>
                       </Pressable>
                     </>
@@ -2142,7 +2142,7 @@ export const DiscoverScreen = () => {
         >
           <View style={styles.headerRow}>
             <MonuBrandHeaderTitle layout="hero" accentColor={themeColors.accent} textAlign="center">
-              {t('navigation.headerDiscover', 'MONU · Khám phá')}
+              {t('navigation.headerDiscover', 'TramCamXuc · Khám phá')}
             </MonuBrandHeaderTitle>
           </View>
           <Text style={styles.headerSub}>

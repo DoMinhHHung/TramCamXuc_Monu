@@ -903,12 +903,8 @@ export const FullPlayerModal = () => {
                                 <View style={styles.lyricEmptyWrap}>
                                     <Text style={styles.lyricEmptyIcon}>🎵</Text>
                                     <Text style={styles.lyricEmptyTitle}>Chưa có lời bài hát</Text>
-                                    <Text style={styles.lyricEmptyTitleEn}>No lyrics available</Text>
                                     <Text style={styles.lyricEmptySub}>
                                         Lời bài hát chưa được cập nhật cho bài này.
-                                    </Text>
-                                    <Text style={styles.lyricEmptySubEn}>
-                                        Lyrics for this track haven't been added yet.
                                     </Text>
                                 </View>
                             )}

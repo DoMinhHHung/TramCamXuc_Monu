@@ -64,7 +64,7 @@ export const ProfileScreen = () => {
     const profileEmail = authSession?.profile?.email;
     const displayName = profileName && profileName.length > 0
         ? profileName
-        : profileEmail ?? t('screens.profile.defaultUserName', 'Monu User');
+        : profileEmail ?? t('screens.profile.defaultUserName', 'TramCamXuc User');
 
     useEffect(() => {
         void refreshProfile();
@@ -193,7 +193,7 @@ export const ProfileScreen = () => {
                                 layout="shrink"
                                 textAlign="center"
                             >
-                                {t('navigation.headerProfile', 'MONU · Cá nhân')}
+                                {t('navigation.headerProfile', 'TramCamXuc · Cá nhân')}
                             </MonuBrandHeaderTitle>
                         </View>
                         <View style={[styles.topBarSide, styles.topBarSideRight]}>
@@ -227,6 +227,30 @@ export const ProfileScreen = () => {
                         <Text style={styles.editBtnText}>{t('screens.profile.editProfile', 'Edit profile')}</Text>
                     </Pressable>
                 </LinearGradient>
+
+                {/* ── Musical Identity Stats ──────────────────────── */}
+                <View style={styles.statsStrip}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>
+                            {playlistCount !== null ? playlistCount : '—'}
+                        </Text>
+                        <Text style={styles.statLabel}>Playlist</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>
+                            {favoriteCount !== null ? favoriteCount : '—'}
+                        </Text>
+                        <Text style={styles.statLabel}>Yêu thích</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>
+                            {downloadedSongs.length}
+                        </Text>
+                        <Text style={styles.statLabel}>Đã tải</Text>
+                    </View>
+                </View>
 
                 {/* ── Artist card ──────────────────────────────────── */}
                 <View style={styles.sectionWrapper}>
@@ -291,23 +315,23 @@ export const ProfileScreen = () => {
 
                 {/* ── Stats ───────────────────────────────────────── */}
                 <View style={styles.statsRow}>
-                    <View style={styles.statItem}>
+                    <View style={styles.statsRowItem}>
                         <Text style={styles.statVal}>
                             {playlistCount !== null ? playlistCount : '—'}
                         </Text>
-                        <Text style={styles.statLabel}>Playlist</Text>
+                        <Text style={styles.statsRowLabel}>Playlist</Text>
                     </View>
-                    <View style={styles.statItem}>
+                    <View style={styles.statsRowItem}>
                         <Text style={styles.statVal}>
                             {downloadedSongs.length}
                         </Text>
-                        <Text style={styles.statLabel}>{t('screens.library.downloads', 'Downloads')}</Text>
+                        <Text style={styles.statsRowLabel}>{t('screens.library.downloads', 'Downloads')}</Text>
                     </View>
-                    <View style={styles.statItem}>
+                    <View style={styles.statsRowItem}>
                         <Text style={styles.statVal}>
                             {favoriteCount !== null ? favoriteCount : '—'}
                         </Text>
-                        <Text style={styles.statLabel}>{t('labels.likes', 'Likes')}</Text>
+                        <Text style={styles.statsRowLabel}>{t('labels.likes', 'Likes')}</Text>
                     </View>
                 </View>
 
@@ -489,6 +513,40 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
     editBtnText: { color: c.text, fontWeight: '600', fontSize: 14 },
 
     // Section wrapper
+    statsStrip: {
+        flexDirection: 'row',
+        marginHorizontal: 20,
+        marginTop: 20,
+        marginBottom: 4,
+        backgroundColor: c.surface,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: c.glass10,
+        paddingVertical: 18,
+    },
+    statItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    statValue: {
+        fontSize: 26,
+        fontWeight: '900',
+        color: c.white,
+        letterSpacing: -0.5,
+    },
+    statLabel: {
+        fontSize: 11,
+        color: c.glass50,
+        fontWeight: '600',
+        marginTop: 3,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    statDivider: {
+        width: 1,
+        backgroundColor: c.glass12,
+        marginVertical: 4,
+    },
     sectionWrapper: { marginHorizontal: 20, marginTop: 20 },
     sectionHeading: {
         color: c.text, fontSize: 16, fontWeight: '700', marginBottom: 10,
@@ -538,9 +596,9 @@ const createStyles = (c: ColorScheme) => StyleSheet.create({
         overflow: 'hidden',
         ...uiPresets.glassSurface(c, { intensity: 'subtle', radius: 24 }),
     },
-    statItem:  { flex: 1, alignItems: 'center', paddingVertical: 16 },
-    statVal:   { color: c.text, fontSize: 20, fontWeight: '800' },
-    statLabel: { color: c.muted, fontSize: 11, marginTop: 2 },
+    statsRowItem:  { flex: 1, alignItems: 'center', paddingVertical: 16 },
+    statVal:       { color: c.text, fontSize: 20, fontWeight: '800' },
+    statsRowLabel: { color: c.muted, fontSize: 11, marginTop: 2 },
 
     // Menu
     menuCard: {

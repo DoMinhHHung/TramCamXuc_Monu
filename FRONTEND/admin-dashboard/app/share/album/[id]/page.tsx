@@ -41,7 +41,7 @@ export default async function PublicShareAlbumPage({ params }: PageProps) {
         )}
         <h1 className="text-2xl font-bold">{title}</h1>
         {total > 0 ? <p className="text-zinc-400">{total} bài hát</p> : null}
-        <p className="text-sm text-zinc-500 pt-2">Mở trong app Monu (đã cài đặt):</p>
+        <p className="text-sm text-zinc-500 pt-2">Mở trong app TramCamXuc (đã cài đặt):</p>
         <a
           href={deep}
           className="inline-flex items-center justify-center w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-500 font-semibold text-white"
