@@ -75,8 +75,8 @@ const RevenueStockChart = React.memo(function RevenueStockChart({ data }: { data
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[180px]" style={{ fontFamily: 'monospace' }}>
             <defs>
                 <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#22c55e" stopOpacity="0.3" />
-                    <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
                 </linearGradient>
             </defs>
             {[0, 0.25, 0.5, 0.75, 1].map((t, i) => {
@@ -94,10 +94,10 @@ const RevenueStockChart = React.memo(function RevenueStockChart({ data }: { data
                 );
             })}
             <path d={area} fill="url(#revenueFill)" />
-            <path d={path} stroke="#22c55e" strokeWidth="2" fill="none" />
+            <path d={path} stroke="#3b82f6" strokeWidth="2" fill="none" />
             {data.map((p, i) => (
                 <circle key={p.date + i} cx={x(i)} cy={y(p.total)}
-                        r={data.length > 40 ? 1.6 : 2.4} fill="#16a34a" />
+                        r={data.length > 40 ? 1.6 : 2.4} fill="#1e40af" />
             ))}
             {data.filter((_, i) => i % sample === 0).map((p, idx) => {
                 const i = data.findIndex(v => v === p);
@@ -152,12 +152,12 @@ const AdClicksChart = React.memo(function AdClicksChart({ ads }: { ads: Ad[] }) 
                                 </span>
                             </div>
                         </div>
-                        <div className="h-1.5 bg-zinc-100 dark:bg-white/[0.06]">
+                        <div className="h-2 bg-slate-700/30 rounded-full overflow-hidden">
                             <div
-                                className="h-full transition-all duration-500"
+                                className="h-full transition-all duration-500 rounded-full"
                                 style={{
                                     width: `${pct}%`,
-                                    background: i === 0 ? '#3b82f6' : i === 1 ? '#8b5cf6' : i === 2 ? '#10b981' : i === 3 ? '#f59e0b' : '#6b7280',
+                                    background: i === 0 ? 'linear-gradient(90deg, #3b82f6, #06b6d4)' : i === 1 ? 'linear-gradient(90deg, #ec4899, #f43f5e)' : i === 2 ? 'linear-gradient(90deg, #10b981, #14b8a6)' : i === 3 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 'linear-gradient(90deg, #6b7280, #9ca3af)',
                                 }}
                             />
                         </div>
@@ -174,21 +174,22 @@ function StatCard({ label, value, sub, icon: Icon, color, bg, loading, badge }: 
     color: string; bg: string; loading: boolean; badge?: string;
 }) {
     return (
-        <div className="border border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-zinc-950 p-4">
-            <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] tracking-wider text-zinc-500 dark:text-zinc-600">{label.toUpperCase()}</span>
-                <div className={`size-6 flex items-center justify-center ${bg}`}>
-                    <Icon size={13} className={color} />
+        <div className="glass-hover group relative overflow-hidden rounded-xl p-4 h-full transition-all duration-300">
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-gradient-to-br from-blue-500 to-pink-500 transition-opacity duration-300" />
+            <div className="relative flex items-center justify-between mb-4">
+                <span className="text-[10px] tracking-widest text-slate-400 font-medium uppercase">{label}</span>
+                <div className={`size-9 flex items-center justify-center rounded-lg ${bg} transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg`}>
+                    <Icon size={16} weight="fill" className={color} />
                 </div>
             </div>
             {loading
-                ? <div className="h-6 w-16 bg-zinc-200 dark:bg-zinc-800 animate-pulse" />
+                ? <div className="h-7 w-24 bg-slate-600/20 rounded animate-pulse" />
                 : (
                     <div>
-                        <p className="text-2xl font-semibold text-zinc-900 dark:text-white">{value}</p>
-                        {sub && <p className="text-[10px] text-zinc-400 dark:text-zinc-600 mt-0.5">{sub}</p>}
+                        <p className="text-2xl font-bold text-white leading-tight">{value}</p>
+                        {sub && <p className="text-[10px] text-slate-400 mt-1">{sub}</p>}
                         {badge && (
-                            <span className="inline-flex items-center mt-1 px-1.5 py-px text-[9px] font-medium border text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-400/10 border-emerald-200 dark:border-emerald-400/20">
+                            <span className="inline-flex items-center mt-2 px-2 py-1 text-[8px] font-bold border bg-emerald-500/15 text-emerald-300 border-emerald-500/30 rounded-md uppercase tracking-wider">
                                 {badge}
                             </span>
                         )}
@@ -204,18 +205,18 @@ function Section({ title, sub, error, children, action }: {
     children: React.ReactNode; action?: React.ReactNode;
 }) {
     return (
-        <div className="border border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-zinc-950">
-            <div className="px-5 py-3.5 border-b border-zinc-200 dark:border-white/[0.06] flex items-center justify-between">
-                <div>
-                    <p className="text-[10px] font-semibold tracking-widest text-zinc-500 dark:text-zinc-600">{title}</p>
-                    {sub && <p className="text-[10px] text-zinc-400 dark:text-zinc-700 mt-0.5">{sub}</p>}
+        <div className="glass rounded-xl overflow-hidden transition-all duration-300 hover:border-white/15">
+            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between backdrop-blur-sm">
+                <div className="min-w-0">
+                    <p className="text-[11px] font-bold tracking-widest text-slate-200 uppercase">{title}</p>
+                    {sub && <p className="text-[11px] text-slate-400 mt-1">{sub}</p>}
                 </div>
                 {action}
             </div>
-            <div className="p-5">
+            <div className="p-6">
                 {error ? (
-                    <div className="flex items-center gap-2 text-[11px] text-amber-600 dark:text-amber-500">
-                        <Warning size={13} /><span>{error}</span>
+                    <div className="flex items-center gap-2 text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                        <Warning size={14} className="shrink-0" /><span>{error}</span>
                     </div>
                 ) : children}
             </div>
@@ -353,17 +354,17 @@ export default function DashboardPage() {
     const totalRevenue = useMemo(() => revenue.reduce((s, x) => s + Number(x.total ?? 0), 0), [revenue]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-7">
             {/* Header */}
-            <div>
-                <h1 className="text-sm font-semibold text-zinc-900 dark:text-white">Tổng quan</h1>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-600 mt-0.5">
-                    Tổng quan hệ thống.
+            <div className="mb-2">
+                <h1 className="text-lg font-bold bg-gradient-to-r from-yellow-400 via-pink-500 to-blue-500 bg-clip-text text-transparent">Tổng quan hệ thống</h1>
+                <p className="text-[11px] text-slate-400 mt-1">
+                    Dữ liệu thực tế từ các dịch vụ chính
                 </p>
             </div>
 
             {/* ── Row 1: Core metrics ────────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     label="Người dùng"
                     value={errorUsers ? '—' : totalUsers.toLocaleString('vi-VN')}
@@ -394,7 +395,7 @@ export default function DashboardPage() {
             </div>
 
             {/* ── Row 2: Ad engagement stats ──────────────────────────────────────── */}
-            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     label="Tổng lượt nhấp quảng cáo"
                     value={errorAds ? '—' : fmtNum(totalClicks)}
@@ -441,10 +442,10 @@ export default function DashboardPage() {
                             <button
                                 key={x.key}
                                 onClick={() => setWindow(x.key)}
-                                className={`px-2.5 py-1 text-[10px] border transition-all ${
+                                className={`px-3 py-1.5 text-[10px] font-medium rounded-lg transition-all duration-200 ${
                                     window_ === x.key
-                                        ? 'bg-zinc-900 text-white dark:bg-white dark:text-black border-transparent'
-                                        : 'border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-white/20'
+                                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30'
+                                        : 'bg-slate-700/20 text-slate-300 border border-slate-600/30 hover:bg-slate-700/40 hover:border-slate-500/50'
                                 }`}
                             >
                                 {x.label}
