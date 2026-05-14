@@ -19,7 +19,7 @@ import {
 import { FlashList } from '@shopify/flash-list';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Entypo, AntDesign, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -35,6 +35,7 @@ import {
   Album,
   createAlbum,
   createPlaylist,
+  deleteSong,
   deletePlaylist,
   finalizeAiDraftSong,
   getMyAlbums,
@@ -318,6 +319,7 @@ const SongRow = ({
   showAiReview,
   onAiPublish,
   onAiKeepPrivate,
+  onAiDiscard,
   aiFinalizeBusy,
 }: {
   song: Song;
@@ -330,6 +332,7 @@ const SongRow = ({
   showAiReview?: boolean;
   onAiPublish?: () => void;
   onAiKeepPrivate?: () => void;
+  onAiDiscard?: () => void;
   aiFinalizeBusy?: boolean;
 }) => {
   const themeColors = useThemeColors();
@@ -399,7 +402,7 @@ const SongRow = ({
         </View>
       </View>
 
-      {showAiReview && onAiPublish && onAiKeepPrivate ? (
+      {showAiReview && onAiPublish && onAiKeepPrivate && onAiDiscard ? (
         <View style={songRowStyles.aiDecisionBar}>
           <Pressable
             onPress={onAiPublish}
@@ -417,6 +420,15 @@ const SongRow = ({
           >
             <Text style={songRowStyles.aiDecisionBtnSecondaryText}>
               {t('screens.library.aiKeepPrivate', 'Keep private')}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={onAiDiscard}
+            disabled={aiFinalizeBusy}
+            style={[songRowStyles.aiDecisionBtnDanger, aiFinalizeBusy && songRowStyles.aiDecisionBtnDisabled]}
+          >
+            <Text style={songRowStyles.aiDecisionBtnDangerText}>
+              {t('screens.library.aiDiscardDraft', 'Discard draft')}
             </Text>
           </Pressable>
           {aiFinalizeBusy ? <ActivityIndicator color={themeColors.accent} size="small" /> : null}
@@ -463,6 +475,15 @@ const getSongRowStyles = (c: ColorScheme) => StyleSheet.create({
   aiDecisionBtnDisabled: { opacity: 0.5 },
   aiDecisionBtnPrimaryText: { color: c.white, fontWeight: '700', fontSize: 12 },
   aiDecisionBtnSecondaryText: { color: c.accent, fontWeight: '700', fontSize: 12 },
+  aiDecisionBtnDanger: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: c.error,
+    backgroundColor: `${c.error}16`,
+  },
+  aiDecisionBtnDangerText: { color: c.error, fontWeight: '700', fontSize: 12 },
   thumbWrap: { position: 'relative' },
   thumb: { width: 48, height: 48, borderRadius: 10 },
   thumbPlaceholder: {
@@ -1687,6 +1708,13 @@ export const LibraryScreen = () => {
     void load('initial');
   }, [authSession?.tokens.accessToken]);
 
+  useFocusEffect(
+    useCallback(() => {
+      void load('silent');
+      return undefined;
+    }, [userScope]),
+  );
+
   const isArtist = !!artistProfile?.id;
   const canCreateAlbum = isArtist && canCreateAlbumByPlan;
 
@@ -1940,6 +1968,35 @@ export const LibraryScreen = () => {
     }
   };
 
+  const handleAiDiscardSong = (songId: string) => {
+    Alert.alert(
+      t('screens.library.aiDiscardDraftConfirmTitle', 'Discard AI draft?'),
+      t('screens.library.aiDiscardDraftConfirmMessage', 'This AI draft will be permanently removed.'),
+      [
+        { text: t('common.cancel', 'Cancel'), style: 'cancel' },
+        {
+          text: t('common.delete', 'Delete'),
+          style: 'destructive',
+          onPress: async () => {
+            setAiFinSongId(songId);
+            try {
+              await deleteSong(songId);
+              showToast(t('screens.library.aiDiscardDraftOk', 'Draft removed.'), 'success');
+              await load('refresh');
+            } catch (e: any) {
+              showToast(
+                e?.response?.data?.message ?? e?.message ?? t('common.error', 'Error'),
+                'error',
+              );
+            } finally {
+              setAiFinSongId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const switchTab = useCallback((newTab: Tab) => {
     if (newTab === activeTab) return;
 
@@ -2015,6 +2072,7 @@ export const LibraryScreen = () => {
               showAiReview={aiDraftPending}
               onAiPublish={aiDraftPending ? () => void handleAiFinalizeSong(s.id, true) : undefined}
               onAiKeepPrivate={aiDraftPending ? () => void handleAiFinalizeSong(s.id, false) : undefined}
+              onAiDiscard={aiDraftPending ? () => handleAiDiscardSong(s.id) : undefined}
               aiFinalizeBusy={aiFinSongId === s.id}
             />
           );

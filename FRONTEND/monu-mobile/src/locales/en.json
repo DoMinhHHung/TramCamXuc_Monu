@@ -480,6 +480,9 @@
       "aiMusicTitle": "Create music with AI",
       "aiMusicDesc": "Write lyrics or import a file, pick style and length.",
       "aiMusicAttribution": "AI music is powered by Sonauto (ElevenLabs as backup). Sonauto requires attribution for user-facing API use.",
+      "aiMusicRemainingLabel": "AI generations remaining this month",
+      "aiMusicQuotaExceededTitle": "AI generation limit reached",
+      "aiMusicQuotaExceededMessage": "You have used all AI generations for this month. Please try again next month or upgrade your plan.",
       "aiMusicLyricsLabel": "Lyrics",
       "aiMusicLyricsPlaceholder": "Paste lyrics or import a file…",
       "aiMusicPickLyricFile": "Import lyric file (.txt, .lrc, .srt)",
@@ -510,7 +513,9 @@
       "aiMusicAcceptedTitle": "Saved",
       "aiMusicAcceptedMessage": "Your song is processing. Check My songs in a few minutes.",
       "aiMusicAcceptedMessagePublish": "Processing for public release. Open Library → Songs.",
-      "aiMusicAcceptedMessagePrivate": "Saved as private. Open Library → Songs to play."
+      "aiMusicAcceptedMessagePrivate": "Saved as private. Open Library → Songs to play.",
+      "aiMusicRejectedTitle": "Preview discarded",
+      "aiMusicRejectedMessage": "The preview was discarded. If a draft still appears in Library, pull to refresh."
     },
     "editSong": {
       "title": "Edit Song",
@@ -609,6 +614,10 @@
       "aiPublishPublic": "Go public",
       "aiKeepPrivate": "Keep private",
       "aiFinalizeOk": "Updated. Transcoding started.",
+      "aiDiscardDraft": "Discard draft",
+      "aiDiscardDraftConfirmTitle": "Discard AI draft?",
+      "aiDiscardDraftConfirmMessage": "This AI draft will be permanently removed.",
+      "aiDiscardDraftOk": "Draft removed.",
       "songsSuffix": "songs",
       "viewDetails": "View details",
       "publish": "Publish",

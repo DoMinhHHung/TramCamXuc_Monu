@@ -17,6 +17,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import Slider from '@react-native-community/slider';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { ColorScheme, useThemeColors } from '../../config/colors';
 import { useLayoutConstants } from '../../config/layout';
@@ -46,6 +47,12 @@ import { uiPresets } from '../../config/uiPresets';
 const ALLOWED_EXTENSIONS = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'] as const;
 const LYRIC_EXTENSIONS = ['lrc', 'srt', 'txt'] as const;
 const COVER_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'] as const;
+const getCurrentAiQuotaPeriod = () => {
+  const now = new Date();
+  const month = `${now.getMonth() + 1}`.padStart(2, '0');
+  return `${now.getFullYear()}-${month}`;
+};
+const getAiUsageStorageKey = (userId: string) => `ai-music.usage.${userId}`;
 
 /** Chuẩn hoá trạng thái job AI (PENDING, PROCESSING, READY, FAILED). */
 function formatAiJobStatus(
@@ -151,6 +158,7 @@ export const CreateScreen = () => {
   const [aiBusy, setAiBusy]               = useState(false);
   const [improveBusy, setImproveBusy]   = useState(false);
   const [createTab, setCreateTab]       = useState<'upload' | 'ai'>('upload');
+  const [aiUsedGenerations, setAiUsedGenerations] = useState(0);
 
   const resetAiMusicUi = useCallback(() => {
     setAiJobId(null);
@@ -245,6 +253,45 @@ export const CreateScreen = () => {
     if (!Number.isFinite(n) || n < 15) return 180;
     return Math.min(600, n);
   }, [planFeatures]);
+  const aiMaxGenerationsPerMonth = useMemo(() => {
+    const raw = planFeatures.ai_music_generations_per_month;
+    const n = typeof raw === 'number' ? raw : Number.parseInt(String(raw ?? ''), 10);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return n;
+  }, [planFeatures]);
+  const aiQuotaPeriod = useMemo(() => getCurrentAiQuotaPeriod(), []);
+  const aiRemainingGenerations = Math.max(0, aiMaxGenerationsPerMonth - aiUsedGenerations);
+
+  useEffect(() => {
+    const userId = authSession?.profile?.id;
+    if (!userId) {
+      setAiUsedGenerations(0);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(getAiUsageStorageKey(userId));
+        if (!raw) {
+          if (!cancelled) setAiUsedGenerations(0);
+          return;
+        }
+        const parsed = JSON.parse(raw) as { period: string; used: number };
+        if (!cancelled) {
+          if (parsed?.period === aiQuotaPeriod && Number.isFinite(parsed?.used)) {
+            setAiUsedGenerations(Math.max(0, parsed.used));
+          } else {
+            setAiUsedGenerations(0);
+          }
+        }
+      } catch {
+        if (!cancelled) setAiUsedGenerations(0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [aiQuotaPeriod, authSession?.profile?.id]);
 
   useEffect(() => {
     setAiDurationSec((d) => Math.min(d, aiMaxDurationSec));
@@ -581,6 +628,13 @@ export const CreateScreen = () => {
       Alert.alert(t('screens.create.missingInfoTitle', 'Missing information'), t('screens.create.aiMusicNeedLyrics', 'Enter or import lyrics first.'));
       return;
     }
+    if (aiMaxGenerationsPerMonth > 0 && aiRemainingGenerations <= 0) {
+      Alert.alert(
+        t('screens.create.aiMusicQuotaExceededTitle', 'Đã hết lượt tạo nhạc AI'),
+        t('screens.create.aiMusicQuotaExceededMessage', 'Bạn đã dùng hết lượt tạo trong tháng này. Vui lòng thử lại vào tháng sau hoặc nâng cấp gói.'),
+      );
+      return;
+    }
     setAiBusy(true);
     setAiError(null);
     setAiPreviewUrl(null);
@@ -594,9 +648,29 @@ export const CreateScreen = () => {
         stylePrompt: aiStyle.trim() || undefined,
         durationSeconds: Math.round(aiDurationSec),
       });
+      const userId = authSession?.profile?.id;
+      if (userId) {
+        const nextUsed = aiUsedGenerations + 1;
+        setAiUsedGenerations(nextUsed);
+        void AsyncStorage.setItem(
+          getAiUsageStorageKey(userId),
+          JSON.stringify({ period: aiQuotaPeriod, used: nextUsed }),
+        );
+      }
       setAiJobId(job.jobId);
       setAiJobStatus(job.status);
     } catch (err: any) {
+      const code = err?.response?.data?.code;
+      if (code === 2701) {
+        const userId = authSession?.profile?.id;
+        if (userId) {
+          setAiUsedGenerations(aiMaxGenerationsPerMonth);
+          void AsyncStorage.setItem(
+            getAiUsageStorageKey(userId),
+            JSON.stringify({ period: aiQuotaPeriod, used: aiMaxGenerationsPerMonth }),
+          );
+        }
+      }
       Alert.alert(
         t('common.error'),
         err?.response?.data?.message ?? err?.message ?? t('screens.create.aiMusicSubmitFailed', 'Could not start AI music job.')
@@ -656,6 +730,10 @@ export const CreateScreen = () => {
     try {
       await rejectAiMusicJob(aiJobId);
       resetAiMusicUi();
+      Alert.alert(
+        t('screens.create.aiMusicRejectedTitle', 'Đã huỷ preview'),
+        t('screens.create.aiMusicRejectedMessage', 'Preview đã được huỷ. Nếu còn thấy bản nháp ở Thư viện, hãy kéo để làm mới.'),
+      );
     } catch (err: any) {
       Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? '');
     } finally {
@@ -1148,6 +1226,9 @@ export const CreateScreen = () => {
                       'AI music is powered by Sonauto (ElevenLabs as backup). Sonauto requires attribution for user-facing API use.'
                     )}
                   </Text>
+                  <Text style={styles.aiQuotaInfo}>
+                    {t('screens.create.aiMusicRemainingLabel', 'Lượt tạo AI còn lại tháng này')}: {aiRemainingGenerations}/{aiMaxGenerationsPerMonth}
+                  </Text>
 
                   <Text style={styles.fieldLabel}>{t('screens.create.songTitleLabel', 'Song title')}</Text>
                   <TextInput
@@ -1525,6 +1606,11 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     lineHeight: 16,
     marginTop: 2,
     fontStyle: 'italic',
+  },
+  aiQuotaInfo: {
+    color: colors.glass55,
+    fontSize: 12,
+    fontWeight: '700',
   },
 
   // ── Form fields ──────────────────────────────────────────────────────────

@@ -500,6 +500,9 @@
       "aiMusicTitle": "Tạo nhạc với AI",
       "aiMusicDesc": "Viết lời hoặc chọn tệp, chọn phong cách và độ dài.",
       "aiMusicAttribution": "Nhạc AI dùng Sonauto.",
+      "aiMusicRemainingLabel": "Lượt tạo AI còn lại tháng này",
+      "aiMusicQuotaExceededTitle": "Đã hết lượt tạo AI",
+      "aiMusicQuotaExceededMessage": "Bạn đã dùng hết lượt tạo trong tháng này. Vui lòng thử lại vào tháng sau hoặc nâng cấp gói.",
       "aiMusicLyricsLabel": "Lời bài hát",
       "aiMusicLyricsPlaceholder": "Dán lời hoặc nhập tệp…",
       "aiMusicPickLyricFile": "Nhập tệp lời (.txt, .lrc, .srt)",
@@ -530,7 +533,9 @@
       "aiMusicAcceptedTitle": "Đã lưu",
       "aiMusicAcceptedMessage": "Bài hát đang được xử lý. Kiểm tra \"Bài của tôi\" sau vài phút.",
       "aiMusicAcceptedMessagePublish": "Đang xử lý để đăng công khai. Mở Thư viện → Bài hát.",
-      "aiMusicAcceptedMessagePrivate": "Đã lưu riêng tư. Mở Thư viện → Bài hát để nghe."
+      "aiMusicAcceptedMessagePrivate": "Đã lưu riêng tư. Mở Thư viện → Bài hát để nghe.",
+      "aiMusicRejectedTitle": "Đã huỷ preview",
+      "aiMusicRejectedMessage": "Preview đã được huỷ. Nếu còn thấy bản nháp ở Thư viện, hãy kéo để làm mới."
     },
     "editSong": {
       "title": "Chỉnh sửa bài hát",
@@ -629,6 +634,10 @@
       "aiPublishPublic": "Công khai",
       "aiKeepPrivate": "Riêng tư",
       "aiFinalizeOk": "Đã cập nhật. Đang transcode.",
+      "aiDiscardDraft": "Xoá bản nháp",
+      "aiDiscardDraftConfirmTitle": "Xoá bản nháp AI?",
+      "aiDiscardDraftConfirmMessage": "Bản nháp AI này sẽ bị xoá vĩnh viễn.",
+      "aiDiscardDraftOk": "Đã xoá bản nháp.",
       "songsSuffix": "bài",
       "viewDetails": "Xem chi tiết",
       "publish": "Phát hành",
