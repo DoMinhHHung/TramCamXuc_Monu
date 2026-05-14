@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import Slider from '@react-native-community/slider';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -553,7 +553,16 @@ export const CreateScreen = () => {
       const improved = await improveLyricsWithGoogle(aiLyrics.trim());
       setAiLyrics(improved);
     } catch (err: any) {
-      Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? t('screens.create.aiMusicImproveFailed', 'Could not improve lyrics.'));
+      const code = err?.response?.data?.code;
+      const status = err?.response?.status;
+      if (code === 2704 || status === 502) {
+        Alert.alert(
+          t('screens.create.aiQuotaTitle', 'Dịch vụ tạm thời không khả dụng'),
+          t('screens.create.aiQuotaMessage', 'Dịch vụ cải thiện lời bài hát bằng AI đã hết quota. Vui lòng thử lại sau.'),
+        );
+      } else {
+        Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? t('screens.create.aiMusicImproveFailed', 'Could not improve lyrics.'));
+      }
     } finally {
       setImproveBusy(false);
     }
@@ -709,7 +718,7 @@ export const CreateScreen = () => {
             </MonuBrandHeaderTitle>
             <Text style={styles.heroSub}>
               {canUpload
-                  ? `${t('screens.create.greetingPrefix', 'Hello')}, ${artistProfile?.stageName} 👋`
+                  ? `${t('screens.create.greetingPrefix', 'Hello')}, ${artistProfile?.stageName}`
                   : isArtist && !hasActiveSub
                       ? t('screens.create.subscriptionExpired', 'Subscription expired — renew to continue uploading')
                       : !isArtist

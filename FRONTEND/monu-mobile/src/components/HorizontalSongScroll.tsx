@@ -181,6 +181,7 @@ const getStyles = (colors: ReturnType<typeof useThemeColors>) => StyleSheet.crea
   card: {
     width: CARD_WIDTH,
     borderRadius: 16,
+    marginHorizontal: 4,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.glass12,
