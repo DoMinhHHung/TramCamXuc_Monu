@@ -630,8 +630,8 @@ export const CreateScreen = () => {
     }
     if (aiMaxGenerationsPerMonth > 0 && aiRemainingGenerations <= 0) {
       Alert.alert(
-        t('screens.create.aiMusicQuotaExceededTitle', 'Đã hết lượt tạo nhạc AI'),
-        t('screens.create.aiMusicQuotaExceededMessage', 'Bạn đã dùng hết lượt tạo trong tháng này. Vui lòng thử lại vào tháng sau hoặc nâng cấp gói.'),
+        t('screens.create.aiMusicQuotaExceededTitle', 'AI generation limit reached'),
+        t('screens.create.aiMusicQuotaExceededMessage', 'You have used all AI generations for this month. Please try again next month or upgrade your plan.'),
       );
       return;
     }
@@ -731,8 +731,8 @@ export const CreateScreen = () => {
       await rejectAiMusicJob(aiJobId);
       resetAiMusicUi();
       Alert.alert(
-        t('screens.create.aiMusicRejectedTitle', 'Đã huỷ preview'),
-        t('screens.create.aiMusicRejectedMessage', 'Preview đã được huỷ. Nếu còn thấy bản nháp ở Thư viện, hãy kéo để làm mới.'),
+        t('screens.create.aiMusicRejectedTitle', 'Preview discarded'),
+        t('screens.create.aiMusicRejectedMessage', 'The preview was discarded. If a draft still appears in Library, pull to refresh.'),
       );
     } catch (err: any) {
       Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? '');
@@ -1227,7 +1227,7 @@ export const CreateScreen = () => {
                     )}
                   </Text>
                   <Text style={styles.aiQuotaInfo}>
-                    {t('screens.create.aiMusicRemainingLabel', 'Lượt tạo AI còn lại tháng này')}: {aiRemainingGenerations}/{aiMaxGenerationsPerMonth}
+                    {t('screens.create.aiMusicRemainingLabel', 'AI generations remaining this month')}: {aiRemainingGenerations}/{aiMaxGenerationsPerMonth}
                   </Text>
 
                   <Text style={styles.fieldLabel}>{t('screens.create.songTitleLabel', 'Song title')}</Text>
