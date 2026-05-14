@@ -1577,6 +1577,7 @@ export const LibraryScreen = () => {
   const [shareQrData, setShareQrData] = useState<{ link: string; image?: string } | null>(null);
 
   const userScope = authSession?.profile?.id ?? authSession?.tokens?.accessToken?.slice(-24) ?? 'anonymous';
+  const loadRef = useRef<((mode?: 'initial' | 'refresh' | 'silent', opts?: { skipIfFresh?: boolean }) => Promise<void>) | null>(null);
 
   // ── Smart Playlists ────────────────────────────────────────────────────────
   const userId = authSession?.profile?.id ?? null;
@@ -1708,9 +1709,13 @@ export const LibraryScreen = () => {
     void load('initial');
   }, [authSession?.tokens.accessToken]);
 
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
+
   useFocusEffect(
     useCallback(() => {
-      void load('silent');
+      void loadRef.current?.('silent');
       return undefined;
     }, [userScope]),
   );

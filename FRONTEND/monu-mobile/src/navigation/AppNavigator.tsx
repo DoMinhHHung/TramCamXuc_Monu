@@ -134,6 +134,7 @@ const MainTabNavigator = () => {
                         backgroundColor: 'transparent',
                         borderTopWidth: 0,
                         borderRadius: 30,
+                        // Base design height + device safe area so bottom tabs stay visible on small/edge devices.
                         height: MAIN_TAB_BAR_BASE_HEIGHT + Math.max(insets.bottom, 6),
                         paddingBottom: Math.max(8, insets.bottom),
                         paddingTop: 8,

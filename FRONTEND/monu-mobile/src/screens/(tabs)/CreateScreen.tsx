@@ -276,10 +276,14 @@ export const CreateScreen = () => {
           if (!cancelled) setAiUsedGenerations(0);
           return;
         }
-        const parsed = JSON.parse(raw) as { period: string; used: number };
+        const parsedRaw = JSON.parse(raw) as unknown;
+        const parsed =
+          parsedRaw && typeof parsedRaw === 'object'
+            ? (parsedRaw as { period?: string; used?: number })
+            : null;
         if (!cancelled) {
           if (parsed?.period === aiQuotaPeriod && Number.isFinite(parsed?.used)) {
-            setAiUsedGenerations(Math.max(0, parsed.used));
+            setAiUsedGenerations(Math.max(0, parsed.used ?? 0));
           } else {
             setAiUsedGenerations(0);
           }
@@ -661,6 +665,7 @@ export const CreateScreen = () => {
       setAiJobStatus(job.status);
     } catch (err: any) {
       const code = err?.response?.data?.code;
+      // Error code 2701: AI generation quota exceeded.
       if (code === 2701) {
         const userId = authSession?.profile?.id;
         if (userId) {
