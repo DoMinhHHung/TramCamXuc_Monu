@@ -96,13 +96,14 @@ export function usePaymentStatus(args: {
   }, [enabled, inferredFromPayment, isActive]);
 
   // When subscription flips to ACTIVE, invalidate subscription queries immediately.
+  // Note: intentionally not gated by `enabled` — when isActive becomes true, React 18 batching
+  // can set enabled=false in the same render, which would silently skip invalidateAll().
   useEffect(() => {
-    if (!enabled) return;
     if (!isActive) return;
     stoppedRef.current = true;
     void invalidateAll();
     void qc.invalidateQueries({ queryKey: ['payments', 'info'] });
-  }, [enabled, invalidateAll, isActive, qc]);
+  }, [invalidateAll, isActive, qc]);
 
   // While payment is pending, periodically refetch subscription so UI flips instantly on webhook success.
   useEffect(() => {

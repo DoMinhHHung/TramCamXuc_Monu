@@ -71,7 +71,7 @@ export function useSubscription(): UseSubscriptionResult {
     enabled: Boolean(authSession),
     staleTime: THIRTY_MIN_MS,
     gcTime: SIX_HOURS_MS,
-    refetchOnMount: false,
+    refetchOnMount: true,
     refetchOnReconnect: false,
   });
 

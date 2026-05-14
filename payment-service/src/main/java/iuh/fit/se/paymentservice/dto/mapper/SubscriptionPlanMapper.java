@@ -18,7 +18,6 @@ public interface SubscriptionPlanMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "features", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     void partialUpdate(SubscriptionPlanUpdateRequest request, @MappingTarget SubscriptionPlan entity);
