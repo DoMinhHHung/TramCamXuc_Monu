@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch, ApiError } from '@/lib/api';
 import { openAdminRealtime } from '@/lib/realtime';
+import { queryCache, STALE_MS } from '@/lib/query-cache';
 import { ArrowClockwise, MusicNotesPlus } from '@phosphor-icons/react';
 import { SearchInput } from '@/components/ui/search-input';
 import { BUTTON_STYLES, CARD_STYLES, INPUT_STYLES, TYPOGRAPHY, TABLE_STYLES } from '@/lib/styles/constants';
@@ -115,7 +116,7 @@ export default function MusicPage() {
     const [error, setError] = useState<string | null>(null);
 
     // --- Genre state ---
-    const [genres, setGenres] = useState<Genre[]>([]);
+    const [genres, setGenres] = useState<Genre[]>(() => queryCache.get<Genre[]>('music:genres') ?? []);
     const [genreSearch, setGenreSearch] = useState('');
     const [loadingGenres, setLoadingGenres] = useState(false);
     const [genreError, setGenreError] = useState<string | null>(null);
@@ -125,22 +126,30 @@ export default function MusicPage() {
     const [genreInitialForm, setGenreInitialForm] = useState<GenreRequest>({ name: '', description: '' });
     const [genreConfirmClose, setGenreConfirmClose] = useState(false);
 
-    const fetchGenres = async () => {
-        setLoadingGenres(true);
+    const fetchGenres = useCallback(async (force = false) => {
+        const key = 'music:genres';
+        const cached = queryCache.get<Genre[]>(key);
+        if (!force && cached && !queryCache.isStale(key, STALE_MS)) {
+            setGenres(cached);
+            setGenreError(null);
+            return;
+        }
+        if (!cached) setLoadingGenres(true);
         try {
-            // Backend /genres does not support search params — filter on client instead.
-            const res = await apiFetch<Genre[]>(`/genres`, { ttlMs: 60_000 });
-            setGenres(Array.isArray(res) ? res : []);
+            const res = await apiFetch<Genre[]>(`/genres`, { ttlMs: 0 });
+            const list = Array.isArray(res) ? res : [];
+            queryCache.set(key, list);
+            setGenres(list);
             setGenreError(null);
         } catch (e) {
             setGenreError('Không thể tải danh sách thể loại');
         } finally {
             setLoadingGenres(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
-        if (tab === 'genres') fetchGenres();
+        if (tab === 'genres' && queryCache.isStale('music:genres', STALE_MS)) void fetchGenres();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab]);
 
@@ -173,7 +182,8 @@ export default function MusicPage() {
         if (!window.confirm('Xác nhận xóa thể loại?')) return;
         try {
             await apiFetch(`/genres/${id}`, { method: 'DELETE' });
-            fetchGenres();
+            queryCache.invalidate('music:genres');
+            void fetchGenres(true);
         } catch {
             setGenreError('Không thể xóa thể loại');
         }
@@ -220,59 +230,65 @@ export default function MusicPage() {
             setGenreEditing(null);
             setGenreModalOpen(false);
             setGenreInitialForm({ name: '', description: '' });
-            fetchGenres();
+            queryCache.invalidate('music:genres');
+            void fetchGenres(true);
         } catch {
             setGenreError('Không thể lưu thể loại');
         }
     };
 
-    const [songs, setSongs] = useState<Song[]>([]);
+    const [songs, setSongs] = useState<Song[]>(() => queryCache.get<PageResult<Song>>('music:songs:1:')?.content ?? []);
     const [songSearch, setSongSearch] = useState('');
-    const [totalSongs, setTotalSongs] = useState(0);
+    const [totalSongs, setTotalSongs] = useState(() => queryCache.get<PageResult<Song>>('music:songs:1:')?.totalElements ?? 0);
     const [loadingSongs, setLoadingSongs] = useState(false);
     const [songsPage, setSongsPage] = useState(1);
 
     const [songPeriod, setSongPeriod] = useState<Period>('WEEK');
-    const [topListen, setTopListen] = useState<TopListenEntry[]>([]);
-    const [topSongMap, setTopSongMap] = useState<Record<string, SongResponse>>({});
+    const [topListen, setTopListen] = useState<TopListenEntry[]>(() => queryCache.get<TopListenEntry[]>('music:songs-top:WEEK') ?? []);
+    const [topSongMap, setTopSongMap] = useState<Record<string, SongResponse>>(() => queryCache.get<Record<string, SongResponse>>('music:songs-top-map:WEEK') ?? {});
     const [loadingTopSongs, setLoadingTopSongs] = useState(false);
 
-    const [playlists, setPlaylists] = useState<Playlist[]>([]);
-    const [totalPlaylists, setTotalPlaylists] = useState(0);
+    const [playlists, setPlaylists] = useState<Playlist[]>(() => queryCache.get<PageResult<Playlist>>('music:playlists-top')?.content ?? []);
+    const [totalPlaylists, setTotalPlaylists] = useState(() => queryCache.get<PageResult<Playlist>>('music:playlists-top')?.totalElements ?? 0);
     const [loadingPlaylists, setLoadingPlaylists] = useState(false);
 
     const [albumPeriod, setAlbumPeriod] = useState<Period>('WEEK');
-    const [topAlbums, setTopAlbums] = useState<Album[]>([]);
-    const [totalAlbums, setTotalAlbums] = useState(0);
+    const [topAlbums, setTopAlbums] = useState<Album[]>(() => queryCache.get<Album[]>('music:albums-top:WEEK') ?? []);
+    const [totalAlbums, setTotalAlbums] = useState(() => queryCache.get<number>('music:albums-total') ?? 0);
     const [loadingAlbums, setLoadingAlbums] = useState(false);
 
     const [jamendoTags, setJamendoTags] = useState('pop');
     const [jamendoLimit, setJamendoLimit] = useState(50);
     const [importingJamendo, setImportingJamendo] = useState(false);
     const [jamendoSummary, setJamendoSummary] = useState<JamendoImportSummary | null>(null);
-    const [loadedTabs, setLoadedTabs] = useState<Record<MusicTab, boolean>>({
-        songs: false,
-        genres: false,
-        'songs-top': false,
-        'playlists-top': false,
-        'albums-top': false,
+    const [loadedTabs, setLoadedTabs] = useState<Record<MusicTab, boolean>>(() => ({
+        songs:          !queryCache.isStale('music:songs:1:', STALE_MS),
+        genres:         !queryCache.isStale('music:genres', STALE_MS),
+        'songs-top':    !queryCache.isStale('music:songs-top:WEEK', STALE_MS),
+        'playlists-top':!queryCache.isStale('music:playlists-top', STALE_MS),
+        'albums-top':   !queryCache.isStale('music:albums-top:WEEK', STALE_MS),
         jamendo: true,
-    });
+    }));
 
     const totalSongPages = Math.max(1, Math.ceil(totalSongs / SONG_PAGE_SIZE));
 
-    const loadSongs = useCallback(async (page = songsPage) => {
-        setLoadingSongs(true);
+    const loadSongs = useCallback(async (page = songsPage, force = false) => {
+        const key = `music:songs:${page}:${songSearch}`;
+        const cached = queryCache.get<PageResult<Song>>(key);
+
+        if (!force && cached && !queryCache.isStale(key, STALE_MS)) {
+            setSongs(cached.content ?? []);
+            setTotalSongs(cached.totalElements ?? 0);
+            setError(null);
+            return;
+        }
+
+        if (!cached) setLoadingSongs(true);
         try {
             let endpoint = `/admin/songs?status=PUBLIC&page=${page}&size=${SONG_PAGE_SIZE}&showDeleted=false`;
-            if (songSearch) {
-                // Backend expects `keyword`, not `search`
-                endpoint += `&keyword=${encodeURIComponent(songSearch)}`;
-            }
-            const result = await apiFetch<PageResult<Song>>(
-                endpoint,
-                { ttlMs: 0 } // Disable cache for search results
-            );
+            if (songSearch) endpoint += `&keyword=${encodeURIComponent(songSearch)}`;
+            const result = await apiFetch<PageResult<Song>>(endpoint, { ttlMs: 0 });
+            if (!songSearch) queryCache.set(key, result); // don't cache search results
             setSongs(result?.content ?? []);
             setTotalSongs(result?.totalElements ?? 0);
             setError(null);
@@ -295,22 +311,34 @@ export default function MusicPage() {
         void loadSongs(1);
     }, [songSearch, tab, loadSongs]);
 
-    const loadTopSongs = useCallback(async () => {
-        setLoadingTopSongs(true);
+    const loadTopSongs = useCallback(async (force = false) => {
+        const listKey = `music:songs-top:${songPeriod}`;
+        const mapKey  = `music:songs-top-map:${songPeriod}`;
+        const cachedList = queryCache.get<TopListenEntry[]>(listKey);
+        const cachedMap  = queryCache.get<Record<string, SongResponse>>(mapKey);
+
+        if (!force && cachedList && cachedMap && !queryCache.isStale(listKey, STALE_MS)) {
+            setTopListen(cachedList);
+            setTopSongMap(cachedMap);
+            setError(null);
+            return;
+        }
+
+        if (!cachedList) setLoadingTopSongs(true);
         try {
             const period: ListenPeriod = songPeriod === 'WEEK' ? 'WEEK' : 'MONTH';
-            const list = await apiFetch<TopListenEntry[]>(`/social/admin/listen/top-songs?period=${period}&limit=12`, { ttlMs: 8_000 });
+            const list = await apiFetch<TopListenEntry[]>(`/social/admin/listen/top-songs?period=${period}&limit=12`, { ttlMs: 0 });
             const safe = Array.isArray(list) ? list : [];
+            queryCache.set(listKey, safe);
             setTopListen(safe);
             const ids = safe.map((x) => x.songId).filter((id): id is string => Boolean(id));
             if (ids.length) {
                 const params = new URLSearchParams();
                 for (const id of ids) params.append('ids', id);
-                const songs = await apiFetch<SongResponse[]>(`/songs/batch?${params.toString()}`, { ttlMs: 30_000 });
+                const songs = await apiFetch<SongResponse[]>(`/songs/batch?${params.toString()}`, { ttlMs: 0 });
                 const map: Record<string, SongResponse> = {};
-                for (const s of songs ?? []) {
-                    map[s.id] = s;
-                }
+                for (const s of songs ?? []) map[s.id] = s;
+                queryCache.set(mapKey, map);
                 setTopSongMap(map);
             } else {
                 setTopSongMap({});
@@ -325,10 +353,21 @@ export default function MusicPage() {
         }
     }, [songPeriod]);
 
-    const loadPlaylists = useCallback(async () => {
-        setLoadingPlaylists(true);
+    const loadPlaylists = useCallback(async (force = false) => {
+        const key = 'music:playlists-top';
+        const cached = queryCache.get<PageResult<Playlist>>(key);
+
+        if (!force && cached && !queryCache.isStale(key, STALE_MS)) {
+            setPlaylists(cached.content ?? []);
+            setTotalPlaylists(cached.totalElements ?? 0);
+            setError(null);
+            return;
+        }
+
+        if (!cached) setLoadingPlaylists(true);
         try {
-            const result = await apiFetch<PageResult<Playlist>>('/playlists/my-playlists?page=1&size=12', { ttlMs: 20_000 });
+            const result = await apiFetch<PageResult<Playlist>>('/playlists/my-playlists?page=1&size=12', { ttlMs: 0 });
+            queryCache.set(key, result);
             setPlaylists(result?.content ?? []);
             setTotalPlaylists(result?.totalElements ?? 0);
             setError(null);
@@ -341,13 +380,32 @@ export default function MusicPage() {
         }
     }, []);
 
-    const loadAlbums = useCallback(async () => {
-        setLoadingAlbums(true);
+    const loadAlbums = useCallback(async (force = false) => {
+        const topKey   = `music:albums-top:${albumPeriod}`;
+        const totalKey = 'music:albums-total';
+        const cachedTop   = queryCache.get<Album[]>(topKey);
+        const cachedTotal = queryCache.get<number>(totalKey);
+
+        if (!force && cachedTop && !queryCache.isStale(topKey, STALE_MS)) {
+            setTopAlbums(cachedTop);
+            if (cachedTotal !== undefined) setTotalAlbums(cachedTotal);
+            setError(null);
+            return;
+        }
+
+        if (!cachedTop) setLoadingAlbums(true);
         try {
-            const topEndpoint = albumPeriod === 'MONTH' ? '/admin/albums/top-favorites-month?limit=12' : '/admin/albums/top-favorites-week?limit=12';
-            const top = await apiFetch<Album[]>(topEndpoint, { ttlMs: 20_000 });
-            const total = await apiFetch<PageResult<Album>>('/albums?page=1&size=1', { ttlMs: 30_000 });
-            setTopAlbums(Array.isArray(top) ? top : []);
+            const topEndpoint = albumPeriod === 'MONTH'
+                ? '/admin/albums/top-favorites-month?limit=12'
+                : '/admin/albums/top-favorites-week?limit=12';
+            const [top, total] = await Promise.all([
+                apiFetch<Album[]>(topEndpoint, { ttlMs: 0 }),
+                apiFetch<PageResult<Album>>('/albums?page=1&size=1', { ttlMs: 0 }),
+            ]);
+            const topList = Array.isArray(top) ? top : [];
+            queryCache.set(topKey, topList);
+            queryCache.set(totalKey, total?.totalElements ?? 0);
+            setTopAlbums(topList);
             setTotalAlbums(total?.totalElements ?? 0);
             setError(null);
         } catch (e) {
@@ -360,20 +418,21 @@ export default function MusicPage() {
     }, [albumPeriod]);
 
     const refreshCurrentTab = useCallback(() => {
-        if (tab === 'songs') return void loadSongs(songsPage);
-        if (tab === 'songs-top') return void loadTopSongs();
-        if (tab === 'playlists-top') return void loadPlaylists();
-        if (tab === 'albums-top') return void loadAlbums();
-    }, [tab, loadSongs, loadTopSongs, loadPlaylists, loadAlbums, songsPage]);
+        if (tab === 'songs') { queryCache.invalidate('music:songs:'); return void loadSongs(songsPage, true); }
+        if (tab === 'songs-top') { queryCache.invalidate('music:songs-top:'); return void loadTopSongs(true); }
+        if (tab === 'playlists-top') { queryCache.invalidate('music:playlists-top'); return void loadPlaylists(true); }
+        if (tab === 'albums-top') { queryCache.invalidate('music:albums-top:'); queryCache.invalidate('music:albums-total'); return void loadAlbums(true); }
+        if (tab === 'genres') { queryCache.invalidate('music:genres'); return void fetchGenres(true); }
+    }, [tab, loadSongs, loadTopSongs, loadPlaylists, loadAlbums, songsPage, fetchGenres]);
 
     const loadByTab = useCallback((targetTab: MusicTab) => {
         if (targetTab === 'songs') return loadSongs(songsPage);
+        if (targetTab === 'genres') return fetchGenres();
         if (targetTab === 'songs-top') return loadTopSongs();
         if (targetTab === 'playlists-top') return loadPlaylists();
         if (targetTab === 'albums-top') return loadAlbums();
-        // genres, jamendo: no preload needed
         return Promise.resolve();
-    }, [loadAlbums, loadPlaylists, loadSongs, loadTopSongs, songsPage]);
+    }, [loadAlbums, loadPlaylists, loadSongs, loadTopSongs, songsPage, fetchGenres]);
 
     const changeSongsPage = (nextPage: number) => {
         const safePage = Math.min(totalSongPages, Math.max(1, nextPage));
@@ -389,16 +448,16 @@ export default function MusicPage() {
     }, [tab, loadedTabs, loadByTab]);
 
     useEffect(() => {
-        if (tab === 'songs-top') void loadTopSongs();
-    }, [songPeriod, tab, loadTopSongs]);
+        if (tab === 'songs-top') { queryCache.invalidate(`music:songs-top:${songPeriod}`); void loadTopSongs(true); }
+    }, [songPeriod]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (tab === 'playlists-top' && !loadedTabs['playlists-top']) void loadPlaylists();
     }, [tab, loadPlaylists, loadedTabs]);
 
     useEffect(() => {
-        if (tab === 'albums-top') void loadAlbums();
-    }, [albumPeriod, tab, loadAlbums]);
+        if (tab === 'albums-top') { queryCache.invalidate(`music:albums-top:${albumPeriod}`); void loadAlbums(true); }
+    }, [albumPeriod]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const close = openAdminRealtime(() => {
@@ -513,7 +572,7 @@ export default function MusicPage() {
                                     <SearchInput
                                         value={genreSearch}
                                         onChange={setGenreSearch}
-                                        onSearch={fetchGenres}
+                                        onSearch={() => { queryCache.invalidate('music:genres'); void fetchGenres(true); }}
                                         placeholder="Tìm kiếm thể loại..."
                                         label="Tìm kiếm"
                                         clearable={true}

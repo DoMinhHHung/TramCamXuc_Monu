@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { apiFetch } from '@/lib/api';
+import { queryCache, STALE_MS } from '@/lib/query-cache';
 import {
     CaretLeft,
     CaretRight,
@@ -282,13 +283,14 @@ function UserDetailModal({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 10;
+const usersKey = (p: number) => `users:${p}`;
 
 export default function UsersPage() {
-    const [users,      setUsers]      = useState<User[]>([]);
-    const [total,      setTotal]      = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
+    const [users,      setUsers]      = useState<User[]>(() => queryCache.get<PageResult>(usersKey(1))?.content ?? []);
+    const [total,      setTotal]      = useState(() => queryCache.get<PageResult>(usersKey(1))?.totalElements ?? 0);
+    const [totalPages, setTotalPages] = useState(() => queryCache.get<PageResult>(usersKey(1))?.totalPages ?? 1);
     const [page,       setPage]       = useState(1);
-    const [loading,    setLoading]    = useState(true);
+    const [loading,    setLoading]    = useState(() => queryCache.isStale(usersKey(1), STALE_MS));
     const [detail,     setDetail]     = useState<User | null>(null);
     const [busy,       setBusy]       = useState<string | null>(null);
     const [toast,      setToast]      = useState<{ msg: string; type: 'ok' | 'err' } | null>(null);
@@ -309,10 +311,23 @@ export default function UsersPage() {
     };
 
     // ── Fetch (server-side pagination) ────────────────────────────────────
-    const load = useCallback(async (p: number) => {
-        setLoading(true);
+    const load = useCallback(async (p: number, force = false) => {
+        const key = usersKey(p);
+        const cached = queryCache.get<PageResult>(key);
+
+        if (!force && cached && !queryCache.isStale(key, STALE_MS)) {
+            setUsers(cached.content);
+            setTotal(cached.totalElements);
+            setTotalPages(cached.totalPages);
+            setLoading(false);
+            return;
+        }
+
+        if (!cached) setLoading(true);
+
         try {
             const res = await apiFetch<PageResult>(`/users?page=${p}&size=${PAGE_SIZE}`);
+            queryCache.set(key, res);
             setUsers(res.content);
             setTotal(res.totalElements);
             setTotalPages(res.totalPages);
@@ -323,7 +338,7 @@ export default function UsersPage() {
         }
     }, []);
 
-    useEffect(() => { load(page); }, [page, load]);
+    useEffect(() => { void load(page); }, [page, load]);
 
     // ── Client-side search + filter (applied on top of current page) ──────
     const filtered = useMemo(() => {
@@ -418,7 +433,7 @@ export default function UsersPage() {
                     <Button
                         variant="outline"
                         size="icon-sm"
-                        onClick={() => { clearFilters(); load(page); }}
+                        onClick={() => { clearFilters(); queryCache.invalidate('users:'); void load(page, true); }}
                         disabled={loading}
                         title="Làm mới"
                     >
