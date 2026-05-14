@@ -10,8 +10,8 @@ import React, {
 import { useAudioPlayer, useAudioPlayerStatus, setAudioModeAsync } from 'expo-audio';
 
 import { getSongStreamUrl, recordPlay, recordListen, Song } from '../services/music';
-import { getMySubscription } from '../services/payment';
 import { getNextAd, AdDelivery } from '../services/ads';
+import { useSubscription } from '../hooks/useSubscription';
 import { isSongDownloaded } from '../services/download';
 import { addListenHistory } from '../utils/listenHistory';
 import { useAuth } from './AuthContext';
@@ -161,6 +161,7 @@ const PlayerControlContext = createContext<PlayerControlValue | null>(null);
 
 export const PlayerProvider = ({ children }: PropsWithChildren) => {
     const { authSession } = useAuth();
+    const { currentSubscription, isLoading: isSubscriptionLoading } = useSubscription();
     const prevProfileUserIdRef = useRef<string | undefined>(undefined);
     const [currentSong, setCurrentSong] = useState<Song | null>(null);
     const [queue, setQueue] = useState<Song[]>([]);
@@ -315,23 +316,27 @@ export const PlayerProvider = ({ children }: PropsWithChildren) => {
             selectedQualityRef.current = best;
             return;
         }
-        getMySubscription()
-            .then((sub) => {
-                if (sub?.plan?.features) {
-                    const features = sub.plan.features;
-                    noAdsRef.current = Boolean(features.no_ads);
-                    const max = parseMaxQuality(features);
-                    setMaxQuality(max);
-                    maxQualityRef.current = max;
-                    const best = autoQualityRef.current
-                        ? suggestQuality(networkTierRef.current, max)
-                        : Math.min(selectedQualityRef.current, max) as AudioQuality;
-                    setSelectedQuality(best);
-                    selectedQualityRef.current = best;
-                }
-            })
-            .catch(() => { });
-    }, [authSession]);
+        if (isSubscriptionLoading) return;
+        if (currentSubscription?.status === 'ACTIVE' && currentSubscription.plan?.features) {
+            const features = currentSubscription.plan.features;
+            noAdsRef.current = Boolean(features.no_ads);
+            const max = parseMaxQuality(features);
+            setMaxQuality(max);
+            maxQualityRef.current = max;
+            const best = autoQualityRef.current
+                ? suggestQuality(networkTierRef.current, max)
+                : Math.min(selectedQualityRef.current, max) as AudioQuality;
+            setSelectedQuality(best);
+            selectedQualityRef.current = best;
+        } else {
+            noAdsRef.current = false;
+            setMaxQuality(128);
+            maxQualityRef.current = 128;
+            const best = suggestQuality(networkTierRef.current, 128);
+            setSelectedQuality(best);
+            selectedQualityRef.current = best;
+        }
+    }, [authSession, currentSubscription, isSubscriptionLoading]);
 
     useEffect(() => {
         resetAdSession();
