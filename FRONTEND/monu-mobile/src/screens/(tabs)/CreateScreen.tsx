@@ -47,6 +47,7 @@ import { uiPresets } from '../../config/uiPresets';
 const ALLOWED_EXTENSIONS = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a'] as const;
 const LYRIC_EXTENSIONS = ['lrc', 'srt', 'txt'] as const;
 const COVER_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'] as const;
+const AI_QUOTA_EXCEEDED_ERROR_CODE = 2701;
 const getCurrentAiQuotaPeriod = () => {
   const now = new Date();
   const month = `${now.getMonth() + 1}`.padStart(2, '0');
@@ -665,8 +666,7 @@ export const CreateScreen = () => {
       setAiJobStatus(job.status);
     } catch (err: any) {
       const code = err?.response?.data?.code;
-      // Error code 2701: AI generation quota exceeded.
-      if (code === 2701) {
+      if (code === AI_QUOTA_EXCEEDED_ERROR_CODE) {
         const userId = authSession?.profile?.id;
         if (userId) {
           setAiUsedGenerations(aiMaxGenerationsPerMonth);
@@ -737,7 +737,7 @@ export const CreateScreen = () => {
       resetAiMusicUi();
       Alert.alert(
         t('screens.create.aiMusicRejectedTitle', 'Preview discarded'),
-        t('screens.create.aiMusicRejectedMessage', 'The preview was discarded. If a draft still appears in Library, pull to refresh.'),
+        t('screens.create.aiMusicRejectedMessage', 'The preview was discarded. Reopen Library to sync the latest songs list.'),
       );
     } catch (err: any) {
       Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? '');

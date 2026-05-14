@@ -535,7 +535,7 @@
       "aiMusicAcceptedMessagePublish": "Đang xử lý để đăng công khai. Mở Thư viện → Bài hát.",
       "aiMusicAcceptedMessagePrivate": "Đã lưu riêng tư. Mở Thư viện → Bài hát để nghe.",
       "aiMusicRejectedTitle": "Đã huỷ preview",
-      "aiMusicRejectedMessage": "Preview đã được huỷ. Nếu còn thấy bản nháp ở Thư viện, hãy kéo để làm mới."
+      "aiMusicRejectedMessage": "Preview đã được huỷ. Hãy mở lại Thư viện để đồng bộ danh sách bài hát mới nhất."
     },
     "editSong": {
       "title": "Chỉnh sửa bài hát",

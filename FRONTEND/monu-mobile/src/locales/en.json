@@ -515,7 +515,7 @@
       "aiMusicAcceptedMessagePublish": "Processing for public release. Open Library → Songs.",
       "aiMusicAcceptedMessagePrivate": "Saved as private. Open Library → Songs to play.",
       "aiMusicRejectedTitle": "Preview discarded",
-      "aiMusicRejectedMessage": "The preview was discarded. If a draft still appears in Library, pull to refresh."
+      "aiMusicRejectedMessage": "The preview was discarded. Reopen Library to sync the latest songs list."
     },
     "editSong": {
       "title": "Edit Song",
