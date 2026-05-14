@@ -1825,6 +1825,12 @@ export const DiscoverScreen = () => {
           return newPosts;
         }
       })();
+      filteredPosts.sort((a, b) => {
+        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tB - tA;
+      });
+
       const nextSignature = filteredPosts
         .map(p =>
           [

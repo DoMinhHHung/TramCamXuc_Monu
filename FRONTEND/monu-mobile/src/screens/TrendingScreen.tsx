@@ -158,12 +158,6 @@ export const TrendingScreen = () => {
           </View>
         )}
 
-        {/* Footer note */}
-        {songs.length > 0 && (
-          <Text style={styles.footerNote}>
-            Bảng xếp hạng cập nhật mỗi 2 phút · Decay score mỗi giờ
-          </Text>
-        )}
       </Animated.ScrollView>
     </LinearGradient>
   );

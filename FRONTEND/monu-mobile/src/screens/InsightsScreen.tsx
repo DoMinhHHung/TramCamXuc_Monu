@@ -148,7 +148,12 @@ export const InsightsScreen = () => {
         try {
             await apiClient.get('/artists/me');
             setIsArtist(true);
+        } catch {
+            setIsArtist(false);
+            return;
+        }
 
+        try {
             const mySongsPage = await getMySongs({ page: 1, size: 20, noCache: true });
             const songs = mySongsPage.content ?? [];
             const rows = await Promise.all(
@@ -163,7 +168,6 @@ export const InsightsScreen = () => {
             );
             setArtistSongs(rows);
         } catch {
-            setIsArtist(false);
             setArtistSongs([]);
         }
     }, []);
@@ -176,7 +180,8 @@ export const InsightsScreen = () => {
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         void load(period, true);
-    }, [period, load]);
+        void loadArtistStats();
+    }, [period, load, loadArtistStats]);
 
     // ── Peak hour ──────────────────────────────────────────────────────────────
     const peakHour = insights?.listeningByHour

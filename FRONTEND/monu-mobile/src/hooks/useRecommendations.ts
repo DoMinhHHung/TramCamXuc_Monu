@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { useAuth } from '../context/AuthContext';
 import { Song, getTrendingSongs } from '../services/music';
-import { getMySubscriptionOrNull } from '../services/payment';
+import { useSubscription } from './useSubscription';
 
 const REC_CACHE_KEY = 'rec_cache_v2';
 import {
@@ -55,6 +55,11 @@ const mapMusicSongToRecommended = (song: Song): RecommendedSong => ({
 
 export function useRecommendations() {
   const { authSession } = useAuth();
+  const { currentSubscription } = useSubscription();
+  // Ref so runHomeSocial can read the latest subscription without being a formal dep
+  const subRef = useRef(currentSubscription);
+  subRef.current = currentSubscription;
+
   const [basicHomeFeed, setBasicHomeFeed] = useState<HomeRecommendation | null>(null);
   const [advanceHomeFeed, setAdvanceHomeFeed] = useState<HomeRecommendation | null>(null);
   const [globalTrending, setGlobalTrending] = useState<RecommendedSong[]>([]);
@@ -69,6 +74,7 @@ export function useRecommendations() {
   const [isStale, setIsStale] = useState(false);
 
   const isMountedRef = useRef(true);
+  const prevSubKeyRef = useRef('');
 
   const runTrendingReleases = useCallback(async (): Promise<string[]> => {
     const errors: string[] = [];
@@ -132,13 +138,9 @@ export function useRecommendations() {
       return errors;
     }
 
-    let adv = false;
-    try {
-      const sub = await getMySubscriptionOrNull();
-      adv = isAdvancedRecommendationPlan(sub?.plan?.features as Record<string, unknown> | undefined);
-    } catch {
-      adv = false;
-    }
+    const adv = isAdvancedRecommendationPlan(
+      subRef.current?.plan?.features as Record<string, unknown> | undefined,
+    );
     if (isMountedRef.current) {
       setAdvancedRecEnabled(adv);
     }
@@ -174,6 +176,17 @@ export function useRecommendations() {
 
     return errors;
   }, [authSession]);
+
+  // Re-run personal recommendations when subscription status or plan changes
+  // (e.g., user just purchased a plan that includes advanced recommendations)
+  useEffect(() => {
+    const key = `${currentSubscription?.status ?? ''}:${currentSubscription?.plan?.id ?? ''}`;
+    if (prevSubKeyRef.current === key) return;
+    prevSubKeyRef.current = key;
+    if (!isMountedRef.current) return;
+    void runHomeSocial();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSubscription?.status, currentSubscription?.plan?.id]);
 
   const fetchAll = useCallback(async (silent = false) => {
     // Kiểm tra network trước khi fetch

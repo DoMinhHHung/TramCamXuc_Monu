@@ -536,7 +536,7 @@ export const SearchScreen = () => {
                         <View style={styles.waveContainer}>
                             {waveAnims.map((anim, i) => (
                                 <Animated.View
-                                    key={i}
+                                    key={`wave-${i}`}
                                     style={[
                                         styles.waveBar,
                                         { transform: [{ scaleY: anim }] },
@@ -696,7 +696,7 @@ export const SearchScreen = () => {
                         <View>
                             <Text style={styles.sectionTitle}>{t('screens.search.tabSongs', 'Track')}</Text>
                             {songResults.map((item, index) => (
-                                <View key={item.id}>{renderSongItem({ item, index })}</View>
+                                <View key={item.id ?? `song-${index}`}>{renderSongItem({ item, index })}</View>
                             ))}
                         </View>
                     )}
@@ -704,8 +704,8 @@ export const SearchScreen = () => {
                     {artistResults.length > 0 && (
                         <View>
                             <Text style={styles.sectionTitle}>{t('screens.search.tabArtists', 'Artist')}</Text>
-                            {artistResults.map((item) => (
-                                <View key={item.artistId}>{renderArtistItem({ item })}</View>
+                            {artistResults.map((item, index) => (
+                                <View key={item.artistId ?? `artist-${index}`}>{renderArtistItem({ item })}</View>
                             ))}
                         </View>
                     )}
