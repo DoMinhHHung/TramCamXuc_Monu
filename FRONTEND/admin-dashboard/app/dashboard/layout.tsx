@@ -97,7 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 <p className="text-[13px] font-semibold tracking-tight text-slate-900 dark:text-slate-100 leading-none">
                                     Phazel Sound
                                 </p>
-                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                                <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1 font-medium">
                                     Bảng quản trị
                                 </p>
                             </div>
@@ -118,14 +118,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 group flex items-center gap-3 px-3.5 h-10 text-[13px] rounded-2xl transition-all duration-200 font-medium
                                 ${active
                                     ? 'bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/20'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                                    : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50'
                                 }
                             `}
                             >
                                 <span className={`size-7 rounded-xl flex items-center justify-center transition-colors ${
                                     active
                                         ? 'bg-white/20'
-                                        : 'bg-slate-100 text-slate-500 dark:bg-slate-800/90 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
+                                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800/90 dark:text-slate-300 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
                                 }`}>
                                     <Icon
                                         size={17}
@@ -142,7 +142,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="px-3 py-4 border-t border-slate-200 dark:border-slate-800/80 shrink-0 space-y-2">
                     <button
                         onClick={toggle}
-                        className="flex items-center gap-3 px-4 h-10 text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60 w-full rounded-2xl transition-all duration-200"
+                        className="flex items-center gap-3 px-4 h-10 text-[13px] font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60 w-full rounded-2xl transition-all duration-200"
                     >
                         {isDark
                             ? <Sun size={18} weight="regular" className="opacity-70" />
@@ -151,7 +151,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </button>
                     <button
                         onClick={logout}
-                        className="flex items-center gap-3 px-4 h-10 text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 w-full rounded-2xl transition-all duration-200"
+                        className="flex items-center gap-3 px-4 h-10 text-[13px] font-medium text-slate-700 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 w-full rounded-2xl transition-all duration-200"
                     >
                         <SignOut size={18} weight="regular" className="opacity-70" />
                         <span className="truncate">Đăng xuất</span>
@@ -164,10 +164,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 Q
                             </div>
                             <div className="min-w-0 flex-1">
-                                <p className="text-[11px] font-bold text-slate-900 dark:text-slate-200 truncate leading-none">
+                                <p className="text-[11px] font-bold text-slate-900 dark:text-slate-100 truncate leading-none">
                                     Quản trị viên
                                 </p>
-                                <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                                <p className="text-[9px] text-slate-600 dark:text-slate-400 mt-0.5 font-mono">
                                     Administrator
                                 </p>
                             </div>
@@ -192,7 +192,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     {/* Mobile menu toggle */}
                     <button
-                        className="lg:hidden text-zinc-400 dark:text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors"
+                        className="lg:hidden text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                         onClick={() => setOpen(!open)}
                     >
                         {open ? <X size={18} /> : <List size={18} />}
@@ -210,7 +210,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     <span className={
                                         isLast
                                             ? 'font-semibold bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500 bg-clip-text text-transparent truncate'
-                                            : 'text-slate-500 dark:text-slate-400 truncate'
+                                            : 'text-slate-600 dark:text-slate-400 truncate'
                                     }>
                                         {SEGMENT_LABELS[seg] ?? seg}
                                     </span>
