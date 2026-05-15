@@ -89,7 +89,7 @@ const tabMeta: Record<keyof MainTabParamList, { label: string; icon: AppIconName
     Discover: { label: 'Khám phá', icon: 'discover' },
     Create: { label: 'Tạo', icon: 'create' },
     Library: { label: 'Thư viện', icon: 'library' },
-    Premium: { label: 'TramCamXuc Plus', icon: 'premium' },
+    Premium: { label: 'Plus', icon: 'premium' },
 };
 
 const linking: LinkingOptions<any> = {
@@ -102,7 +102,7 @@ const MAIN_TAB_LEAF_ROUTE_NAMES = new Set<string>(['Home', 'Discover', 'Create',
 const MainTabNavigator = () => {
     const insets = useSafeAreaInsets();
     const { prefetch: prefetchLibrary } = useLibraryData();
-    const tabBarHeight = MAIN_TAB_BAR_BASE_HEIGHT + insets.bottom;
+    const tabBarHeight = MAIN_TAB_BAR_BASE_HEIGHT + Math.max(insets.bottom, 8);
     const themeColors = useThemeColors();
 
     const libraryTabButton = useCallback(
@@ -128,14 +128,14 @@ const MainTabNavigator = () => {
                     tabBarLabel: meta.label,
                     tabBarStyle: {
                         position: 'absolute',
-                        left: 16,
-                        width: '90%',
-                        bottom: 24,
+                        left: 12,
+                        right: 12,
+                        bottom: Math.max(12, insets.bottom + 6),
                         backgroundColor: 'transparent',
                         borderTopWidth: 0,
                         borderRadius: 30,
-                        height: 85,
-                        paddingBottom: Math.max(10, insets.bottom > 0 ? insets.bottom - 2 : 10),
+                        height: tabBarHeight,
+                        paddingBottom: Math.max(10, insets.bottom + 2),
                         paddingTop: 10,
                         ...styles.tabBarShadow,
                     },
@@ -155,12 +155,20 @@ const MainTabNavigator = () => {
                     tabBarActiveTintColor: themeColors.accent,
                     tabBarInactiveTintColor: themeColors.glass45,
                     tabBarLabelStyle: {
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: '700',
-                        marginTop: 2,
+                        marginTop: 0,
+                        lineHeight: 14,
                     },
-                    tabBarIcon: ({ color }: { color: string; focused: boolean }) => (
-                        <View style={styles.tabIconWrap}>
+                    tabBarItemStyle: {
+                        paddingTop: 2,
+                        paddingBottom: 4,
+                    },
+                    tabBarIcon: ({ color, focused }: { color: string; focused: boolean }) => (
+                        <View style={[
+                            styles.tabIconWrap,
+                            focused && { backgroundColor: themeColors.accentFill20 },
+                        ]}>
                             <AppIcon name={meta.icon} size={20} color={color} />
                         </View>
                     ),
@@ -313,7 +321,14 @@ const styles = StyleSheet.create({
         flex: 1, alignItems: 'center', justifyContent: 'center',
         backgroundColor: COLORS.bg,
     },
-    tabIconWrap: { alignItems: 'center', justifyContent: 'center' },
+    tabIconWrap: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 34,
+        minHeight: 28,
+        borderRadius: 14,
+        marginBottom: 2,
+    },
     tabBarShadow: {
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 10 },

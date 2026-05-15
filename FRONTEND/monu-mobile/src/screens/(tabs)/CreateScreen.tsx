@@ -24,11 +24,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useUpload, UploadStage } from '../../context/UploadContext';
 import { useTranslation } from '../../context/LocalizationContext';
 import { apiClient } from '../../services/api';
-import { Genre } from '../../services/music';
+import { deleteOwnedSong, Genre } from '../../services/music';
 import { getPopularGenres } from '../../services/favorites';
 import {
   acceptAiMusicJob,
   createAiMusicJob,
+  getAiMusicQuota,
   getAiMusicJob,
   improveLyricsWithGoogle,
   keepPrivateAiMusicJob,
@@ -151,6 +152,8 @@ export const CreateScreen = () => {
   const [aiBusy, setAiBusy]               = useState(false);
   const [improveBusy, setImproveBusy]   = useState(false);
   const [createTab, setCreateTab]       = useState<'upload' | 'ai'>('upload');
+  const [aiQuotaRemaining, setAiQuotaRemaining] = useState<number | null>(null);
+  const [aiQuotaLimit, setAiQuotaLimit] = useState<number | null>(null);
 
   const resetAiMusicUi = useCallback(() => {
     setAiJobId(null);
@@ -163,6 +166,23 @@ export const CreateScreen = () => {
   useEffect(() => {
     void loadPageData();
   }, [authSession?.tokens.accessToken]);
+
+  useEffect(() => {
+    if (!authSession || !showAiMusicSection) return;
+    let cancelled = false;
+    getAiMusicQuota()
+      .then((quota) => {
+        if (cancelled) return;
+        setAiQuotaRemaining(quota.remaining);
+        setAiQuotaLimit(quota.limit);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAiQuotaRemaining(null);
+        setAiQuotaLimit(null);
+      });
+    return () => { cancelled = true; };
+  }, [authSession, showAiMusicSection]);
 
   useEffect(() => {
     if (!job || job.stage === 'idle') return;
@@ -596,6 +616,7 @@ export const CreateScreen = () => {
       });
       setAiJobId(job.jobId);
       setAiJobStatus(job.status);
+      setAiQuotaRemaining((prev) => (typeof prev === 'number' ? Math.max(0, prev - 1) : prev));
     } catch (err: any) {
       Alert.alert(
         t('common.error'),
@@ -654,7 +675,11 @@ export const CreateScreen = () => {
     if (!aiJobId) return;
     setAiBusy(true);
     try {
+      const jobSnapshot = await getAiMusicJob(aiJobId).catch(() => null);
       await rejectAiMusicJob(aiJobId);
+      if (jobSnapshot?.draftSongId) {
+        await deleteOwnedSong(jobSnapshot.draftSongId).catch(() => null);
+      }
       resetAiMusicUi();
     } catch (err: any) {
       Alert.alert(t('common.error'), err?.response?.data?.message ?? err?.message ?? '');
@@ -1148,6 +1173,11 @@ export const CreateScreen = () => {
                       'AI music is powered by Sonauto (ElevenLabs as backup). Sonauto requires attribution for user-facing API use.'
                     )}
                   </Text>
+                  <Text style={styles.aiQuotaText}>
+                    {aiQuotaRemaining == null
+                      ? t('screens.create.aiQuotaUnknown', 'AI credits remaining: --')
+                      : `${t('screens.create.aiQuotaRemaining', 'AI credits remaining')}: ${aiQuotaRemaining}${typeof aiQuotaLimit === 'number' ? ` / ${aiQuotaLimit}` : ''}`}
+                  </Text>
 
                   <Text style={styles.fieldLabel}>{t('screens.create.songTitleLabel', 'Song title')}</Text>
                   <TextInput
@@ -1525,6 +1555,12 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     lineHeight: 16,
     marginTop: 2,
     fontStyle: 'italic',
+  },
+  aiQuotaText: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 6,
   },
 
   // ── Form fields ──────────────────────────────────────────────────────────
