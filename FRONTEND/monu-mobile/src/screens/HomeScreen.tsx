@@ -791,7 +791,6 @@ export const HomeScreen = () => {
 
         {/* ... remaining legacy sections ... */}
 
-        {/* ── NGOẠI NỀN TẢNG (cuối trang) ──────────────────────────────── */}
         {(externalSections.soundcloudTracks.length > 0 || externalSections.spotifyTracks.length > 0) && (
           <View style={styles.platformWrapper}>
             <View style={[styles.sectionHeader, { marginBottom: 14 }]}>

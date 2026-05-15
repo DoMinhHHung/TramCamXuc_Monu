@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 import { COLORS } from '../config/colors';
-import { MAIN_TAB_BAR_BASE_HEIGHT, MINI_PLAYER_HEIGHT } from '../config/design';
+import { MAIN_TAB_BAR_BASE_HEIGHT, MINI_PLAYER_HEIGHT, getTabBarBottomOffset } from '../config/design';
 import { AppIcon, AppIconName } from '../config/appIcons';
 import { useAuth } from '../context/AuthContext';
 import { usePlayerState } from '../context/PlayerContext';
@@ -102,7 +102,9 @@ const MAIN_TAB_LEAF_ROUTE_NAMES = new Set<string>(['Home', 'Discover', 'Create',
 const MainTabNavigator = () => {
     const insets = useSafeAreaInsets();
     const { prefetch: prefetchLibrary } = useLibraryData();
-    const tabBarHeight = MAIN_TAB_BAR_BASE_HEIGHT + Math.max(insets.bottom, 8);
+    // Floating pill: fixed height, safe area handled by bottom offset only
+    const tabBarHeight = MAIN_TAB_BAR_BASE_HEIGHT;
+    const tabBarBottom = getTabBarBottomOffset(insets.bottom);
     const themeColors = useThemeColors();
 
     const libraryTabButton = useCallback(
@@ -130,12 +132,12 @@ const MainTabNavigator = () => {
                         position: 'absolute',
                         left: 12,
                         right: 12,
-                        bottom: Math.max(12, insets.bottom + 6),
+                        bottom: tabBarBottom,
                         backgroundColor: 'transparent',
                         borderTopWidth: 0,
                         borderRadius: 30,
                         height: tabBarHeight,
-                        paddingBottom: Math.max(10, insets.bottom + 2),
+                        paddingBottom: 10,
                         paddingTop: 10,
                         ...styles.tabBarShadow,
                     },
@@ -192,8 +194,10 @@ const GlobalOverlays = ({ routeName }: { routeName: string | null }) => {
     const insets = useSafeAreaInsets();
     const { pendingAd, dismissAd, currentSong, adNotice, setChromeBottomInset } = usePlayerState();
     const overMainTabLeaf = routeName != null && MAIN_TAB_LEAF_ROUTE_NAMES.has(routeName);
+    // Tab bar top edge = bottom offset + pill height; mini player sits 8px above that
+    const tabBarTopEdge = getTabBarBottomOffset(insets.bottom) + MAIN_TAB_BAR_BASE_HEIGHT;
     const miniPlayerBottomInset = overMainTabLeaf
-        ? MAIN_TAB_BAR_BASE_HEIGHT + insets.bottom
+        ? tabBarTopEdge + 8
         : Math.max(insets.bottom, 8) + 8;
 
     useEffect(() => {

@@ -8,6 +8,7 @@ import iuh.fit.se.musicservice.dto.internal.payment.InternalAiMusicQuotaResponse
 import iuh.fit.se.musicservice.dto.messaging.AiMusicGenerateMessage;
 import iuh.fit.se.musicservice.dto.request.AiMusicCreateJobRequest;
 import iuh.fit.se.musicservice.dto.response.AiMusicJobResponse;
+import iuh.fit.se.musicservice.dto.response.AiMusicQuotaResponse;
 import iuh.fit.se.musicservice.dto.response.SongResponse;
 import iuh.fit.se.musicservice.entity.Artist;
 import iuh.fit.se.musicservice.entity.Genre;
@@ -378,6 +379,17 @@ public class AiMusicJobServiceImpl implements AiMusicJobService {
             storageService.deleteRawObject(song.getRawFileKey());
         }
         songRepository.delete(song);
+    }
+
+    @Override
+    public AiMusicQuotaResponse getQuota() {
+        UUID userId = currentUserId();
+        InternalAiMusicQuotaResponse q = paymentAiMusicInternalClient.getQuota(userId, currentPeriodYm());
+        return AiMusicQuotaResponse.builder()
+                .remaining(q.getRemainingGenerations())
+                .limit(q.getMaxGenerationsPerMonth())
+                .resetAt(null)
+                .build();
     }
 
     private AiMusicJobRedisState readState(UUID jobId) {

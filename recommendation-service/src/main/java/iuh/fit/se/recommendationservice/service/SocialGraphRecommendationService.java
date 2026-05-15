@@ -112,6 +112,7 @@ public class SocialGraphRecommendationService {
                                 .artistId(a != null ? a.getArtistId() : null)
                                 .artistStageName(a != null ? a.getStageName() : null)
                                 .artistAvatarUrl(a != null ? a.getAvatarUrl() : null)
+                                .genres(s.getGenres())
                                 .reason(RecommendedSongDto.ReasonType.CROWD_PICK)
                                 .reasonContext("Fan " + topGenreName + " đang nghe")
                                 .build();

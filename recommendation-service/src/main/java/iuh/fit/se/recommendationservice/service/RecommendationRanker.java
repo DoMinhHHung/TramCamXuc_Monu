@@ -167,6 +167,7 @@ public class RecommendationRanker {
                             .artistId(a != null ? a.getArtistId() : null)
                             .artistStageName(a != null ? a.getStageName() : null)
                             .artistAvatarUrl(a != null ? a.getAvatarUrl() : null)
+                            .genres(d.getGenres())
                             .reason(RecommendedSongDto.ReasonType.BECAUSE_YOU_LISTEN)
                             .debugScore(debug ? ss.finalScore() : null)
                             .build();
@@ -207,6 +208,7 @@ public class RecommendationRanker {
                             .artistId(a != null ? a.getArtistId() : null)
                             .artistStageName(a != null ? a.getStageName() : null)
                             .artistAvatarUrl(a != null ? a.getAvatarUrl() : null)
+                            .genres(d.getGenres())
                             .reason(genreId != null
                                     ? RecommendedSongDto.ReasonType.TRENDING_IN_GENRE
                                     : RecommendedSongDto.ReasonType.TRENDING_NOW)

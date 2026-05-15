@@ -4,6 +4,7 @@ import iuh.fit.se.musicservice.dto.request.AiMusicCreateJobRequest;
 import iuh.fit.se.musicservice.dto.request.AiMusicFinalizeRequest;
 import iuh.fit.se.musicservice.dto.request.ImproveLyricsRequest;
 import iuh.fit.se.musicservice.dto.response.AiMusicJobResponse;
+import iuh.fit.se.musicservice.dto.response.AiMusicQuotaResponse;
 import iuh.fit.se.musicservice.dto.response.ApiResponse;
 import iuh.fit.se.musicservice.dto.response.ImproveLyricsResponse;
 import iuh.fit.se.musicservice.dto.response.SongResponse;
@@ -26,6 +27,14 @@ public class AiMusicController {
 
     private final AiMusicJobService aiMusicJobService;
     private final GoogleLyricsImprovementService googleLyricsImprovementService;
+
+    @GetMapping("/quota")
+    @PreAuthorize("hasRole('ARTIST')")
+    public ApiResponse<AiMusicQuotaResponse> getQuota() {
+        return ApiResponse.<AiMusicQuotaResponse>builder()
+                .result(aiMusicJobService.getQuota())
+                .build();
+    }
 
     @PostMapping("/improve-lyrics")
     @PreAuthorize("hasRole('ARTIST')")

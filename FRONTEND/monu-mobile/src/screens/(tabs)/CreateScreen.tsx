@@ -162,6 +162,14 @@ export const CreateScreen = () => {
     setAiError(null);
   }, []);
 
+  const isBanned   = authSession?.profile?.status === 'BANNED' ||
+      artistProfile?.status === 'BANNED';
+  const isArtist   = !!artistProfile?.id;
+  const canUpload  = !isBanned && isArtist && hasActiveSub;
+  const aiMusicPlanEnabled =
+      truthyFeature(planFeatures.ai_music_enabled) && truthyFeature(planFeatures.can_become_artist);
+  const showAiMusicSection = canUpload && aiMusicPlanEnabled;
+
   // ── Load on mount ──────────────────────────────────────────────────────────
   useEffect(() => {
     void loadPageData();
@@ -247,17 +255,8 @@ export const CreateScreen = () => {
     }
   };
 
-  // ── Derived state ──────────────────────────────────────────────────────────
-  const isBanned       = authSession?.profile?.status === 'BANNED' ||
-      artistProfile?.status === 'BANNED';
-  const isArtist       = !!artistProfile?.id;
-  const canUpload      = !isBanned && isArtist && hasActiveSub;
   const isUploadActive = job !== null &&
       ['requesting', 'uploading', 'confirming'].includes(job.stage);
-
-  const aiMusicPlanEnabled =
-      truthyFeature(planFeatures.ai_music_enabled) && truthyFeature(planFeatures.can_become_artist);
-  const showAiMusicSection = canUpload && aiMusicPlanEnabled;
 
   const aiMaxDurationSec = useMemo(() => {
     const raw = planFeatures.ai_music_max_duration_seconds;
@@ -727,7 +726,7 @@ export const CreateScreen = () => {
       <View style={styles.root}>
         <StatusBar style={getStatusBarStyle(themeColors.bg)} />
         <ScrollView
-            contentContainerStyle={{ paddingBottom: layout.tabBarHeight + layout.miniPlayerHeight + 16 }}
+            contentContainerStyle={{ paddingBottom: layout.playerOffset }}
             showsVerticalScrollIndicator={false}
         >
           {/* ── Hero header ──────────────────────────────────────────── */}

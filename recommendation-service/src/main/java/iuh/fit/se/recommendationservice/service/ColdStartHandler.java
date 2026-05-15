@@ -402,6 +402,7 @@ public class ColdStartHandler {
                 .artistId(artist != null ? artist.getArtistId() : null)
                 .artistStageName(artist != null ? artist.getStageName() : null)
                 .artistAvatarUrl(artist != null ? artist.getAvatarUrl() : null)
+                .genres(song.getGenres())
                 .reason(reason)
                 .reasonContext(reasonContext)
                 .build();

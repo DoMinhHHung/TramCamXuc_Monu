@@ -2190,7 +2190,7 @@ export const LibraryScreen = () => {
             tintColor={themeColors.accent}
           />
         }
-        contentContainerStyle={{ paddingBottom: layout.tabBarHeight + layout.miniPlayerHeight + 16 }}
+        contentContainerStyle={{ paddingBottom: layout.playerOffset }}
       >
         {/* Header */}
         <LinearGradient
