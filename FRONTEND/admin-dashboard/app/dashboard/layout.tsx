@@ -81,7 +81,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* ── Sidebar ───────────────────────────────────────── */}
             <aside className={`
                 fixed inset-y-0 left-0 z-50 w-56 flex flex-col
-                bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm
+                bg-white/96 dark:bg-[#0b1020]/95 backdrop-blur-sm
                 border-r border-slate-200 dark:border-slate-800/80
                 transition-transform duration-300 ease-out
                 ${open ? 'translate-x-0' : '-translate-x-full'}
@@ -89,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             `}>
 
                 {/* Brand */}
-                <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-slate-800/80 shrink-0 gap-3 bg-white/80 dark:bg-slate-950/80">
+                <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-slate-800/80 shrink-0 gap-3 bg-white/85 dark:bg-[#0b1020]/85">
                     <div className="flex-1">
                         <div className="flex items-center gap-3">
                             <LogoIcon size={40} />
@@ -117,8 +117,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             className={`
                                 group flex items-center gap-3 px-3.5 h-10 text-[13px] rounded-2xl transition-all duration-200 font-medium
                                 ${active
-                                    ? 'bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 text-white shadow-lg shadow-violet-500/25'
-                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                                    ? 'bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/20'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                                 }
                             `}
                             >
@@ -159,7 +159,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     {/* User profile section */}
                     <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-indigo-50 to-cyan-50 dark:from-slate-800 dark:to-slate-900 hover:from-indigo-100 dark:hover:from-slate-700 transition-all duration-200 cursor-pointer">
+                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 hover:from-slate-200 dark:hover:from-slate-700 transition-all duration-200 cursor-pointer">
                             <div className="size-9 bg-gradient-to-br from-yellow-400 via-pink-500 to-blue-500 rounded-full flex items-center justify-center shrink-0 text-white font-bold text-sm">
                                 Q
                             </div>
@@ -188,7 +188,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex-1 lg:ml-56 flex flex-col min-h-screen">
 
                 {/* Top header */}
-                <header className="h-14 border-b border-slate-200 dark:border-slate-800/80 flex items-center px-5 gap-4 shrink-0 bg-white/90 dark:bg-slate-950/90 backdrop-blur-sm sticky top-0 z-30 shadow-sm dark:shadow-lg dark:shadow-slate-900/20">
+                <header className="h-14 border-b border-slate-200 dark:border-slate-800/80 flex items-center px-5 gap-4 shrink-0 bg-white/90 dark:bg-[#0b1020]/90 backdrop-blur-sm sticky top-0 z-30 shadow-sm dark:shadow-lg dark:shadow-slate-900/20">
 
                     {/* Mobile menu toggle */}
                     <button
@@ -209,7 +209,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     )}
                                     <span className={
                                         isLast
-                                            ? 'font-semibold bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 bg-clip-text text-transparent truncate'
+                                            ? 'font-semibold bg-gradient-to-r from-indigo-500 via-violet-500 to-cyan-500 bg-clip-text text-transparent truncate'
                                             : 'text-slate-500 dark:text-slate-400 truncate'
                                     }>
                                         {SEGMENT_LABELS[seg] ?? seg}
@@ -230,15 +230,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </button>
 
                         {/* Status indicator */}
-                        <div className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-violet-50 to-cyan-100 dark:from-violet-950/40 dark:to-cyan-900/30 border border-violet-200 dark:border-violet-800/60 rounded-full shadow-sm dark:shadow-violet-950/20">
+                        <div className="flex items-center gap-2 px-4 h-9 bg-slate-100/90 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700/70 rounded-full shadow-sm">
                             <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[11px] font-semibold text-violet-700 dark:text-violet-300">Hoạt động</span>
+                            <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">Hoạt động</span>
                         </div>
                     </div>
                 </header>
 
                 {/* Page content */}
-                <main className="flex-1 p-5 lg:p-8 bg-gradient-to-br from-slate-50 via-indigo-50/30 to-cyan-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+                <main className="flex-1 p-5 lg:p-8 bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-[#090d1a] dark:via-[#0b1020] dark:to-[#0e152b]">
                     {children}
                 </main>
             </div>
