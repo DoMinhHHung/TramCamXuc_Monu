@@ -435,7 +435,7 @@ export const PlaylistDetailScreen = () => {
         <DraggableFlatList
           data={playlist?.songs ?? []}
           keyExtractor={(item) => item.playlistSongId || item.songId}
-          contentContainerStyle={{ paddingBottom: layout.tabBarHeight + layout.miniPlayerHeight + 16, paddingHorizontal: 12, paddingTop: 8 }}
+          contentContainerStyle={{ paddingBottom: layout.nonTabPlayerOffset, paddingHorizontal: 12, paddingTop: 8 }}
           ListHeaderComponent={(
             <>
               <LinearGradient

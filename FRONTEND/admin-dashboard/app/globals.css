@@ -165,11 +165,15 @@
 @layer components {
   /* Glass morphism effect */
   .glass {
-    @apply bg-[rgba(26,31,58,0.4)] backdrop-blur-md border border-white/10;
+    @apply bg-white/95 dark:bg-[rgba(22,28,56,0.82)] backdrop-blur-md border border-black/8 dark:border-white/12;
   }
 
   .glass-hover {
-    @apply bg-[rgba(26,31,58,0.4)] backdrop-blur-md border border-white/10 transition-all duration-300 hover:bg-[rgba(26,31,58,0.6)] hover:border-white/15 hover:shadow-xl;
+    @apply bg-white/95 dark:bg-[rgba(22,28,56,0.82)] backdrop-blur-md border border-black/8 dark:border-white/12
+           transition-all duration-300
+           hover:bg-white dark:hover:bg-[rgba(26,32,64,0.95)]
+           hover:border-black/12 dark:hover:border-white/20
+           hover:shadow-xl;
   }
 
   /* Gradient text */

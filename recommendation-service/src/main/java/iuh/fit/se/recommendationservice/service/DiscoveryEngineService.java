@@ -76,6 +76,7 @@ public class DiscoveryEngineService {
                         .artistId(s.getArtistId())
                         .artistStageName(s.getArtistStageName())
                         .artistAvatarUrl(s.getArtistAvatarUrl())
+                        .genres(s.getGenres())
                         .reason(RecommendedSongDto.ReasonType.DISCOVERY)
                         .reasonContext("Khám phá · " + genreLabel)
                         .isDiscovery(true)

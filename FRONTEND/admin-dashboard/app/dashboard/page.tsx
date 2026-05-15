@@ -175,21 +175,21 @@ function StatCard({ label, value, sub, icon: Icon, color, bg, loading, badge }: 
 }) {
     return (
         <div className="glass-hover group relative overflow-hidden rounded-xl p-4 h-full transition-all duration-300">
-            <div className="absolute inset-0 opacity-0 group-hover:opacity-10 bg-gradient-to-br from-blue-500 to-pink-500 transition-opacity duration-300" />
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-8 bg-gradient-to-br from-blue-500 to-pink-500 transition-opacity duration-300" />
             <div className="relative flex items-center justify-between mb-4">
-                <span className="text-[10px] tracking-widest text-slate-400 font-medium uppercase">{label}</span>
+                <span className="text-[10px] tracking-widest text-slate-500 dark:text-slate-300 font-semibold uppercase">{label}</span>
                 <div className={`size-9 flex items-center justify-center rounded-lg ${bg} transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg`}>
                     <Icon size={16} weight="fill" className={color} />
                 </div>
             </div>
             {loading
-                ? <div className="h-7 w-24 bg-slate-600/20 rounded animate-pulse" />
+                ? <div className="h-7 w-24 bg-slate-200 dark:bg-slate-600/30 rounded animate-pulse" />
                 : (
                     <div>
-                        <p className="text-2xl font-bold text-white leading-tight">{value}</p>
-                        {sub && <p className="text-[10px] text-slate-400 mt-1">{sub}</p>}
+                        <p className="text-2xl font-bold text-slate-900 dark:text-white leading-tight">{value}</p>
+                        {sub && <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">{sub}</p>}
                         {badge && (
-                            <span className="inline-flex items-center mt-2 px-2 py-1 text-[8px] font-bold border bg-emerald-500/15 text-emerald-300 border-emerald-500/30 rounded-md uppercase tracking-wider">
+                            <span className="inline-flex items-center mt-2 px-2 py-1 text-[8px] font-bold border bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30 rounded-md uppercase tracking-wider">
                                 {badge}
                             </span>
                         )}
@@ -368,28 +368,28 @@ export default function DashboardPage() {
                 <StatCard
                     label="Người dùng"
                     value={errorUsers ? '—' : totalUsers.toLocaleString('vi-VN')}
-                    icon={Users} color="text-blue-500" bg="bg-blue-50 dark:bg-blue-500/10"
+                    icon={Users} color="text-blue-600 dark:text-blue-400" bg="bg-blue-100 dark:bg-blue-500/20"
                     loading={loadingUsers}
                 />
                 <StatCard
                     label="Gói cước"
                     value={errorPlans ? '—' : String(plans.length)}
                     sub={`${plans.filter(p => p.isActive).length} đang active`}
-                    icon={CreditCard} color="text-purple-500" bg="bg-purple-50 dark:bg-purple-500/10"
+                    icon={CreditCard} color="text-purple-600 dark:text-purple-400" bg="bg-purple-100 dark:bg-purple-500/20"
                     loading={loadingPlans}
                 />
                 <StatCard
                     label="Quảng cáo đang chạy"
                     value={errorAds ? '—' : String(activeAds)}
                     sub={`${ads.length} tổng`}
-                    icon={SpeakerHigh} color="text-emerald-500" bg="bg-emerald-50 dark:bg-emerald-500/10"
+                    icon={SpeakerHigh} color="text-emerald-600 dark:text-emerald-400" bg="bg-emerald-100 dark:bg-emerald-500/20"
                     loading={loadingAds}
                 />
                 <StatCard
                     label="Tổng số lần nhấp"
                     value={errorAds ? '—' : fmtNum(totalImpressions)}
                     sub={`CTR trung bình ${avgCtr}%`}
-                    icon={Eye} color="text-amber-500" bg="bg-amber-50 dark:bg-amber-500/10"
+                    icon={Eye} color="text-amber-600 dark:text-amber-400" bg="bg-amber-100 dark:bg-amber-500/20"
                     loading={loadingAds}
                 />
             </div>
@@ -400,14 +400,14 @@ export default function DashboardPage() {
                     label="Tổng lượt nhấp quảng cáo"
                     value={errorAds ? '—' : fmtNum(totalClicks)}
                     sub="Tất cả quảng cáo"
-                    icon={CursorClick} color="text-sky-500" bg="bg-sky-50 dark:bg-sky-500/10"
+                    icon={CursorClick} color="text-sky-600 dark:text-sky-400" bg="bg-sky-100 dark:bg-sky-500/20"
                     loading={loadingAds}
                 />
                 <StatCard
                     label="Tỉ lệ nhấp chuột trung bình"
                     value={errorAds ? '—' : `${avgCtr}%`}
                     sub="Click / Impression"
-                    icon={ChartLine} color="text-violet-500" bg="bg-violet-50 dark:bg-violet-500/10"
+                    icon={ChartLine} color="text-violet-600 dark:text-violet-400" bg="bg-violet-100 dark:bg-violet-500/20"
                     loading={loadingAds}
                     badge={Number(avgCtr) > 3 ? '🔥 Tốt' : undefined}
                 />
@@ -415,14 +415,14 @@ export default function DashboardPage() {
                     label="Doanh thu quảng cáo ước tính"
                     value={errorAds ? '—' : vnd(estimatedAdRevenue)}
                     sub="Dựa trên CPM × impressions"
-                    icon={TrendUp} color="text-rose-500" bg="bg-rose-50 dark:bg-rose-500/10"
+                    icon={TrendUp} color="text-rose-600 dark:text-rose-400" bg="bg-rose-100 dark:bg-rose-500/20"
                     loading={loadingAds}
                 />
                 <StatCard
                     label="Doanh thu gói cước"
                     value={loadingRevenue ? '···' : vnd(totalRevenue)}
                     sub={`${window_ === '7D' ? '7 ngày' : window_ === '1M' ? '30 ngày' : '1 năm'} gần nhất`}
-                    icon={CreditCard} color="text-teal-500" bg="bg-teal-50 dark:bg-teal-500/10"
+                    icon={CreditCard} color="text-teal-600 dark:text-teal-400" bg="bg-teal-100 dark:bg-teal-500/20"
                     loading={loadingRevenue}
                 />
             </div>

@@ -3,7 +3,7 @@ package iuh.fit.se.recommendationservice.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
-import java.util.UUID;
+import java.util.Set;
 
 /**
  * Một bài hát trong kết quả recommendation.
@@ -26,17 +26,11 @@ public class RecommendedSongDto {
     private String  artistId;
     private String  artistStageName;
     private String  artistAvatarUrl;
+    private Set<SongDetailDto.GenreInfo> genres;
 
     /** Lý do gợi ý hiển thị cho user */
     private ReasonType reason;
 
-    /**
-     * Context bổ sung phụ thuộc vào reason:
-     *   FRIEND_LIKED      → "Nguyễn Văn A"  (tên bạn)
-     *   ARTIST_YOU_FOLLOW → "Sơn Tùng M-TP" (tên artist)
-     *   TRENDING_IN_GENRE → "Lo-fi"          (tên genre)
-     *   NEW_RELEASE       → "Chúng Ta Của Hiện Tại (album)"
-     */
     private String reasonContext;
 
     /** Vị trí trong bảng xếp hạng trending (1-based), null nếu không phải trending context */

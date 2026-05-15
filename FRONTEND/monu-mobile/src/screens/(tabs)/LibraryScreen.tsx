@@ -35,6 +35,7 @@ import {
   Album,
   createAlbum,
   createPlaylist,
+  deleteOwnedSong,
   deletePlaylist,
   finalizeAiDraftSong,
   getMyAlbums,
@@ -318,6 +319,7 @@ const SongRow = ({
   showAiReview,
   onAiPublish,
   onAiKeepPrivate,
+  onAiDiscard,
   aiFinalizeBusy,
 }: {
   song: Song;
@@ -330,6 +332,7 @@ const SongRow = ({
   showAiReview?: boolean;
   onAiPublish?: () => void;
   onAiKeepPrivate?: () => void;
+  onAiDiscard?: () => void;
   aiFinalizeBusy?: boolean;
 }) => {
   const themeColors = useThemeColors();
@@ -419,6 +422,17 @@ const SongRow = ({
               {t('screens.library.aiKeepPrivate', 'Keep private')}
             </Text>
           </Pressable>
+          {onAiDiscard ? (
+            <Pressable
+              onPress={onAiDiscard}
+              disabled={aiFinalizeBusy}
+              style={[songRowStyles.aiDecisionBtnSecondary, aiFinalizeBusy && songRowStyles.aiDecisionBtnDisabled]}
+            >
+              <Text style={songRowStyles.aiDecisionBtnSecondaryText}>
+                {t('screens.library.aiDiscardDraft', 'Discard draft')}
+              </Text>
+            </Pressable>
+          ) : null}
           {aiFinalizeBusy ? <ActivityIndicator color={themeColors.accent} size="small" /> : null}
         </View>
       ) : null}
@@ -1940,6 +1954,19 @@ export const LibraryScreen = () => {
     }
   };
 
+  const handleDeleteDraftSong = async (songId: string) => {
+    setAiFinSongId(songId);
+    try {
+      await deleteOwnedSong(songId);
+      showToast(t('screens.library.aiDiscardDraftOk', 'Draft removed.'), 'success');
+      await load('refresh');
+    } catch (e: any) {
+      showToast(e?.response?.data?.message ?? e?.message ?? t('common.error', 'Error'), 'error');
+    } finally {
+      setAiFinSongId(null);
+    }
+  };
+
   const switchTab = useCallback((newTab: Tab) => {
     if (newTab === activeTab) return;
 
@@ -2015,6 +2042,7 @@ export const LibraryScreen = () => {
               showAiReview={aiDraftPending}
               onAiPublish={aiDraftPending ? () => void handleAiFinalizeSong(s.id, true) : undefined}
               onAiKeepPrivate={aiDraftPending ? () => void handleAiFinalizeSong(s.id, false) : undefined}
+              onAiDiscard={aiDraftPending ? () => void handleDeleteDraftSong(s.id) : undefined}
               aiFinalizeBusy={aiFinSongId === s.id}
             />
           );
@@ -2162,7 +2190,7 @@ export const LibraryScreen = () => {
             tintColor={themeColors.accent}
           />
         }
-        contentContainerStyle={{ paddingBottom: layout.tabBarHeight + layout.miniPlayerHeight + 16 }}
+        contentContainerStyle={{ paddingBottom: layout.playerOffset }}
       >
         {/* Header */}
         <LinearGradient

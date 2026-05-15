@@ -129,6 +129,7 @@ public class ContextAwareRecommendationService {
                             .artistId(s.getArtistId())
                             .artistStageName(s.getArtistStageName())
                             .artistAvatarUrl(s.getArtistAvatarUrl())
+                            .genres(s.getGenres())
                             .reason(RecommendedSongDto.ReasonType.CONTEXT_TIME)
                             .reasonContext(label)
                             .build();
