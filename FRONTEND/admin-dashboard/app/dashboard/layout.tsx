@@ -15,7 +15,6 @@ import {
     SpeakerHigh,
     Warning,
     ChartBar,
-    MusicNotesPlus,
     Microphone,
     TrendUpIcon,
 } from '@phosphor-icons/react';
@@ -107,7 +106,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
 
                 {/* Nav */}
-                <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
+                <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
                     {NAV.map(({ href, label, icon: Icon, exact }) => {
                         const active = isActive(href, exact);
                         return (
@@ -116,18 +115,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 href={href}
                                 onClick={() => setOpen(false)}
                             className={`
-                                flex items-center gap-3 px-4 h-10 text-[13px] rounded-full transition-all duration-200 font-medium
+                                group flex items-center gap-3 px-3.5 h-10 text-[13px] rounded-2xl transition-all duration-200 font-medium
                                 ${active
-                                    ? 'bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 text-white shadow-xl shadow-pink-500/40'
-                                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'
+                                    ? 'bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 text-white shadow-lg shadow-pink-500/25'
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                                 }
                             `}
                             >
-                                <Icon
-                                    size={18}
-                                    weight={active ? 'fill' : 'regular'}
-                                    className={active ? '' : 'opacity-70'}
-                                />
+                                <span className={`size-7 rounded-xl flex items-center justify-center transition-colors ${
+                                    active
+                                        ? 'bg-white/20'
+                                        : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
+                                }`}>
+                                    <Icon
+                                        size={17}
+                                        weight={active ? 'fill' : 'regular'}
+                                    />
+                                </span>
                                 <span className="truncate">{label}</span>
                             </Link>
                         );
@@ -155,7 +159,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     {/* User profile section */}
                     <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-3 p-3 rounded-full bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 hover:from-slate-150 dark:hover:from-slate-700 transition-all duration-200 cursor-pointer">
+                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 hover:from-slate-200 dark:hover:from-slate-700 transition-all duration-200 cursor-pointer">
                             <div className="size-9 bg-gradient-to-br from-yellow-400 via-pink-500 to-blue-500 rounded-full flex items-center justify-center shrink-0 text-white font-bold text-sm">
                                 Q
                             </div>
