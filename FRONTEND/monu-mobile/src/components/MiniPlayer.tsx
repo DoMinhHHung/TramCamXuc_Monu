@@ -99,7 +99,7 @@ export const MiniPlayer = ({ bottomInset }: MiniPlayerProps) => {
             {...panResponder.panHandlers}
         >
             <LinearGradient
-                colors={['rgba(26, 26, 32, 0.96)', 'rgba(10, 10, 12, 0.98)']}
+                colors={['rgba(26, 26, 26, 0.95)', 'rgba(15, 15, 15, 0.97)']}
                 style={StyleSheet.absoluteFillObject}
             />
 
@@ -177,28 +177,28 @@ const getStyles = (colors: ColorScheme) => StyleSheet.create({
     container: {
         position: 'absolute', left: 12, right: 12,
         height: MINI_PLAYER_HEIGHT + 4,
-        borderRadius: 24,
+        borderRadius: 12,
         overflow: 'hidden',
     },
-    progressTrack:        { height: 3, backgroundColor: 'rgba(255,255,255,0.1)' },
-    progressFill:         { height: 3 },
-    content:              { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 12 },
-    thumbnail:            { width: 48, height: 48, borderRadius: 16, backgroundColor: colors.surfaceLow },
+    progressTrack:        { height: 2, backgroundColor: 'rgba(91,127,212,0.2)' },
+    progressFill:         { height: 2 },
+    content:              { flex: 1, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 10 },
+    thumbnail:            { width: 44, height: 44, borderRadius: 8, backgroundColor: colors.surfaceMid },
     thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
     info:                 { flex: 1, minWidth: 0 },
-    metaRow:              { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-    title:                { color: colors.text, fontSize: 14, fontWeight: '800', fontFamily: 'Plus Jakarta Sans', letterSpacing: -0.2 },
-    artist:               { color: colors.textSecondary, fontSize: 12, fontWeight: '500', fontFamily: 'Inter' },
-    controls:             { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    iconBtn:              { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+    metaRow:              { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+    title:                { color: colors.text, fontSize: 13, fontWeight: '600', fontFamily: 'Inter', letterSpacing: -0.1 },
+    artist:               { color: colors.textSecondary, fontSize: 11, fontWeight: '400', fontFamily: 'Inter' },
+    controls:             { flexDirection: 'row', alignItems: 'center', gap: 2 },
+    iconBtn:              { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
     stopBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        width: 28,
+        height: 28,
+        borderRadius: 6,
+        backgroundColor: 'rgba(255,255,255,0.08)',
         alignItems: 'center',
         justifyContent: 'center',
         marginLeft: 4,
     },
-    swipeHandle:          { position: 'absolute', top: 6, alignSelf: 'center', width: 32, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)' },
+    swipeHandle:          { position: 'absolute', top: 6, alignSelf: 'center', width: 28, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.15)' },
 });

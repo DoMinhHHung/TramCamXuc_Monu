@@ -24,15 +24,13 @@ type McIconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const getStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
-    marginBottom: 12,
-    ...themeUtils.shadowPresets.md,
+    marginBottom: 10,
+    ...themeUtils.shadowPresets.sm,
   },
   card: {
-    borderRadius: themeUtils.borderRadius.lg,
+    borderRadius: themeUtils.borderRadius.md,
     overflow: 'hidden',
     backgroundColor: colors.surface,
-    borderColor: colors.accentBorder25,
-    borderWidth: 0.5,
   },
   gradient: {
     padding: themeUtils.spacing.md,
@@ -48,14 +46,12 @@ const getStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.
     gap: themeUtils.spacing.md,
   },
   iconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: themeUtils.borderRadius.md,
+    width: 50,
+    height: 50,
+    borderRadius: themeUtils.borderRadius.sm,
     backgroundColor: colors.surfaceMid,
     justifyContent: 'center',
     alignItems: 'center',
-    borderColor: colors.accentBorder25,
-    borderWidth: 0.5,
   },
   genreInfo: {
     flex: 1,
@@ -79,12 +75,10 @@ const getStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.
     paddingVertical: 4,
     borderRadius: themeUtils.borderRadius.full,
     backgroundColor: colors.accentFill20,
-    borderColor: colors.accentBorder25,
-    borderWidth: 0.5,
   },
   trendingText: {
     fontSize: themeUtils.fontSize.xs,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.accent,
   },
 });
