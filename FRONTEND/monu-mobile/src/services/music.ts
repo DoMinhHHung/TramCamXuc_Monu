@@ -251,6 +251,10 @@ export const finalizeAiDraftSong = async (songId: string, publish: boolean): Pro
   return res.data;
 };
 
+export const deleteOwnedSong = async (songId: string): Promise<void> => {
+  await apiClient.delete(`/songs/${songId}`);
+};
+
 export const getMySongs = async (params?: { page?: number; size?: number; noCache?: boolean }): Promise<PageResponse<Song>> => {
   const { noCache, ...rest } = params ?? {};
   const response = await apiClient.get<PageResponse<Song>>('/songs/my-songs', {

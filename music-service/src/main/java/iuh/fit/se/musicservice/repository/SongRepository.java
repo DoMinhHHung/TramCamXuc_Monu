@@ -124,6 +124,14 @@ public interface SongRepository extends JpaRepository<Song, UUID> {
                         """)
         Optional<Song> findByIdAndOwnerUserId(@Param("id") UUID id, @Param("userId") UUID userId);
 
+        @Query("""
+                        SELECT s FROM Song s
+                        WHERE s.aiJobId = :jobId
+                          AND s.ownerUserId = :userId
+                          AND s.deletedAt IS NULL
+                        """)
+        Optional<Song> findByAiJobIdAndOwnerUserId(@Param("jobId") UUID jobId, @Param("userId") UUID userId);
+
         @Query(value = """
                         SELECT DISTINCT s FROM Song s
                         LEFT JOIN s.genres g

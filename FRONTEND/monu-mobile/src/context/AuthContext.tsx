@@ -6,8 +6,9 @@ import { attachAccessToken, configureApiAuthHandlers } from '../services/api';
 import { getMyProfile, loginWithEmail, logoutApi, refreshToken, socialLogin } from '../services/auth';
 import { AuthSession, SocialProvider, UserProfile } from '../types/auth';
 
-const ACCESS_TOKEN_STORAGE_KEY = 'auth.accessToken';
+const ACCESS_TOKEN_STORAGE_KEY  = 'auth.accessToken';
 const REFRESH_TOKEN_STORAGE_KEY = 'auth.refreshToken';
+const AUTH_TOKENS_KEY = 'auth.tokens';
 
 interface AuthContextValue {
   authSession: AuthSession | null;
@@ -24,26 +25,42 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const saveTokens = async (tokens: { accessToken: string; refreshToken: string }): Promise<void> => {
-  await Promise.all([
-    SecureStore.setItemAsync(ACCESS_TOKEN_STORAGE_KEY, tokens.accessToken),
-    SecureStore.setItemAsync(REFRESH_TOKEN_STORAGE_KEY, tokens.refreshToken),
-  ]);
+  await SecureStore.setItemAsync(AUTH_TOKENS_KEY, JSON.stringify(tokens));
 };
 
 const clearTokens = async (): Promise<void> => {
-  await Promise.all([
+  await SecureStore.deleteItemAsync(AUTH_TOKENS_KEY);
+  await Promise.allSettled([
     SecureStore.deleteItemAsync(ACCESS_TOKEN_STORAGE_KEY),
     SecureStore.deleteItemAsync(REFRESH_TOKEN_STORAGE_KEY),
   ]);
 };
 
 const loadStoredTokens = async (): Promise<{ accessToken: string | null; refreshToken: string | null }> => {
-  const [accessToken, refreshTokenValue] = await Promise.all([
+  // Attempt atomic key first
+  const combined = await SecureStore.getItemAsync(AUTH_TOKENS_KEY);
+  if (combined) {
+    try {
+      const parsed = JSON.parse(combined) as { accessToken?: unknown; refreshToken?: unknown };
+      const at = typeof parsed.accessToken === 'string' ? parsed.accessToken : null;
+      const rt = typeof parsed.refreshToken === 'string' ? parsed.refreshToken : null;
+      if (at && rt) return { accessToken: at, refreshToken: rt };
+    } catch { /* malformed — fall through to legacy */ }
+  }
+
+  // Migration: read legacy individual keys (users upgrading from older version)
+  const [accessToken, refreshTokenValue] = await Promise.allSettled([
     SecureStore.getItemAsync(ACCESS_TOKEN_STORAGE_KEY),
     SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY),
   ]);
-
-  return { accessToken, refreshToken: refreshTokenValue };
+  const at = accessToken.status === 'fulfilled' ? accessToken.value : null;
+  const rt = refreshTokenValue.status === 'fulfilled' ? refreshTokenValue.value : null;
+  if (at && rt) {
+    // Migrate to combined key immediately so next launch uses atomic path
+    await saveTokens({ accessToken: at, refreshToken: rt });
+    return { accessToken: at, refreshToken: rt };
+  }
+  return { accessToken: null, refreshToken: null };
 };
 
 const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
@@ -66,12 +83,23 @@ const isAdminRoleFromAccessToken = (accessToken: string): boolean => {
   return payload?.role === 'ADMIN';
 };
 
+const isTokenExpired = (token: string): boolean => {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload.exp !== 'number') return true;
+  return payload.exp * 1000 < Date.now() + 10_000; // 10 s grace period
+};
+
+const isAuthFailure = (err: unknown): boolean => {
+  const status = (err as { response?: { status?: number } } | null)?.response?.status;
+  return status === 401 || status === 403;
+};
+
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
 
   const logout = async (): Promise<void> => {
-    const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+    const { refreshToken: storedRefreshToken } = await loadStoredTokens();
     if (storedRefreshToken) {
       try {
         await logoutApi({ refreshToken: storedRefreshToken });
@@ -125,7 +153,16 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   useEffect(() => {
     configureApiAuthHandlers({
-      getRefreshToken: async () => SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY),
+      getRefreshToken: async () => {
+        const combined = await SecureStore.getItemAsync(AUTH_TOKENS_KEY);
+        if (combined) {
+          try {
+            const parsed = JSON.parse(combined) as { refreshToken?: unknown };
+            if (typeof parsed.refreshToken === 'string') return parsed.refreshToken;
+          } catch { /* fall through */ }
+        }
+        return SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY); // legacy fallback
+      },
       persistTokens: async ({ accessToken, refreshToken: refreshedToken }) => {
         await ensureNotAdmin(accessToken);
         await saveTokens({ accessToken, refreshToken: refreshedToken });
@@ -167,24 +204,40 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           profile: null,
         });
 
-        // Unblock UI first, then hydrate profile/refresh in background.
+        // Unblock UI first, then hydrate in background.
         setIsInitializing(false);
         void (async () => {
+          // If the access token is already expired locally, refresh it proactively
+          // BEFORE making any API call, to avoid the 401 → interceptor-refresh → race.
+          if (isTokenExpired(accessToken)) {
+            try {
+              const refreshedTokens = await refreshToken({ refreshToken: refreshTokenValue });
+              await finalizeLogin(refreshedTokens);
+              return; // finalizeLogin also fetches the profile
+            } catch (err) {
+              if (isAuthFailure(err)) {
+                // Refresh token invalid/expired — force logout
+                await logout();
+                return;
+              }
+              // Network/server error: keep stored session, interceptor will retry later
+            }
+          }
+
+          // Access token is still valid — just hydrate the profile silently.
+          // The API interceptor handles any 401 that may arise and will either
+          // refresh the token or call logout() if the refresh token is invalid.
+          // We do NOT call refreshToken() here to avoid consuming the refresh
+          // token a second time if the interceptor already rotated it.
           const profile = await hydrateProfileNonBlocking();
           if (profile) {
             setAuthSession((prevSession) => {
               if (!prevSession) return prevSession;
               return { ...prevSession, profile };
             });
-            return;
           }
-
-          try {
-            const refreshedTokens = await refreshToken({ refreshToken: refreshTokenValue });
-            await finalizeLogin(refreshedTokens);
-          } catch {
-            await logout();
-          }
+          // If profile is null (network/server error): session stays alive with stored tokens.
+          // Offline downloads and cached content remain accessible.
         })();
         return;
       } catch {
@@ -217,7 +270,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   };
 
   const refreshSession = async (): Promise<void> => {
-    const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_STORAGE_KEY);
+    const { refreshToken: storedRefreshToken } = await loadStoredTokens();
     if (!storedRefreshToken) return;
     const tokens = await refreshToken({ refreshToken: storedRefreshToken });
     await finalizeLogin(tokens);

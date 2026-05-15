@@ -19,6 +19,12 @@ export interface CreateAiMusicJobPayload {
   durationSeconds: number;
 }
 
+export interface AiMusicQuota {
+  remaining: number | null;
+  limit: number | null;
+  resetAt?: string | null;
+}
+
 export const createAiMusicJob = async (
   payload: CreateAiMusicJobPayload
 ): Promise<AiMusicJob> => {
@@ -43,6 +49,15 @@ export const keepPrivateAiMusicJob = async (jobId: string): Promise<Song> => {
 
 export const rejectAiMusicJob = async (jobId: string): Promise<void> => {
   await apiClient.post(`/ai-music/jobs/${jobId}/reject`);
+};
+
+export const getAiMusicQuota = async (): Promise<AiMusicQuota> => {
+  const res = await apiClient.get<Partial<AiMusicQuota>>('/ai-music/quota');
+  return {
+    remaining: typeof res.data?.remaining === 'number' ? res.data.remaining : null,
+    limit: typeof res.data?.limit === 'number' ? res.data.limit : null,
+    resetAt: res.data?.resetAt ?? null,
+  };
 };
 
 export const improveLyricsWithGoogle = async (

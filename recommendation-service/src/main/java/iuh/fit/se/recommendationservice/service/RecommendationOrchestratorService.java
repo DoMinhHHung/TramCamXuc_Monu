@@ -530,6 +530,7 @@ public class RecommendationOrchestratorService {
                 .artistId(a != null ? a.getArtistId() : null)
                 .artistStageName(a != null ? a.getStageName() : null)
                 .artistAvatarUrl(a != null ? a.getAvatarUrl() : null)
+                .genres(s.getGenres())
                 .reason(RecommendedSongDto.ReasonType.NEW_RELEASE)
                 .build();
     }
@@ -650,6 +651,7 @@ public class RecommendationOrchestratorService {
                     .artistId(a != null ? a.getArtistId() : null)
                     .artistStageName(a != null ? a.getStageName() : null)
                     .artistAvatarUrl(a != null ? a.getAvatarUrl() : null)
+                    .genres(d.getGenres())
                     .reason(RecommendedSongDto.ReasonType.TRENDING_NOW)
                     .rank(withRankBadge ? rankPos : null)
                     .trendBadge(badge)
@@ -741,6 +743,7 @@ public class RecommendationOrchestratorService {
                             .artistId(a != null ? a.getArtistId() : null)
                             .artistStageName(a != null ? a.getStageName() : null)
                             .artistAvatarUrl(a != null ? a.getAvatarUrl() : null)
+                            .genres(d.getGenres())
                             .reason(RecommendedSongDto.ReasonType.SIMILAR_TO_LIKED)
                             .build();
                 })

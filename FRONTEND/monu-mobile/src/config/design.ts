@@ -28,11 +28,18 @@ export const SPACING = {
   section: scale(32),
 } as const;
 
-/** Bottom tab bar content height (excluding safe-area); must match `tabBarStyle.height` math in AppNavigator. */
+/** Bottom tab bar visual height (pill, no safe-area inflation). */
 export const MAIN_TAB_BAR_BASE_HEIGHT = 74;
 
-/** Mini player bar height — keep in sync with `MiniPlayer` layout. */
+/** Mini player bar height — container renders MINI_PLAYER_HEIGHT + 4 px total. */
 export const MINI_PLAYER_HEIGHT = 68;
+
+/**
+ * Distance from screen bottom edge to the bottom of the floating tab bar pill.
+ * Keeps the pill clear of the home indicator / gesture zone on all devices.
+ */
+export const getTabBarBottomOffset = (insetBottom: number): number =>
+  Math.max(16, insetBottom + 12);
 
 // ── Border Radius ─────────────────────────────────────────────────────────────
 /** Unified border-radius scale. */

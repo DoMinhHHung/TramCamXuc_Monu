@@ -8,6 +8,7 @@ import iuh.fit.se.musicservice.dto.internal.payment.InternalAiMusicQuotaResponse
 import iuh.fit.se.musicservice.dto.messaging.AiMusicGenerateMessage;
 import iuh.fit.se.musicservice.dto.request.AiMusicCreateJobRequest;
 import iuh.fit.se.musicservice.dto.response.AiMusicJobResponse;
+import iuh.fit.se.musicservice.dto.response.AiMusicQuotaResponse;
 import iuh.fit.se.musicservice.dto.response.SongResponse;
 import iuh.fit.se.musicservice.entity.Artist;
 import iuh.fit.se.musicservice.entity.Genre;
@@ -358,17 +359,37 @@ public class AiMusicJobServiceImpl implements AiMusicJobService {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
         if (StringUtils.hasText(state.getDraftSongId())) {
-            songRepository.findById(UUID.fromString(state.getDraftSongId())).ifPresent(song -> {
-                if (StringUtils.hasText(song.getRawFileKey())) {
-                    storageService.deleteRawObject(song.getRawFileKey());
-                }
-                songRepository.delete(song);
-            });
+            songRepository.findByIdAndOwnerUserId(UUID.fromString(state.getDraftSongId()), userId)
+                    .ifPresent(this::hardDeleteAiDraftSong);
         } else if (StringUtils.hasText(state.getPreviewRawKey())) {
             storageService.deleteRawObject(state.getPreviewRawKey());
         }
+
+        // Fallback an toàn: nếu draftSongId chưa được ghi vào Redis nhưng DB đã có bản nháp gắn aiJobId
+        // thì vẫn phải xoá để tránh Library còn "bản nháp ma".
+        songRepository.findByAiJobIdAndOwnerUserId(jobId, userId)
+                .ifPresent(this::hardDeleteAiDraftSong);
+
         stringRedisTemplate.delete(REDIS_PREFIX + jobId);
         log.info("AI music job {} rejected by user", jobId);
+    }
+
+    private void hardDeleteAiDraftSong(Song song) {
+        if (StringUtils.hasText(song.getRawFileKey())) {
+            storageService.deleteRawObject(song.getRawFileKey());
+        }
+        songRepository.delete(song);
+    }
+
+    @Override
+    public AiMusicQuotaResponse getQuota() {
+        UUID userId = currentUserId();
+        InternalAiMusicQuotaResponse q = paymentAiMusicInternalClient.getQuota(userId, currentPeriodYm());
+        return AiMusicQuotaResponse.builder()
+                .remaining(q.getRemainingGenerations())
+                .limit(q.getMaxGenerationsPerMonth())
+                .resetAt(null)
+                .build();
     }
 
     private AiMusicJobRedisState readState(UUID jobId) {
