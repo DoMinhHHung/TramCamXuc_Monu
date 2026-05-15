@@ -81,23 +81,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* ── Sidebar ───────────────────────────────────────── */}
             <aside className={`
                 fixed inset-y-0 left-0 z-50 w-56 flex flex-col
-                bg-white dark:bg-[#0a0a0a]
-                border-r border-slate-200 dark:border-slate-800
+                bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm
+                border-r border-slate-200 dark:border-slate-800/80
                 transition-transform duration-300 ease-out
                 ${open ? 'translate-x-0' : '-translate-x-full'}
                 lg:translate-x-0
             `}>
 
                 {/* Brand */}
-                <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-slate-800 shrink-0 gap-3 bg-white dark:bg-slate-950">
+                <div className="h-16 flex items-center px-5 border-b border-slate-200 dark:border-slate-800/80 shrink-0 gap-3 bg-white/80 dark:bg-slate-950/80">
                     <div className="flex-1">
                         <div className="flex items-center gap-3">
                             <LogoIcon size={40} />
                             <div className="min-w-0">
-                                <p className="text-[13px] font-bold text-slate-900 dark:text-white leading-none">
+                                <p className="text-[13px] font-semibold tracking-tight text-slate-900 dark:text-slate-100 leading-none">
                                     Phazel Sound
                                 </p>
-                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-mono">
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-medium">
                                     Bảng quản trị
                                 </p>
                             </div>
@@ -117,7 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             className={`
                                 group flex items-center gap-3 px-3.5 h-10 text-[13px] rounded-2xl transition-all duration-200 font-medium
                                 ${active
-                                    ? 'bg-gradient-to-r from-amber-400 via-pink-500 to-cyan-400 text-white shadow-lg shadow-pink-500/25'
+                                    ? 'bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 text-white shadow-lg shadow-violet-500/25'
                                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                                 }
                             `}
@@ -125,7 +125,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 <span className={`size-7 rounded-xl flex items-center justify-center transition-colors ${
                                     active
                                         ? 'bg-white/20'
-                                        : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
+                                        : 'bg-slate-100 text-slate-500 dark:bg-slate-800/90 dark:text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700'
                                 }`}>
                                     <Icon
                                         size={17}
@@ -139,10 +139,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </nav>
 
                 {/* Bottom */}
-                <div className="px-3 py-4 border-t border-slate-200 dark:border-slate-800 shrink-0 space-y-2">
+                <div className="px-3 py-4 border-t border-slate-200 dark:border-slate-800/80 shrink-0 space-y-2">
                     <button
                         onClick={toggle}
-                        className="flex items-center gap-3 px-4 h-10 text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60 w-full rounded-full transition-all duration-200"
+                        className="flex items-center gap-3 px-4 h-10 text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800/60 w-full rounded-2xl transition-all duration-200"
                     >
                         {isDark
                             ? <Sun size={18} weight="regular" className="opacity-70" />
@@ -151,7 +151,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </button>
                     <button
                         onClick={logout}
-                        className="flex items-center gap-3 px-4 h-10 text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 w-full rounded-full transition-all duration-200"
+                        className="flex items-center gap-3 px-4 h-10 text-[13px] font-medium text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-100/60 dark:hover:bg-red-950/40 w-full rounded-2xl transition-all duration-200"
                     >
                         <SignOut size={18} weight="regular" className="opacity-70" />
                         <span className="truncate">Đăng xuất</span>
@@ -159,7 +159,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                     {/* User profile section */}
                     <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 hover:from-slate-200 dark:hover:from-slate-700 transition-all duration-200 cursor-pointer">
+                        <div className="flex items-center gap-3 p-3 rounded-2xl bg-gradient-to-r from-indigo-50 to-cyan-50 dark:from-slate-800 dark:to-slate-900 hover:from-indigo-100 dark:hover:from-slate-700 transition-all duration-200 cursor-pointer">
                             <div className="size-9 bg-gradient-to-br from-yellow-400 via-pink-500 to-blue-500 rounded-full flex items-center justify-center shrink-0 text-white font-bold text-sm">
                                 Q
                             </div>
@@ -188,7 +188,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex-1 lg:ml-56 flex flex-col min-h-screen">
 
                 {/* Top header */}
-                <header className="h-14 border-b border-slate-200 dark:border-slate-800 flex items-center px-5 gap-4 shrink-0 bg-white dark:bg-slate-950 sticky top-0 z-30 shadow-sm dark:shadow-lg dark:shadow-slate-900/20">
+                <header className="h-14 border-b border-slate-200 dark:border-slate-800/80 flex items-center px-5 gap-4 shrink-0 bg-white/90 dark:bg-slate-950/90 backdrop-blur-sm sticky top-0 z-30 shadow-sm dark:shadow-lg dark:shadow-slate-900/20">
 
                     {/* Mobile menu toggle */}
                     <button
@@ -209,7 +209,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     )}
                                     <span className={
                                         isLast
-                                            ? 'font-bold bg-gradient-to-r from-yellow-500 via-pink-500 to-blue-500 bg-clip-text text-transparent truncate'
+                                            ? 'font-semibold bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 bg-clip-text text-transparent truncate'
                                             : 'text-slate-500 dark:text-slate-400 truncate'
                                     }>
                                         {SEGMENT_LABELS[seg] ?? seg}
@@ -230,15 +230,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         </button>
 
                         {/* Status indicator */}
-                        <div className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/40 border border-emerald-200 dark:border-emerald-800/60 rounded-full shadow-sm dark:shadow-emerald-950/20">
+                        <div className="flex items-center gap-2 px-4 h-9 bg-gradient-to-r from-violet-50 to-cyan-100 dark:from-violet-950/40 dark:to-cyan-900/30 border border-violet-200 dark:border-violet-800/60 rounded-full shadow-sm dark:shadow-violet-950/20">
                             <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">Hoạt động</span>
+                            <span className="text-[11px] font-semibold text-violet-700 dark:text-violet-300">Hoạt động</span>
                         </div>
                     </div>
                 </header>
 
                 {/* Page content */}
-                <main className="flex-1 p-5 lg:p-8 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+                <main className="flex-1 p-5 lg:p-8 bg-gradient-to-br from-slate-50 via-indigo-50/30 to-cyan-50/30 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
                     {children}
                 </main>
             </div>
