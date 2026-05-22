@@ -64,8 +64,8 @@ public class AiMusicDraftSongService {
                 .aiVisibilityTarget(null)
                 .build();
 
-        songRepository.save(song);
-        log.info("[AiMusic] draft song {} for job {}", songId, jobId);
-        return songId;
+        Song saved = songRepository.save(song);
+        log.info("[AiMusic] draft song {} for job {}", saved.getId(), jobId);
+        return saved.getId();
     }
 }
