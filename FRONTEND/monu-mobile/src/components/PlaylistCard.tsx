@@ -29,15 +29,13 @@ interface PlaylistCardProps {
 
 const getStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.create({
   container: {
-    marginBottom: 12,
-    ...themeUtils.shadowPresets.md,
+    marginBottom: 10,
+    ...themeUtils.shadowPresets.sm,
   },
   card: {
-    borderRadius: themeUtils.borderRadius.lg,
+    borderRadius: themeUtils.borderRadius.md,
     overflow: 'hidden',
     backgroundColor: colors.surface,
-    borderColor: colors.accentBorder25,
-    borderWidth: 0.5,
   },
   gradient: {
     padding: themeUtils.spacing.md,
@@ -49,10 +47,10 @@ const getStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.
     marginBottom: themeUtils.spacing.md,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: themeUtils.borderRadius.md,
-    backgroundColor: `rgba(255, 255, 255, 0.1)`,
+    width: 44,
+    height: 44,
+    borderRadius: themeUtils.borderRadius.sm,
+    backgroundColor: colors.surfaceMid,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: themeUtils.spacing.md,
@@ -79,7 +77,7 @@ const getStyles = (colors: ReturnType<typeof useTheme>['colors']) => StyleSheet.
   },
   statValue: {
     fontSize: themeUtils.fontSize.md,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.accent,
   },
   statLabel: {

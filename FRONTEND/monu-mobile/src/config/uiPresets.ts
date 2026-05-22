@@ -4,9 +4,9 @@ import type { ColorScheme } from './colors';
 type GlassIntensity = 'subtle' | 'default' | 'strong';
 
 const glassAlpha: Record<GlassIntensity, number> = {
-  subtle: 0.05,
-  default: 0.08,
-  strong: 0.12,
+  subtle: 0.03,
+  default: 0.05,
+  strong: 0.08,
 };
 
 export const uiPresets = {
@@ -21,8 +21,8 @@ export const uiPresets = {
     opts?: { intensity?: GlassIntensity; radius?: number; border?: boolean },
   ): ViewStyle => {
     const intensity = opts?.intensity ?? 'default';
-    const radius = opts?.radius ?? 24;
-    const border = opts?.border ?? true;
+    const radius = opts?.radius ?? 12;
+    const border = opts?.border ?? false;
     return {
       backgroundColor: `rgba(255,255,255,${glassAlpha[intensity]})`,
       borderRadius: radius,
@@ -35,4 +35,3 @@ export const uiPresets = {
     ...uiPresets.glassSurface(c, { intensity: opts?.intensity ?? 'default', radius: 999, border: opts?.border ?? true }),
   }),
 } as const;
-

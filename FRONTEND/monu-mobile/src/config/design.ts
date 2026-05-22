@@ -42,49 +42,49 @@ export const getTabBarBottomOffset = (insetBottom: number): number =>
   Math.max(16, insetBottom + 12);
 
 // ── Border Radius ─────────────────────────────────────────────────────────────
-/** Unified border-radius scale. */
+/** Unified border-radius scale – minimize to enhance minimalism. */
 export const RADIUS = {
-  /** 6px – tiny pill / tag */
-  xs: scale(6),
-  /** 8px – small chip / badge */
-  sm: scale(8),
-  /** 14px – standard card corner */
-  md: scale(14),
-  /** 20px – large card / modal */
-  lg: scale(20),
-  /** 24px – bottom sheet top corners */
-  xl: scale(24),
-  /** 32px – hero cards */
-  xxl: scale(32),
+  /** 4px – tiny elements */
+  xs: scale(4),
+  /** 6px – small chips */
+  sm: scale(6),
+  /** 10px – standard card corner */
+  md: scale(10),
+  /** 12px – large card / modal */
+  lg: scale(12),
+  /** 16px – bottom sheet top corners */
+  xl: scale(16),
+  /** 20px – hero cards */
+  xxl: scale(20),
   /** 999 – full pill / circle */
   full: 999,
 } as const;
 
 // ── Typography ────────────────────────────────────────────────────────────────
-/** Font-size scale. */
+/** Font-size scale – minimalist hierarchy with clear distinction. */
 export const FONT_SIZE = {
-  /** 11px – badge / label tiny */
-  xxs: moderateScale(11),
-  /** 12px – caption / supplemental info */
-  xs: moderateScale(12),
-  /** 13px – secondary text */
-  sm: moderateScale(13),
-  /** 14px – body small */
-  body_sm: moderateScale(14),
-  /** 15px – body default */
-  body: moderateScale(15),
-  /** 16px – body medium */
-  body_md: moderateScale(16),
-  /** 18px – card title / section heading */
-  md: moderateScale(18),
-  /** 20px – modal title */
-  lg: moderateScale(20),
-  /** 24px – screen title */
-  xl: moderateScale(24),
-  /** 28px – hero value */
-  xxl: moderateScale(28),
-  /** 34px – display title */
-  display: moderateScale(34),
+  /** 12px – label / badge tiny */
+  xxs: moderateScale(12),
+  /** 13px – caption / supplemental info */
+  xs: moderateScale(13),
+  /** 14px – secondary text */
+  sm: moderateScale(14),
+  /** 15px – body small */
+  body_sm: moderateScale(15),
+  /** 16px – body default */
+  body: moderateScale(16),
+  /** 17px – body medium */
+  body_md: moderateScale(17),
+  /** 19px – card title / section heading */
+  md: moderateScale(19),
+  /** 21px – modal/screen title */
+  lg: moderateScale(21),
+  /** 26px – screen title */
+  xl: moderateScale(26),
+  /** 30px – hero value */
+  xxl: moderateScale(30),
+  /** 36px – display title */
+  display: moderateScale(36),
 } as const;
 
 /** Font-weight helpers. */
@@ -98,32 +98,32 @@ export const FONT_WEIGHT = {
 };
 
 // ── Elevation / Shadow ────────────────────────────────────────────────────────
-/** Consistent shadow presets for Android (elevation) + iOS (shadow*). */
+/** Minimal shadow presets – reduce visual complexity. */
 export const SHADOW = {
   none: {
     elevation: 0,
     shadowOpacity: 0,
   },
   sm: {
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  md: {
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
-  md: {
+  lg: {
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.25,
     shadowRadius: 12,
-  },
-  lg: {
-    elevation: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
   },
 } as const;
 

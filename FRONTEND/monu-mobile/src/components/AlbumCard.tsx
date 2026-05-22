@@ -29,15 +29,13 @@ interface AlbumCardProps {
 
 const getStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
-    marginBottom: 12,
-    ...themeUtils.shadowPresets.md,
+    marginBottom: 10,
+    ...themeUtils.shadowPresets.sm,
   },
   card: {
-    borderRadius: themeUtils.borderRadius.lg,
+    borderRadius: themeUtils.borderRadius.md,
     overflow: 'hidden',
     backgroundColor: colors.surface,
-    borderColor: colors.accentBorder25,
-    borderWidth: 0.5,
   },
   gradient: {
     padding: themeUtils.spacing.md,
@@ -45,32 +43,29 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
   },
   albumArtContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: themeUtils.borderRadius.md,
+    width: 68,
+    height: 68,
+    borderRadius: themeUtils.borderRadius.sm,
     backgroundColor: colors.surfaceMid,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: themeUtils.spacing.md,
-    borderColor: colors.accentBorder25,
-    borderWidth: 0.5,
-    ...themeUtils.shadowPresets.sm,
   },
   albumArtIcon: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   contentContainer: {
     flex: 1,
   },
   title: {
     fontSize: themeUtils.fontSize.lg,
-    fontWeight: '800',
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 4,
   },
   artist: {
     fontSize: themeUtils.fontSize.sm,
-    fontWeight: '500',
+    fontWeight: '400',
     color: colors.textSecondary,
     marginBottom: themeUtils.spacing.md,
   },
@@ -89,7 +84,7 @@ const getStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   statValue: {
     fontSize: themeUtils.fontSize.xs,
-    fontWeight: '600',
+    fontWeight: '500',
     color: colors.accent,
   },
 });

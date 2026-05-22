@@ -211,6 +211,7 @@ public class AiMusicJobServiceImpl implements AiMusicJobService {
 
         if (StringUtils.hasText(state.getDraftSongId())) {
             Song song = songRepository.findById(UUID.fromString(state.getDraftSongId()))
+                    .or(() -> songRepository.findByAiJobIdAndOwnerUserId(jobId, userId))
                     .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
             if (!song.getOwnerUserId().equals(userId)) {
                 throw new AppException(ErrorCode.UNAUTHORIZED);
@@ -274,6 +275,7 @@ public class AiMusicJobServiceImpl implements AiMusicJobService {
             throw new AppException(ErrorCode.AI_MUSIC_JOB_INVALID_STATE);
         }
         Song song = songRepository.findById(UUID.fromString(state.getDraftSongId()))
+                .or(() -> songRepository.findByAiJobIdAndOwnerUserId(jobId, userId))
                 .orElseThrow(() -> new AppException(ErrorCode.SONG_NOT_FOUND));
         if (!song.getOwnerUserId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);

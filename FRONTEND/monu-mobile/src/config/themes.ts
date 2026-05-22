@@ -1,8 +1,8 @@
 /**
  * ─────────────────────────────────────────────────────────────────────────────
  * Monu – Theme System
- * Multiple cohesive themes with intentional color choices reflecting Monu's
- * identity and user preferences. Each theme is a complete color system.
+ * Minimalist design with neutral backgrounds and strategic accent colors.
+ * Each theme is a complete, cohesive color system.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -39,7 +39,7 @@ export interface ThemeColors {
   warning: string;
   info: string;
 
-  // Gradients (for hero sections and cards)
+  // Gradients (minimal use)
   gradViolet: string;
   gradPurple: string;
   gradIndigo: string;
@@ -70,32 +70,32 @@ export interface ThemeColors {
 }
 
 /**
- * Dark theme – Monu's signature identity
- * Purple/lavender palette with sophisticated depth
+ * Minimalist theme – Clean, modern, elegant
+ * Neutral grays with blue accent for a sophisticated, distraction-free experience
  */
 export const darkTheme: ThemeColors = {
-  // Primary app colors
-  bg: '#05050A',
-  surface: '#130F24',
-  surfaceLow: '#0C0A18',
-  surfaceMid: '#1C1636',
-  surfaceDim: '#29204A',
+  // Primary app colors – clean neutrals
+  bg: '#0F0F0F',
+  surface: '#1A1A1A',
+  surfaceLow: '#161616',
+  surfaceMid: '#242424',
+  surfaceDim: '#303030',
 
-  // Text colors
+  // Text colors – clear hierarchy
   text: '#FFFFFF',
-  textSecondary: '#B8B8C8',
-  muted: '#7B7B8F',
+  textSecondary: '#999999',
+  muted: '#666666',
 
-  // Accent/brand colors – purple as primary identity
-  accent: '#A78BFA',
-  accentFill20: 'rgba(167, 139, 250, 0.20)',
-  accentFill35: 'rgba(167, 139, 250, 0.35)',
-  accentBorder25: 'rgba(167, 139, 250, 0.25)',
-  accentBorder35: 'rgba(167, 139, 250, 0.35)',
+  // Accent/brand colors – slate blue for music
+  accent: '#5B7FD4',
+  accentFill20: 'rgba(91, 127, 212, 0.20)',
+  accentFill35: 'rgba(91, 127, 212, 0.35)',
+  accentBorder25: 'rgba(91, 127, 212, 0.25)',
+  accentBorder35: 'rgba(91, 127, 212, 0.35)',
 
   // Borders and dividers
-  border: '#3B3B50',
-  divider: '#2D2D40',
+  border: '#2A2A2A',
+  divider: '#1F1F1F',
 
   // Status colors
   success: '#10B981',
@@ -103,309 +103,61 @@ export const darkTheme: ThemeColors = {
   warning: '#F59E0B',
   info: '#3B82F6',
 
-  // Gradients
-  gradViolet: '#1a0533',
-  gradPurple: '#2D1B69',
-  gradIndigo: '#1a0f3d',
-  gradNavy: '#0f1a3d',
-  gradDark: '#0D0D14',
+  // Gradients – minimal, subtle
+  gradViolet: '#161616',
+  gradPurple: '#1A1A1A',
+  gradIndigo: '#161616',
+  gradNavy: '#0F0F0F',
+  gradDark: '#0F0F0F',
 
-  // Card gradients
-  cardHealingFrom: '#2D0C5C',
-  cardTrendingFrom: '#5C2C0C',
-  cardTrendingTo: '#8B2C0C',
-  cardAcousticFrom: '#1C3C0F',
-  cardAcousticTo: '#2C5C1C',
-  cardLofiFrom: '#0C2C5C',
-  cardLofiTo: '#0C4C8B',
+  // Card gradients – simplified
+  cardHealingFrom: '#1F1F1F',
+  cardTrendingFrom: '#242424',
+  cardTrendingTo: '#242424',
+  cardAcousticFrom: '#161616',
+  cardAcousticTo: '#1A1A1A',
+  cardLofiFrom: '#161616',
+  cardLofiTo: '#1A1A1A',
 
   // Extended
-  surfaceVariant: '#332D52',
-  accentAlt: '#C4ADFC',
+  surfaceVariant: '#282828',
+  accentAlt: '#7B9FE8',
   glass07: 'rgba(255,255,255,0.07)',
   glass15: 'rgba(255,255,255,0.15)',
 
   // Legacy
   white: '#FFFFFF',
-  accentTint8: 'rgba(167, 139, 250, 0.08)',
-  accentLowTint: 'rgba(167, 139, 250, 0.12)',
+  accentTint8: 'rgba(91, 127, 212, 0.08)',
+  accentLowTint: 'rgba(91, 127, 212, 0.12)',
 };
 
 /**
  * Classic theme – AMOLED with warm accents
- * Deep blacks with golden/orange highlights for premium feel
+ * Pure blacks with golden highlights for premium, minimal feel
  */
 export const classicTheme: ThemeColors = {
   // Primary app colors
   bg: '#000000',
-  surface: '#1A1A1A',
-  surfaceLow: '#121212',
-  surfaceMid: '#242424',
-  surfaceDim: '#2D2D2D',
+  surface: '#121212',
+  surfaceLow: '#0A0A0A',
+  surfaceMid: '#1A1A1A',
+  surfaceDim: '#262626',
 
   // Text colors
   text: '#FFFFFF',
-  textSecondary: '#B3B3B3',
-  muted: '#757575',
+  textSecondary: '#999999',
+  muted: '#666666',
 
-  // Accent/brand colors – golden/orange for classic feel
-  accent: '#FFA500',
-  accentFill20: 'rgba(255, 165, 0, 0.20)',
-  accentFill35: 'rgba(255, 165, 0, 0.35)',
-  accentBorder25: 'rgba(255, 165, 0, 0.25)',
-  accentBorder35: 'rgba(255, 165, 0, 0.35)',
-
-  // Borders and dividers
-  border: '#303030',
-  divider: '#212121',
-
-  // Status colors
-  success: '#4ADE80',
-  error: '#FF5555',
-  warning: '#FFB84D',
-  info: '#60A5FA',
-
-  // Gradients
-  gradViolet: '#1A0F2E',
-  gradPurple: '#2D1B4A',
-  gradIndigo: '#1A0F3D',
-  gradNavy: '#0F1A3D',
-  gradDark: '#000000',
-
-  // Card gradients
-  cardHealingFrom: '#1F0F3A',
-  cardTrendingFrom: '#3D1F0F',
-  cardTrendingTo: '#5C2C0C',
-  cardAcousticFrom: '#0F3A1F',
-  cardAcousticTo: '#1F4A2F',
-  cardLofiFrom: '#0F1F3D',
-  cardLofiTo: '#0F3A5C',
-
-  // Extended
-  surfaceVariant: '#383838',
-  accentAlt: '#FFB833',
-  glass07: 'rgba(255,255,255,0.07)',
-  glass15: 'rgba(255,255,255,0.15)',
-
-  // Legacy
-  white: '#FFFFFF',
-  accentTint8: 'rgba(255, 165, 0, 0.08)',
-  accentLowTint: 'rgba(255, 165, 0, 0.12)',
-};
-
-/**
- * Sunset theme – Warm, luxurious palette with deep oranges and golds
- * Perfect for users who want a warm, sophisticated aesthetic
- */
-export const sunsetTheme: ThemeColors = {
-  // Primary app colors
-  bg: '#0F0805',
-  surface: '#2B1F15',
-  surfaceLow: '#1E1410',
-  surfaceMid: '#3A2B1F',
-  surfaceDim: '#4A3A2A',
-
-  // Text colors
-  text: '#FFF8F0',
-  textSecondary: '#D4A574',
-  muted: '#996633',
-
-  // Accent/brand colors – deep orange/gold for luxury
-  accent: '#FF8C42',
-  accentFill20: 'rgba(255, 140, 66, 0.20)',
-  accentFill35: 'rgba(255, 140, 66, 0.35)',
-  accentBorder25: 'rgba(255, 140, 66, 0.25)',
-  accentBorder35: 'rgba(255, 140, 66, 0.35)',
+  // Accent/brand colors – warm gold
+  accent: '#D4A574',
+  accentFill20: 'rgba(212, 165, 116, 0.20)',
+  accentFill35: 'rgba(212, 165, 116, 0.35)',
+  accentBorder25: 'rgba(212, 165, 116, 0.25)',
+  accentBorder35: 'rgba(212, 165, 116, 0.35)',
 
   // Borders and dividers
-  border: '#4A3A2A',
-  divider: '#2B1F15',
-
-  // Status colors
-  success: '#4ADE80',
-  error: '#FF6B6B',
-  warning: '#FFB84D',
-  info: '#60A5FA',
-
-  // Gradients
-  gradViolet: '#3D1F0F',
-  gradPurple: '#5C2C0C',
-  gradIndigo: '#4A2D15',
-  gradNavy: '#2D1F0F',
-  gradDark: '#0F0805',
-
-  // Card gradients
-  cardHealingFrom: '#4A2D15',
-  cardTrendingFrom: '#6B3A1F',
-  cardTrendingTo: '#8B5C3A',
-  cardAcousticFrom: '#2D4A1F',
-  cardAcousticTo: '#3A6B2D',
-  cardLofiFrom: '#1F3A5C',
-  cardLofiTo: '#2D5C8B',
-
-  // Extended
-  surfaceVariant: '#5A4A3A',
-  accentAlt: '#FFAA65',
-  glass07: 'rgba(255,255,255,0.07)',
-  glass15: 'rgba(255,255,255,0.15)',
-
-  // Legacy
-  white: '#FFFFFF',
-  accentTint8: 'rgba(255, 140, 66, 0.08)',
-  accentLowTint: 'rgba(255, 140, 66, 0.12)',
-};
-
-/**
- * Ocean theme – Cool, modern palette with deep blues and teals
- * Perfect for users who prefer a tech-forward, sleek aesthetic
- */
-export const oceanTheme: ThemeColors = {
-  // Primary app colors
-  bg: '#050F1F',
-  surface: '#0F2340',
-  surfaceLow: '#081833',
-  surfaceMid: '#1A3A5C',
-  surfaceDim: '#2A4A7A',
-
-  // Text colors
-  text: '#E8F4FF',
-  textSecondary: '#7AAFFF',
-  muted: '#4A7099',
-
-  // Accent/brand colors – bright cyan for modern tech feel
-  accent: '#00D9FF',
-  accentFill20: 'rgba(0, 217, 255, 0.20)',
-  accentFill35: 'rgba(0, 217, 255, 0.35)',
-  accentBorder25: 'rgba(0, 217, 255, 0.25)',
-  accentBorder35: 'rgba(0, 217, 255, 0.35)',
-
-  // Borders and dividers
-  border: '#1A3A5C',
-  divider: '#0F2340',
-
-  // Status colors
-  success: '#4ADE80',
-  error: '#FF6B6B',
-  warning: '#FFB84D',
-  info: '#60A5FA',
-
-  // Gradients
-  gradViolet: '#0F2B5C',
-  gradPurple: '#1A3A7A',
-  gradIndigo: '#081833',
-  gradNavy: '#050F1F',
-  gradDark: '#000814',
-
-  // Card gradients
-  cardHealingFrom: '#0F2B5C',
-  cardTrendingFrom: '#1A3A5C',
-  cardTrendingTo: '#2D5C8B',
-  cardAcousticFrom: '#0F4A2A',
-  cardAcousticTo: '#1A6B4A',
-  cardLofiFrom: '#0F2B5C',
-  cardLofiTo: '#0F4A8B',
-
-  // Extended
-  surfaceVariant: '#3A5A8B',
-  accentAlt: '#33E5FF',
-  glass07: 'rgba(255,255,255,0.07)',
-  glass15: 'rgba(255,255,255,0.15)',
-
-  // Legacy
-  white: '#FFFFFF',
-  accentTint8: 'rgba(0, 217, 255, 0.08)',
-  accentLowTint: 'rgba(0, 217, 255, 0.12)',
-};
-
-/**
- * Neon Gen Z theme – High contrast, vibrant palette
- * Perfect for users who want bold, eye-catching aesthetics with luxury touches
- */
-export const neonGenTheme: ThemeColors = {
-  // Primary app colors
-  bg: '#030008',
-  surface: '#140828',
-  surfaceLow: '#0A0314',
-  surfaceMid: '#1F0B40',
-  surfaceDim: '#2D125C',
-
-  // Text colors
-  text: '#FFFFFF',
-  textSecondary: '#DA70FF',
-  muted: '#8B5FA8',
-
-  // Accent/brand colors – vibrant magenta for Gen Z vibe
-  accent: '#FF006E',
-  accentFill20: 'rgba(255, 0, 110, 0.20)',
-  accentFill35: 'rgba(255, 0, 110, 0.35)',
-  accentBorder25: 'rgba(255, 0, 110, 0.25)',
-  accentBorder35: 'rgba(255, 0, 110, 0.35)',
-
-  // Borders and dividers
-  border: '#3A2F57',
-  divider: '#1A0F33',
-
-  // Status colors
-  success: '#00FF88',
-  error: '#FF0050',
-  warning: '#FFD600',
-  info: '#00FFFF',
-
-  // Gradients
-  gradViolet: '#2A0F4A',
-  gradPurple: '#4A1F7A',
-  gradIndigo: '#1A0F4A',
-  gradNavy: '#0A0F3A',
-  gradDark: '#0A0014',
-
-  // Card gradients
-  cardHealingFrom: '#4A1F7A',
-  cardTrendingFrom: '#6B0F3A',
-  cardTrendingTo: '#8B2F5A',
-  cardAcousticFrom: '#0F4A2A',
-  cardAcousticTo: '#1A7B4A',
-  cardLofiFrom: '#0F2F7A',
-  cardLofiTo: '#1F5FAB',
-
-  // Extended
-  surfaceVariant: '#3D1E6D',
-  accentAlt: '#FF4D8D',
-  glass07: 'rgba(255,255,255,0.07)',
-  glass15: 'rgba(255,255,255,0.15)',
-
-  // Legacy
-  white: '#FFFFFF',
-  accentTint8: 'rgba(255, 0, 110, 0.08)',
-  accentLowTint: 'rgba(255, 0, 110, 0.12)',
-};
-
-/**
- * Neon Curator theme – The latest aesthetic from HomeScreen
- * Deep purple background with vibrant lavender accents and neon glass effects
- */
-export const neonCuratorTheme: ThemeColors = {
-  // Primary app colors
-  bg: '#0D0D14',
-  surface: '#1E1A38',
-  surfaceLow: '#16132A',
-  surfaceMid: '#2A2A3A',
-  surfaceDim: '#333333',
-
-  // Text colors
-  text: '#FFFFFF',
-  textSecondary: '#DA70FF',
-  muted: '#8B5FA8',
-
-  // Accent/brand colors
-  accent: '#C084FC',
-  accentFill20: 'rgba(109,40,217,0.20)',
-  accentFill35: 'rgba(109,40,217,0.35)',
-  accentBorder25: 'rgba(139,92,246,0.25)',
-  accentBorder35: 'rgba(139,92,246,0.35)',
-
-  // Borders and dividers
-  border: '#3B3B50',
-  divider: '#2D2D40',
+  border: '#242424',
+  divider: '#151515',
 
   // Status colors
   success: '#10B981',
@@ -413,94 +165,342 @@ export const neonCuratorTheme: ThemeColors = {
   warning: '#F59E0B',
   info: '#3B82F6',
 
-  // Gradients
-  gradViolet: '#1a0533',
-  gradPurple: '#2D1B69',
-  gradIndigo: '#1a0f3d',
-  gradNavy: '#0f1a3d',
-  gradDark: '#0D0D14',
+  // Gradients – minimal
+  gradViolet: '#0A0A0A',
+  gradPurple: '#121212',
+  gradIndigo: '#0A0A0A',
+  gradNavy: '#000000',
+  gradDark: '#000000',
 
   // Card gradients
-  cardHealingFrom: '#2D0C5C',
-  cardTrendingFrom: '#1a1040',
-  cardTrendingTo: '#2D1B69',
-  cardAcousticFrom: '#1C1636',
-  cardAcousticTo: '#2D1B69',
-  cardLofiFrom: '#1a1040',
-  cardLofiTo: '#2D1B69',
+  cardHealingFrom: '#121212',
+  cardTrendingFrom: '#1A1A1A',
+  cardTrendingTo: '#1A1A1A',
+  cardAcousticFrom: '#0F1F0F',
+  cardAcousticTo: '#151515',
+  cardLofiFrom: '#0A1A1A',
+  cardLofiTo: '#101A1A',
 
   // Extended
-  surfaceVariant: '#403D54',
-  accentAlt: '#D4AEFD',
+  surfaceVariant: '#202020',
+  accentAlt: '#E8C9A0',
   glass07: 'rgba(255,255,255,0.07)',
   glass15: 'rgba(255,255,255,0.15)',
 
   // Legacy
   white: '#FFFFFF',
-  accentTint8: 'rgba(192, 132, 252, 0.08)',
-  accentLowTint: 'rgba(192, 132, 252, 0.12)',
+  accentTint8: 'rgba(212, 165, 116, 0.08)',
+  accentLowTint: 'rgba(212, 165, 116, 0.12)',
 };
 
 /**
- * Neon Pulse theme – Spotify x SoundCloud Hybrid
- * Deep dark background with electric orange and vibrant accents for high energy
+ * Sunset theme – Warm, minimalist palette with subtle gold accents
+ * For users who want warmth with sophisticated simplicity
  */
-export const neonPulseTheme: ThemeColors = {
+export const sunsetTheme: ThemeColors = {
   // Primary app colors
-  bg: '#0A0A0C', 
-  surface: '#121216',
-  surfaceLow: '#0D0D10',
-  surfaceMid: '#18181D',
-  surfaceDim: '#202026',
+  bg: '#0F0F0F',
+  surface: '#1A1A1A',
+  surfaceLow: '#161616',
+  surfaceMid: '#242424',
+  surfaceDim: '#303030',
 
   // Text colors
   text: '#FFFFFF',
-  textSecondary: '#A0A0A0',
-  muted: '#6B6B6B',
+  textSecondary: '#999999',
+  muted: '#666666',
 
-  // Accent/brand colors – Electric Orange
-  accent: '#FF4500',
-  accentFill20: 'rgba(255, 69, 0, 0.20)',
-  accentFill35: 'rgba(255, 69, 0, 0.35)',
-  accentBorder25: 'rgba(255, 69, 0, 0.25)',
-  accentBorder35: 'rgba(255, 69, 0, 0.35)',
+  // Accent/brand colors – warm copper
+  accent: '#C9915F',
+  accentFill20: 'rgba(201, 145, 95, 0.20)',
+  accentFill35: 'rgba(201, 145, 95, 0.35)',
+  accentBorder25: 'rgba(201, 145, 95, 0.25)',
+  accentBorder35: 'rgba(201, 145, 95, 0.35)',
 
   // Borders and dividers
-  border: '#1E1E24',
-  divider: '#141418',
+  border: '#2A2A2A',
+  divider: '#1F1F1F',
 
   // Status colors
-  success: '#1DB954',
-  error: '#FF0033',
-  warning: '#FFB800',
-  info: '#00E5FF',
+  success: '#10B981',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  info: '#3B82F6',
 
-  // Gradients
-  gradViolet: '#110502',
-  gradPurple: '#220803',
-  gradIndigo: '#1A0E0B',
-  gradNavy: '#0F121C',
-  gradDark: '#0A0A0C',
+  // Gradients – minimal
+  gradViolet: '#161616',
+  gradPurple: '#1A1A1A',
+  gradIndigo: '#161616',
+  gradNavy: '#0F0F0F',
+  gradDark: '#0F0F0F',
 
   // Card gradients
-  cardHealingFrom: '#4A1208',
-  cardTrendingFrom: '#FF4500', 
-  cardTrendingTo: '#B32D00',
-  cardAcousticFrom: '#0A2616',  
-  cardAcousticTo: '#103F25',
-  cardLofiFrom: '#061D2B',
-  cardLofiTo: '#0B344D',
+  cardHealingFrom: '#1F1F1F',
+  cardTrendingFrom: '#242424',
+  cardTrendingTo: '#242424',
+  cardAcousticFrom: '#161616',
+  cardAcousticTo: '#1A1A1A',
+  cardLofiFrom: '#161616',
+  cardLofiTo: '#1A1A1A',
 
   // Extended
-  surfaceVariant: '#2A2A35',
-  accentAlt: '#FF7733',
+  surfaceVariant: '#282828',
+  accentAlt: '#E0A580',
   glass07: 'rgba(255,255,255,0.07)',
   glass15: 'rgba(255,255,255,0.15)',
 
   // Legacy
   white: '#FFFFFF',
-  accentTint8: 'rgba(255, 69, 0, 0.08)',
-  accentLowTint: 'rgba(255, 69, 0, 0.12)',
+  accentTint8: 'rgba(201, 145, 95, 0.08)',
+  accentLowTint: 'rgba(201, 145, 95, 0.12)',
+};
+
+/**
+ * Ocean theme – Cool, clean palette with subtle blue accents
+ * For users who prefer a tech-forward, minimalist aesthetic
+ */
+export const oceanTheme: ThemeColors = {
+  // Primary app colors
+  bg: '#0F0F0F',
+  surface: '#1A1A1A',
+  surfaceLow: '#161616',
+  surfaceMid: '#242424',
+  surfaceDim: '#303030',
+
+  // Text colors
+  text: '#FFFFFF',
+  textSecondary: '#999999',
+  muted: '#666666',
+
+  // Accent/brand colors – cool cyan
+  accent: '#4FA3D1',
+  accentFill20: 'rgba(79, 163, 209, 0.20)',
+  accentFill35: 'rgba(79, 163, 209, 0.35)',
+  accentBorder25: 'rgba(79, 163, 209, 0.25)',
+  accentBorder35: 'rgba(79, 163, 209, 0.35)',
+
+  // Borders and dividers
+  border: '#2A2A2A',
+  divider: '#1F1F1F',
+
+  // Status colors
+  success: '#10B981',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  info: '#3B82F6',
+
+  // Gradients – minimal
+  gradViolet: '#161616',
+  gradPurple: '#1A1A1A',
+  gradIndigo: '#161616',
+  gradNavy: '#0F0F0F',
+  gradDark: '#0F0F0F',
+
+  // Card gradients
+  cardHealingFrom: '#1F1F1F',
+  cardTrendingFrom: '#242424',
+  cardTrendingTo: '#242424',
+  cardAcousticFrom: '#161616',
+  cardAcousticTo: '#1A1A1A',
+  cardLofiFrom: '#161616',
+  cardLofiTo: '#1A1A1A',
+
+  // Extended
+  surfaceVariant: '#282828',
+  accentAlt: '#6CB8E0',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
+
+  // Legacy
+  white: '#FFFFFF',
+  accentTint8: 'rgba(79, 163, 209, 0.08)',
+  accentLowTint: 'rgba(79, 163, 209, 0.12)',
+};
+
+/**
+ * Neon Gen Z theme – Minimalist with vibrant accent
+ * For users who want a pop of color with clean design
+ */
+export const neonGenTheme: ThemeColors = {
+  // Primary app colors
+  bg: '#0F0F0F',
+  surface: '#1A1A1A',
+  surfaceLow: '#161616',
+  surfaceMid: '#242424',
+  surfaceDim: '#303030',
+
+  // Text colors
+  text: '#FFFFFF',
+  textSecondary: '#999999',
+  muted: '#666666',
+
+  // Accent/brand colors – vibrant magenta
+  accent: '#E63A9D',
+  accentFill20: 'rgba(230, 58, 157, 0.20)',
+  accentFill35: 'rgba(230, 58, 157, 0.35)',
+  accentBorder25: 'rgba(230, 58, 157, 0.25)',
+  accentBorder35: 'rgba(230, 58, 157, 0.35)',
+
+  // Borders and dividers
+  border: '#2A2A2A',
+  divider: '#1F1F1F',
+
+  // Status colors
+  success: '#10B981',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  info: '#3B82F6',
+
+  // Gradients – minimal
+  gradViolet: '#161616',
+  gradPurple: '#1A1A1A',
+  gradIndigo: '#161616',
+  gradNavy: '#0F0F0F',
+  gradDark: '#0F0F0F',
+
+  // Card gradients
+  cardHealingFrom: '#1F1F1F',
+  cardTrendingFrom: '#242424',
+  cardTrendingTo: '#242424',
+  cardAcousticFrom: '#161616',
+  cardAcousticTo: '#1A1A1A',
+  cardLofiFrom: '#161616',
+  cardLofiTo: '#1A1A1A',
+
+  // Extended
+  surfaceVariant: '#282828',
+  accentAlt: '#F058B1',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
+
+  // Legacy
+  white: '#FFFFFF',
+  accentTint8: 'rgba(230, 58, 157, 0.08)',
+  accentLowTint: 'rgba(230, 58, 157, 0.12)',
+};
+
+/**
+ * Neon Curator theme – Minimalist with purple accent
+ * Clean aesthetic with elegant purple highlights for curation focus
+ */
+export const neonCuratorTheme: ThemeColors = {
+  // Primary app colors
+  bg: '#0F0F0F',
+  surface: '#1A1A1A',
+  surfaceLow: '#161616',
+  surfaceMid: '#242424',
+  surfaceDim: '#303030',
+
+  // Text colors
+  text: '#FFFFFF',
+  textSecondary: '#999999',
+  muted: '#666666',
+
+  // Accent/brand colors – purple
+  accent: '#8B5FBD',
+  accentFill20: 'rgba(139, 95, 189, 0.20)',
+  accentFill35: 'rgba(139, 95, 189, 0.35)',
+  accentBorder25: 'rgba(139, 95, 189, 0.25)',
+  accentBorder35: 'rgba(139, 95, 189, 0.35)',
+
+  // Borders and dividers
+  border: '#2A2A2A',
+  divider: '#1F1F1F',
+
+  // Status colors
+  success: '#10B981',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  info: '#3B82F6',
+
+  // Gradients – minimal
+  gradViolet: '#161616',
+  gradPurple: '#1A1A1A',
+  gradIndigo: '#161616',
+  gradNavy: '#0F0F0F',
+  gradDark: '#0F0F0F',
+
+  // Card gradients
+  cardHealingFrom: '#1F1F1F',
+  cardTrendingFrom: '#242424',
+  cardTrendingTo: '#242424',
+  cardAcousticFrom: '#161616',
+  cardAcousticTo: '#1A1A1A',
+  cardLofiFrom: '#161616',
+  cardLofiTo: '#1A1A1A',
+
+  // Extended
+  surfaceVariant: '#282828',
+  accentAlt: '#A879D4',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
+
+  // Legacy
+  white: '#FFFFFF',
+  accentTint8: 'rgba(139, 95, 189, 0.08)',
+  accentLowTint: 'rgba(139, 95, 189, 0.12)',
+};
+
+/**
+ * Neon Pulse theme – Minimal with energetic orange accent
+ * Clean design with warm, energetic highlights for dynamic listening
+ */
+export const neonPulseTheme: ThemeColors = {
+  // Primary app colors
+  bg: '#0F0F0F',
+  surface: '#1A1A1A',
+  surfaceLow: '#161616',
+  surfaceMid: '#242424',
+  surfaceDim: '#303030',
+
+  // Text colors
+  text: '#FFFFFF',
+  textSecondary: '#999999',
+  muted: '#666666',
+
+  // Accent/brand colors – warm orange
+  accent: '#D97706',
+  accentFill20: 'rgba(217, 119, 6, 0.20)',
+  accentFill35: 'rgba(217, 119, 6, 0.35)',
+  accentBorder25: 'rgba(217, 119, 6, 0.25)',
+  accentBorder35: 'rgba(217, 119, 6, 0.35)',
+
+  // Borders and dividers
+  border: '#2A2A2A',
+  divider: '#1F1F1F',
+
+  // Status colors
+  success: '#10B981',
+  error: '#EF4444',
+  warning: '#F59E0B',
+  info: '#3B82F6',
+
+  // Gradients – minimal
+  gradViolet: '#161616',
+  gradPurple: '#1A1A1A',
+  gradIndigo: '#161616',
+  gradNavy: '#0F0F0F',
+  gradDark: '#0F0F0F',
+
+  // Card gradients
+  cardHealingFrom: '#1F1F1F',
+  cardTrendingFrom: '#242424',
+  cardTrendingTo: '#242424',
+  cardAcousticFrom: '#161616',
+  cardAcousticTo: '#1A1A1A',
+  cardLofiFrom: '#161616',
+  cardLofiTo: '#1A1A1A',
+
+  // Extended
+  surfaceVariant: '#282828',
+  accentAlt: '#F59E0B',
+  glass07: 'rgba(255,255,255,0.07)',
+  glass15: 'rgba(255,255,255,0.15)',
+
+  // Legacy
+  white: '#FFFFFF',
+  accentTint8: 'rgba(217, 119, 6, 0.08)',
+  accentLowTint: 'rgba(217, 119, 6, 0.12)',
 };
 
 /**
