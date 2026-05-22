@@ -41,6 +41,8 @@ public class SongResponse {
     /** URL stream HLS (chỉ có khi getStreamUrl) */
     private String streamUrl;
 
+    private String lyricUrl;
+
     private String sourceType;
     private String soundcloudPermalink;
     private String soundcloudUsername;
