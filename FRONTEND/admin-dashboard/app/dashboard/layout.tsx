@@ -95,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             <LogoIcon size={40} />
                             <div className="min-w-0">
                                 <p className="text-[13px] font-semibold tracking-tight text-slate-900 dark:text-slate-100 leading-none">
-                                    Phazel Sound
+                                    Trạm Cảm Xúc
                                 </p>
                                 <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1 font-medium">
                                     Bảng quản trị
